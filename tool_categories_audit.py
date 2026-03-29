@@ -19,13 +19,9 @@ import argparse
 from pathlib import Path
 
 # Configuration chemin
-import os
-if os.environ.get('COMPTA_MODE') == 'prod':
-    BASE_DIR = Path.home() / 'Compta'
-else:
-    BASE_DIR = Path.home() / 'Compta' / 'Claude'
-
-sys.path.insert(0, str(BASE_DIR))
+sys.path.insert(0, str(Path(__file__).parent))
+import inc_mode
+BASE_DIR = inc_mode.get_base_dir()
 
 import json
 import openpyxl
