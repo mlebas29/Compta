@@ -4,7 +4,6 @@ cpt_fetch_XMR.py - Récupération automatique des wallets Monero
 
 Prérequis:
 - monero-wallet-cli installé
-- Variable d'environnement COMPTA_MODE (test ou prod)
 - Wallets déjà créés/restaurés dans Monero GUI
 
 Usage:

@@ -4,12 +4,10 @@ Module de détection du mode COMPTA (dev, prod, export)
 
 Logique de détection :
 1. Si config.ini contient mode= dans [general] → utiliser cette valeur
-2. Sinon, variable d'environnement COMPTA_MODE
-3. Sinon, détection depuis le PATH du script (rétrocompatibilité)
+2. Sinon, détection depuis le PATH du script (rétrocompatibilité)
 """
 
 import configparser
-import os
 import sys
 from pathlib import Path
 
@@ -68,8 +66,7 @@ def get_mode(verbose=False, config_path=None):
 
     Priorité :
     1. config.ini [general] mode=
-    2. Variable d'environnement COMPTA_MODE
-    3. Détection depuis PATH (rétrocompatibilité)
+    2. Détection depuis PATH (rétrocompatibilité)
 
     Returns:
         str: 'dev', 'prod' ou 'export'
@@ -81,14 +78,7 @@ def get_mode(verbose=False, config_path=None):
             print(f"Mode: {mode} (depuis config.ini)", file=sys.stderr)
         return mode
 
-    # 2. Variable d'environnement
-    env_mode = os.environ.get('COMPTA_MODE', '').lower()
-    if env_mode in VALID_MODES:
-        if verbose:
-            print(f"Mode: {env_mode} (depuis COMPTA_MODE)", file=sys.stderr)
-        return env_mode
-
-    # 3. Détection PATH
+    # 2. Détection PATH
     detected = detect_mode_from_path()
     if verbose:
         print(f"Mode: {detected} (détection automatique)", file=sys.stderr)
@@ -123,21 +113,18 @@ def verify_environment(verbose=True):
     """
     mode = get_mode(verbose=False)
     base_dir = get_base_dir(mode)
-    env_mode = os.environ.get('COMPTA_MODE', '(non définie)')
 
     info = {
         'mode': mode,
         'base_dir': base_dir,
-        'env_mode': env_mode,
     }
 
     if verbose:
         print("=" * 60)
         print("ENVIRONNEMENT COMPTA")
         print("=" * 60)
-        print(f"Variable COMPTA_MODE: {env_mode}")
-        print(f"Mode effectif: {mode}")
-        print(f"Répertoire de base: {base_dir}")
+        print(f"Mode: {mode}")
+        print(f"Répertoire: {base_dir}")
         print("=" * 60)
 
     return info

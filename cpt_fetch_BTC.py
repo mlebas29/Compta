@@ -4,7 +4,6 @@ cpt_fetch_BTC.py - Récupération automatique des wallets Bitcoin
 
 Prérequis:
 - pip3 install requests
-- Variable d'environnement COMPTA_MODE (test ou prod)
 
 Usage:
   ./cpt_fetch_BTC.py
