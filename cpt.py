@@ -435,8 +435,8 @@ def do_push(force=False):
 
     # Sécurité : bloquer le push depuis l'environnement TEST
     mode = inc_mode.get_mode()
-    if mode == 'test':
-        logger.error("❌ Push interdit depuis l'environnement TEST (~/Compta/Claude)")
+    if mode == 'dev':
+        logger.error("❌ Push interdit depuis l'environnement DEV")
         logger.error("   Déployer d'abord vers PROD : tool_deploy.py --to-prod")
         logger.error("   Puis lancer le push depuis ~/Compta")
         sys.exit(1)

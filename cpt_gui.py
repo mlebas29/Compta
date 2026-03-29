@@ -245,16 +245,16 @@ class ConfigGUI(AccountsMixin, CategoriesMixin, DevisesMixin,
         self.config_raw, self.config = read_config_raw(self.config_path)
         self.mappings = read_mappings_json(self.json_path)
 
-        # Détecter le mode PROD/TEST/EXPORT
-        self.mode = inc_mode.detect_mode_from_path(self.config_path.parent)
+        # Détecter le mode depuis config.ini
+        self.mode = inc_mode.get_mode(config_path=self.config_path)
 
         # Couleurs selon le mode
         _MODE_THEMES = {
             'prod':   ('PROD',   '#b91c1c', '#ffffff', '#fef2f2', 'cpt_gui_prod'),
             'export': ('EX',     '#ca8a04', '#ffffff', '#fefce8', 'cpt_gui_export'),
-            'test':   ('TEST',   '#1d4ed8', '#ffffff', '#eff6ff', 'cpt_gui'),
+            'dev':    ('DEV',    '#1d4ed8', '#ffffff', '#eff6ff', 'cpt_gui'),
         }
-        label, bg, fg, accent, wm_class = _MODE_THEMES.get(self.mode, _MODE_THEMES['test'])
+        label, bg, fg, accent, wm_class = _MODE_THEMES.get(self.mode, _MODE_THEMES['dev'])
         self._mode_label = label
         self._mode_bg = bg
         self._mode_fg = fg

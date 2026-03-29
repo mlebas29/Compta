@@ -1,122 +1,103 @@
 #!/usr/bin/env python3
 """
-Module de détection et vérification du mode COMPTA (TEST ou PROD)
+Module de détection du mode COMPTA (dev, prod, export)
 
 Logique de détection :
-1. Si COMPTA_MODE définie → utiliser cette valeur
-2. Sinon, détecter depuis le PATH du script :
-   - ~/Compta/Claude → mode TEST
-   - ~/Compta → mode PROD
-
-Vérification de cohérence :
-- Si COMPTA_MODE=prod mais PATH contient "Claude" → Erreur
-- Si COMPTA_MODE=test mais PATH ne contient pas "Claude" → Avertissement
+1. Si config.ini contient mode= dans [general] → utiliser cette valeur
+2. Sinon, variable d'environnement COMPTA_MODE
+3. Sinon, détection depuis le PATH du script (rétrocompatibilité)
 """
 
+import configparser
 import os
 import sys
 from pathlib import Path
 
-# Variable globale pour éviter d'afficher plusieurs fois le warning Mode TEST
+VALID_MODES = {'dev', 'prod', 'export'}
+
+# Variable globale pour éviter d'afficher plusieurs fois le warning
 _test_warning_shown = False
+
+
+def _read_mode_from_config(config_path=None):
+    """Lit le mode depuis config.ini [general] mode=."""
+    if config_path is None:
+        config_path = Path(sys.argv[0]).resolve().parent / 'config.ini'
+    else:
+        config_path = Path(config_path)
+
+    if not config_path.exists():
+        return None
+
+    config = configparser.ConfigParser()
+    config.read(config_path)
+    mode = config.get('general', 'mode', fallback=None)
+    if mode and mode.strip().lower() in VALID_MODES:
+        return mode.strip().lower()
+    return None
 
 
 def detect_mode_from_path(script_path=None):
     """
-    Détecte le mode depuis le chemin du script
-
-    Args:
-        script_path: Chemin du script (ou None pour détecter automatiquement)
+    Détecte le mode depuis le chemin du script (rétrocompatibilité).
 
     Returns:
-        'prod' si dans ~/Compta, 'test' si dans ~/Compta/Claude
+        'prod' si dans ~/Compta, 'dev' si dans ~/Compta/Claude,
+        'export' si dans ~/Compta/Export
     """
     if script_path is None:
-        # Détecter depuis le script appelant
         script_path = Path(sys.argv[0]).resolve().parent
     else:
         script_path = Path(script_path).resolve()
 
-    # Vérifier si on est dans Claude (TEST), Export ou Compta direct (PROD)
-    # Convertir en string pour une recherche plus fiable
     path_str = str(script_path)
 
     if '/Compta/Claude' in path_str or '\\Compta\\Claude' in path_str:
-        return 'test'
+        return 'dev'
     elif '/Compta/Export' in path_str or '\\Compta\\Export' in path_str:
         return 'export'
     elif '/Compta' in path_str or '\\Compta' in path_str:
         return 'prod'
     else:
-        # Par défaut, si le chemin est inconnu, supposer test
-        return 'test'
+        return 'export'
 
 
-def get_mode(verbose=False):
+def get_mode(verbose=False, config_path=None):
     """
-    Détermine le mode COMPTA avec vérification de cohérence
+    Détermine le mode COMPTA.
 
-    Logique :
-    1. Variable d'environnement COMPTA_MODE (si définie et valide)
-    2. Détection automatique depuis PATH du script
-       - PROD (~/Compta) : transparent, aucun message
-       - TEST (~/Compta/Claude) : avertissement dev si COMPTA_MODE non définie
-
-    Vérification de cohérence :
-    - Erreur bloquante si COMPTA_MODE=prod dans répertoire TEST
+    Priorité :
+    1. config.ini [general] mode=
+    2. Variable d'environnement COMPTA_MODE
+    3. Détection depuis PATH (rétrocompatibilité)
 
     Returns:
-        str: 'prod' ou 'test'
-
-    Raises:
-        SystemExit: Si incohérence critique détectée
+        str: 'dev', 'prod' ou 'export'
     """
-    # Récupérer la variable d'environnement
+    # 1. config.ini
+    mode = _read_mode_from_config(config_path)
+    if mode:
+        if verbose:
+            print(f"Mode: {mode} (depuis config.ini)", file=sys.stderr)
+        return mode
+
+    # 2. Variable d'environnement
     env_mode = os.environ.get('COMPTA_MODE', '').lower()
-
-    # Détecter depuis le PATH
-    path_mode = detect_mode_from_path()
-
-    # Cas 1 : Variable d'environnement définie et valide
-    if env_mode in ['prod', 'test', 'export']:
-        # SÉCURITÉ : Vérifier cohérence avec le PATH
-        if env_mode == 'prod' and path_mode == 'test':
-            print("❌ ERREUR: Incohérence critique détectée !", file=sys.stderr)
-            print(f"   COMPTA_MODE=prod mais script dans répertoire TEST (~/Compta/Claude)", file=sys.stderr)
-            print("", file=sys.stderr)
-            print("Solutions:", file=sys.stderr)
-            print("  1. export COMPTA_MODE=test", file=sys.stderr)
-            print("  2. Ou déployez vers PROD: cd ~/Compta/Claude && ./tool_deploy.py --to-prod", file=sys.stderr)
-            sys.exit(1)
-
-        if env_mode == 'test' and path_mode == 'prod':
-            # Avertissement mineur (dev teste en PROD)
-            if verbose:
-                print("⚠️  COMPTA_MODE=test mais dans répertoire PROD", file=sys.stderr)
-
+    if env_mode in VALID_MODES:
         if verbose:
             print(f"Mode: {env_mode} (depuis COMPTA_MODE)", file=sys.stderr)
-
         return env_mode
 
-    # Cas 2 : Variable non définie → Détection automatique depuis PATH
-    detected_mode = path_mode
-
-    # Mode TEST/PROD détecté automatiquement, pas de message
-    # (l'utilisateur peut vérifier avec `./inc_mode.py -v` si besoin)
-
+    # 3. Détection PATH
+    detected = detect_mode_from_path()
     if verbose:
-        print(f"Mode: {detected_mode} (détection automatique)", file=sys.stderr)
-
-    return detected_mode
+        print(f"Mode: {detected} (détection automatique)", file=sys.stderr)
+    return detected
 
 
 def get_base_dir(mode=None):
     """
-    Retourne le répertoire de base selon le mode
-
-    Args:
-        mode: 'prod' ou 'test' (ou None pour détection automatique)
+    Retourne le répertoire de base selon le mode.
 
     Returns:
         Path: Chemin vers le répertoire de base
@@ -126,15 +107,16 @@ def get_base_dir(mode=None):
 
     if mode == 'prod':
         return Path.home() / 'Compta'
-    elif mode == 'export':
-        return Path.home() / 'Compta' / 'Export'
-    else:
+    elif mode == 'dev':
         return Path.home() / 'Compta' / 'Claude'
+    else:
+        # export ou inconnu : répertoire du script
+        return Path(sys.argv[0]).resolve().parent
 
 
 def verify_environment(verbose=True):
     """
-    Vérifie la cohérence complète de l'environnement
+    Vérifie la cohérence complète de l'environnement.
 
     Returns:
         dict: Informations sur l'environnement
@@ -142,14 +124,11 @@ def verify_environment(verbose=True):
     mode = get_mode(verbose=False)
     base_dir = get_base_dir(mode)
     env_mode = os.environ.get('COMPTA_MODE', '(non définie)')
-    path_mode = detect_mode_from_path()
 
     info = {
         'mode': mode,
         'base_dir': base_dir,
         'env_mode': env_mode,
-        'path_mode': path_mode,
-        'coherent': (env_mode == '(non définie)' or env_mode == mode)
     }
 
     if verbose:
@@ -157,10 +136,8 @@ def verify_environment(verbose=True):
         print("ENVIRONNEMENT COMPTA")
         print("=" * 60)
         print(f"Variable COMPTA_MODE: {env_mode}")
-        print(f"Mode détecté (PATH): {path_mode}")
         print(f"Mode effectif: {mode}")
         print(f"Répertoire de base: {base_dir}")
-        print(f"Cohérence: {'✓ OK' if info['coherent'] else '⚠️  Attention'}")
         print("=" * 60)
 
     return info
@@ -171,15 +148,11 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(
-        description='Détecte et vérifie le mode COMPTA (TEST ou PROD)'
+        description='Détecte et vérifie le mode COMPTA (dev, prod, export)'
     )
     parser.add_argument('-v', '--verbose',
                         action='store_true',
                         help='Affichage détaillé')
 
     args = parser.parse_args()
-
-    info = verify_environment(verbose=True)
-
-    # Code de sortie selon cohérence
-    sys.exit(0 if info['coherent'] else 1)
+    verify_environment(verbose=True)
