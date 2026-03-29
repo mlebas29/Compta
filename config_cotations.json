@@ -1,0 +1,69 @@
+{
+  "XAU": {
+    "famille": "metal",
+    "source1": "yahoo",
+    "decimals": 2
+  },
+  "XAG": {
+    "famille": "metal",
+    "source1": "yahoo",
+    "decimals": 2
+  },
+  "BTC": {
+    "famille": "crypto",
+    "source1": "coingecko",
+    "source2": "kraken",
+    "decimals": 2
+  },
+  "XMR": {
+    "famille": "crypto",
+    "source1": "coingecko",
+    "source2": "kraken",
+    "decimals": 5
+  },
+  "USD": {
+    "famille": "fiat",
+    "source1": "frankfurter",
+    "decimals": 2
+  },
+  "CHF": {
+    "famille": "fiat",
+    "source1": "frankfurter",
+    "decimals": 2
+  },
+  "JPY": {
+    "famille": "fiat",
+    "source1": "frankfurter",
+    "decimals": 0
+  },
+  "SGD": {
+    "famille": "fiat",
+    "source1": "frankfurter",
+    "decimals": 2
+  },
+  "SEK": {
+    "famille": "fiat",
+    "source1": "frankfurter",
+    "decimals": 2
+  },
+  "OrPr": {
+    "famille": "metal",
+    "decimals": 5
+  },
+  "AgPr": {
+    "famille": "metal",
+    "decimals": 5
+  },
+  "SAT": {
+    "famille": "crypto",
+    "decimals": 0
+  },
+  "OrJo": {
+    "famille": "metal",
+    "decimals": 5
+  },
+  "AgJo": {
+    "famille": "metal",
+    "decimals": 5
+  }
+}

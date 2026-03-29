@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Comptabilité [EX]
+Comment=Gestion comptable — version export
+Exec=python3 /home/marc/Compta/Export/cpt_gui.py
+Path=/home/marc/Compta/Export
+Icon=/home/marc/Compta/Export/cpt_gui_export.png
+Terminal=false
+Type=Application
+Categories=Office;Finance;
+StartupWMClass=cpt_gui_export

@@ -1,0 +1,13 @@
+{
+    "linked_operations": {
+        "RETRAIT DAB": {
+            "compte_cible": "Espèces",
+            "description": "Retrait espèces DAB"
+        },
+        "REMBOURSEMENT PRET 70K": {
+            "compte_cible": "Créance Francine",
+            "description": "Remboursement prêt 70K"
+        }
+    },
+    "solde_auto": {}
+}

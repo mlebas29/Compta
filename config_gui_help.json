@@ -1,0 +1,12 @@
+{
+    "Comptes et biens matériels": "Liste des comptes bancaires, placements\net biens matériels (foncier, mobilier).\nClic droit ou double-clic pour modifier.",
+    "Général": "Paramètres globaux : mode debug, rétention des\nsessions archivées, profondeur d'import.",
+    "Appariement": "Réglages de l'appariement automatique des opérations\nentre comptes (virements, transferts).",
+    "Comparaison": "Seuil de variation pour les alertes dans\nla comparaison Plus_value.",
+    "Sites": "Sites de collecte disponibles.\nCocher pour activer.",
+    "Propriétés": "Paramètres du site sélectionné. Les champs\ngrisés sont en lecture seule.",
+    "Postes budgétaires": "Postes de regroupement (Fixe/Variable)\npour les catégories du budget.",
+    "Opérations liées": "Génération automatique d'une opération\ncontrepartie lors de l'import.\nQuand le libellé contient le pattern,\nune opération miroir (montant opposé)\nest créée dans le compte cible.\nEx : RETRAIT DAB → écriture dans Espèces.",
+    "Solde auto": "Génération automatique d'une opération\n#Solde calculée pour les comptes sans\nrelevé bancaire (pas de CSV).\nLe solde est recalculé à chaque import\nà partir des opérations de la catégorie\ntrigger.\nEx : Bijoux Or → solde déduit des\nAchat métaux.",
+    "Statut": "Synthèse de l'état du classeur :\n• Vert : tout est OK\n• Orange : appariements incomplets\n  ou incohérence de configuration\n• Rouge : erreur comptes, catégories ou inconnus\n\nCliquer pour voir le détail dans Résultat.\nMis à jour au démarrage et après chaque opération."
+}

@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Comptabilité [PROD]
+Comment=Gestion comptable — mode production
+Exec=python3 /home/marc/Compta/cpt_gui.py
+Path=/home/marc/Compta
+Icon=/home/marc/Compta/cpt_gui_prod.png
+Terminal=false
+Type=Application
+Categories=Office;Finance;
+StartupWMClass=cpt_gui_prod

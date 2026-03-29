@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+dropbox/
+archives/
+logs/
+*.bak
+*.gpg
+.~lock.*

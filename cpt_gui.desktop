@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Comptabilité [TEST]
+Comment=Gestion comptable — collecte, import et appariement
+Exec=python3 /home/marc/Compta/Claude/cpt_gui.py
+Path=/home/marc/Compta/Claude
+Icon=/home/marc/Compta/Claude/cpt_gui.png
+Terminal=false
+Type=Application
+Categories=Office;Finance;
+StartupWMClass=cpt_gui

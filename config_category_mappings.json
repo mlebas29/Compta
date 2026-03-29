@@ -1,0 +1,735 @@
+{
+    "GENERIC": [
+        {
+            "pattern": "(?i)argent envoyé",
+            "category": "-",
+            "ref": "-"
+        },
+        {
+            "pattern": "(?i)argent reçu",
+            "category": "-",
+            "ref": "-"
+        },
+        {
+            "pattern": "(?i)frais\\s",
+            "category": "Frais bancaires"
+        },
+        {
+            "pattern": "(?i)commission",
+            "category": "Frais bancaires"
+        },
+        {
+            "pattern": "(?i)INTERETS",
+            "category": "Intérêts"
+        },
+        {
+            "pattern": "(?i)CARREFOUR",
+            "category": "Marché"
+        },
+        {
+            "pattern": "(?i)LIDL",
+            "category": "Marché"
+        },
+        {
+            "pattern": "(?i)ALDI",
+            "category": "Marché"
+        },
+        {
+            "pattern": "(?i)BOULANGER",
+            "category": "Marché"
+        },
+        {
+            "pattern": "(?i)CHOCOLAT",
+            "category": "Marché"
+        },
+        {
+            "pattern": "(?i)JAZ\\b",
+            "category": "Marché"
+        },
+        {
+            "pattern": "(?i)BELLE EPOQUE",
+            "category": "Marché"
+        },
+        {
+            "pattern": "(?i)MIE CALINE",
+            "category": "Marché"
+        },
+        {
+            "pattern": "(?i)TY GWINIZ",
+            "category": "Marché"
+        },
+        {
+            "pattern": "(?i)AU BON PANIER",
+            "category": "Marché"
+        },
+        {
+            "pattern": "(?i)BARA BREIZH",
+            "category": "Marché"
+        },
+        {
+            "pattern": "(?i)ATELIER GOURMAND",
+            "category": "Marché"
+        },
+        {
+            "pattern": "(?i)SA RENANAISE",
+            "category": "Marché"
+        },
+        {
+            "pattern": "(?i)Point Vert",
+            "category": "Kervavic"
+        },
+        {
+            "pattern": "(?i)Maison du Boulanger",
+            "category": "Marché"
+        },
+        {
+            "pattern": "(?i)Fermes de Gally",
+            "category": "Maillol"
+        },
+        {
+            "pattern": "(?i)Proxi",
+            "category": "Marché"
+        },
+        {
+            "pattern": "(?i)BOUCH\\. DU MANET",
+            "category": "Marché"
+        },
+        {
+            "pattern": "(?i)Bricomarché",
+            "category": "Kervavic"
+        },
+        {
+            "pattern": "(?i)Bricorama",
+            "category": "Kervavic"
+        },
+        {
+            "pattern": "(?i)SGC Landerneau",
+            "category": "Kervavic"
+        },
+        {
+            "pattern": "(?i)MARCHE AUX AFFA",
+            "category": "Kervavic"
+        },
+        {
+            "pattern": "(?i)SOFIMAT",
+            "category": "Kervavic"
+        },
+        {
+            "pattern": "(?i)CANAL PLUS",
+            "category": "Cadeaux"
+        },
+        {
+            "pattern": "(?i)UCPA",
+            "category": "Cadeaux"
+        },
+        {
+            "pattern": "(?i)TROUZILIT",
+            "category": "Cadeaux"
+        },
+        {
+            "pattern": "(?i)Poivre Rouge",
+            "category": "Restaurant"
+        },
+        {
+            "pattern": "(?i)CHINA\\s*TOWN",
+            "category": "Restaurant"
+        },
+        {
+            "pattern": "(?i)Chinatown",
+            "category": "Restaurant"
+        },
+        {
+            "pattern": "(?i)XIN LE YUAN",
+            "category": "Restaurant"
+        },
+        {
+            "pattern": "(?i)THAI AVEL",
+            "category": "Restaurant"
+        },
+        {
+            "pattern": "(?i)PIZZERIA",
+            "category": "Restaurant"
+        },
+        {
+            "pattern": "(?i)RESTO\\b",
+            "category": "Restaurant"
+        },
+        {
+            "pattern": "(?i)KYO\\b",
+            "category": "Restaurant"
+        },
+        {
+            "pattern": "(?i)Hespresso",
+            "category": "Restaurant"
+        },
+        {
+            "pattern": "(?i)Caffè",
+            "category": "Restaurant"
+        },
+        {
+            "pattern": "(?i)LONG ISLAND",
+            "category": "Restaurant"
+        },
+        {
+            "pattern": "(?i)Le Bois Le Vent",
+            "category": "Restaurant"
+        },
+        {
+            "pattern": "(?i)LES CREPES",
+            "category": "Restaurant"
+        },
+        {
+            "pattern": "(?i)MAC COYOTE",
+            "category": "Restaurant"
+        },
+        {
+            "pattern": "(?i)MAIS\\. DE L'OCEAN",
+            "category": "Restaurant"
+        },
+        {
+            "pattern": "(?i)AU BONHEUR",
+            "category": "Restaurant"
+        },
+        {
+            "pattern": "(?i)Autogrill",
+            "category": "Restaurant"
+        },
+        {
+            "pattern": "(?i)Columbus Cafe",
+            "category": "Restaurant"
+        },
+        {
+            "pattern": "(?i)MaxiCoffee",
+            "category": "Restaurant"
+        },
+        {
+            "pattern": "(?i)Brulerie",
+            "category": "Restaurant"
+        },
+        {
+            "pattern": "(?i)IZEE",
+            "category": "Restaurant"
+        },
+        {
+            "pattern": "(?i)LE NEUF",
+            "category": "Restaurant"
+        },
+        {
+            "pattern": "(?i)SERVICE I C I",
+            "category": "Restaurant"
+        },
+        {
+            "pattern": "(?i)CASTEL ACH",
+            "category": "Restaurant"
+        },
+        {
+            "pattern": "(?i)TotalEnergies",
+            "category": "Transport"
+        },
+        {
+            "pattern": "(?i)\\bShell\\b",
+            "category": "Transport"
+        },
+        {
+            "pattern": "(?i)ST MAJAN AUTO",
+            "category": "Transport"
+        },
+        {
+            "pattern": "(?i)SAPN COMMERCE",
+            "category": "Transport"
+        },
+        {
+            "pattern": "(?i)EasyPark",
+            "category": "Transport"
+        },
+        {
+            "pattern": "(?i)HORODATEUR",
+            "category": "Transport"
+        },
+        {
+            "pattern": "(?i)COFIROUTE",
+            "category": "Transport"
+        },
+        {
+            "pattern": "(?i)PARK.*BREST",
+            "category": "Transport"
+        },
+        {
+            "pattern": "(?i)BORNES SORTIES",
+            "category": "Transport"
+        },
+        {
+            "pattern": "(?i)QPF BREST",
+            "category": "Transport"
+        },
+        {
+            "pattern": "(?i)INDIGO",
+            "category": "Transport"
+        },
+        {
+            "pattern": "(?i)PARKING",
+            "category": "Transport"
+        },
+        {
+            "pattern": "(?i)AREAS",
+            "category": "Transport"
+        },
+        {
+            "pattern": "(?i)Pharmacie",
+            "category": "Santé"
+        },
+        {
+            "pattern": "(?i)RADIOLOG",
+            "category": "Santé"
+        },
+        {
+            "pattern": "(?i)DR MICHAEL LUMB",
+            "category": "Santé"
+        },
+        {
+            "pattern": "(?i)DR LUMBROSO",
+            "category": "Santé"
+        },
+        {
+            "pattern": "(?i)AMAZON MEDIA",
+            "category": "Livres"
+        },
+        {
+            "pattern": "(?i)CUB INK",
+            "category": "Marc"
+        },
+        {
+            "pattern": "(?i)GAB\\s",
+            "category": "-",
+            "ref": "-"
+        }
+    ],
+    "SOCGEN": [
+        {
+            "pattern": "ALLIANZ",
+            "category": "ALLIANZ"
+        },
+        {
+            "pattern": "MACIF",
+            "category": "MACIF"
+        },
+        {
+            "pattern": "STARLINK",
+            "category": "Kervavic"
+        },
+        {
+            "pattern": "06XXXXX750",
+            "category": "Orange Mamy"
+        },
+        {
+            "pattern": "06XXXXX634",
+            "category": "Orange Marc"
+        },
+        {
+            "pattern": "06XXXXX448",
+            "category": "Orange Cécile"
+        },
+        {
+            "pattern": "\\sSEOP\\s",
+            "category": "SEOP"
+        },
+        {
+            "pattern": "Votre abonnement fibre",
+            "category": "Orange Maillol"
+        },
+        {
+            "pattern": "EHPAD Mer Iroise",
+            "category": "Mamy Marie"
+        },
+        {
+            "pattern": "HUMANIS",
+            "category": "HUMANIS"
+        },
+        {
+            "pattern": "\\.TWITCH\\.TV",
+            "category": "Marc"
+        },
+        {
+            "pattern": "\\sOVH\\s",
+            "category": "OVH"
+        },
+        {
+            "pattern": "IMPOT 29",
+            "category": "Impôts 29"
+        },
+        {
+            "pattern": "IMPOT 78",
+            "category": "Impôts 78"
+        },
+        {
+            "pattern": "IMPOT PAS",
+            "category": "Impôts revenu"
+        },
+        {
+            "pattern": "IMPOT REVENU",
+            "category": "Impôts revenu"
+        },
+        {
+            "pattern": "\\sCPAM\\s(?!.+01)",
+            "category": "Santé"
+        },
+        {
+            "pattern": "\\sCPAM.+01",
+            "category": "CRAMIF"
+        },
+        {
+            "pattern": "CNAVTS",
+            "category": "CNAV"
+        },
+        {
+            "pattern": "MUTUALITE SOCIALE AGRICOLE D'ILE DE FR ANCE MOTIF: AV",
+            "category": "MSA retraite"
+        },
+        {
+            "pattern": "MUTUALITE SOCIALE AGRICOLE D'ILE DE FR ANCE MOTIF: PM",
+            "category": "Santé"
+        },
+        {
+            "pattern": "CA ASSURANCES RETRAITE",
+            "category": "PREDICA"
+        },
+        {
+            "pattern": "AGIRC-ARRCO AGRICA",
+            "category": "AGRICA"
+        },
+        {
+            "pattern": "Anthropic",
+            "category": "Maillol"
+        },
+        {
+            "pattern": "FRAIS PAIEMENT",
+            "category": "Marc"
+        },
+        {
+            "pattern": "\\sSYNOE\\s",
+            "category": "Frais bancaires"
+        },
+        {
+            "pattern": "JUGIE DAMIEN",
+            "category": "Santé"
+        },
+        {
+            "pattern": "RETRAIT DAB",
+            "category": "-",
+            "ref": "-"
+        },
+        {
+            "pattern": "BG GESTION",
+            "category": "-",
+            "ref": "-"
+        },
+        {
+            "pattern": "POUR: BoursoBank",
+            "category": "-",
+            "ref": "-"
+        },
+        {
+            "pattern": "POUR: eToro",
+            "category": "-",
+            "ref": "-"
+        },
+        {
+            "pattern": "POUR: Kraken",
+            "category": "-",
+            "ref": "-"
+        },
+        {
+            "pattern": "POUR: Wise",
+            "category": "-",
+            "ref": "-"
+        },
+        {
+            "pattern": "POUR: DEGIRO",
+            "category": "-",
+            "ref": "-"
+        },
+        {
+            "pattern": "POUR: Swissquote",
+            "category": "-",
+            "ref": "-"
+        },
+        {
+            "pattern": "DE: MR OU MME MARC LEBAS",
+            "category": "-",
+            "ref": "-"
+        },
+        {
+            "pattern": "DE: Marc LEBAS",
+            "category": "-",
+            "ref": "-"
+        },
+        {
+            "pattern": "REMBOURSEMENT PRET 70K",
+            "category": "-",
+            "ref": "-"
+        },
+        {
+            "pattern": "REMBOURSEMENT PR T",
+            "category": "-",
+            "ref": "-"
+        },
+        {
+            "pattern": "DFX AG",
+            "category": "Change",
+            "ref": "-"
+        },
+        {
+            "pattern": "BIM Finance",
+            "category": "Change",
+            "ref": "-"
+        },
+        {
+            "pattern": "BITY Swiss",
+            "category": "Change",
+            "ref": "-"
+        },
+        {
+            "pattern": "POUR: VeraCash",
+            "category": "Change",
+            "ref": "-"
+        },
+        {
+            "pattern": "EASY CASH",
+            "category": "Achat métaux",
+            "ref": "-"
+        },
+        {
+            "pattern": "EC SAINT RENAN",
+            "category": "Achat métaux",
+            "ref": "-"
+        },
+        {
+            "pattern": "Intérêts crédités au cours de l'année",
+            "category": "Intérêts"
+        },
+        {
+            "pattern": "Participation aux bénéfices",
+            "category": "Intérêts"
+        },
+        {
+            "pattern": "Prélèvements sociaux",
+            "category": "Impôts revenu"
+        },
+        {
+            "pattern": "Arbitrage",
+            "category": "Arbitrage titres"
+        },
+        {
+            "pattern": "(?i)INTERETS CREDITEURS",
+            "category": "Intérêts"
+        }
+    ],
+    "WISE": [
+        {
+            "pattern": "(?i)frais wise assets europe",
+            "category": "Frais bancaires"
+        },
+        {
+            "pattern": "(?i)wise assets europe",
+            "category": "Frais bancaires"
+        },
+        {
+            "pattern": "(?i)convertis en|converted to",
+            "category": "Change",
+            "ref": "-"
+        }
+    ],
+    "KRAKEN": [
+        {
+            "pattern": "(?i)Dépôt",
+            "category": "-",
+            "ref": "-"
+        },
+        {
+            "pattern": "(?i)Retrait",
+            "category": "-",
+            "ref": "-"
+        },
+        {
+            "pattern": "(?i)Achat",
+            "category": "Change",
+            "ref": "-"
+        }
+    ],
+    "BOURSOBANK": [
+        {
+            "pattern": "(?i)ACHAT",
+            "category": "Achat titres",
+            "ref": "-"
+        },
+        {
+            "pattern": "(?i)VENTE",
+            "category": "Vente titres",
+            "ref": "-"
+        },
+        {
+            "pattern": "(?i)COUPON",
+            "category": "Coupon"
+        },
+        {
+            "pattern": "(?i)VIR",
+            "category": "-",
+            "ref": "-"
+        },
+        {
+            "pattern": "(?i)PRELEVEMENT.*SOCIAUX",
+            "category": "Impôts revenu"
+        },
+        {
+            "pattern": "(?i)PRELEVEMENTS.*FISCAUX",
+            "category": "Impôts revenu"
+        },
+        {
+            "pattern": "(?i)INTER\\.?BRUTS",
+            "category": "Intérêts"
+        },
+        {
+            "pattern": "(?i)INTERETS",
+            "category": "Intérêts"
+        }
+    ],
+    "DEGIRO": [
+        {
+            "pattern": "(?i)Impôts sur dividende",
+            "category": "Impôts revenu"
+        },
+        {
+            "pattern": "(?i)Dividende",
+            "category": "Coupon"
+        },
+        {
+            "pattern": "(?i)Achat",
+            "category": "Achat titres",
+            "ref": "-"
+        },
+        {
+            "pattern": "(?i)Vente",
+            "category": "Vente titres",
+            "ref": "-"
+        },
+        {
+            "pattern": "(?i)Dépôt",
+            "category": "-",
+            "ref": "-"
+        },
+        {
+            "pattern": "(?i)Frais|Taxe",
+            "category": "Frais bancaires"
+        }
+    ],
+    "NATIXIS": [
+        {
+            "pattern": "(?i)Modification.*placements",
+            "category": "Arbitrage titres"
+        },
+        {
+            "pattern": "(?i)INVESTISSEMENT",
+            "category": "Syngenta"
+        },
+        {
+            "pattern": "(?i)Remboursement",
+            "category": "-",
+            "ref": "-"
+        }
+    ],
+    "ETORO": [
+        {
+            "pattern": "DPT",
+            "category": "Change",
+            "ref": "-"
+        },
+        {
+            "pattern": "WDL|WITHDRAWAL",
+            "category": "Change",
+            "ref": "-"
+        },
+        {
+            "pattern": "VIR|VIREMENT|MARC LEBAS",
+            "category": "-",
+            "ref": "-"
+        },
+        {
+            "pattern": "[Pp]osition.*[Oo]uverte",
+            "category": "Achat titres",
+            "ref": "-"
+        },
+        {
+            "pattern": "[Tt]ransfer.*EUR.*USD|[Tt]ransfer.*USD.*EUR",
+            "category": "Change",
+            "ref": "-"
+        },
+        {
+            "pattern": "BÉNÉFICE|PERTE|PROFIT|LOSS",
+            "category": "Vente titres",
+            "ref": "-"
+        },
+        {
+            "pattern": "[Ff]rais de conversion de dépôt",
+            "category": "#Info"
+        },
+        {
+            "pattern": "FRAIS|COMMISSION|FEE",
+            "category": "Frais bancaires"
+        },
+        {
+            "pattern": "DIVIDENDE|DIVIDEND",
+            "category": "Coupon"
+        },
+        {
+            "pattern": "DÉPÔT|DEPOSIT",
+            "category": "Change",
+            "ref": "-"
+        }
+    ],
+    "BTC": [
+        {
+            "pattern": "(?i)received from",
+            "category": "Change",
+            "ref": "-"
+        },
+        {
+            "pattern": "(?i)sent to",
+            "category": "-",
+            "ref": "-"
+        },
+        {
+            "pattern": "(?i)transaction fee",
+            "category": "Frais bancaires"
+        },
+        {
+            "pattern": "(?i)mining fee",
+            "category": "Frais bancaires"
+        }
+    ],
+    "XMR": [
+        {
+            "pattern": "(?i)incoming transfer",
+            "category": "Change",
+            "ref": "-"
+        },
+        {
+            "pattern": "\\s+in\\s+",
+            "category": "Change",
+            "ref": "-"
+        },
+        {
+            "pattern": "(?i)outgoing transfer",
+            "category": "-",
+            "ref": "-"
+        },
+        {
+            "pattern": "\\s+out\\s+",
+            "category": "-",
+            "ref": "-"
+        },
+        {
+            "pattern": "(?i)transaction fee",
+            "category": "Frais bancaires"
+        }
+    ]
+}

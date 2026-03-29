@@ -1,0 +1,231 @@
+{
+    "SOCGEN": {
+        "accounts": [
+            {
+                "name": "Compte chèque SG",
+                "type_sg": "principal",
+                "numero": "00050659433"
+            },
+            {
+                "name": "Compte livret SG",
+                "type_sg": "epargne",
+                "numero": "00036889059",
+                "id_technique": "6Swq1ZLaGbuOsh1boLV4k4b1nJA="
+            },
+            {
+                "name": "LDD Cécile",
+                "type_sg": "epargne",
+                "numero": "00034192043",
+                "id_technique": "Qv4166Q10TU2drX29RByeOejzy8="
+            },
+            {
+                "name": "LDD Marc",
+                "type_sg": "epargne",
+                "numero": "00034192035",
+                "id_technique": "W-N3PI8Oi3ixGgvy2dV8PDS2tmg="
+            },
+            {
+                "name": "Livret A Cécile",
+                "type_sg": "epargne",
+                "numero": "00030472951",
+                "id_technique": "d5XYP-tCq5-g59p99G64NmSfSrY="
+            },
+            {
+                "name": "Livret A Marc",
+                "type_sg": "epargne",
+                "numero": "00030472944",
+                "id_technique": "6Ay1dN3_QXMuedt9Eycqnstc-bI="
+            },
+            {
+                "name": "Ass vie ébène Cécile",
+                "type_sg": "assurance_vie",
+                "id_technique": "RA7%2FfNvCjLlaQm18op9q%2BTbsFWE%3D",
+                "file_key": "Ebene"
+            },
+            {
+                "name": "Ass vie ébène 2 Cécile",
+                "type_sg": "assurance_vie",
+                "id_technique": "7j0%2BtaeAHc6ouvrLW6lohi3Y9ZA%3D",
+                "file_key": "Ebene2"
+            }
+        ]
+    },
+    "NATIXIS": {
+        "accounts": [
+            {
+                "name": "PEE Syngenta Cécile"
+            }
+        ]
+    },
+    "BOURSOBANK": {
+        "accounts": [
+            {
+                "name": "Portefeuille BB Titres"
+            },
+            {
+                "name": "Compte chèque BB",
+                "numero": "00040269978"
+            },
+            {
+                "name": "Compte livret BB",
+                "numero": "00021283814"
+            },
+            {
+                "name": "Portefeuille BB Réserve"
+            }
+        ]
+    },
+    "DEGIRO": {
+        "accounts": [
+            {
+                "name": "Portefeuille DEGIRO Titres"
+            },
+            {
+                "name": "Portefeuille DEGIRO Réserve"
+            }
+        ]
+    },
+    "ETORO": {
+        "accounts": [
+            {
+                "name": "Portefeuille eToro USD Titres"
+            },
+            {
+                "name": "Compte eToro Money"
+            },
+            {
+                "name": "Portefeuille eToro USD Réserve"
+            }
+        ]
+    },
+    "AMAZON": {
+        "accounts": [
+            {
+                "name": "Compte Amazon"
+            }
+        ]
+    },
+    "N/A": {
+        "accounts": [
+            {
+                "name": "Espèces"
+            },
+            {
+                "name": "Transfert de fonds"
+            },
+            {
+                "name": "Créance prêt familial"
+            },
+            {
+                "name": "Créance 3 prêt familial"
+            },
+            {
+                "name": "Pièces or"
+            },
+            {
+                "name": "Bijoux Argent"
+            },
+            {
+                "name": "Bijoux Or"
+            }
+        ]
+    },
+    "PAYPAL": {
+        "accounts": [
+            {
+                "name": "Compte Paypal"
+            }
+        ]
+    },
+    "WISE": {
+        "accounts": [
+            {
+                "name": "Compte Wise EUR"
+            },
+            {
+                "name": "Compte Wise EUR Intérêts"
+            },
+            {
+                "name": "Compte Wise CHF"
+            },
+            {
+                "name": "Compte Wise USD"
+            },
+            {
+                "name": "Compte Wise USD Intérêts"
+            },
+            {
+                "name": "Compte Wise SGD"
+            },
+            {
+                "name": "Compte Wise SEK"
+            }
+        ]
+    },
+    "KRAKEN": {
+        "accounts": [
+            {
+                "name": "Compte Kraken EUR"
+            },
+            {
+                "name": "Compte Kraken BTC"
+            }
+        ]
+    },
+    "BTC": {
+        "accounts": [
+            {
+                "name": "Relai BTC",
+                "wallet_key": "relai",
+                "addresses": [
+                    "bc1q4eret6k0n7a7elemd3zc4es474z3qvh4knn84c",
+                    "bc1qyu4y5sdugar7nnxrjqcxzw66wzvvr4sytdyedd"
+                ]
+            },
+            {
+                "name": "BlueWallet BTC",
+                "wallet_key": "bluewallet",
+                "addresses": [
+                    "bc1qgm2vpxef8sktkmdx2gpwdg2v3d708jgfev8jtt",
+                    "bc1qrxjpgstft3rxcjr8x23prmmvp6lf66wc78qgj3"
+                ]
+            },
+            {
+                "name": "Electrum BTC",
+                "wallet_key": "electrum",
+                "addresses": [
+                    "bc1q0pqfhr75d8lr3sp3e2x02ajw74eze75pvv9x93",
+                    "bc1qm74zhr65slt493hkgj9cwkpvvjc0j7d8erqye5"
+                ]
+            },
+            {
+                "name": "Phoenix Lightning BTC",
+                "wallet_key": "phoenix",
+                "addresses": [
+                    "bc1qjtv5dhgdyej6xhuwe2hchc5xvh4ap4ymykgeq7"
+                ]
+            },
+            {
+                "name": "Deblock BTC",
+                "wallet_key": "deblock",
+                "addresses": [
+                    "bc1qgm3pvyau5h8sdxkzjmthj2rfs5t9xv2qj7aj59"
+                ]
+            }
+        ]
+    },
+    "XMR": {
+        "accounts": [
+            {
+                "name": "Cake Wallet XMR",
+                "wallet_key": "cake",
+                "wallet_name": "Cake Wallet XMR"
+            },
+            {
+                "name": "Marc XMR",
+                "wallet_key": "marc",
+                "wallet_name": "marc"
+            }
+        ]
+    }
+}
