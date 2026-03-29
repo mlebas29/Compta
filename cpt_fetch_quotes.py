@@ -75,7 +75,7 @@ def load_cotations_config():
         code = ws.cell(row=row, column=CotCol.CODE).value
         if not code:
             continue
-        code = code.strip()
+        code = str(code).strip()
         excel_codes.add(code)
         info = meta.get(code, {})
         source_1 = info.get('source1', '')
