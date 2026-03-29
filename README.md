@@ -161,7 +161,12 @@ config.ini              # Configuration générale
 tool_*.py               # Outils de maintenance
 ```
 
-## 7. Licence
+## 7. Restrictions
+
+- **Mode classeur** : aucune restriction, fonctionne sur tout OS avec un tableur compatible Excel.
+- **Mode assisté** : testé sur Ubuntu 22.04 et dérivés (Zorin, Mint). Le script `install.sh` utilise `apt` et ne supporte pas les distributions non Debian/Ubuntu (Fedora, Arch, openSUSE). Sur ces systèmes, une installation manuelle des dépendances est nécessaire (voir `requirements.txt`).
+
+## 8. Licence
 
 Compta [EX] est distribué gratuitement sous licence GNU GPL v3.
 
