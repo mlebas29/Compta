@@ -6,3 +6,5 @@ logs/
 *.bak
 *.gpg
 .~lock.*
+.claude/
+comptes.xlsm
