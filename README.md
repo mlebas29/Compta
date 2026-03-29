@@ -63,7 +63,7 @@ et aussi :
 |---|---|
 | Classeur avec données d'exemple | Classeur vierge + application complète |
 | Prérequis : LibreOffice ou équivalent | Prérequis : Linux, LibreOffice |
-| Télécharger [`comptes_exemple.xlsx`](comptes_exemple.xlsx)  ; c'est tout ! | Tout télécharger et installer  (*) |
+| Télécharger [`comptes_exemple.xlsx`](https://github.com/mlebas29/Compta/raw/main/comptes_exemple.xlsx)  ; c'est tout ! | Tout télécharger et installer  (*) |
 
 
 
