@@ -7,17 +7,22 @@
 Compta est un projet de comptabilité familiale ; il a deux composants :
 
 1. Un **classeur** structuré avec des données brutes et de synthèse
-2. Une **application d'assistance** facultative qui
+2. Une **application d'assistance** -facultative-  qui
    - contrôle la structure du classeur
    - canalise les données brutes, depuis des sites financiers vers le classeur
 
 ### Mode classeur
 
-Le classeur `comptes.xlsm` est utilisable seul, sur Linux, MacOS, Windows, avec toute application compatible Excel. L'utilisateur importe manuellement les données financières (xls, PDF, zip, txt, html, CSV) et gère lui-même les comptes, devises, catégories, etc.
+Le classeur `comptes.xlsm` est utilisable seul, sur Linux, MacOS ou Windows, avec toute application compatible Excel. L'utilisateur importe manuellement les données financières (xls, PDF, zip, txt, html, CSV) et gère lui-même les comptes, devises, catégories, etc.
 
 ### Mode assisté
 
-L'application graphique s'intercale entre l'utilisateur et les sites financiers. Elle collecte, formate et importe les données dans le classeur, et permet de gérer sans expertise Excel les éléments comptables (comptes, catégories, devises, titres) .
+L'application graphique Linux s'intercale entre l'utilisateur et les sites financiers. 
+
+1. Elle collecte, formate et importe les données dans le classeur, depuis les sites financiers
+2. Elle permet de gérer sans expertise Excel les éléments comptables du classeur (comptes, catégories, devises, titres) 
+
+Ces deux usages sont indépendants et au choix de l'utilisateur
 
 | Mode classeur | Mode assisté |
 |:---:|:---:|
@@ -44,6 +49,9 @@ L'application graphique **Comptabilité** automatise :
 - **Catégorisation** automatique des opérations par pattern matching (regex)
 - **Appariement** des opérations liées (virements, changes, achats de titres)
 - **Cotations** des devises, cryptomonnaies et métaux précieux
+
+et aussi :
+
 - **Configuration** du tableur : création/modification/suppression des comptes, devises, titres, catégories, postes budgétaires
 - **Configuration** des paramètres de collecte
 
@@ -55,13 +63,14 @@ L'application graphique **Comptabilité** automatise :
 |---|---|
 | Classeur avec données d'exemple | Classeur vierge + application complète |
 | Prérequis : LibreOffice ou équivalent | Prérequis : Linux, LibreOffice |
-| Télécharger [`comptes_exemple.xlsm`](https://github.com/mlebas29/Compta/raw/main/comptes_exemple.xlsm) ; c'est tout ! | Tout télécharger et installer  (*) |
+| Télécharger [`comptes_exemple.xlsx`](comptes_exemple.xlsx)  ; c'est tout ! | Tout télécharger et installer  (*) |
 
 
 
 ###### (*) Tout télécharger et installer (mode assisté)
 
 ```bash
+sudo apt install git
 git clone https://github.com/mlebas29/Compta.git ~/Compta
 cd ~/Compta && ./install.sh
 ```

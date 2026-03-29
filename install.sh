@@ -143,8 +143,45 @@ ok "requirements.txt installé"
 # ------------------------------------------------------------------
 echo
 echo "--- Installation navigateur Playwright ---"
-$PYTHON -m playwright install chrome
-ok "Chrome installé pour Playwright"
+
+# Playwright ne reconnaît que Ubuntu/Debian — les dérivés (Zorin, Mint, Pop!_OS)
+# nécessitent un patch temporaire de /etc/os-release
+OS_ID=$(bash -c 'source /etc/os-release && echo $ID')
+OS_VERSION=$(bash -c 'source /etc/os-release && echo $VERSION_ID')
+OS_PATCHED=false
+
+if [[ "$OS_ID" != "ubuntu" && "$OS_ID" != "debian" ]]; then
+    # Vérifier si c'est un dérivé Ubuntu/Debian
+    OS_ID_LIKE=$(bash -c 'source /etc/os-release && echo $ID_LIKE')
+    if [[ "$OS_ID_LIKE" == *"ubuntu"* || "$OS_ID_LIKE" == *"debian"* ]]; then
+        # Déduire la version Ubuntu réelle depuis le codename
+        UBUNTU_CODENAME=$(bash -c 'source /etc/os-release && echo $UBUNTU_CODENAME')
+        case "$UBUNTU_CODENAME" in
+            noble)  UBUNTU_VERSION="24.04" ;;
+            jammy)  UBUNTU_VERSION="22.04" ;;
+            focal)  UBUNTU_VERSION="20.04" ;;
+            *)      UBUNTU_VERSION="22.04" ;;
+        esac
+        warn "$OS_ID $OS_VERSION détecté (dérivé Ubuntu $UBUNTU_VERSION/$UBUNTU_CODENAME) — patch temporaire pour Playwright"
+        sudo sed -i "s/^ID=$OS_ID/ID=ubuntu/" /etc/os-release
+        sudo sed -i "s/^VERSION_ID=\"$OS_VERSION\"/VERSION_ID=\"$UBUNTU_VERSION\"/" /etc/os-release
+        OS_PATCHED=true
+    fi
+fi
+
+if $PYTHON -m playwright install chrome; then
+    ok "Chrome installé pour Playwright"
+else
+    warn "Installation Playwright échouée — essai sans dépendances système"
+    $PYTHON -m playwright install chromium --no-shell || warn "Playwright non installé (collecte indisponible)"
+fi
+
+# Restaurer /etc/os-release si patché
+if $OS_PATCHED; then
+    sudo sed -i "s/^ID=ubuntu/ID=$OS_ID/" /etc/os-release
+    sudo sed -i "s/^VERSION_ID=\"$UBUNTU_VERSION\"/VERSION_ID=\"$OS_VERSION\"/" /etc/os-release
+    ok "/etc/os-release restauré ($OS_ID $OS_VERSION)"
+fi
 
 # ------------------------------------------------------------------
 # 6. Raccourci bureau GNOME
@@ -174,6 +211,20 @@ done
 ok "dropbox/ archives/ logs/ créés"
 
 # ------------------------------------------------------------------
+# 8. Classeur initial
+# ------------------------------------------------------------------
+echo
+echo "--- Classeur ---"
+if [[ ! -f "comptes.xlsm" && -f "comptes_template.xlsm" ]]; then
+    cp comptes_template.xlsm comptes.xlsm
+    ok "comptes.xlsm créé depuis le template"
+elif [[ -f "comptes.xlsm" ]]; then
+    ok "comptes.xlsm déjà présent"
+else
+    warn "comptes_template.xlsm absent — placer votre comptes.xlsm manuellement"
+fi
+
+# ------------------------------------------------------------------
 # Résumé
 # ------------------------------------------------------------------
 echo
@@ -186,6 +237,5 @@ echo "  1. Éditer config.ini (sites actifs, chemins)"
 echo "  2. Créer le fichier credentials :"
 echo "     → Écrire config_credentials.md (voir README.md)"
 echo "     → gpg -c config_credentials.md"
-echo "  3. Placer votre fichier comptes.xlsm ici"
-echo "  4. Lancer : $PYTHON cpt_gui.py"
+echo "  3. Lancer : $PYTHON cpt_gui.py"
 echo
