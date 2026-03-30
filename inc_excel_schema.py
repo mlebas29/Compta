@@ -307,6 +307,11 @@ def get_table_bounds(named, table_name):
     e = named.get(f'END_{table_name}')
     if s and e:
         return s[2], e[2]  # (row_1indexed, row_1indexed)
+    import logging
+    missing = []
+    if not s: missing.append(f'START_{table_name}')
+    if not e: missing.append(f'END_{table_name}')
+    logging.warning(f"Named range(s) manquant(s): {', '.join(missing)} — fallback constante")
     return None, None
 
 

@@ -1427,26 +1427,30 @@ class AccountsMixin:
     @staticmethod
     def _append_solde_lines(ws_ops, account_name, devise,
                             date_debut=None, date_solde=None,
-                            montant_debut=None, doc=None):
-        """Ajoute 2 lignes #Solde en fin d'Opérations.
+                            montant_debut=None, doc=None, end_op=None):
+        """Ajoute 2 lignes #Solde avant END_OP dans Opérations.
 
         date_debut/date_solde : datetime optionnels. Par défaut hier/aujourd'hui.
         montant_debut : montant du #Solde initial (défaut 0).
+        end_op : row 1-indexed de la model row END_OP (✓). Si None, append en fin.
         """
-        from inc_excel_schema import uno_col, OpCol
+        from inc_excel_schema import uno_col, uno_row, OpCol
         from inc_uno import copy_row_style
         from datetime import datetime, timedelta
-        cursor = ws_ops.createCursor()
-        cursor.gotoEndOfUsedArea(True)
-        ops_last_0 = cursor.getRangeAddress().EndRow
-        # Remonter les lignes vides, mais jamais en-dessous de row 4 (0-indexed=3)
-        # = première ligne de données / model row (pas le header row 3 = 0-indexed 2)
-        min_data_0 = 3  # row 4 en 1-indexed = première ligne de données
-        while ops_last_0 > min_data_0 and not ws_ops.getCellByPosition(0, ops_last_0).getString():
-            ops_last_0 -= 1
-        ops_next_0 = ops_last_0 + 1
-        # Template = dernière ligne de données, ou model row (row 4) si vide
-        template_ops_0 = max(ops_last_0, min_data_0)
+
+        if end_op:
+            # Insérer avant END_OP (✓) — la model row END ne doit pas bouger
+            ops_next_0 = uno_row(end_op)  # 0-indexed de END
+            template_ops_0 = max(ops_next_0 - 1, 3)  # ligne précédente comme template
+        else:
+            cursor = ws_ops.createCursor()
+            cursor.gotoEndOfUsedArea(True)
+            ops_last_0 = cursor.getRangeAddress().EndRow
+            min_data_0 = 3
+            while ops_last_0 > min_data_0 and not ws_ops.getCellByPosition(0, ops_last_0).getString():
+                ops_last_0 -= 1
+            ops_next_0 = ops_last_0 + 1
+            template_ops_0 = max(ops_last_0, min_data_0)
         epoch = datetime(1899, 12, 30)
         if date_debut is None:
             date_debut = datetime(2020, 1, 1)
@@ -1463,6 +1467,9 @@ class AccountsMixin:
 
         for dt in (date_debut, date_solde):
             serial = (dt - epoch).days
+            if end_op:
+                # Insérer une ligne avant END pour ne pas l'écraser
+                ws_ops.Rows.insertByIndex(ops_next_0, 1)
             copy_row_style(ws_ops, template_ops_0, ops_next_0, col_start=0, col_end=9)
             ws_ops.getCellByPosition(uno_col(OpCol.DATE), ops_next_0).setValue(serial)
             ws_ops.getCellByPosition(uno_col(OpCol.LABEL), ops_next_0).setString('Relevé compte')

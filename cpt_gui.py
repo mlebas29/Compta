@@ -919,7 +919,7 @@ class ConfigGUI(AccountsMixin, CategoriesMixin, DevisesMixin,
             if cell_a and 'total' in str(cell_a).lower():
                 self._accounts_total_row = row_idx
                 break
-            if not cell_a:
+            if not cell_a or str(cell_a).strip() == '✓':
                 continue
 
             orig_name = str(cell_a).strip()
@@ -968,7 +968,7 @@ class ConfigGUI(AccountsMixin, CategoriesMixin, DevisesMixin,
         ctrl_data_start = (self._start_ctrl1 or CTRL_FIRST_ROW) + 1
         for row_idx in range(ctrl_data_start, self._end_ctrl1 + 1):
             cell_a = ws_ctrl.cell(row_idx, CtrlCol.COMPTE).value
-            if not cell_a:
+            if not cell_a or str(cell_a).strip() == '✓':
                 continue
 
             name = str(cell_a).strip()
@@ -1064,29 +1064,24 @@ class ConfigGUI(AccountsMixin, CategoriesMixin, DevisesMixin,
             start_row = cat_start_row
             total_row = None
             separator_row = None
-            in_list = start_row is not None
-            scan_limit = (cat_end_row + 1) if cat_end_row else (start_row or 0) + 200
-            for row_idx in range((start_row or 0) + 1, scan_limit):
+            # Scanner les catégories entre START_CAT et END_CAT (exclus)
+            scan_start = (start_row or 0) + 1
+            scan_end = cat_end_row if cat_end_row else scan_start + 200
+            for row_idx in range(scan_start, scan_end):
                 val = ws.cell(row_idx, cat_col).value
                 if not val:
                     continue
                 name = str(val).strip()
-                if name == 'START' and start_row is None:
-                    start_row = row_idx
-                    in_list = True
+                if name == '✓':
                     continue
-                if name == 'Total':
-                    total_row = row_idx
-                    break
-                if in_list and name == '-':
+                if name == '-':
                     separator_row = row_idx
                     continue
-                if in_list and name:
+                if name:
                     cats.append(name)
                     cat_rows[name] = row_idx
-            # Si END_CAT existe mais pas de "Total" trouvé, total_row = END_CAT
-            if total_row is None and cat_end_row:
-                total_row = cat_end_row
+            # Total = row après END_CAT (pas de scan texte)
+            total_row = (cat_end_row + 1) if cat_end_row else None
 
             # Postes budgétaires : col A (nom), col B (type Fixe/Variable)
             posts = []
@@ -1100,14 +1095,15 @@ class ConfigGUI(AccountsMixin, CategoriesMixin, DevisesMixin,
                 if not val:
                     continue
                 name_a = str(val).strip()
-                if name_a.startswith('Total'):
-                    posts_total_row = row_idx
-                    break
+                if name_a == '✓':
+                    continue
                 if name_a:
                     posts.append(name_a)
                     post_rows[name_a] = row_idx
                     type_val = ws.cell(row_idx, 2).value  # col B
                     post_types[name_a] = str(type_val).strip() if type_val else ''
+            # Total postes = row après END_POSTES (pas de scan texte)
+            posts_total_row = (postes_end_row + 1) if postes_end_row else None
 
             # Détecter la première colonne devise = cat_col + 1
             first_devise_col = cat_col + 1

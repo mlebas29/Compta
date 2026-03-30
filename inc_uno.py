@@ -69,12 +69,15 @@ def copy_row_style(sheet, src_row, dst_row, col_start=0, col_end=12):
         dst_cell.VertJustify = src_cell.VertJustify
 
 
-def copy_col_style(sheet, src_col, dst_col, row_start=0, row_end=100):
+def copy_col_style(sheet, src_col, dst_col, row_start=0, row_end=100, skip_rows=None):
     """Copie style (fond, police, bordures, format nombre) d'une colonne à une autre.
 
     Indices UNO 0-indexed. row_end est exclusif.
+    skip_rows: set de row 0-indexed à ne pas toucher (model rows ✓).
     """
     for row in range(row_start, row_end):
+        if skip_rows and row in skip_rows:
+            continue
         src_cell = sheet.getCellByPosition(src_col, row)
         dst_cell = sheet.getCellByPosition(dst_col, row)
         dst_cell.CellStyle = src_cell.CellStyle
@@ -142,6 +145,11 @@ def get_table_bounds_uno(xdoc, table_name):
     e = get_named_range_pos(xdoc, f'END_{table_name}')
     if s and e:
         return s[2] + 1, e[2] + 1  # 0-indexed → 1-indexed
+    import logging
+    missing = []
+    if not s: missing.append(f'START_{table_name}')
+    if not e: missing.append(f'END_{table_name}')
+    logging.warning(f"Named range(s) manquant(s): {', '.join(missing)} — fallback constante")
     return None, None
 
 

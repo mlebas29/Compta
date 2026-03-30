@@ -313,8 +313,16 @@ class DevisesMixin:
             # Copier le style : EUR (col M) pour fiat, voisin pour les autres
             style_src_bud = self.budget_first_devise_col if famille == 'fiat' else last_bud
             bud_end = (self.budget_total_row or self.budget_header_row + 20) + 5
+            # Identifier les model rows à ne pas toucher
+            from inc_uno import get_named_range_pos
+            _model_rows_0 = set()
+            for _nr in ('START_CAT', 'END_CAT', 'START_POSTES', 'END_POSTES'):
+                _p = get_named_range_pos(doc.document, _nr)
+                if _p:
+                    _model_rows_0.add(_p[2])
             copy_col_style(ws_bud, uno_col(style_src_bud), uno_col(new_col),
-                           row_start=uno_row(self.budget_header_row), row_end=uno_row(bud_end))
+                           row_start=uno_row(self.budget_header_row), row_end=uno_row(bud_end),
+                           skip_rows=_model_rows_0)
 
             # Appliquer le format devise + gris sur la nouvelle colonne Budget
             # Exclure "Montant Euros" (total_row+4) qui est en EUR
@@ -325,10 +333,11 @@ class DevisesMixin:
                 fmt_id = doc.register_number_format(fmt_devise)
                 fmt_eur_id = doc.register_number_format(FORMAT_EUR)
                 for r in range(self.budget_header_row + 1, bud_end):
+                    if uno_row(r) in _model_rows_0:
+                        continue
                     cell = ws_bud.getCellByPosition(uno_col(new_col), uno_row(r))
                     if montant_eur_row and r == montant_eur_row:
                         cell.NumberFormat = fmt_eur_id
-                        # pas de gris : c'est un montant EUR
                     else:
                         cell.NumberFormat = fmt_id
                         cell.CellBackColor = GRIS
@@ -352,11 +361,10 @@ class DevisesMixin:
             # Rows catégories : SUMIFS par devise
             first_cat_row = min(self.budget_cat_rows.values()) if self.budget_cat_rows else (self.budget_start_row or hr) + 1
             sep_row = self.budget_insert_row or first_cat_row
-            for r in range(first_cat_row, sep_row):
-                # Vérifier que cette ligne est une catégorie (non vide et pas "-")
+            for r in range(first_cat_row, sep_row + 1):  # inclut le séparateur "-"
                 cell_l = ws_bud.getCellByPosition(uno_col(self.budget_cat_col), uno_row(r))
                 val_l = cell_l.getString().strip()
-                if val_l and val_l != '-':
+                if val_l and val_l != '✓':
                     cat_letter = col_letter(self.budget_cat_col)
                     ws_bud.getCellByPosition(nc0, uno_row(r)).setFormula(
                         f'=SUMIFS(OPmontant;OPdevise;{new_col_letter}${hr};OPcatégorie;${cat_letter}{r};OPdate;">"&$C$2-365)')
@@ -1554,13 +1562,14 @@ class DevisesMixin:
                         if (not val_a or val_b == 'Clos') and first_empty_or_clos is None:
                             first_empty_or_clos = row_idx
 
-                    # Point d'insertion : après la dernière ligne du bloc, sinon fallback
+                    # Point d'insertion : après la dernière ligne du bloc, avant END (✓)
+                    avr_end_model = self._end_avr or total_row
                     if block_last is not None:
-                        insert_row = block_last + 1
+                        insert_row = min(block_last + 1, avr_end_model)
                     elif first_empty_or_clos is not None:
-                        insert_row = first_empty_or_clos
+                        insert_row = min(first_empty_or_clos, avr_end_model)
                     else:
-                        insert_row = total_row
+                        insert_row = avr_end_model
 
                     # Insérer 1 ligne
                     ws.Rows.insertByIndex(uno_row(insert_row), 1)
@@ -1569,6 +1578,8 @@ class DevisesMixin:
                         if a.get('row') is not None and a['row'] >= insert_row:
                             a['row'] += 1
                     total_row += 1
+                    if self._end_avr and insert_row <= self._end_avr:
+                        self._end_avr += 1
                     # Décaler template_row_0 si l'insertion l'a poussé vers le bas
                     if uno_row(insert_row) <= template_row_0:
                         template_row_0 += 1
@@ -1679,7 +1690,9 @@ class DevisesMixin:
             ctrl_last_data = max(
                 (e['ctrl_row'] for e in self.display_accounts if e.get('ctrl_row')),
                 default=(self._start_ctrl1 or CTRL_FIRST_ROW) + 1)
-            ctrl_next_row = ctrl_last_data + 1
+            # Borner par la model row END (✓) — ne jamais insérer après
+            ctrl_end_model = self._end_ctrl1 or (ctrl_last_data + 1)
+            ctrl_next_row = min(ctrl_last_data + 1, ctrl_end_model)
             template_ctrl_0 = uno_row(ctrl_last_data)
 
             for entry in self.display_accounts:
@@ -1694,8 +1707,10 @@ class DevisesMixin:
                 r0 = uno_row(r)
                 devise = entry['devise']
 
-                # Insérer une ligne avant le pied de tableau
+                # Insérer une ligne avant END (✓)
                 ws_ctrl.Rows.insertByIndex(r0, 1)
+                if self._end_ctrl1 and r <= self._end_ctrl1:
+                    self._end_ctrl1 += 1
 
                 # Copier style du template
                 copy_row_style(ws_ctrl, template_ctrl_0, r0, col_start=0, col_end=14)
@@ -1824,7 +1839,10 @@ class DevisesMixin:
                     date_debut=avoirs_ref.get('date_debut'),
                     date_solde=avoirs_ref.get('date_solde'),
                     montant_debut=avoirs_ref.get('montant_debut'),
-                    doc=doc)
+                    doc=doc, end_op=self._end_op)
+                # END_OP décalé par les 2 insertions
+                if self._end_op:
+                    self._end_op += 2
 
             # --- Opérations : supprimer / reloger les lignes des comptes supprimés ---
             deleted_set = set(self._deleted_accounts)
@@ -1900,7 +1918,7 @@ class DevisesMixin:
             # Elles restent dans les named ranges (ancrage pour SUM, SUMIFS, etc.)
             # et sont vides donc n'affectent pas les calculs.
             if total_row and (new_accounts or had_deletions):
-                last_data = total_row - 1
+                last_data = self._end_avr or (total_row - 1)  # END model row ✓
                 ws.getCellByPosition(
                     uno_col(AvCol.FORMULE_L), uno_row(total_row)
                 ).setFormula(f'=ROUND(SUM(L{avr_data}:L{last_data});2)')
@@ -1915,7 +1933,7 @@ class DevisesMixin:
                 nr = xdoc.NamedRanges
                 from com.sun.star.table import CellAddress
                 pos = CellAddress()
-                # AVR* et START_AVR commencent à la model row (avr_data - 1)
+                # AVR* et START_AVR commencent à la model row
                 avr_first = self._start_avr or AV_FIRST_ROW
                 for name, cl in avr_names.items():
                     if nr.hasByName(name):
