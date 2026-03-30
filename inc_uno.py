@@ -127,6 +127,24 @@ def get_named_range_pos(xdoc, name):
     return sheet_name, col, row
 
 
+def get_table_bounds_uno(xdoc, table_name):
+    """Retourne (start_row_1indexed, end_row_1indexed) depuis les named ranges UNO.
+
+    START pointe sur la model row ✓. Les données commencent à start_row + 1.
+    Retourne (None, None) si les named ranges sont absentes.
+
+    Usage:
+        s, e = get_table_bounds_uno(xdoc, 'AVR')
+        for r in range(s + 1, e):  # données entre les 2 model rows
+            ...  # utiliser uno_row(r)
+    """
+    s = get_named_range_pos(xdoc, f'START_{table_name}')
+    e = get_named_range_pos(xdoc, f'END_{table_name}')
+    if s and e:
+        return s[2] + 1, e[2] + 1  # 0-indexed → 1-indexed
+    return None, None
+
+
 class UnoDocument:
     """Context manager pour accès UNO à un fichier xlsx.
 

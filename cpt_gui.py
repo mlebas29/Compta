@@ -593,7 +593,8 @@ class ConfigGUI(AccountsMixin, CategoriesMixin, DevisesMixin,
         try:
             wb_check = openpyxl.load_workbook(self.xlsx_path, data_only=False, read_only=True)
             ws_ctrl = wb_check[SHEET_CONTROLES]
-            for row_idx in range(CTRL_FIRST_ROW, self._end_ctrl1 + 1):
+            ctrl_data_start = (self._start_ctrl1 or CTRL_FIRST_ROW) + 1
+            for row_idx in range(ctrl_data_start, self._end_ctrl1 + 1):
                 cell_val = ws_ctrl.cell(row_idx, CtrlCol.COMPTE).value
                 if not cell_val:
                     continue
@@ -890,12 +891,19 @@ class ConfigGUI(AccountsMixin, CategoriesMixin, DevisesMixin,
 
     def _load_accounts_data_inner(self, wb_formula, wb_values):
         """Charge Avoirs + Contrôles depuis les workbooks déjà ouverts."""
-        # Bornes via noms définis
+        # Bornes via noms définis (START = model row ✓, END = model row ✓)
         named = get_named_ranges(wb_formula)
-        self._end_avr = named['END_AVR'][2] if 'END_AVR' in named else 200
-        self._end_ctrl1 = named['END_CTRL1'][2] if 'END_CTRL1' in named else 100
-        self._end_pvl = named['END_PVL'][2] if 'END_PVL' in named else 200
-        self._end_cot = named['END_COT'][2] if 'END_COT' in named else 30
+        from inc_excel_schema import get_table_bounds
+        self._start_avr, self._end_avr = get_table_bounds(named, 'AVR')
+        self._start_ctrl1, self._end_ctrl1 = get_table_bounds(named, 'CTRL1')
+        self._start_pvl, self._end_pvl = get_table_bounds(named, 'PVL')
+        self._start_cot, self._end_cot = get_table_bounds(named, 'COT')
+        self._start_op, self._end_op = get_table_bounds(named, 'OP')
+        # Fallbacks
+        if self._end_avr is None: self._end_avr = 200
+        if self._end_ctrl1 is None: self._end_ctrl1 = 100
+        if self._end_pvl is None: self._end_pvl = 200
+        if self._end_cot is None: self._end_cot = 30
 
         # --- Avoirs : données éditables + formules ---
         ws_formula = wb_formula[SHEET_AVOIRS]
@@ -904,8 +912,9 @@ class ConfigGUI(AccountsMixin, CategoriesMixin, DevisesMixin,
         self.accounts_data = []
         self._accounts_total_row = None
 
-        # Scanner au-delà de _end_avr : Total est après la dernière donnée
-        for row_idx in range(AV_FIRST_ROW, self._end_avr + 10):
+        # Scanner depuis START_AVR+1 (données) au-delà de END_AVR
+        avr_data_start = (self._start_avr or AV_FIRST_ROW) + 1
+        for row_idx in range(avr_data_start, self._end_avr + 10):
             cell_a = ws_formula.cell(row_idx, AvCol.INTITULE).value
             if cell_a and 'total' in str(cell_a).lower():
                 self._accounts_total_row = row_idx
@@ -956,7 +965,8 @@ class ConfigGUI(AccountsMixin, CategoriesMixin, DevisesMixin,
         self.display_accounts = []
         seen_avoirs = set()  # intitulés vus dans Contrôles
 
-        for row_idx in range(CTRL_FIRST_ROW, self._end_ctrl1 + 1):
+        ctrl_data_start = (self._start_ctrl1 or CTRL_FIRST_ROW) + 1
+        for row_idx in range(ctrl_data_start, self._end_ctrl1 + 1):
             cell_a = ws_ctrl.cell(row_idx, CtrlCol.COMPTE).value
             if not cell_a:
                 continue
@@ -1015,8 +1025,8 @@ class ConfigGUI(AccountsMixin, CategoriesMixin, DevisesMixin,
             close_wb = True
         try:
             ws = wb_values[SHEET_PLUS_VALUE]
-            from inc_excel_schema import PV_FIRST_ROW
-            for row_idx in range(PV_FIRST_ROW, ws.max_row + 1):
+            pvl_data_start = (self._start_pvl or 5) + 1
+            for row_idx in range(pvl_data_start, ws.max_row + 1):
                 val_a = str(ws.cell(row_idx, PvCol.COMPTE).value or '').strip()
                 val_b = str(ws.cell(row_idx, PvCol.LIGNE).value or '').strip()
                 if not val_a or not val_b:

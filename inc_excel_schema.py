@@ -229,19 +229,13 @@ SHEET_COTATIONS = 'Cotations'
 # CONSTANTES DE LIGNES
 # ============================================================================
 
-# Feuille Avoirs : première ligne de données
+# DEPRECATED — utiliser get_table_bounds() ou get_table_bounds_uno() à la place.
+# Conservés comme fallback si les named ranges START/END sont absentes.
 AV_FIRST_ROW = 4
-
-# Feuille Contrôles : première ligne de données
 CTRL_FIRST_ROW = 3
-
-# Feuille Plus_value
 PV_FIRST_ROW = 2
-PV_PROTECTED_FIRST_ROW = 5    # première ligne comptes protégés (purge)
-# Pas de LAST_ROW : utiliser ws.max_row pour scanner dynamiquement
-
-# Feuille Cotations
-COT_FIRST_ROW = 3             # première ligne de données (après en-tête)
+PV_PROTECTED_FIRST_ROW = 5
+COT_FIRST_ROW = 3
 # Pas de LAST_ROW : utiliser ws.max_row pour scanner dynamiquement
 ASSET_TYPES = {'fiat', 'crypto', 'metal', 'immobilier'}
 
@@ -296,6 +290,50 @@ def get_named_ranges(wb):
         row, col = coordinate_to_tuple(cell_ref)
         result[name_str] = (sheet_name, col, row)
     return result
+
+
+def get_table_bounds(named, table_name):
+    """Retourne (start_row, end_row) 1-indexed depuis les named ranges openpyxl.
+
+    START pointe sur la model row ✓. Les données commencent à start_row + 1.
+    Retourne (None, None) si les named ranges sont absentes.
+
+    Usage:
+        named = get_named_ranges(wb)
+        start, end = get_table_bounds(named, 'AVR')
+        for r in range(start + 1, end):  # données entre les 2 model rows
+    """
+    s = named.get(f'START_{table_name}')
+    e = named.get(f'END_{table_name}')
+    if s and e:
+        return s[2], e[2]  # (row_1indexed, row_1indexed)
+    return None, None
+
+
+# Fallbacks pour les tableaux sans named ranges ou fichiers anciens
+_TABLE_FALLBACKS = {
+    'AVR': (AV_FIRST_ROW, None),
+    'CTRL1': (CTRL_FIRST_ROW, None),
+    'PVL': (PV_FIRST_ROW, None),
+    'COT': (COT_FIRST_ROW, None),
+    'OP': (4, None),
+    'POSTES': (4, None),
+    'CAT': (31, None),
+}
+
+
+def get_table_start(named, table_name):
+    """Retourne le start_row 1-indexed (model row ✓) avec fallback.
+
+    Usage:
+        start = get_table_start(named, 'AVR')
+        for r in range(start + 1, end):  # données après la model row
+    """
+    s, _ = get_table_bounds(named, table_name)
+    if s is not None:
+        return s
+    fb = _TABLE_FALLBACKS.get(table_name)
+    return fb[0] if fb else None
 
 
 def uno_col(col):

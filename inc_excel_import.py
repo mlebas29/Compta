@@ -173,7 +173,10 @@ def get_valid_accounts(excel_file, verbose=False):
         sheet = wb[SHEET_AVOIRS]
         accounts = []
 
-        for row_idx in range(AV_FIRST_ROW, 201):
+        from inc_excel_schema import get_named_ranges, get_table_start
+        named = get_named_ranges(wb)
+        avr_start = get_table_start(named, 'AVR') or AV_FIRST_ROW
+        for row_idx in range(avr_start + 1, avr_start + 200):
             compte_name = sheet.cell(row_idx, AvCol.INTITULE).value
             if compte_name and 'total' in str(compte_name).lower():
                 break
@@ -923,7 +926,7 @@ class ComptaExcelImport(ComptaExcel):
                     # Chercher la ligne correspondante dans Plus_value
                     pv_row_idx = None
 
-                    for row_idx in range(PV_FIRST_ROW, ws_pv.max_row + 1):
+                    for row_idx in range(self._pvl_data_start, ws_pv.max_row + 1):
                         compte_pv = ws_pv.cell(row_idx, PvCol.COMPTE).value
                         ligne_pv = ws_pv.cell(row_idx, PvCol.LIGNE).value
 
@@ -1029,7 +1032,7 @@ class ComptaExcelImport(ComptaExcel):
                             has_titres = any(
                                 ws_pv.cell(r, PvCol.COMPTE).value == compte
                                 and ws_pv.cell(r, PvCol.LIGNE).value == 'Titres'
-                                for r in range(PV_FIRST_ROW, ws_pv.max_row + 1)
+                                for r in range(self._pvl_data_start, ws_pv.max_row + 1)
                             )
                             if has_titres:
                                 positions_not_found.append((ligne, compte, montant))
@@ -1203,7 +1206,7 @@ class ComptaExcelImport(ComptaExcel):
 
         lignes_non_maj = []
 
-        for row_idx in range(PV_FIRST_ROW, ws_pv.max_row + 1):
+        for row_idx in range(self._pvl_data_start, ws_pv.max_row + 1):
             compte_pv = ws_pv.cell(row_idx, PvCol.COMPTE).value
             ligne_pv = ws_pv.cell(row_idx, PvCol.LIGNE).value
             date_cell = ws_pv.cell(row_idx, PvCol.DATE_SOLDE)

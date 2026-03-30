@@ -69,9 +69,12 @@ def load_cotations_config():
     wb = openpyxl.load_workbook(COMPTES_FILE, data_only=True)
     ws = wb[SHEET_COTATIONS]
 
+    from inc_excel_schema import get_named_ranges, get_table_start
+    named = get_named_ranges(wb)
+    cot_start = get_table_start(named, 'COT') or COT_FIRST_ROW
     config = []
     excel_codes = set()
-    for row in range(COT_FIRST_ROW, ws.max_row + 1):
+    for row in range(cot_start + 1, ws.max_row + 1):
         code = ws.cell(row=row, column=CotCol.CODE).value
         if not code:
             continue

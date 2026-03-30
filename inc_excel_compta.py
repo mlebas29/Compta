@@ -255,6 +255,12 @@ class ComptaExcel:
 
             self.ws_operations = self.wb[SHEET_OPERATIONS]
 
+            # Bornes tableaux via named ranges
+            from inc_excel_schema import get_named_ranges, get_table_start, PV_FIRST_ROW
+            named = get_named_ranges(self.wb)
+            pvl_start = get_table_start(named, 'PVL')
+            self._pvl_data_start = (pvl_start or PV_FIRST_ROW) + 1
+
             # Onglet Contrôles optionnel
             if SHEET_CONTROLES in self.wb.sheetnames:
                 self.ws_controle = self.wb[SHEET_CONTROLES]

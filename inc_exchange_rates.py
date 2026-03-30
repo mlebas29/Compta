@@ -63,7 +63,10 @@ def _load_excel_fallback():
 
         rates = {'EUR': 1.0}
 
-        for row in range(COT_FIRST_ROW, ws.max_row + 1):
+        from inc_excel_schema import get_named_ranges, get_table_start
+        named = get_named_ranges(wb)
+        cot_start = get_table_start(named, 'COT') or COT_FIRST_ROW
+        for row in range(cot_start + 1, ws.max_row + 1):
             code = ws.cell(row=row, column=CotCol.CODE).value
             cours_eur = ws.cell(row=row, column=CotCol.COURS_EUR).value
             if code and code.strip() and cours_eur and float(cours_eur) > 0:
