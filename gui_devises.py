@@ -197,17 +197,18 @@ class DevisesMixin:
         with ctx as doc:
             # ==== ÉTAPE A — Cotations : insérer une ligne dans le groupe ====
             ws_cot = doc.get_sheet(SHEET_COTATIONS)
+            cot_data_start = (self._start_cot or COT_FIRST_ROW) + 1
 
             # Insérer la colonne Nature (B) si absente
-            header_0 = uno_row(COT_FIRST_ROW - 1)
+            header_0 = uno_row(cot_data_start - 2)  # header = START - 1
             if ws_cot.getCellByPosition(uno_col(CotCol.NATURE), header_0).getString().strip() != 'Nature':
                 ws_cot.Columns.insertByIndex(uno_col(CotCol.NATURE), 1)
                 ws_cot.getCellByPosition(uno_col(CotCol.NATURE), header_0).setString('Nature')
 
             # Scanner col A (code) + lookup famille dans cotations_meta
             cot_insert_pos = None
-            cot_last_data = COT_FIRST_ROW  # fallback
-            for row_idx in range(COT_FIRST_ROW, self._end_cot + 1):
+            cot_last_data = cot_data_start  # fallback
+            for row_idx in range(cot_data_start, self._end_cot + 1):
                 cell_code = ws_cot.getCellByPosition(uno_col(CotCol.CODE), uno_row(row_idx))
                 row_code = cell_code.getString().strip()
                 cell_label = ws_cot.getCellByPosition(uno_col(CotCol.LABEL), uno_row(row_idx))
@@ -248,7 +249,7 @@ class DevisesMixin:
             if derived_from and formula:
                 # Formule dérivée : trouver le row du spot (col CODE)
                 spot_row = None
-                for ri in range(COT_FIRST_ROW, cot_new_row + 5):
+                for ri in range(cot_data_start, cot_new_row + 5):
                     if ws_cot.getCellByPosition(uno_col(CotCol.CODE), uno_row(ri)).getString().strip() == derived_from:
                         spot_row = ri
                         break
@@ -345,8 +346,8 @@ class DevisesMixin:
             cot_cours_letter = col_letter(CotCol.COURS_EUR)
             if has_budget:
                 ws_bud.getCellByPosition(nc0, uno_row(self.budget_start_row)).setFormula(
-                    f'=SUMIF(Cotations.${cot_code_letter}${COT_FIRST_ROW}:${cot_code_letter}${cot_last_row};{new_col_letter}${hr};'
-                    f'Cotations.${cot_cours_letter}${COT_FIRST_ROW}:${cot_cours_letter}${cot_last_row})')
+                    f'=SUMIF(Cotations.${cot_code_letter}${cot_data_start}:${cot_code_letter}${cot_last_row};{new_col_letter}${hr};'
+                    f'Cotations.${cot_cours_letter}${cot_data_start}:${cot_cours_letter}${cot_last_row})')
 
             # Rows catégories : SUMIFS par devise
             first_cat_row = min(self.budget_cat_rows.values()) if self.budget_cat_rows else (self.budget_start_row or hr) + 1
@@ -617,7 +618,8 @@ class DevisesMixin:
             try:
                 wb2 = openpyxl.load_workbook(self.xlsx_path, data_only=True)
                 ws_av = wb2[SHEET_AVOIRS]
-                for row in range(AV_FIRST_ROW, ws_av.max_row + 1):
+                avr_data = (self._start_avr or AV_FIRST_ROW) + 1
+                for row in range(avr_data, ws_av.max_row + 1):
                     dev = ws_av.cell(row, AvCol.DEVISE).value
                     if dev and str(dev).strip() == code:
                         intitule = ws_av.cell(row, AvCol.INTITULE).value or ''
@@ -714,8 +716,9 @@ class DevisesMixin:
         with UnoDocument(self.xlsx_path) as doc:
             # ==== Cotations : supprimer la ligne du code ====
             ws_cot = doc.get_sheet(SHEET_COTATIONS)
+            cot_data_start = (self._start_cot or COT_FIRST_ROW) + 1
             cot_row = None
-            for row_idx in range(COT_FIRST_ROW, self._end_cot + 1):
+            for row_idx in range(cot_data_start, self._end_cot + 1):
                 cell_code = ws_cot.getCellByPosition(
                     uno_col(CotCol.CODE), uno_row(row_idx))
                 if cell_code.getString().strip() == code:
@@ -835,7 +838,8 @@ class DevisesMixin:
             # Template vierge : pas de données, insérer avant GRAND TOTAL (début footer)
             col_b = uno_col(PvCol.COMPTE)
             footer_row = None
-            for scan in range(5, 200):
+            pvl_data = (self._start_pvl or 5) + 1
+            for scan in range(pvl_data, pvl_data + 200):
                 val_b = ws_pv.getCellByPosition(col_b, uno_row(scan)).getString().strip()
                 if 'TOTAL' in val_b.upper() or 'GRAND' in val_b.upper():
                     footer_row = scan
@@ -1019,7 +1023,8 @@ class DevisesMixin:
 
         # Scanner les devises des lignes Retenu portefeuilles
         devises = set()
-        for scan in range(5, 300):
+        pvl_data = (self._start_pvl or 5) + 1
+        for scan in range(pvl_data, pvl_data + 300):
             a = ws_pv.getCellByPosition(uno_col(PvCol.SECTION), uno_row(scan)).getString().strip()
             c = ws_pv.getCellByPosition(uno_col(PvCol.LIGNE), uno_row(scan)).getString().strip()
             d = ws_pv.getCellByPosition(uno_col(PvCol.DEVISE), uno_row(scan)).getString().strip()
@@ -1146,12 +1151,13 @@ class DevisesMixin:
             if not last_section_row:
                 # Template vierge : insérer avant la ligne TOTAL correspondante
                 col_b = uno_col(PvCol.COMPTE)
-                for scan in range(5, 200):
-                    val_b = ws_pv.getCellByPosition(col_b, uno_row(scan)).getString().strip()
-                    if val_b == total_label:
-                        last_section_row = scan - 1
-                        break
-                if not last_section_row:
+                pvl_data = (self._start_pvl or 5) + 1
+            for scan in range(pvl_data, pvl_data + 200):
+                val_b = ws_pv.getCellByPosition(col_b, uno_row(scan)).getString().strip()
+                if val_b == total_label:
+                    last_section_row = scan - 1
+                    break
+            if not last_section_row:
                     return
 
         nom = acct['intitule']
@@ -1272,9 +1278,9 @@ class DevisesMixin:
                         template_0 = uno_row(scan)
                         break
                 if template_0 is None:
-                    from inc_excel_schema import PV_FIRST_ROW
+                    pvl_data2 = (self._start_pvl or 5) + 1
                     col_d = uno_col(PvCol.DEVISE)
-                    for scan in range(PV_FIRST_ROW, self._end_pvl + 1):
+                    for scan in range(pvl_data2, self._end_pvl + 1):
                         val_c = ws_pv.getCellByPosition(col_c, uno_row(scan)).getString().strip()
                         val_d = ws_pv.getCellByPosition(col_d, uno_row(scan)).getString().strip()
                         if val_c.startswith('*') and val_c.endswith('*') and val_d == devise:
@@ -1490,8 +1496,9 @@ class DevisesMixin:
 
             # --- Trouver la ligne Total actuelle (1-indexed) ---
             # Scanner au-delà de _end_avr : Total est après la dernière donnée
+            avr_data = (self._start_avr or AV_FIRST_ROW) + 1
             total_row = None
-            for row_idx in range(AV_FIRST_ROW, self._end_avr + 10):
+            for row_idx in range(avr_data, self._end_avr + 10):
                 val = ws.getCellByPosition(uno_col(AvCol.INTITULE), uno_row(row_idx)).getString()
                 if val and 'total' in val.lower():
                     total_row = row_idx
@@ -1501,7 +1508,7 @@ class DevisesMixin:
             if self._deleted_accounts:
                 deleted_set = set(self._deleted_accounts)
                 av_rows_to_delete = []
-                for row_idx in range(AV_FIRST_ROW, total_row or self._end_avr + 1):
+                for row_idx in range(avr_data, total_row or self._end_avr + 1):
                     val = ws.getCellByPosition(uno_col(AvCol.INTITULE), uno_row(row_idx)).getString()
                     if val and val.strip() in deleted_set:
                         av_rows_to_delete.append(row_idx)
@@ -1530,7 +1537,7 @@ class DevisesMixin:
             # --- Avoirs : insérer les nouveaux comptes dans le bloc Type correspondant ---
             new_accounts = [a for a in self.accounts_data if a.get('row') is None]
             if new_accounts and total_row:
-                template_row_0 = uno_row(AV_FIRST_ROW)
+                template_row_0 = uno_row(avr_data)
 
                 for acct in new_accounts:
                     target_type = acct['type']
@@ -1539,7 +1546,7 @@ class DevisesMixin:
                     # (ou la première ligne vide/Clos après le bloc)
                     block_last = None
                     first_empty_or_clos = None
-                    for row_idx in range(AV_FIRST_ROW + 1, total_row):
+                    for row_idx in range(avr_data, total_row):
                         val_a = ws.getCellByPosition(uno_col(AvCol.INTITULE), uno_row(row_idx)).getString().strip()
                         val_b = ws.getCellByPosition(uno_col(AvCol.TYPE), uno_row(row_idx)).getString().strip()
                         if val_b == target_type:
@@ -1671,7 +1678,7 @@ class DevisesMixin:
             # --- Contrôles : créer les lignes manquantes pour nouveaux comptes ---
             ctrl_last_data = max(
                 (e['ctrl_row'] for e in self.display_accounts if e.get('ctrl_row')),
-                default=CTRL_FIRST_ROW)
+                default=(self._start_ctrl1 or CTRL_FIRST_ROW) + 1)
             ctrl_next_row = ctrl_last_data + 1
             template_ctrl_0 = uno_row(ctrl_last_data)
 
@@ -1740,14 +1747,13 @@ class DevisesMixin:
             # --- Recalibrer formules CTRL1 gardes + CTRL2 sur le range réel ---
             # Les insertions de lignes décalent les refs du template (single-cell ou
             # range rétréci par l'export).  On réécrit avec le range réel.
-            ctrl1_first = CTRL_FIRST_ROW + 1  # première ligne de données (1-indexed)
-            ctrl1_last = ctrl_next_row - 1     # dernière ligne de données
+            ctrl1_first = (self._start_ctrl1 or CTRL_FIRST_ROW) + 1  # données (après model row)
+            ctrl1_last = ctrl_next_row - 1
             if ctrl1_last >= ctrl1_first:
                 f = ctrl1_first
                 l = ctrl1_last
             else:
-                # Aucun compte → formules sur la model row uniquement
-                f = CTRL_FIRST_ROW + 1
+                f = ctrl1_first
                 l = f
 
             # -- CTRL1 gardes (row juste après le model row) --
@@ -1788,7 +1794,8 @@ class DevisesMixin:
                 from inc_excel_schema import PvCol
                 self._delete_pv_entries(ws_pv, self._deleted_accounts)
                 # Reconstruire la formule TOTAL portefeuilles (peut redevenir générique)
-                for scan in range(5, 300):
+                pvl_data = (self._start_pvl or 5) + 1
+                for scan in range(pvl_data, pvl_data + 300):
                     val_b = ws_pv.getCellByPosition(
                         uno_col(PvCol.COMPTE), uno_row(scan)).getString().strip()
                     if 'TOTAL portefeuilles' in val_b:
@@ -1896,7 +1903,7 @@ class DevisesMixin:
                 last_data = total_row - 1
                 ws.getCellByPosition(
                     uno_col(AvCol.FORMULE_L), uno_row(total_row)
-                ).setFormula(f'=ROUND(SUM(L{AV_FIRST_ROW}:L{last_data});2)')
+                ).setFormula(f'=ROUND(SUM(L{avr_data}:L{last_data});2)')
                 # Recaler AVR* + START/END_AVR (incluant model rows)
                 avr_names = {
                     'AVRintitulé': 'A', 'AVRtype': 'B', 'AVRdomiciliation': 'C',
@@ -1908,8 +1915,8 @@ class DevisesMixin:
                 nr = xdoc.NamedRanges
                 from com.sun.star.table import CellAddress
                 pos = CellAddress()
-                # AVR* et START_AVR commencent à la première donnée (AV_FIRST_ROW + 1)
-                avr_first = AV_FIRST_ROW + 1
+                # AVR* et START_AVR commencent à la model row (avr_data - 1)
+                avr_first = self._start_avr or AV_FIRST_ROW
                 for name, cl in avr_names.items():
                     if nr.hasByName(name):
                         nr.removeByName(name)
@@ -1925,7 +1932,8 @@ class DevisesMixin:
                 ws_pv = doc.get_sheet(SHEET_PLUS_VALUE)
                 # Trouver GRAND TOTAL → END_PVL = ligne juste avant
                 grand_total_row = None
-                for scan in range(5, 300):
+                pvl_data = (self._start_pvl or 5) + 1
+                for scan in range(pvl_data, pvl_data + 300):
                     val_b = ws_pv.getCellByPosition(uno_col(PvCol.COMPTE),
                                                      uno_row(scan)).getString().strip()
                     if 'GRAND TOTAL' in val_b.upper():

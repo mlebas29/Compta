@@ -870,7 +870,8 @@ class AccountsMixin:
             # 1. Avoirs col A — trouver et renommer
             ws_av = doc.get_sheet(SHEET_AVOIRS)
             col_a_av = uno_col(AvCol.INTITULE)
-            for r in range(uno_row(AV_FIRST_ROW), uno_row(self._end_avr + 1)):
+            avr_data = (self._start_avr or AV_FIRST_ROW) + 1
+            for r in range(uno_row(avr_data), uno_row(self._end_avr + 1)):
                 cell = ws_av.getCellByPosition(col_a_av, r)
                 if cell.getString() == old_name:
                     cell.setString(new_name)
@@ -917,7 +918,8 @@ class AccountsMixin:
             # 5. Contrôles col A — texte brut uniquement (formules =Avoirs.A{row} auto-propagées)
             ws_ctrl = doc.get_sheet(SHEET_CONTROLES)
             col_a_ctrl = uno_col(CtrlCol.COMPTE)
-            for r in range(uno_row(CTRL_FIRST_ROW), uno_row(self._end_ctrl1 + 1)):
+            ctrl_data = (self._start_ctrl1 or CTRL_FIRST_ROW) + 1
+            for r in range(uno_row(ctrl_data), uno_row(self._end_ctrl1 + 1)):
                 cell = ws_ctrl.getCellByPosition(col_a_ctrl, r)
                 if cell.getType().value == 0:  # EMPTY
                     continue
@@ -1078,7 +1080,7 @@ class AccountsMixin:
         """Worker UNO : purge les opérations et titres d'un compte."""
         from inc_uno import UnoDocument
         from inc_excel_schema import (uno_row, uno_col, OpCol, AvCol, PvCol,
-                                      SHEET_PLUS_VALUE, PV_FIRST_ROW)
+                                      SHEET_PLUS_VALUE)
 
         with UnoDocument(self.xlsx_path) as doc:
             # 1. Opérations : supprimer non appariées, reloger appariées → "Compte clos"
@@ -1126,7 +1128,8 @@ class AccountsMixin:
                 # Identifier les lignes titres (*nom*) et la ligne Total
                 title_rows = []
                 total_row_pv = None
-                for row_idx in range(PV_FIRST_ROW, self._end_pvl + 1):
+                pvl_data = (self._start_pvl or 5) + 1
+                for row_idx in range(pvl_data, self._end_pvl + 1):
                     val_b = ws_pv.getCellByPosition(col_b, uno_row(row_idx)).getString().strip()
                     val_c = ws_pv.getCellByPosition(col_c, uno_row(row_idx)).getString().strip()
                     if val_b != account_name:
@@ -1156,7 +1159,8 @@ class AccountsMixin:
             ws_av = doc.get_sheet(SHEET_AVOIRS)
             if rehoused > 0:
                 total_row = None
-                for row_idx in range(AV_FIRST_ROW, self._end_avr + 1):
+                avr_data2 = (self._start_avr or AV_FIRST_ROW) + 1
+                for row_idx in range(avr_data2, self._end_avr + 1):
                     val = ws_av.getCellByPosition(uno_col(AvCol.INTITULE), uno_row(row_idx)).getString()
                     if val and 'total' in val.lower():
                         total_row = row_idx
@@ -1527,9 +1531,9 @@ class AccountsMixin:
     @staticmethod
     def _ensure_compte_clos(ws_avoirs, total_row):
         """Crée 'Compte clos' dans Avoirs s'il n'existe pas. Retourne True si créé."""
-        from inc_excel_schema import uno_row, uno_col, AvCol
+        from inc_excel_schema import uno_row, uno_col, AvCol, AV_FIRST_ROW
         COMPTE_CLOS = 'Compte clos'
-        for row_idx in range(AV_FIRST_ROW, total_row or 200):
+        for row_idx in range(AV_FIRST_ROW + 1, total_row or 200):
             val = ws_avoirs.getCellByPosition(uno_col(AvCol.INTITULE), uno_row(row_idx)).getString()
             if val and val.strip() == COMPTE_CLOS:
                 return False
