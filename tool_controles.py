@@ -120,6 +120,8 @@ def get_rows_with_discrepancies(sheet, verbose=False):
 
     for row_idx in range(2, 60):  # Lignes 3 à 60
         compte = sheet.getCellByPosition(uno_col(CtrlCol.COMPTE), row_idx).String
+        if compte and compte.strip() == '✓':
+            continue
         devise = sheet.getCellByPosition(uno_col(CtrlCol.DEVISE), row_idx).String
         date_fin = sheet.getCellByPosition(uno_col(CtrlCol.DATE_FIN), row_idx).String
         solde_calc = sheet.getCellByPosition(uno_col(CtrlCol.SOLDE_CALC), row_idx).Value
@@ -215,7 +217,7 @@ def get_unknown_accounts(operations_sheet, avoirs_sheet, verbose=False):
     valid_accounts = set()
     for row_idx in range(3, 100):  # Lignes 4 à 100
         compte = avoirs_sheet.getCellByPosition(uno_col(AvCol.INTITULE), row_idx).String
-        if compte and compte.strip() and compte != 'Total':
+        if compte and compte.strip() and compte not in ('Total', '✓'):
             valid_accounts.add(compte.strip())
 
     if verbose:
