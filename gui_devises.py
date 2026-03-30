@@ -571,7 +571,7 @@ class DevisesMixin:
             wb = openpyxl.load_workbook(self.xlsx_path, data_only=True)
             ws = wb[SHEET_BUDGET]
             devises = []
-            header_row = self.budget_start_row or 27
+            header_row = self.budget_header_row or 27
             for col_idx in range(self.budget_first_devise_col + 1, self.budget_first_devise_col + 30):
                 val = ws.cell(header_row, col_idx).value
                 if not val:

@@ -1101,8 +1101,8 @@ class ConfigGUI(AccountsMixin, CategoriesMixin, DevisesMixin,
 
             # Détecter la première colonne devise = cat_col + 1
             first_devise_col = cat_col + 1
-            # Détecter la dernière devise (scan en-tête = ligne au-dessus de START)
-            header_row = (start_row - 1) if start_row else 27
+            # Détecter la dernière devise (scan en-tête = 2 lignes au-dessus de START_CAT)
+            header_row = (start_row - 2) if start_row else 27
             budget_last_devise = first_devise_col  # fallback
             for col_idx in range(first_devise_col, first_devise_col + 30):
                 val = ws.cell(header_row, col_idx).value
@@ -1152,8 +1152,10 @@ class ConfigGUI(AccountsMixin, CategoriesMixin, DevisesMixin,
             self.budget_categories = cats
             self.budget_cat_rows = cat_rows
             self.budget_cat_col = cat_col
-            self.budget_start_row = start_row
-            self.budget_header_row = (start_row - 1) if start_row else 27
+            # start_row = START_CAT (model row). Les taux sont 1 ligne au-dessus.
+            # Le header devises (EUR, USD...) est 2 lignes au-dessus.
+            self.budget_start_row = (start_row - 1) if start_row else None  # ligne taux (START)
+            self.budget_header_row = (start_row - 2) if start_row else 27   # ligne headers devises
             self.budget_total_row = total_row
             self.budget_insert_row = separator_row or total_row
             self.budget_posts = posts
