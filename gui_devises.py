@@ -844,14 +844,7 @@ class DevisesMixin:
 
         if not last_pf_data_row:
             # Template vierge : pas de données, insérer avant GRAND TOTAL (début footer)
-            col_b = uno_col(PvCol.COMPTE)
-            footer_row = None
-            pvl_data = (self._start_pvl or 5) + 1
-            for scan in range(pvl_data, pvl_data + 200):
-                val_b = ws_pv.getCellByPosition(col_b, uno_row(scan)).getString().strip()
-                if 'TOTAL' in val_b.upper() or 'GRAND' in val_b.upper():
-                    footer_row = scan
-                    break
+            footer_row = (self._end_pvl + 1) if self._end_pvl else None
             if not footer_row:
                 return
             insert_row = footer_row
@@ -1032,15 +1025,13 @@ class DevisesMixin:
         # Scanner les devises des lignes Retenu portefeuilles
         devises = set()
         pvl_data = (self._start_pvl or 5) + 1
-        for scan in range(pvl_data, pvl_data + 300):
+        pvl_scan_end = self._end_pvl or (pvl_data + 300)
+        for scan in range(pvl_data, pvl_scan_end):
             a = ws_pv.getCellByPosition(uno_col(PvCol.SECTION), uno_row(scan)).getString().strip()
             c = ws_pv.getCellByPosition(uno_col(PvCol.LIGNE), uno_row(scan)).getString().strip()
             d = ws_pv.getCellByPosition(uno_col(PvCol.DEVISE), uno_row(scan)).getString().strip()
             if a == 'portefeuilles' and c == 'Retenu' and d:
                 devises.add(d)
-            b = ws_pv.getCellByPosition(uno_col(PvCol.COMPTE), uno_row(scan)).getString().strip()
-            if 'GRAND TOTAL' in b:
-                break
 
         # Construire la formule pour chaque colonne (H, I, K)
         # Pas de devises ou EUR seul → formule générique (sans filtre devise)
@@ -1505,12 +1496,7 @@ class DevisesMixin:
             # --- Trouver la ligne Total actuelle (1-indexed) ---
             # Scanner au-delà de _end_avr : Total est après la dernière donnée
             avr_data = (self._start_avr or AV_FIRST_ROW) + 1
-            total_row = None
-            for row_idx in range(avr_data, self._end_avr + 10):
-                val = ws.getCellByPosition(uno_col(AvCol.INTITULE), uno_row(row_idx)).getString()
-                if val and 'total' in val.lower():
-                    total_row = row_idx
-                    break
+            total_row = (self._end_avr + 1) if self._end_avr else None
 
             # --- Avoirs : supprimer les lignes des comptes supprimés ---
             if self._deleted_accounts:
@@ -1948,21 +1934,12 @@ class DevisesMixin:
             if new_accounts or had_deletions:
                 from inc_excel_schema import PvCol
                 ws_pv = doc.get_sheet(SHEET_PLUS_VALUE)
-                # Trouver GRAND TOTAL → END_PVL = ligne juste avant
-                grand_total_row = None
-                pvl_data = (self._start_pvl or 5) + 1
-                for scan in range(pvl_data, pvl_data + 300):
-                    val_b = ws_pv.getCellByPosition(uno_col(PvCol.COMPTE),
-                                                     uno_row(scan)).getString().strip()
-                    if 'GRAND TOTAL' in val_b.upper():
-                        grand_total_row = scan
-                        break
-                if grand_total_row:
-                    # START_PVL = position actuelle (lue depuis le named range)
-                    from inc_uno import get_named_range_pos
-                    start_pvl_pos = get_named_range_pos(doc.document, 'START_PVL')
-                    pvl_start = (start_pvl_pos[2] + 1) if start_pvl_pos else 5  # 0→1-indexed
-                    pvl_end = grand_total_row - 1
+                # Lire START/END_PVL depuis les named ranges UNO (ajustés par insertByIndex)
+                from inc_uno import get_named_range_pos, get_table_bounds_uno
+                pvl_start_now, pvl_end_now = get_table_bounds_uno(doc.document, 'PVL')
+                if pvl_start_now and pvl_end_now:
+                    pvl_start = pvl_start_now
+                    pvl_end = pvl_end_now
                     xdoc = doc.document
                     nr = xdoc.NamedRanges
                     from com.sun.star.table import CellAddress

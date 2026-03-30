@@ -1159,12 +1159,7 @@ class AccountsMixin:
             ws_av = doc.get_sheet(SHEET_AVOIRS)
             if rehoused > 0:
                 total_row = None
-                avr_data2 = (self._start_avr or AV_FIRST_ROW) + 1
-                for row_idx in range(avr_data2, self._end_avr + 1):
-                    val = ws_av.getCellByPosition(uno_col(AvCol.INTITULE), uno_row(row_idx)).getString()
-                    if val and 'total' in val.lower():
-                        total_row = row_idx
-                        break
+                total_row = (self._end_avr + 1) if self._end_avr else None
                 self._ensure_compte_clos(ws_av, total_row)
 
             self._uno_finalize(doc)

@@ -912,13 +912,11 @@ class ConfigGUI(AccountsMixin, CategoriesMixin, DevisesMixin,
         self.accounts_data = []
         self._accounts_total_row = None
 
-        # Scanner depuis START_AVR+1 (données) au-delà de END_AVR
+        # Données entre START_AVR+1 et END_AVR, Total = END_AVR+1
         avr_data_start = (self._start_avr or AV_FIRST_ROW) + 1
-        for row_idx in range(avr_data_start, self._end_avr + 10):
+        self._accounts_total_row = (self._end_avr + 1) if self._end_avr else None
+        for row_idx in range(avr_data_start, self._end_avr or avr_data_start + 200):
             cell_a = ws_formula.cell(row_idx, AvCol.INTITULE).value
-            if cell_a and 'total' in str(cell_a).lower():
-                self._accounts_total_row = row_idx
-                break
             if not cell_a or str(cell_a).strip() == '✓':
                 continue
 
