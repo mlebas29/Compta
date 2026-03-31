@@ -687,53 +687,16 @@ class CategoriesMixin:
         self._set_status(f'Catégorie "{old_name}" renommée en "{new_name}".')
 
     def _delete_budget_category(self, name, reassign_to=None):
-        """Worker UNO : supprime une catégorie du Budget (removeByIndex).
+        """Worker UNO : supprime une catégorie du Budget.
 
-        Si reassign_to est fourni, renomme d'abord toutes les ops col G
-        de 'name' vers 'reassign_to'.
+        Délègue à BudgetMixin._delete_category (backup + UNO + mémoire).
         """
-        from inc_uno import UnoDocument
-        from inc_excel_schema import uno_row, uno_col, OpCol
-
         bak_path = self.xlsx_path.with_suffix('.xlsm.bak')
         shutil.copy2(self.xlsx_path, bak_path)
-
-        cat_row = self.budget_cat_rows.get(name)
-        if not cat_row:
-            raise ValueError(f'Catégorie "{name}" introuvable dans budget_cat_rows')
-
-        with UnoDocument(self.xlsx_path) as doc:
-            # Réaffecter les opérations col G si demandé
-            if reassign_to:
-                ws_ops = doc.get_sheet(SHEET_OPERATIONS)
-                col_g = uno_col(OpCol.CATEGORIE)
-                cursor = ws_ops.createCursor()
-                cursor.gotoStartOfUsedArea(False)
-                cursor.gotoEndOfUsedArea(True)
-                last_row_0 = cursor.getRangeAddress().EndRow
-                for r in range(2, last_row_0 + 1):
-                    cell = ws_ops.getCellByPosition(col_g, r)
-                    if cell.getString() == name:
-                        cell.setString(reassign_to)
-
-            # Supprimer la ligne Budget
-            ws = doc.get_sheet(SHEET_BUDGET)
-            ws.Rows.removeByIndex(uno_row(cat_row), 1)
-            self._uno_finalize(doc)
+        self._delete_category(name, reassign_to=reassign_to)
 
     def _after_budget_cat_delete(self, name):
-        """Callback après suppression catégorie : met à jour l'état mémoire."""
-        deleted_row = self.budget_cat_rows.pop(name, None)
-        self.budget_categories.remove(name)
-        # Ajuster les rows des catégories suivantes
-        if deleted_row:
-            for cat, row in self.budget_cat_rows.items():
-                if row > deleted_row:
-                    self.budget_cat_rows[cat] = row - 1
-            if self.budget_insert_row and self.budget_insert_row > deleted_row:
-                self.budget_insert_row -= 1
-            if self.budget_total_row and self.budget_total_row > deleted_row:
-                self.budget_total_row -= 1
+        """Callback après suppression catégorie : GUI + purge mappings."""
         # Purger les patterns orphelins qui référençaient cette catégorie
         purged = 0
         for group_entries in self.mappings.values():
@@ -971,41 +934,16 @@ class CategoriesMixin:
             self._set_status(f'Poste "{new_name}" modifié.')
 
     def _delete_budget_post(self, name):
-        """Worker UNO : supprime un poste budgétaire (removeByIndex)."""
-        from inc_uno import UnoDocument
-        from inc_excel_schema import uno_row
+        """Worker UNO : supprime un poste budgétaire.
 
+        Délègue à BudgetMixin._delete_poste (backup + UNO + mémoire).
+        """
         bak_path = self.xlsx_path.with_suffix('.xlsm.bak')
         shutil.copy2(self.xlsx_path, bak_path)
-
-        post_row = self.budget_post_rows.get(name)
-        if not post_row:
-            raise ValueError(f'Poste "{name}" introuvable dans budget_post_rows')
-
-        with UnoDocument(self.xlsx_path) as doc:
-            ws = doc.get_sheet(SHEET_BUDGET)
-            ws.Rows.removeByIndex(uno_row(post_row), 1)
-            self._uno_finalize(doc)
+        self._delete_poste(name)
 
     def _after_budget_post_delete(self, name):
-        """Callback après suppression poste : met à jour état mémoire + GUI."""
-        deleted_row = self.budget_post_rows.pop(name, None)
-        self.budget_posts.remove(name)
-        del self.budget_post_types[name]
-        # Ajuster les rows
-        if deleted_row:
-            for p, row in self.budget_post_rows.items():
-                if row > deleted_row:
-                    self.budget_post_rows[p] = row - 1
-            if self.budget_posts_total_row and self.budget_posts_total_row > deleted_row:
-                self.budget_posts_total_row -= 1
-            for cat, row in self.budget_cat_rows.items():
-                if row > deleted_row:
-                    self.budget_cat_rows[cat] = row - 1
-            if self.budget_insert_row and self.budget_insert_row > deleted_row:
-                self.budget_insert_row -= 1
-            if self.budget_total_row and self.budget_total_row > deleted_row:
-                self.budget_total_row -= 1
+        """Callback après suppression poste : GUI."""
         self._refresh_post_tree()
         self._set_status(f'Poste "{name}" supprimé.')
 

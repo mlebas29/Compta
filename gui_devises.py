@@ -2110,6 +2110,79 @@ class DevisesMixin:
                     ws.getCellByPosition(4, r).setFormula(
                         f'=D{r + 1}/D${total_1}')
 
+    def _cleanup_patrimoine(self, keep_values=None, doc=None):
+        """Supprime les lignes Patrimoine non conservées.
+
+        Inverse de _sync_patrimoine : supprime les lignes de données dont la
+        valeur B n'est pas dans keep_values[field]. Le bloc 'type' est structurel
+        et n'est jamais nettoyé.
+
+        Args:
+            keep_values: dict {field: set(valeurs à conserver)}
+            doc: UnoDocument ouvert (mode batch). Si None, ouvre/ferme automatiquement.
+        """
+        from contextlib import nullcontext
+        from inc_uno import UnoDocument
+
+        keep_values = keep_values or {}
+
+        owned = doc is None
+        ctx = UnoDocument(self.xlsx_path) if owned else nullcontext(doc)
+        with ctx as doc:
+            ws = doc.get_sheet('Patrimoine')
+
+            for field, (avr_name, header_prefix) in self._PATRIMOINE_BLOCKS.items():
+                if field == 'type':
+                    continue  # types structurels, jamais supprimés
+                keep = keep_values.get(field, set())
+
+                # Trouver header et TOTAL du bloc
+                header_row = None
+                total_row = None
+                for r in range(0, 70):
+                    b = ws.getCellByPosition(1, r).getString().strip()
+                    if header_row is None and b.lower().startswith(header_prefix.lower()):
+                        header_row = r
+                    elif header_row is not None and b == 'TOTAL':
+                        total_row = r
+                        break
+
+                if header_row is None or total_row is None:
+                    continue
+
+                # Supprimer les lignes non conservées (de bas en haut)
+                # Supprime aussi les lignes B vide (spacers, formules orphelines)
+                deleted = 0
+                for r in range(total_row - 1, header_row, -1):
+                    val = ws.getCellByPosition(1, r).getString().strip()
+                    if not val or val not in keep:
+                        ws.Rows.removeByIndex(r, 1)
+                        deleted += 1
+                        total_row -= 1
+
+                if deleted:
+                    # Recalculer les formules TOTAL
+                    first_data = header_row + 1
+                    first_1 = first_data + 1
+                    total_1 = total_row + 1
+                    if total_row > first_data:
+                        # Bloc non vide : SUM des lignes restantes
+                        ws.getCellByPosition(2, total_row).setFormula(
+                            f'=SUM(C{first_1}:C{total_1 - 1})')
+                        ws.getCellByPosition(3, total_row).setFormula(
+                            f'=ROUND(SUM(D{first_1}:D{total_1 - 1});2)')
+                    else:
+                        # Bloc vide : TOTAL = 0 (éviter #REF!)
+                        ws.getCellByPosition(2, total_row).setValue(0)
+                        ws.getCellByPosition(3, total_row).setValue(0)
+                    print(f"Patrimoine {field}: {deleted} lignes supprimées")
+
+            if owned:
+                doc.save()
+
+        if owned:
+            self._load_excel_data()
+
     def _save_config(self):
         raw = self.config_raw
 
