@@ -227,6 +227,7 @@ def write_cotations_json(path, data):
 # ============================================================================
 
 from gui_accounts import AccountsMixin
+from gui_budget import BudgetMixin
 from gui_categories import CategoriesMixin
 from gui_devises import DevisesMixin
 from gui_exec import ExecMixin
@@ -234,7 +235,7 @@ from gui_params import ParamsMixin
 from gui_sites import SitesMixin
 
 
-class ConfigGUI(AccountsMixin, CategoriesMixin, DevisesMixin,
+class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
                 ExecMixin, ParamsMixin, SitesMixin):
     def __init__(self, config_path, json_path, xlsx_path=None):
         self.config_path = Path(config_path)

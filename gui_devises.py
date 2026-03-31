@@ -179,7 +179,7 @@ class DevisesMixin:
             doc: UnoDocument ouvert (mode batch). Si None, ouvre/ferme automatiquement.
         """
         from contextlib import nullcontext
-        from inc_uno import UnoDocument, copy_row_style, copy_col_style
+        from inc_uno import UnoDocument, copy_col_style
         from inc_excel_schema import (
             uno_col, uno_row, col_letter, CotCol, COT_FIRST_ROW,
             SHEET_COTATIONS,
@@ -215,6 +215,8 @@ class DevisesMixin:
                 row_label = cell_label.getString().strip()
                 if not row_code and not row_label:
                     continue
+                if row_label == '✓' or row_code == '✓':
+                    continue  # model row — ne pas inclure dans la zone de données
                 cot_last_data = row_idx
                 # Lookup famille via JSON meta (par code ou par label)
                 row_famille = self.cotations_meta.get(row_code, {}).get('famille', '')
@@ -234,9 +236,11 @@ class DevisesMixin:
             cot_new_row = cot_insert_pos + 1
             ws_cot.Rows.insertByIndex(uno_row(cot_new_row), 1)
 
-            # Copier le style de la ligne précédente
-            copy_row_style(ws_cot, uno_row(cot_insert_pos), uno_row(cot_new_row),
-                           col_start=0, col_end=5)
+            # Mettre à jour _end_cot (l'insertion repousse END)
+            if self._end_cot and cot_new_row <= self._end_cot:
+                self._end_cot += 1
+
+            # Style propagé automatiquement depuis la model row par insertByIndex
 
             # Remplir la ligne : A=label, B=nature, C=code
             r0_cot = uno_row(cot_new_row)
@@ -272,6 +276,11 @@ class DevisesMixin:
                                 datetime.now().strftime('%d/%m/%Y'))
                 except Exception:
                     pass  # pas bloquant — le cours sera renseigné au prochain fetch
+
+            # Col F : cours de l'Euro = 1/cours_EUR
+            cot_cours_letter = col_letter(CotCol.COURS_EUR)
+            ws_cot.getCellByPosition(5, r0_cot).setFormula(
+                f'=1/{cot_cours_letter}{cot_new_row}')
 
             # Créer le named range cours_XXX → cellule cours de la nouvelle cotation
             cours_name = self.cours_name(code)
@@ -393,8 +402,12 @@ class DevisesMixin:
                         hc_start = r
                         break
                 changes_row = hc_start
-                ws_bud.getCellByPosition(nc0, uno_row(total_row + 3)).setFormula(
-                    f'=SUM({new_col_letter}{changes_row}:{new_col_letter}{sep_row})')
+                # Réécrire Total+3 pour TOUTES les colonnes devise (y compris EUR)
+                # Les formules template single-cell ne s'étendent pas avec les inserts
+                for dc in range(self.budget_first_devise_col, new_col + 1):
+                    dcl = col_letter(dc)
+                    ws_bud.getCellByPosition(uno_col(dc), uno_row(total_row + 3)).setFormula(
+                        f'=SUM({dcl}{changes_row}:{dcl}{sep_row})')
 
                 # Row Total+4 : Montant Euros = col*taux
                 sr = self.budget_start_row  # ligne des cours
@@ -414,6 +427,22 @@ class DevisesMixin:
                 if existing:  # ne réécrire que si une formule existait
                     ws_bud.getCellByPosition(nec0, uno_row(r)).setFormula(
                         f'=SUMPRODUCT({fdl}{r}:{sumproduct_last}{r};{fdl}${sr}:{sumproduct_last}${sr})')
+
+            # Pieds Equiv EUR : réécrire Total et Total+3 avec les bons ranges
+            # (le template a des refs single-cell qui ne s'étendent pas)
+            if total_row:
+                # Total Equiv EUR : =SUM(equiv_col first_cat : equiv_col sep)
+                ws_bud.getCellByPosition(nec0, uno_row(total_row)).setFormula(
+                    f'=SUM({new_equiv_letter}{first_cat_row}:{new_equiv_letter}{sep_row})')
+                # Total+3 Equiv EUR : =SUM(equiv_col changes : equiv_col sep)
+                ws_bud.getCellByPosition(nec0, uno_row(total_row + 3)).setFormula(
+                    f'=SUM({new_equiv_letter}{changes_row}:{new_equiv_letter}{sep_row})')
+
+                # Total+3 Alloc montant
+                alloc_m_col = new_equiv_col + 2
+                alloc_m_letter = col_letter(alloc_m_col)
+                ws_bud.getCellByPosition(uno_col(alloc_m_col), uno_row(total_row + 3)).setFormula(
+                    f'=SUM({alloc_m_letter}{changes_row}:{alloc_m_letter}{sep_row})')
 
             # Row Total+4 Equiv EUR : =SUM(first_dev:new_col)
             if total_row:
@@ -1023,9 +1052,10 @@ class DevisesMixin:
         from inc_excel_schema import uno_col, uno_row, PvCol
 
         # Scanner les devises des lignes Retenu portefeuilles
+        # Utiliser total_row comme borne (pas _end_pvl qui peut être stale en batch)
         devises = set()
         pvl_data = (self._start_pvl or 5) + 1
-        pvl_scan_end = self._end_pvl or (pvl_data + 300)
+        pvl_scan_end = total_row
         for scan in range(pvl_data, pvl_scan_end):
             a = ws_pv.getCellByPosition(uno_col(PvCol.SECTION), uno_row(scan)).getString().strip()
             c = ws_pv.getCellByPosition(uno_col(PvCol.LIGNE), uno_row(scan)).getString().strip()
@@ -1679,7 +1709,6 @@ class DevisesMixin:
             # Borner par la model row END (✓) — ne jamais insérer après
             ctrl_end_model = self._end_ctrl1 or (ctrl_last_data + 1)
             ctrl_next_row = min(ctrl_last_data + 1, ctrl_end_model)
-            template_ctrl_0 = uno_row(ctrl_last_data)
 
             for entry in self.display_accounts:
                 if entry.get('ctrl_row') is not None:
@@ -1694,12 +1723,10 @@ class DevisesMixin:
                 devise = entry['devise']
 
                 # Insérer une ligne avant END (✓)
+                # Le style est propagé automatiquement depuis la model row
                 ws_ctrl.Rows.insertByIndex(r0, 1)
                 if self._end_ctrl1 and r <= self._end_ctrl1:
                     self._end_ctrl1 += 1
-
-                # Copier style du template
-                copy_row_style(ws_ctrl, template_ctrl_0, r0, col_start=0, col_end=14)
 
                 # Formules et données (UNO : pas de préfixe _xlfn.)
                 ws_ctrl.getCellByPosition(uno_col(CtrlCol.COMPTE), r0).setFormula(

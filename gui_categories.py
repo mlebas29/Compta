@@ -416,85 +416,8 @@ class CategoriesMixin:
         )
 
     def _save_budget_category(self, name, poste, alloc_pct=100.0):
-        """Insère une nouvelle catégorie dans Budget via UNO."""
-        from inc_uno import UnoDocument, copy_row_style
-        from inc_excel_schema import uno_col, uno_row, col_letter
-
-        bak_path = self.xlsx_path.with_suffix('.xlsm.bak')
-        shutil.copy2(self.xlsx_path, bak_path)
-
-        insert_row = self.budget_insert_row  # séparateur "-" ou total
-        last = self.budget_last_devise_col
-        equiv_col = last + 1
-        alloc_pct_col = last + 2
-        alloc_montant_col = last + 3
-        poste_col = last + 4
-        last_letter = col_letter(last)  # ex: X pour col 24
-        # SUMPRODUCT range : M jusqu'à la dernière devise incluse
-        sumproduct_last = last_letter
-
-        with UnoDocument(self.xlsx_path) as doc:
-            ws = doc.get_sheet(SHEET_BUDGET)
-
-            # Insérer 1 ligne avant le séparateur "-" → dans la zone catégories
-            ws.Rows.insertByIndex(uno_row(insert_row), 1)
-            r = insert_row          # la nouvelle ligne (1-indexed Excel)
-            r0 = uno_row(r)         # 0-indexed UNO
-
-            # Copier le style depuis la dernière catégorie
-            last_cat_row = max(self.budget_cat_rows.values()) if self.budget_cat_rows else insert_row - 1
-            copy_row_style(ws, uno_row(last_cat_row), r0,
-                           col_start=uno_col(self.budget_cat_col),
-                           col_end=uno_col(poste_col) + 1)
-
-            # Nom catégorie
-            ws.getCellByPosition(uno_col(self.budget_cat_col), r0).setString(name)
-
-            # Devises : SUMIFS par devise
-            hr = self.budget_header_row
-            for col in range(self.budget_first_devise_col, last + 1):
-                cl = col_letter(col)
-                cat_letter = col_letter(self.budget_cat_col)
-                ws.getCellByPosition(uno_col(col), r0).setFormula(
-                    f'=SUMIFS(OPmontant;OPdevise;{cl}${hr};OPcatégorie;${cat_letter}{r};OPdate;">"&$C$2-365)')
-
-            # Equiv EUR : SUMPRODUCT (devises × cours)
-            equiv_letter = col_letter(equiv_col)
-            first_dev_letter = col_letter(self.budget_first_devise_col)
-            sr = self.budget_start_row  # ligne des cours
-            ws.getCellByPosition(uno_col(equiv_col), r0).setFormula(
-                f'=SUMPRODUCT({first_dev_letter}{r}:{sumproduct_last}{r};{first_dev_letter}${sr}:{sumproduct_last}${sr})')
-
-            # Auto-réparation : corriger les SUMPRODUCT existants si range obsolète
-            expected_end = f':{sumproduct_last}'
-            first_cat = min(self.budget_cat_rows.values()) if self.budget_cat_rows else insert_row
-            # Après insertByIndex, les anciennes catégories sont décalées de +1
-            for cr in range(first_cat, insert_row + 1):  # +1 car insert_row est le séparateur décalé
-                if cr == r:
-                    continue  # déjà écrit ci-dessus
-                cell_eq = ws.getCellByPosition(uno_col(equiv_col), uno_row(cr))
-                existing = cell_eq.getFormula()
-                if existing and 'SUMPRODUCT' in existing and expected_end not in existing:
-                    ws.getCellByPosition(uno_col(equiv_col), uno_row(cr)).setFormula(
-                        f'=SUMPRODUCT({first_dev_letter}{cr}:{sumproduct_last}{cr};{first_dev_letter}${sr}:{sumproduct_last}${sr})')
-
-            # Allocation %
-            ws.getCellByPosition(uno_col(alloc_pct_col), r0).setValue(alloc_pct / 100)
-
-            # Allocation montant : =Equiv*Alloc%
-            ws.getCellByPosition(uno_col(alloc_montant_col), r0).setFormula(
-                f'={equiv_letter}{r}*{col_letter(alloc_pct_col)}{r}')
-
-            # Poste budgétaire
-            ws.getCellByPosition(uno_col(poste_col), r0).setString(poste)
-
-            self._uno_finalize(doc)
-
-        # Mettre à jour l'état mémoire
-        self.budget_categories.append(name)
-        self.budget_cat_rows[name] = r
-        self.budget_insert_row = insert_row + 1
-        self.budget_total_row = self.budget_total_row + 1
+        """Insère une nouvelle catégorie dans Budget via BudgetMixin."""
+        self._add_category(name, poste=poste, alloc_pct=alloc_pct / 100)
 
     # ----------------------------------------------------------------
     # GÉRER / RENOMMER / SUPPRIMER CATÉGORIE BUDGET
@@ -985,73 +908,12 @@ class CategoriesMixin:
             name_entry.select_range(0, 'end')
 
     def _save_budget_post(self, name, type_fv):
-        """Worker UNO : insère un nouveau poste budgétaire avant Total."""
-        from inc_uno import UnoDocument, copy_row_style
-        from inc_excel_schema import uno_col, uno_row, col_letter
-
-        bak_path = self.xlsx_path.with_suffix('.xlsm.bak')
-        shutil.copy2(self.xlsx_path, bak_path)
-
-        insert_row = self.budget_posts_total_row  # ligne "Total = épargne"
-        # Déterminer le range des catégories pour la formule SUMIF
-        cat_start = min(self.budget_cat_rows.values()) if self.budget_cat_rows else 28
-        cat_end = max(self.budget_cat_rows.values()) if self.budget_cat_rows else 50
-        last = self.budget_last_devise_col
-        poste_col = last + 4  # AB
-
-        with UnoDocument(self.xlsx_path) as doc:
-            ws = doc.get_sheet(SHEET_BUDGET)
-
-            # Insérer 1 ligne avant "Total = épargne"
-            ws.Rows.insertByIndex(uno_row(insert_row), 1)
-            r = insert_row       # nouvelle ligne (1-indexed)
-            r0 = uno_row(r)      # 0-indexed UNO
-
-            # Copier le style depuis le dernier poste existant
-            last_post_row = max(self.budget_post_rows.values()) if self.budget_post_rows else insert_row - 1
-            copy_row_style(ws, uno_row(last_post_row), r0,
-                           col_start=0, col_end=3)  # cols A-C
-
-            # Col A : nom du poste
-            ws.getCellByPosition(0, r0).setString(name)
-            # Col B : type
-            ws.getCellByPosition(1, r0).setString(type_fv)
-            # Col C : formule SUMIF (les cat_start/cat_end ont été décalées +1 par insertByIndex)
-            cs = cat_start + 1
-            ce = cat_end + 1
-            ws.getCellByPosition(2, r0).setFormula(
-                f'=SUMIF($AB${cs}:$AB${ce};A{r};$AA${cs}:$AA${ce})')
-
-            # Corriger les formules de la ligne "Total = épargne" (décalée à r+1)
-            total_row_new = insert_row + 1
-            t0 = uno_row(total_row_new)
-            # Total col C : =SUM(C4:C{last_post})
-            ws.getCellByPosition(2, t0).setFormula(
-                f'=SUM(C4:C{r})')
-
-            # Ligne "Epargne fixe" = Total + 1
-            epargne_row = total_row_new + 1
-            e0 = uno_row(epargne_row)
-            ws.getCellByPosition(2, e0).setFormula(
-                f'=SUMIF($B4:$B{r};"Fixe";C4:C{r})')
-
-            self._uno_finalize(doc)
+        """Insère un nouveau poste budgétaire via BudgetMixin."""
+        self._add_poste(name, fixe=(type_fv == 'Fixe'))
 
     def _after_budget_post_save(self, name, type_fv):
-        """Callback après ajout poste : met à jour état mémoire + GUI."""
-        insert_row = self.budget_posts_total_row
-        self.budget_posts.append(name)
-        self.budget_post_rows[name] = insert_row
+        """Callback après ajout poste : refresh GUI (état mémoire mis à jour par le mixin)."""
         self.budget_post_types[name] = type_fv
-        self.budget_posts_total_row = insert_row + 1
-        # Décaler aussi les lignes catégories et le total catégories
-        for cat, row in self.budget_cat_rows.items():
-            if row >= insert_row:
-                self.budget_cat_rows[cat] = row + 1
-        if self.budget_insert_row and self.budget_insert_row >= insert_row:
-            self.budget_insert_row += 1
-        if self.budget_total_row and self.budget_total_row >= insert_row:
-            self.budget_total_row += 1
         self._refresh_post_tree()
         self._set_status(f'Poste "{name}" ajouté.')
 
