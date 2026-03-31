@@ -57,6 +57,8 @@ def main():
                         help='Ne compare que les opérations depuis cette date (YYYY-MM-DD)')
     parser.add_argument('--prev', dest='prev', nargs='?', const=1, type=int, metavar='N',
                         help='Compare comptes.xlsm avec la Nème archive (défaut: 1 = plus récente)')
+    parser.add_argument('--brutal', action='store_true',
+                        help='Comparaison cellule par cellule (formules + valeurs)')
     parser.add_argument('--threshold', dest='threshold', type=float, metavar='PCT',
                         help='Seuil variation Plus_value en %% (surcharge config.ini)')
 
@@ -127,7 +129,8 @@ def main():
         override_ignore_cols=override_ignore_cols,
         since_date=since_date,
         approx_tolerance=args.approx,
-        compare_tuples_flag=args.tuples
+        compare_tuples_flag=args.tuples,
+        brutal=args.brutal
     )
 
     print()
