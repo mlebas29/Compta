@@ -1530,21 +1530,24 @@ class AccountsMixin:
 
         return len(rows_to_delete)
 
-    @staticmethod
-    def _ensure_compte_clos(ws_avoirs, total_row):
+    def _ensure_compte_clos(self, ws_avoirs, total_row):
         """Crée 'Compte clos' dans Avoirs s'il n'existe pas. Retourne True si créé."""
-        from inc_excel_schema import uno_row, uno_col, AvCol, AV_FIRST_ROW
+        from inc_excel_schema import uno_row, uno_col, AvCol
         COMPTE_CLOS = 'Compte clos'
-        for row_idx in range(AV_FIRST_ROW + 1, total_row or 200):
+        avr_data = (self._start_avr or 4) + 1
+        end_avr = self._end_avr or (total_row and total_row - 1)
+        if not end_avr:
+            return False
+        for row_idx in range(avr_data, end_avr + 1):
             val = ws_avoirs.getCellByPosition(uno_col(AvCol.INTITULE), uno_row(row_idx)).getString()
             if val and val.strip() == COMPTE_CLOS:
                 return False
-        if total_row:
-            insert_0 = uno_row(total_row)
-            ws_avoirs.Rows.insertByIndex(insert_0, 1)
-            ws_avoirs.getCellByPosition(uno_col(AvCol.INTITULE), insert_0).setString(COMPTE_CLOS)
-            return True
-        return False
+        # Insérer avant END_AVR (dans la zone données)
+        insert_0 = uno_row(end_avr)
+        ws_avoirs.Rows.insertByIndex(insert_0, 1)
+        ws_avoirs.getCellByPosition(uno_col(AvCol.INTITULE), insert_0).setString(COMPTE_CLOS)
+        self._end_avr += 1
+        return True
 
     def _uno_finalize(self, doc):
         """calculateAll + lecture Contrôles A1 + save. Appelé par les workers UNO."""
