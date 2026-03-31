@@ -1784,15 +1784,31 @@ class DevisesMixin:
                 f = ctrl1_first
                 l = f
 
-            # -- CTRL1 gardes (row juste après le model row) --
+            # -- CTRL1 gardes (row Erreurs = END + 1) --
             # Conditionnées à K="Oui" pour exclure les Portefeuilles Titres (K=Non)
-            guard_row_0 = uno_row(ctrl_next_row + 1)
-            ws_ctrl.getCellByPosition(3, guard_row_0).setFormula(   # D = nb soldes début
-                f'=SUMPRODUCT(($K{f}:$K{l}="Oui")*(D{f}:D{l}<>1)*(D{f}:D{l}<>""))')
-            ws_ctrl.getCellByPosition(5, guard_row_0).setFormula(   # F = durée nulle
-                f'=SUMPRODUCT(($K{f}:$K{l}="Oui")*($F{f}:$F{l}=0))')
-            ws_ctrl.getCellByPosition(11, guard_row_0).setFormula(  # L = nb soldes fin
-                f'=SUMPRODUCT(($K{f}:$K{l}="Oui")*(L{f}:L{l}<>1)*(L{f}:L{l}<>""))')
+            # Lire END_CTRL1 depuis UNO (ajusté par removeByIndex/insertByIndex)
+            from inc_uno import get_table_bounds_uno
+            _, ctrl_end_now = get_table_bounds_uno(doc.document, 'CTRL1')
+            ctrl_end_now = ctrl_end_now or self._end_ctrl1 or ctrl_next_row
+            guard_row_0 = uno_row(ctrl_end_now + 1)  # Erreurs = juste après END ✓
+            has_data = ctrl1_last >= ctrl1_first
+            if has_data:
+                ws_ctrl.getCellByPosition(3, guard_row_0).setFormula(   # D = nb soldes début
+                    f'=SUMPRODUCT(($K{f}:$K{l}="Oui")*(D{f}:D{l}<>1)*(D{f}:D{l}<>""))')
+                ws_ctrl.getCellByPosition(5, guard_row_0).setFormula(   # F = durée nulle
+                    f'=SUMPRODUCT(($K{f}:$K{l}="Oui")*($F{f}:$F{l}=0))')
+                ws_ctrl.getCellByPosition(11, guard_row_0).setFormula(  # L = nb soldes fin
+                    f'=SUMPRODUCT(($K{f}:$K{l}="Oui")*(L{f}:L{l}<>1)*(L{f}:L{l}<>""))')
+            else:
+                # Pas de données → formules template (ABS/SUMIFS sur model rows)
+                s = self._start_ctrl1 or CTRL_FIRST_ROW
+                e = ctrl_end_now
+                ws_ctrl.getCellByPosition(3, guard_row_0).setFormula(
+                    f'=ABS(SUMIFS(D{s}:D{e};D{s}:D{e};1)-COUNTA(D{s}:D{e}))')
+                ws_ctrl.getCellByPosition(5, guard_row_0).setFormula(
+                    f'=COUNTIF($F${s}:$F${e};0)')
+                ws_ctrl.getCellByPosition(11, guard_row_0).setFormula(
+                    f'=ABS(SUMIFS(L{s}:L{e};L{s}:L{e};1)-COUNTA(L{s}:L{e}))')
 
             # -- CTRL2 h+2 COMPTES : COUNTIFS par devise --
             ctrl2_pos = get_named_range_pos(doc.document, 'START_CTRL2')
@@ -1931,7 +1947,11 @@ class DevisesMixin:
             # Elles restent dans les named ranges (ancrage pour SUM, SUMIFS, etc.)
             # et sont vides donc n'affectent pas les calculs.
             if total_row and (new_accounts or had_deletions):
-                last_data = self._end_avr or (total_row - 1)  # END model row ✓
+                # Lire START/END_AVR depuis UNO (ajustés par removeByIndex/insertByIndex)
+                from inc_uno import get_table_bounds_uno
+                avr_start_now, avr_end_now = get_table_bounds_uno(doc.document, 'AVR')
+                avr_first = avr_start_now or self._start_avr or AV_FIRST_ROW
+                last_data = avr_end_now or (total_row - 1)
                 ws.getCellByPosition(
                     uno_col(AvCol.FORMULE_L), uno_row(total_row)
                 ).setFormula(f'=ROUND(SUM(L{avr_data}:L{last_data});2)')
@@ -1946,8 +1966,6 @@ class DevisesMixin:
                 nr = xdoc.NamedRanges
                 from com.sun.star.table import CellAddress
                 pos = CellAddress()
-                # AVR* et START_AVR commencent à la model row
-                avr_first = self._start_avr or AV_FIRST_ROW
                 for name, cl in avr_names.items():
                     if nr.hasByName(name):
                         nr.removeByName(name)
@@ -1956,6 +1974,12 @@ class DevisesMixin:
                     if nr.hasByName(name):
                         nr.removeByName(name)
                     nr.addNewByName(name, f'$Avoirs.$A${val}', pos, 0)
+
+                # Garde : vérifier que START/END pointent sur ✓
+                for label, row in [('START_AVR', avr_first), ('END_AVR', last_data)]:
+                    cell_val = ws.getCellByPosition(0, uno_row(row)).getString().strip()
+                    assert cell_val == '✓', \
+                        f"{label} row {row}: '{cell_val}' (attendu: '✓')"
 
             # Recaler PVL* + START/END_PVL
             if new_accounts or had_deletions:
@@ -1983,6 +2007,12 @@ class DevisesMixin:
                         if nr.hasByName(name):
                             nr.removeByName(name)
                         nr.addNewByName(name, f'$Plus_value.$B${val}', pos, 0)
+
+                    # Garde : vérifier que START/END pointent sur ✓
+                    for label, row in [('START_PVL', pvl_start), ('END_PVL', pvl_end)]:
+                        cell_val = ws_pv.getCellByPosition(0, uno_row(row)).getString().strip()
+                        assert cell_val == '✓', \
+                            f"{label} row {row}: '{cell_val}' (attendu: '✓')"
 
             if new_ops_accounts:
                 self._cleanup_model_rows_ops(ws_ops)

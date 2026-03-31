@@ -23,110 +23,6 @@
             "category": "Intérêts"
         },
         {
-            "pattern": "(?i)CARREFOUR",
-            "category": "Marché"
-        },
-        {
-            "pattern": "(?i)LIDL",
-            "category": "Marché"
-        },
-        {
-            "pattern": "(?i)ALDI",
-            "category": "Marché"
-        },
-        {
-            "pattern": "(?i)BOULANGER",
-            "category": "Marché"
-        },
-        {
-            "pattern": "(?i)CHOCOLAT",
-            "category": "Marché"
-        },
-        {
-            "pattern": "(?i)JAZ\\b",
-            "category": "Marché"
-        },
-        {
-            "pattern": "(?i)BELLE EPOQUE",
-            "category": "Marché"
-        },
-        {
-            "pattern": "(?i)MIE CALINE",
-            "category": "Marché"
-        },
-        {
-            "pattern": "(?i)TY GWINIZ",
-            "category": "Marché"
-        },
-        {
-            "pattern": "(?i)AU BON PANIER",
-            "category": "Marché"
-        },
-        {
-            "pattern": "(?i)BARA BREIZH",
-            "category": "Marché"
-        },
-        {
-            "pattern": "(?i)ATELIER GOURMAND",
-            "category": "Marché"
-        },
-        {
-            "pattern": "(?i)SA RENANAISE",
-            "category": "Marché"
-        },
-        {
-            "pattern": "(?i)Point Vert",
-            "category": "Kervavic"
-        },
-        {
-            "pattern": "(?i)Maison du Boulanger",
-            "category": "Marché"
-        },
-        {
-            "pattern": "(?i)Fermes de Gally",
-            "category": "Maillol"
-        },
-        {
-            "pattern": "(?i)Proxi",
-            "category": "Marché"
-        },
-        {
-            "pattern": "(?i)BOUCH\\. DU MANET",
-            "category": "Marché"
-        },
-        {
-            "pattern": "(?i)Bricomarché",
-            "category": "Kervavic"
-        },
-        {
-            "pattern": "(?i)Bricorama",
-            "category": "Kervavic"
-        },
-        {
-            "pattern": "(?i)SGC Landerneau",
-            "category": "Kervavic"
-        },
-        {
-            "pattern": "(?i)MARCHE AUX AFFA",
-            "category": "Kervavic"
-        },
-        {
-            "pattern": "(?i)SOFIMAT",
-            "category": "Kervavic"
-        },
-        {
-            "pattern": "(?i)CANAL PLUS",
-            "category": "Cadeaux"
-        },
-        {
-            "pattern": "(?i)UCPA",
-            "category": "Cadeaux"
-        },
-        {
-            "pattern": "(?i)TROUZILIT",
-            "category": "Cadeaux"
-        },
-        {
             "pattern": "(?i)Poivre Rouge",
             "category": "Restaurant"
         },
@@ -223,58 +119,6 @@
             "category": "Restaurant"
         },
         {
-            "pattern": "(?i)TotalEnergies",
-            "category": "Transport"
-        },
-        {
-            "pattern": "(?i)\\bShell\\b",
-            "category": "Transport"
-        },
-        {
-            "pattern": "(?i)ST MAJAN AUTO",
-            "category": "Transport"
-        },
-        {
-            "pattern": "(?i)SAPN COMMERCE",
-            "category": "Transport"
-        },
-        {
-            "pattern": "(?i)EasyPark",
-            "category": "Transport"
-        },
-        {
-            "pattern": "(?i)HORODATEUR",
-            "category": "Transport"
-        },
-        {
-            "pattern": "(?i)COFIROUTE",
-            "category": "Transport"
-        },
-        {
-            "pattern": "(?i)PARK.*BREST",
-            "category": "Transport"
-        },
-        {
-            "pattern": "(?i)BORNES SORTIES",
-            "category": "Transport"
-        },
-        {
-            "pattern": "(?i)QPF BREST",
-            "category": "Transport"
-        },
-        {
-            "pattern": "(?i)INDIGO",
-            "category": "Transport"
-        },
-        {
-            "pattern": "(?i)PARKING",
-            "category": "Transport"
-        },
-        {
-            "pattern": "(?i)AREAS",
-            "category": "Transport"
-        },
-        {
             "pattern": "(?i)Pharmacie",
             "category": "Santé"
         },
@@ -291,14 +135,6 @@
             "category": "Santé"
         },
         {
-            "pattern": "(?i)AMAZON MEDIA",
-            "category": "Livres"
-        },
-        {
-            "pattern": "(?i)CUB INK",
-            "category": "Marc"
-        },
-        {
             "pattern": "(?i)GAB\\s",
             "category": "-",
             "ref": "-"
@@ -306,104 +142,12 @@
     ],
     "SOCGEN": [
         {
-            "pattern": "ALLIANZ",
-            "category": "ALLIANZ"
-        },
-        {
-            "pattern": "MACIF",
-            "category": "MACIF"
-        },
-        {
-            "pattern": "STARLINK",
-            "category": "Kervavic"
-        },
-        {
-            "pattern": "06XXXXX750",
-            "category": "Orange Mamy"
-        },
-        {
-            "pattern": "06XXXXX634",
-            "category": "Orange Marc"
-        },
-        {
-            "pattern": "06XXXXX448",
-            "category": "Orange Cécile"
-        },
-        {
-            "pattern": "\\sSEOP\\s",
-            "category": "SEOP"
-        },
-        {
-            "pattern": "Votre abonnement fibre",
-            "category": "Orange Maillol"
-        },
-        {
-            "pattern": "EHPAD Mer Iroise",
-            "category": "Mamy Marie"
-        },
-        {
-            "pattern": "HUMANIS",
-            "category": "HUMANIS"
-        },
-        {
-            "pattern": "\\.TWITCH\\.TV",
-            "category": "Marc"
-        },
-        {
-            "pattern": "\\sOVH\\s",
-            "category": "OVH"
-        },
-        {
-            "pattern": "IMPOT 29",
-            "category": "Impôts 29"
-        },
-        {
-            "pattern": "IMPOT 78",
-            "category": "Impôts 78"
-        },
-        {
-            "pattern": "IMPOT PAS",
-            "category": "Impôts revenu"
-        },
-        {
-            "pattern": "IMPOT REVENU",
-            "category": "Impôts revenu"
-        },
-        {
             "pattern": "\\sCPAM\\s(?!.+01)",
             "category": "Santé"
         },
         {
-            "pattern": "\\sCPAM.+01",
-            "category": "CRAMIF"
-        },
-        {
-            "pattern": "CNAVTS",
-            "category": "CNAV"
-        },
-        {
-            "pattern": "MUTUALITE SOCIALE AGRICOLE D'ILE DE FR ANCE MOTIF: AV",
-            "category": "MSA retraite"
-        },
-        {
             "pattern": "MUTUALITE SOCIALE AGRICOLE D'ILE DE FR ANCE MOTIF: PM",
             "category": "Santé"
-        },
-        {
-            "pattern": "CA ASSURANCES RETRAITE",
-            "category": "PREDICA"
-        },
-        {
-            "pattern": "AGIRC-ARRCO AGRICA",
-            "category": "AGRICA"
-        },
-        {
-            "pattern": "Anthropic",
-            "category": "Maillol"
-        },
-        {
-            "pattern": "FRAIS PAIEMENT",
-            "category": "Marc"
         },
         {
             "pattern": "\\sSYNOE\\s",
@@ -512,10 +256,6 @@
             "category": "Intérêts"
         },
         {
-            "pattern": "Prélèvements sociaux",
-            "category": "Impôts revenu"
-        },
-        {
             "pattern": "Arbitrage",
             "category": "Arbitrage titres"
         },
@@ -577,14 +317,6 @@
             "ref": "-"
         },
         {
-            "pattern": "(?i)PRELEVEMENT.*SOCIAUX",
-            "category": "Impôts revenu"
-        },
-        {
-            "pattern": "(?i)PRELEVEMENTS.*FISCAUX",
-            "category": "Impôts revenu"
-        },
-        {
             "pattern": "(?i)INTER\\.?BRUTS",
             "category": "Intérêts"
         },
@@ -594,10 +326,6 @@
         }
     ],
     "DEGIRO": [
-        {
-            "pattern": "(?i)Impôts sur dividende",
-            "category": "Impôts revenu"
-        },
         {
             "pattern": "(?i)Dividende",
             "category": "Coupon"
@@ -626,10 +354,6 @@
         {
             "pattern": "(?i)Modification.*placements",
             "category": "Arbitrage titres"
-        },
-        {
-            "pattern": "(?i)INVESTISSEMENT",
-            "category": "Syngenta"
         },
         {
             "pattern": "(?i)Remboursement",
