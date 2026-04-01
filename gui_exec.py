@@ -350,8 +350,10 @@ class ExecMixin:
 
         text_frame = ttk.Frame(frame2)
         text_frame.pack(fill='x')
-        text_widget = tk.Text(text_frame, height=6, width=55, wrap='none',
-                              font=('monospace', 9), relief='flat',
+        max_line = max(len(l) for l in instructions.split('\n'))
+        text_widget = tk.Text(text_frame, height=8, width=max_line + 2,
+                              wrap='none', font=('monospace', 9),
+                              relief='flat',
                               background=dlg.cget('background'))
         text_widget.insert('1.0', instructions)
         text_widget.config(state='disabled')
