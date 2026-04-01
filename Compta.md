@@ -1,6 +1,6 @@
 # 1. Présentation
 
-Voir **README.md** pour la présentation du projet, l'installation et l'utilisation.
+Voir **README.md** pour la présentation du projet, l’installation et l’utilisation.
 
 # 2. Introduction
 
@@ -12,7 +12,7 @@ La gestion comptable a pour but de centraliser dans un tableur :
 
 * les autres **valeurs de biens matériels** (immobilier ...)
 
-Le tableur **comptes.xlsm** présente ces données et les synthétise selon différentes vues : postes budgétaires, plus values latentes, répartitions patrimoniales. Il détecte aussi des incohérences telles que des écarts entre  soldes calculés et soldes relevés.
+Le tableur **comptes.xlsm** est partagé sur le Wiki. Il présente ces données et les synthétise selon différentes vues : postes budgétaires, plus values latentes, répartitions patrimoniales. Il détecte aussi des incohérences telles que des écarts entre  soldes calculés et soldes relevés.
 
 Les tâches de la gestion comptable :
 
@@ -26,13 +26,13 @@ Les tâches de la gestion comptable :
 
 # 3. App d'assistance
 
-L'App graphique **Comptabilité** :
+L'App graphique **Comptabilité [PROD]** : 
 
 - automatise la quasi totalité de ces tâches
 - dispense de connaissances Excel pour la configuration
 - conserve les données Excel qui sont hors de son périmètre
 
-L'App ne prend pas en compte les biens matériels (hors bijoux) ni les saisies manuelles — bien que certaines soient générées automatiquement (ex : crédit espèces en contrepartie d'un retrait DAB).
+L'App peut générer automatiquement des opérations (ex : crédit espèces en contrepartie d'un retrait DAB).
 
 Une présence est nécessaire au moment de la collecte lorsque les procédures 2FA (Two Factor Authentication) sont déclenchées. Ces procédures sont inexistantes, occasionnelles ou systématiques, selon les sites.
 
@@ -78,23 +78,31 @@ La fonction de cotation a pour effet de mettre à jour dans le fichier excel les
 
 ## Mode d'emploi de l'App d'assistance
 
+Sur PC DELL (Linux Zorin)
+
 Le mode opératoire est dirigé par l'interface graphique qui documente les procédures spécifiques de connexion.
+
 
 #### Étape 1 - exécution de l'App
 
-Lancer l'App Comptabilité (Symbole Euro)
+Cliquer dans la barre des tâches sur l'App Comptabilité \[PROD] (Symbole Euro sur fond rouge)
 
-![](cpt_gui_export.png)
+![](https://wiki.labeille.net/lib/6f5cfd58-d01c-40d9-bd47-5409b6e9a5c6/file/images/auto-upload/image-1771770213219.png?raw=1)
+![](cpt_gui_prod.png)
 
 La fenêtre qui s'ouvre présente l'onglet Exécution :
 
-![](images/Compta.png)
 
-Dans l'onglet Exécution, sélectionner les sites voulus puis cliquer sur le bouton "Collecte". L'App demande le mot de passe maitre dans une fenêtre dédiée, puis visite tous les sites sélectionnés pour collecter les données, ce qui peut prendre plusieurs minutes.
+![](https://wiki.labeille.net/lib/6f5cfd58-d01c-40d9-bd47-5409b6e9a5c6/file/images/auto-upload/image-1771871691590.png?raw=1)
+![](images/Compta_PROD_2.png)
 
-> NB : Une présence est nécessaire avec le mobile car certains sites peuvent déclencher une procédure 2FA pendant la collecte.
+Dans l'onglet Exécution, sélectionner les sites voulus puis cliquer sur le bouton "Collecte". L'App demande le mot de passe P2 dans une fenêtre dédiée, puis visite tous les sites sélectionnés pour collecter les données, ce qui peut prendre plusieurs minutes.
+
+> NB : Une présence est nécessaire avec le mobile car certains sites peuvent déclencher une procédure 2FA pendant la collecte. 
 
 Quand la collecte est terminée, cliquer sur "Import" pour mettre à jour le fichier **comptes.xlsm** avec les données collectées. On peut aussi attendre pour relancer une collecte avec d'autres sites qui manqueraient.
+
+
 
 #### Étape 2 - compléments manuels
 
@@ -112,7 +120,7 @@ Le fichier  **comptes.xlsm** peut alors être ouvert sous LibreOffice, pour une 
 
 #### Étape 3 - finalisation
 
-La dernière étape consiste à sauvegarder le fichier validé.
+La dernière étape consiste à copier le fichier validé à son emplacement Wiki avec le bouton "Publier Wiki"
 
 # 4. Dépendances
 
@@ -123,13 +131,18 @@ L'app dépend de :
 - Chrome et Playwright pour la collecte et son automatisation
 - LibreOffice pour le tableur
 
+La collecte Monero Wallets exige un noeud local
+
 Les collectes Bitcoin sont effectuées directement depuis la blockchain à partir des adresses publiques des portefeuilles
 
-Les cotations sont effectuées depuis 3 sites publics :
+La collecte Yuh Bank passe par un Drive Google partagé sur le PC Linux
 
-- Métaux précieux (Yahoo Finance)
-- Cryptomonnaies (CoinGecko)
-- Devises (Frankfurter/BCE)
+Les cotations sont affectuées depuis 3 sites publics :
+
+- Métaux précieux (Yahoo Finance)... 
+→ Cryptomonnaies (CoinGecko)
+→ Devises (Frankfurter/BCE)
+
 
 # 5. Pour approfondir
 
@@ -171,7 +184,7 @@ L'App affiche en permanence une barre de statut en bas de fenêtre avec deux zon
 - Sites orphelins dans la configuration JSON
 - Catégories absentes du Budget
 
-# ANNEXE B - Récap headed
+# ANNEXE B - Récap headed PROD 
 
 Tous les scripts démarrent en **headless** (fenêtre du navigateur invisible). Bascule headed selon le contexte :
 
@@ -180,8 +193,10 @@ Tous les scripts démarrent en **headless** (fenêtre du navigateur invisible). 
 | **eToro** | Login requis (session expirée) | CAPTCHA et/ou code 2FA dans Chrome |
 | **Wise** | Login requis (session expirée) | Mobile 2FA + email 2FA (clipboard) |
 | **Kraken** | Cloudflare Turnstile (CAPTCHA) | Cocher "humain", puis 2FA email (clipboard) |
-| **Autres** | Selon script (2FA, OCR...) | Variable |
+| **VeraCash** | Login requis | 2FA SMS (code à saisir dans Chrome) |
+| **BB/SG/PEE/BG/DEGIRO** | Selon script (2FA, OCR...) | Variable |
 
 - Si session active (profil persistant) : reste headless, pas d'interaction
+- Skip `relaunch_headed()` si déjà headed (TEST/DEBUG)
 - Wise : clipboard surveille liens wise.com, ouvre dans nouvel onglet
 - Kraken : clipboard surveille liens kraken.com, navigue dans même onglet
