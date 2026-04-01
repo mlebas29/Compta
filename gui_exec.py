@@ -139,6 +139,10 @@ class ExecMixin:
         btn.pack(side='left', padx=(0, 8))
         self._exec_buttons.append(btn)
 
+        btn = ttk.Button(tools_btn_frame, text='Vérifier',
+                         command=self._startup_check)
+        btn.pack(side='left', padx=(0, 8))
+
         # Bouton Arrêter (en bas du cadre Lancement, s'applique à tout)
         stop_frame = ttk.Frame(launch_frame)
         stop_frame.pack(fill='x')

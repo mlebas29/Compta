@@ -391,6 +391,7 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
         status_frame = ttk.Frame(self.root)
         status_frame.pack(fill='x', padx=8, pady=(0, 8))
 
+        self._coherence_auto_fixes = []
         self._coherence_warnings = []
         self._status_details = []  # détails affichés au clic
 
@@ -546,8 +547,8 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
                     level = 'warn'
 
             # Cohérence JSON ↔ Excel
-            self._coherence_warnings = self._check_coherence()
-            if self._coherence_warnings:
+            self._coherence_auto_fixes, self._coherence_warnings = self._check_coherence()
+            if self._coherence_warnings or self._coherence_auto_fixes:
                 details.extend(self._coherence_warnings)
                 if level == 'ok':
                     level = 'warn'
@@ -578,17 +579,79 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
         except Exception:
             pass
 
+    def _startup_check(self):
+        """Check de cohérence au démarrage : charge Excel puis vérifie."""
+        self._ensure_excel_loaded()
+        # Relire les JSON depuis le disque (ils ont pu être modifiés en externe)
+        self.accounts_json_data = self._load_accounts_json()
+        self.account_site_map = accounts_to_site_map(self.accounts_json_data)
+        self.cotations_meta = read_cotations_json(self.cotations_json_path)
+        auto_fixes, warnings = self._check_coherence()
+
+        # Mettre à jour les attributs pour la status bar
+        self._coherence_auto_fixes = auto_fixes
+        self._coherence_warnings = warnings
+
+        # Afficher dans la zone Résultat
+        out = self._exec_output
+        out.configure(state='normal')
+        out.delete('1.0', 'end')
+
+        if not auto_fixes and not warnings:
+            out.insert('end', '✓ Cohérence vérifiée\n')
+        else:
+            if auto_fixes:
+                out.insert('end', '=== Corrections automatiques ===\n\n')
+                for line in auto_fixes:
+                    out.insert('end', f'  [AUTO-FIX] {line}\n')
+                out.insert('end', '\n')
+            if warnings:
+                out.insert('end', '=== Problèmes détectés ===\n\n')
+                for line in warnings:
+                    out.insert('end', f'  [ATTENTION] {line}\n')
+
+        out.see('end')
+        out.configure(state='disabled')
+
+        # Rafraîchir la status bar avec les résultats
+        if self.xlsx_path:
+            self._refresh_status_bar()
+
     def _check_coherence(self):
         """Vérifie la cohérence entre Excel et les fichiers JSON de config.
 
         Returns:
-            list[str]: messages d'anomalies (vide si tout est cohérent)
+            tuple(list[str], list[str]): (auto_fixes effectués, warnings à traiter)
         """
         if not self._excel_loaded:
-            return []
+            return [], []
+        auto_fixes = []
         warnings = []
         avoirs_names = {a['intitule'] for a in self.accounts_data}
         avoirs_by_row = {a['row']: a for a in self.accounts_data}
+
+        # --- JSON vides : détection et auto-correction ---
+        if not self.accounts_json_data and self.accounts_data:
+            # config_accounts.json vide mais le classeur a des comptes → reconstruire
+            self._save_site_map()
+            self.accounts_json_data = read_accounts_json(self.accounts_json_path)
+            self.account_site_map = accounts_to_site_map(self.accounts_json_data)
+            auto_fixes.append('config_accounts.json reconstruit depuis le classeur')
+
+        mappings_path = self.config_path.parent / 'config_category_mappings.json'
+        if mappings_path.exists():
+            mappings = read_mappings_json(mappings_path)
+            if not mappings:
+                warnings.append('config_category_mappings.json est vide — configurer via l\'onglet Catégories')
+        else:
+            warnings.append('config_category_mappings.json introuvable — configurer via l\'onglet Catégories')
+
+        if not self.cotations_meta:
+            devises_non_eur = [d for d in getattr(self, 'ACCOUNT_DEVISES', []) if d != 'EUR']
+            if devises_non_eur:
+                warnings.append(
+                    f'config_cotations.json est vide — devises sans cotation : '
+                    f'{", ".join(devises_non_eur)}')
 
         # --- Contrôles → Avoirs : vérification formules ---
         try:
@@ -607,7 +670,7 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
                     if not acct:
                         warnings.append(
                             f'Contrôles ligne {row_idx}: référence Avoirs.A{ref_row} invalide')
-                elif cell_str and cell_str not in avoirs_names:
+                elif cell_str and cell_str != '✓' and cell_str not in avoirs_names:
                     warnings.append(
                         f'Contrôles ligne {row_idx}: compte « {cell_str} » absent d\'Avoirs')
             wb_check.close()
@@ -620,12 +683,40 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
         if orphan_sites:
             for name in orphan_sites:
                 del self.account_site_map[name]
-            self._save_site_map()
+            # Supprimer les comptes orphelins du JSON (sans reconstruire tout)
+            for site_data in self.accounts_json_data.values():
+                accts = site_data.get('accounts', [])
+                site_data['accounts'] = [a for a in accts
+                                         if a.get('name') not in orphan_sites]
+            write_accounts_json(self.accounts_json_path, self.accounts_json_data)
+            auto_fixes.append(
+                f'config_accounts.json : {len(orphan_sites)} compte(s) orphelin(s) supprimé(s)')
 
-        # --- Catégories Budget ↔ règles de catégorisation : signalement ---
+        # --- Sites activés sans comptes (MANUEL exclu — pas de comptes associés) ---
+        enabled_str = self.config.get('sites', 'enabled', fallback='')
+        enabled_sites = {s.strip() for s in enabled_str.split(',') if s.strip()}
+        enabled_sites.discard('MANUEL')
+        sites_with_accounts = set(self.account_site_map.values()) - {'N/A'}
+        for s in sorted(enabled_sites - sites_with_accounts):
+            warnings.append(f'Site « {s} » activé mais aucun compte associé')
+
+        # --- Sites avec comptes mais désactivés ---
+        for s in sorted(sites_with_accounts - enabled_sites):
+            if s in set(self.all_sites):
+                warnings.append(f'Site « {s} » a des comptes mais est désactivé')
+
+        # --- Devises Avoirs sans cotation (hors EUR) ---
+        devises_avoirs = {a['devise'] for a in self.accounts_data if a['devise']}
+        devises_avoirs.discard('EUR')
+        if self.cotations_meta:
+            cotations_codes = set(self.cotations_meta.keys())
+            devises_sans_cotation = devises_avoirs - cotations_codes
+            for d in sorted(devises_sans_cotation):
+                warnings.append(f'Devise « {d} » utilisée dans Avoirs mais absente des cotations')
+
+        # --- Catégories Budget ↔ règles de catégorisation : nettoyage auto ---
         if hasattr(self, 'budget_categories') and self.budget_categories:
             budget_cats = set(self.budget_categories)
-            mappings_path = self.config_path.parent / 'config_category_mappings.json'
             if mappings_path.exists():
                 mappings = read_mappings_json(mappings_path)
                 json_cats = set()
@@ -641,7 +732,7 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
                         rules[:] = [r for r in rules if r.get('category', '') not in orphan_cats]
                     write_mappings_json(mappings_path, mappings)
                     for cat in sorted(orphan_cats):
-                        warnings.append(f'Catégorie « {cat} » absente du Budget — patterns purgés')
+                        auto_fixes.append(f'Catégorie « {cat} » absente du Budget — patterns purgés')
 
         # --- Sites config.ini ↔ JSONs : cohérence ---
         ini_sites = set(self.all_sites)
@@ -653,7 +744,7 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
         for s in ini_sites - set(self.site_descriptions_default.keys()):
             warnings.append(f'Site « {s} » absent de config_descriptions_default.json')
 
-        return warnings
+        return auto_fixes, warnings
 
     # Décodage de la synthèse Contrôles N76 (6 positions)
     # Formule : N63 & N64 & N65 & N66 & N67 & N75 (6 symboles ✓/✗/⚠)
@@ -705,7 +796,8 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
         """Affiche le détail des alertes dans la zone Résultat."""
         ctrl = getattr(self, '_status_ctrl', '')
         coherence = getattr(self, '_coherence_warnings', [])
-        if not ctrl and not coherence:
+        auto_fixes = getattr(self, '_coherence_auto_fixes', [])
+        if not ctrl and not coherence and not auto_fixes:
             return
 
         out = self._exec_output
@@ -730,11 +822,18 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
                 out.insert('end', f'  {icon}  {label:<22} {detail}\n')
             out.insert('end', '\n')
 
+        # Section corrections automatiques
+        if auto_fixes:
+            out.insert('end', '=== Corrections automatiques ===\n\n')
+            for line in auto_fixes:
+                out.insert('end', f'  [AUTO-FIX] {line}\n')
+            out.insert('end', '\n')
+
         # Section configuration
         if coherence:
             out.insert('end', '=== Configuration ===\n\n')
             for line in coherence:
-                out.insert('end', f'  • {line}\n')
+                out.insert('end', f'  [ATTENTION] {line}\n')
 
         out.configure(state='disabled')
         self.notebook.select(self._tab_execution)
@@ -781,6 +880,9 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
         # Planifier le suivant au prochain tick (laisse le GUI respirer)
         if self._deferred_tabs:
             self.root.after_idle(self._build_deferred_tabs)
+        elif self.xlsx_path:
+            # Tous les onglets construits → lancer le check de cohérence
+            self.root.after_idle(self._startup_check)
 
     def _on_tab_changed(self, event):
         """Construit un onglet différé si l'utilisateur clique avant le background."""

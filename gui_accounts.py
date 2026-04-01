@@ -733,30 +733,41 @@ class AccountsMixin:
         # Champs figés en édition
         frozen_keys = {'type_sg', 'file_key'}
 
+        _current_type_sg = tk.StringVar(value=json_acct.get('type_sg', ''))
+
         def build_extra_fields():
+            # Sauvegarder type_sg avant nettoyage
+            if 'type_sg' in extra_fields:
+                _current_type_sg.set(extra_fields['type_sg'].get())
+
             for w in extra_widgets:
                 w.destroy()
             extra_widgets.clear()
             extra_fields.clear()
 
             site = fields['site'].get().strip()
-            type_sg = json_acct.get('type_sg')
+            type_sg = _current_type_sg.get() or None
             field_defs = self._site_account_fields(site, type_sg)
 
             for i, (label, key, wtype, values) in enumerate(field_defs):
                 lbl = ttk.Label(extra_frame, text=label)
                 lbl.grid(row=i, column=0, sticky='w', padx=10, pady=2)
                 extra_widgets.append(lbl)
-                # Pré-remplir depuis le JSON
-                current = json_acct.get(key, '')
+                # Pré-remplir : d'abord le combobox courant, sinon le JSON
+                if key == 'type_sg' and _current_type_sg.get():
+                    current = _current_type_sg.get()
+                else:
+                    current = json_acct.get(key, '')
                 if key == 'addresses' and isinstance(current, list):
                     current = ', '.join(current)
                 var = tk.StringVar(value=current)
-                is_frozen = key in frozen_keys and current
+                is_frozen = key in frozen_keys and json_acct.get(key, '')
                 if wtype == 'combo':
                     state = 'disabled' if is_frozen else 'normal'
                     w = ttk.Combobox(extra_frame, textvariable=var, values=values,
                                      width=25, state=state)
+                    if key == 'type_sg':
+                        w.bind('<<ComboboxSelected>>', lambda *_: build_extra_fields())
                 else:
                     state = 'readonly' if is_frozen else 'normal'
                     w = ttk.Entry(extra_frame, textvariable=var, width=28, state=state)
@@ -778,6 +789,7 @@ class AccountsMixin:
             dlg.update_idletasks()
 
         build_extra_fields()
+        fields['site'].trace_add('write', lambda *_: build_extra_fields())
         row += 1
 
         def on_ok():
