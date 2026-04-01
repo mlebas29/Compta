@@ -129,7 +129,7 @@ class ExecMixin:
             btn.pack(side='left', padx=(0, 8))
             self._exec_buttons.append(btn)
 
-        btn = ttk.Button(tools_btn_frame, text='Réinitialiser',
+        btn = ttk.Button(tools_btn_frame, text='Réinitialiser...',
                          command=self._exec_reset)
         btn.pack(side='left', padx=(0, 8))
         self._exec_buttons.append(btn)
@@ -284,16 +284,102 @@ class ExecMixin:
         self._exec_run(cmd, 'Push Seafile')
 
     def _exec_reset(self):
+        if self.mode == 'export':
+            self._exec_reset_export_dialog()
+        else:
+            # DEV/PROD : confirmation simple → pull Seafile + purge
+            if not messagebox.askyesno(
+                    'Confirmation',
+                    'Réinitialiser le système ?\n\n'
+                    'Cela va :\n'
+                    '- Récupérer comptes.xlsm depuis Seafile\n'
+                    '- Purger archives, dropbox et logs',
+                    parent=self.root):
+                return
+            cmd = [sys.executable, str(self.config_path.parent / 'cpt.py'),
+                   '--reset']
+            self._exec_run(cmd, 'Réinitialisation')
+
+    def _exec_reset_export_dialog(self):
+        """Dialogue de réinitialisation pour le mode Export."""
+        dlg = tk.Toplevel(self.root)
+        dlg.title('Réinitialiser')
+        dlg.transient(self.root)
+        dlg.grab_set()
+        dlg.resizable(False, False)
+
+        pad = {'padx': 12, 'pady': 6}
+
+        # --- Option 1 : Template vierge ---
+        frame1 = ttk.LabelFrame(dlg, text='Option 1 — Charger template vierge',
+                                padding=8)
+        frame1.pack(fill='x', **pad)
+
+        ttk.Label(frame1, text=(
+            'Remplace comptes.xlsm par le template vierge.\n'
+            'Réinitialise les configs comptes/pipeline.\n'
+            'Purge archives, dropbox, logs et cookies.'
+        ), justify='left').pack(anchor='w')
+
+        ttk.Button(frame1, text='Charger template',
+                   command=lambda: self._exec_reset_template(dlg)
+                   ).pack(anchor='e', pady=(6, 0))
+
+        # --- Option 2 : Réinstallation complète ---
+        frame2 = ttk.LabelFrame(dlg, text='Option 2 — Réinstallation complète',
+                                padding=8)
+        frame2.pack(fill='x', **pad)
+
+        # URL et chemin dynamiques
+        try:
+            clone_url = subprocess.check_output(
+                ['git', 'remote', 'get-url', 'origin'],
+                cwd=str(self.config_path.parent),
+                text=True).strip()
+        except Exception:
+            clone_url = '<url_du_repo>'
+        export_dir = str(self.config_path.parent)
+        instructions = (
+            'Pour une réinstallation complète :\n\n'
+            '1. Fermer cette application\n'
+            f'2. rm -rf {export_dir}\n'
+            f'3. git clone {clone_url} {export_dir}\n'
+            f'4. cd {export_dir}\n'
+            '5. cp comptes_template.xlsm comptes.xlsm'
+        )
+
+        text_frame = ttk.Frame(frame2)
+        text_frame.pack(fill='x')
+        text_widget = tk.Text(text_frame, height=6, width=55, wrap='none',
+                              font=('monospace', 9), relief='flat',
+                              background=dlg.cget('background'))
+        text_widget.insert('1.0', instructions)
+        text_widget.config(state='disabled')
+        text_widget.pack(fill='x')
+
+        # --- Bouton Annuler ---
+        ttk.Button(dlg, text='Annuler',
+                   command=dlg.destroy).pack(pady=(0, 10))
+
+        # Centrer sur la fenêtre parente
+        dlg.update_idletasks()
+        x = self.root.winfo_x() + (self.root.winfo_width() - dlg.winfo_width()) // 2
+        y = self.root.winfo_y() + (self.root.winfo_height() - dlg.winfo_height()) // 2
+        dlg.geometry(f'+{x}+{y}')
+
+    def _exec_reset_template(self, dialog):
+        """Exécute la réinitialisation template après confirmation."""
         if not messagebox.askyesno(
                 'Confirmation',
-                'Réinitialiser le système ?\n\n'
-                'Cela va :\n'
-                '- Récupérer comptes.xlsm depuis Seafile\n'
-                '- Purger archives, dropbox et logs',
-                parent=self.root):
+                'Charger le template vierge ?\n\n'
+                'Cette action va remplacer comptes.xlsm\n'
+                'et réinitialiser les configurations.',
+                parent=dialog):
             return
-        cmd = [sys.executable, str(self.config_path.parent / 'cpt.py'), '--reset']
-        self._exec_run(cmd, 'Réinitialisation')
+        dialog.destroy()
+        cmd = [sys.executable, str(self.config_path.parent / 'cpt.py'),
+               '--reset-template']
+        self._exec_run(cmd, 'Réinitialisation template')
 
     def _exec_fallback(self):
         if not messagebox.askyesno(

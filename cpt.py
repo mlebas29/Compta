@@ -409,6 +409,89 @@ def do_reset():
     logger.info("✓ Réinitialisation terminée")
 
 
+def do_reset_template():
+    """Réinitialisation template — classeur vierge + purge configs et données
+
+    Utilisé en mode Export : charge le template vierge, vide les JSON
+    de mapping (comptes, pipeline), purge archives/dropbox/logs et cookies.
+    """
+    logger.info("🔄 Réinitialisation template (classeur vierge)")
+
+    # 1. Copier le template vierge → comptes.xlsm
+    # En Export le template est livré à la racine, en DEV il est dans tests/
+    if COMPTA_MODE == 'export':
+        template_src = BASE_DIR / 'comptes_template.xlsm'
+    else:
+        template_src = SCRIPT_DIR / 'tests' / 'tnr' / 'template' / 'expected.xlsm'
+    local_path = BASE_DIR / "comptes.xlsm"
+
+    if not template_src.exists():
+        logger.error(f"Template introuvable : {template_src}")
+        sys.exit(1)
+
+    logger.info(f"  Copie template : {template_src}")
+    shutil.copy2(template_src, local_path)
+    logger.info(f"  ✓ Copié vers {local_path}")
+
+    # 2. Vider les JSON de mapping (références aux comptes du classeur)
+    json_resets = {
+        'config_accounts.json': '{}',
+        'config_pipeline.json': '{"linked": [], "auto_solde": []}',
+    }
+    for filename, empty_content in json_resets.items():
+        json_path = BASE_DIR / filename
+        if json_path.exists():
+            json_path.write_text(empty_content + '\n', encoding='utf-8')
+            logger.info(f"  ✓ {filename} réinitialisé")
+
+    # 3. Supprimer cookies
+    cookies_path = BASE_DIR / '.bg_cookies.json'
+    if cookies_path.exists():
+        cookies_path.unlink()
+        logger.info("  ✓ .bg_cookies.json supprimé")
+
+    # 4. Purger archives/, dropbox/, logs/ (même logique que do_reset)
+    dirs_to_clean = ['archives', 'dropbox', 'logs']
+
+    for dir_name in dirs_to_clean:
+        dir_path = BASE_DIR / dir_name
+        if not dir_path.exists():
+            continue
+
+        logger.info(f"  Purge {dir_name}/")
+        file_count = 0
+        dir_count = 0
+
+        for file_path in dir_path.rglob('*'):
+            if file_path.is_file():
+                file_path.unlink()
+                file_count += 1
+
+        for subdir_path in sorted(dir_path.rglob('*'), key=lambda p: len(p.parts), reverse=True):
+            if subdir_path.is_dir():
+                try:
+                    subdir_path.rmdir()
+                    dir_count += 1
+                except OSError:
+                    pass
+
+        logger.info(f"  ✓ {file_count} fichiers et {dir_count} répertoires supprimés dans {dir_name}/")
+
+    # 5. Recréer les répertoires SITE
+    sites_enabled = config.get('sites', 'enabled', fallback='')
+    sites = [s.strip() for s in sites_enabled.split(',') if s.strip()]
+
+    if sites:
+        logger.info("  Création des répertoires SITE...")
+        for site in sites:
+            for base_dir in ['dropbox', 'archives']:
+                site_dir = BASE_DIR / base_dir / site
+                site_dir.mkdir(parents=True, exist_ok=True)
+        logger.info(f"  ✓ {len(sites)} sites : {', '.join(sites)}")
+
+    logger.info("✓ Réinitialisation template terminée")
+
+
 def do_pull():
     """Récupère comptes.xlsm depuis Seafile"""
     logger.info("⬇️  Pull comptes.xlsm depuis Seafile")
@@ -634,6 +717,9 @@ Workflow:
     parser.add_argument('--reset',
                         action='store_true',
                         help='Réinitialisation complète (pull Seafile + purge archives/dropbox/logs)')
+    parser.add_argument('--reset-template',
+                        action='store_true',
+                        help='Réinitialisation template vierge (purge configs/données)')
     parser.add_argument('--pull',
                         action='store_true',
                         help='Récupérer comptes.xlsm depuis Seafile')
@@ -665,6 +751,10 @@ Workflow:
     # Gestion des options système (exclusives - sortent immédiatement)
     if args.reset:
         do_reset()
+        sys.exit(0)
+
+    if args.reset_template:
+        do_reset_template()
         sys.exit(0)
 
     if args.pull:
