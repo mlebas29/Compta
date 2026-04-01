@@ -311,17 +311,17 @@ class ExecMixin:
         pad = {'padx': 12, 'pady': 6}
 
         # --- Option 1 : Template vierge ---
-        frame1 = ttk.LabelFrame(dlg, text='Option 1 — Charger template vierge',
+        frame1 = ttk.LabelFrame(dlg, text='Option 1 — Charger classeur vierge',
                                 padding=8)
         frame1.pack(fill='x', **pad)
 
         ttk.Label(frame1, text=(
-            'Remplace comptes.xlsm par le template vierge.\n'
-            'Réinitialise les configs comptes/pipeline.\n'
+            'Remplace comptes.xlsm par le classeur vierge.\n'
+            'Réinitialise les configs Avoirs/Sites.\n'
             'Purge archives, dropbox, logs et cookies.'
         ), justify='left').pack(anchor='w')
 
-        ttk.Button(frame1, text='Charger template',
+        ttk.Button(frame1, text='Charger classeur vierge',
                    command=lambda: self._exec_reset_template(dlg)
                    ).pack(anchor='e', pady=(6, 0))
 
@@ -373,7 +373,7 @@ class ExecMixin:
         """Exécute la réinitialisation template après confirmation."""
         if not messagebox.askyesno(
                 'Confirmation',
-                'Charger le template vierge ?\n\n'
+                'Charger le classeur vierge ?\n\n'
                 'Cette action va remplacer comptes.xlsm\n'
                 'et réinitialiser les configurations.',
                 parent=dialog):
