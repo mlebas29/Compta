@@ -7,22 +7,22 @@
 Compta est un projet de comptabilité familiale ; il a deux composants :
 
 1. Un **classeur** structuré avec des données brutes et de synthèse
-2. Une **application d'assistance** -facultative-  qui
-   - contrôle la structure du classeur
-   - canalise les données brutes, depuis des sites financiers vers le classeur
+2. Une **application d'assistance** qui
+   - contrôle les structures du classeur
+   - collecte les données brutes, depuis des sites financiers vers le classeur
 
 ### Mode classeur
 
-Le classeur `comptes.xlsm` est utilisable seul, sur Linux, MacOS ou Windows, avec toute application compatible Excel. L'utilisateur importe manuellement les données financières (xls, PDF, zip, txt, html, CSV) et gère lui-même les comptes, devises, catégories, etc.
+Le classeur `comptes.xlsm` est utilisable seul, sur Linux, MacOS ou Windows, avec toute application compatible Excel. L'utilisateur importe manuellement les données financières (xls, PDF, zip, txt, html, CSV) et gère lui-même ses comptes, devises, catégories, etc.
 
 ### Mode assisté
 
 L'application graphique Linux s'intercale entre l'utilisateur et les sites financiers. 
 
 1. Elle collecte, formate et importe les données dans le classeur, depuis les sites financiers
-2. Elle permet de gérer sans expertise Excel les éléments comptables du classeur (comptes, catégories, devises, titres) 
+2. Elle permet de gérer sans expertise Excel les structures du classeur (comptes, catégories, devises, titres) 
 
-Ces deux usages sont indépendants et au choix de l'utilisateur
+Ces deux usages sont au choix de l'utilisateur qui peut vouloir l'assistance de configuration seule ou l'assistance complète (configuration et collecte)
 
 | Mode classeur | Mode assisté |
 |:---:|:---:|
@@ -83,7 +83,7 @@ cd ~/Compta && ./install.sh
 
 ## 4. Documentation
 
--  [`Compta.md`](Compta.md)  : concepts et description des données
+-  [`Compta.md`](Compta.md)  : présentation des fonctions et données
 -  [`Compta_plus.md`](Compta_plus.md) : commandes avancées, dépannage
 -  [`Compta_tools.md`](Compta_tools.md) : outils de maintenance du classeur
 
