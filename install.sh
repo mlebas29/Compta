@@ -188,17 +188,25 @@ fi
 # ------------------------------------------------------------------
 echo
 echo "--- Raccourci bureau ---"
-DESKTOP_SRC="cpt_gui_export.desktop"
+INSTALL_DIR="$(pwd)"
 DESKTOP_DIR="$HOME/.local/share/applications"
+DESKTOP_FILE="$DESKTOP_DIR/cpt_gui_export.desktop"
 
-if [[ -f "$DESKTOP_SRC" ]]; then
-    mkdir -p "$DESKTOP_DIR"
-    cp "$DESKTOP_SRC" "$DESKTOP_DIR/"
-    update-desktop-database "$DESKTOP_DIR" 2>/dev/null || true
-    ok "Raccourci installé → clic droit barre des tâches pour épingler"
-else
-    warn "Fichier $DESKTOP_SRC absent, raccourci non installé"
-fi
+mkdir -p "$DESKTOP_DIR"
+cat > "$DESKTOP_FILE" <<EOF
+[Desktop Entry]
+Name=Comptabilité [EX]
+Comment=Gestion comptable — version export
+Exec=python3 ${INSTALL_DIR}/cpt_gui.py
+Path=${INSTALL_DIR}
+Icon=${INSTALL_DIR}/cpt_gui_export.png
+Terminal=false
+Type=Application
+Categories=Office;Finance;
+StartupWMClass=cpt_gui_export
+EOF
+update-desktop-database "$DESKTOP_DIR" 2>/dev/null || true
+ok "Raccourci installé (${INSTALL_DIR}) → clic droit barre des tâches pour épingler"
 
 # ------------------------------------------------------------------
 # 7. Répertoires de travail
