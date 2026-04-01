@@ -241,9 +241,9 @@ echo -e " ${GREEN}Installation terminée${NC}"
 echo "============================================================"
 echo
 echo "Prochaines étapes :"
-echo "  1. Éditer config.ini (sites actifs, chemins)"
+echo "  1. Lancer : $PYTHON cpt_gui.py"
+echo "     → L'interface sert aussi de configurateur (comptes, sites, paramètres)"
 echo "  2. Créer le fichier credentials :"
 echo "     → Écrire config_credentials.md (voir README.md)"
 echo "     → gpg -c config_credentials.md"
-echo "  3. Lancer : $PYTHON cpt_gui.py"
 echo
