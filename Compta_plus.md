@@ -1,10 +1,12 @@
 # Compta_plus - Complément de Compta.md
 
-Ce document complète **Compta.md** (guide principal). Il couvre
+Ce document complète **Compta.md** (guide principal). Il couvre 
 
 - la structuration Excel **comptes.xlsm**
 - les commandes avancées, le dépannage et les procédures spéciales
 - la liste des fichiers collectés par site
+
+Voir aussi [`Compta_tools.md`](Compta_tools.md) pour les outils de maintenance du classeur.
 
 ## Structuration Excel
 
@@ -13,7 +15,7 @@ Les opérations financières sont enregistrées dans la feuille Opération qui c
 
 Le tableau a des lignes descriptives d'en tête (un en-tête par colonne)
 
-Chaque opération de débit ou crédit génère une ligne supplémentaire en bas de tableau.
+Chaque opération de débit ou crédit génère une ligne supplémentaire en bas de tableau. 
 
 ### Comptes
 Un Compte est défini par un nom et une devise.
@@ -31,7 +33,7 @@ Toute opération est attachée à une catégorie, par exemple "Marché" pour une
 
 Les méta-catégories # ne correspondent pas à des opérations effectives, il s'agit de :
 
-- #Solde : indicateur de solde de compte relevé; le montant est utilisé pour être comparé au solde calculé
+- #Solde : indicateur de solde de compte relevé; le montant est utilisé pour être comparé au solde calculé 
 - #Info  : information, le montant est exclu de tout calcul
 - #Balance : marqueur d'équilibre de tous les comptes (pas de transfert en cours) pour l'ensemble des lignes de rang inférieurs.
 
@@ -49,7 +51,7 @@ Le champ Réf. du tableau Opérations est un identifiant, par ex V32, qui sert �
 
 - Dans le cas du virement, il y a juste la paire débit/crédit Vxxx
 - Dans le cas de change il y a la paire débit/crédit plus les frais s'ils sont comptabilisés séparemment. Le préfixe est celui de la devise créditée en minuscule, par exemple : usd465
-- Dans le cas des titres, il y a autant de références txxx que nécessaire, notamment dans les cas d'arbitrage ou de rachat de portefeuilles comportant plusieurs titres.
+- Dans le cas des titres, il y a autant de références txxx que nécessaire, notamment dans les cas d'arbitrage ou de rachat de portefeuilles comportant plusieurs titres. 
 
 ### Contrôles
 La feuille Contrôles porte deux tableaux et une cellule de statut global A1 (`.` = OK, `COMPTES`, `CATÉGORIES` ou `INCONNUS` = erreur bloquante).
@@ -99,25 +101,7 @@ cpt --status               # État du système (erreurs, fichiers en attente)
 
 ### Comparaison avec archive précédente
 
-Après chaque import avec des opérations ajoutées, `cpt_update.py` lance automatiquement une comparaison informative avec l'archive précédente (backup juste avant ce run).
-
-```bash
-# Standalone
-./tool_compare_xlsx.py --prev              # Compare comptes.xlsm avec archive N-1
-./tool_compare_xlsx.py --prev 2            # Compare avec archive N-2
-./tool_compare_xlsx.py --prev --threshold 5  # Seuil Plus_value à 5%
-```
-
-**Comportement :**
-- **Opérations** : nouvelles ops = informatif, ops disparues = warning
-- **Plus_value** : signale les variations SOLDE > seuil (défaut 10%, configurable)
-- Ne bloque jamais le pipeline (purement informatif)
-
-**Configuration** (`config.ini`) :
-```ini
-[comparison]
-warn_threshold = 10    # seuil variation Plus_value en %
-```
+Après chaque import avec des opérations ajoutées, `cpt_update.py` lance automatiquement une comparaison avec l'archive précédente. Voir [`Compta_tools.md`](Compta_tools.md) pour l'usage standalone de `tool_compare_xlsx.py`.
 
 ### Annulation
 
@@ -136,26 +120,12 @@ cpt --reset                # Purge archives/dropbox/logs
 ## Dépannage
 
 Signification des erreurs : voir **Compta.md** (Annexe A - Contrôles Excel).
+Les outils de diagnostic sont décrits dans [`Compta_tools.md`](Compta_tools.md).
 
 ### Erreur COMPTES
 
 ```bash
-./tool_controles.py         # Diagnostic détaillé
 cpt --fallback             # Annuler et recommencer
-```
-
-### Erreur CATÉGORIES
-
-```bash
-./tool_categories_audit.py --lines 500   # Identifier les lignes
-```
-
-### Appariements incomplets
-
-```bash
-./tool_refs.py --audit         # Rapport des anomalies
-./tool_refs.py --fix           # Corriger casse et typos
-./tool_refs.py --fix-duplicates # Corriger références réutilisées
 ```
 
 ### Collecte échouée pour un site
@@ -187,7 +157,6 @@ Les fichiers debug (screenshots, HTML) sont dans `logs/debug/`.
 ```bash
 python3 cpt_gui.py         # Lancement standard
 ```
-
 ## Fichiers collectés par site
 
 Récapitulatif des fichiers générés par la collecte automatique ou manuelle. Le "→" indique où trouver le solde quand il n'est pas dans le même fichier.
@@ -204,8 +173,12 @@ Récapitulatif des fichiers générés par la collecte automatique ou manuelle. 
 | | `Mes Comptes - BoursoBank.pdf` | Soldes | Chèque, Livret |
 | **SOCGEN** | `Mes comptes en ligne _ SG.pdf` | Synthèse | Tous les soldes |
 | | `Export_XXXXXXXXX_*.csv` | Opérations + Solde | Compte courant, Livrets, LDD, CSL |
-| **NATIXIS** | `Historique et suivi de mes opérations - Natixis Interépargne.pdf` | Opérations + Solde | PEE |
-| | `Mon épargne en détail - Natixis Interépargne.pdf` | Positions | PEE |
+| | `SG_Ebene_operations.pdf` | Opérations | Assurance vie Alice |
+| | `SG_Ebene2_operations.pdf` | Opérations | Assurance vie Alice |
+| | `SG_Ebene_supports.xlsx` | Positions | Assurance vie Alice |
+| | `SG_Ebene2_supports.xlsx` | Positions | Assurance vie Alice |
+| **NATIXIS** | `Historique et suivi de mes opérations - Natixis Interépargne.pdf` | Opérations + Solde | PEE Alice |
+| | `Mon épargne en détail - Natixis Interépargne.pdf` | Positions | PEE Alice |
 | **BTC** | `btc_{wallet}_operations.csv` | Opérations | → btc_balances.csv |
 | | `btc_balances.csv` | Soldes | Wallets BTC |
 | **XMR** | `xmr_{wallet}_operations.csv` | Opérations | → xmr_balances.csv |
@@ -218,7 +191,7 @@ Récapitulatif des fichiers générés par la collecte automatique ou manuelle. 
 | | `eToro_accueil.pdf` | Soldes | Compte eToro Money, Portefeuille eToro Réserve |
 | | `eToro_portfolio.pdf` | Positions + Solde | Portefeuille eToro Titres (USD) |
 | **PAYPAL** | `Download*.CSV` | Opérations + Solde | Compte Paypal |
-| **AMAZON** | `01-Transactions_*.csv` | Opérations + Solde | Compte Amazon |
+| **AMAZON** | `amazon_operations.csv` | Opérations + Solde | Compte Amazon |
 | **MANUEL** | `*.csv`, `*.xlsx` | Opérations + Soldes | Créances, Compléments |
 
 *Note : Voir `config_site_files.py` pour les patterns exacts et règles de validation.*

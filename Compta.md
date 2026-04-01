@@ -80,7 +80,6 @@ La fonction de cotation a pour effet de mettre à jour dans le fichier excel les
 
 Le mode opératoire est dirigé par l'interface graphique qui documente les procédures spécifiques de connexion.
 
-
 #### Étape 1 - exécution de l'App
 
 Lancer l'App Comptabilité (Symbole Euro)
@@ -96,8 +95,6 @@ Dans l'onglet Exécution, sélectionner les sites voulus puis cliquer sur le bou
 > NB : Une présence est nécessaire avec le mobile car certains sites peuvent déclencher une procédure 2FA pendant la collecte.
 
 Quand la collecte est terminée, cliquer sur "Import" pour mettre à jour le fichier **comptes.xlsm** avec les données collectées. On peut aussi attendre pour relancer une collecte avec d'autres sites qui manqueraient.
-
-
 
 #### Étape 2 - compléments manuels
 
@@ -133,7 +130,6 @@ Les cotations sont effectuées depuis 3 sites publics :
 - Métaux précieux (Yahoo Finance)
 - Cryptomonnaies (CoinGecko)
 - Devises (Frankfurter/BCE)
-
 
 # 5. Pour approfondir
 

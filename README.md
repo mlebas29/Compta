@@ -84,7 +84,8 @@ cd ~/Compta && ./install.sh
 ## 4. Documentation
 
 -  [`Compta.md`](Compta.md)  : concepts et description des données
--  [`Compta_plus.md`](Compta_plus.md) : commandes avancées, dépannage.
+-  [`Compta_plus.md`](Compta_plus.md) : commandes avancées, dépannage
+-  [`Compta_tools.md`](Compta_tools.md) : outils de maintenance du classeur
 
 
 
