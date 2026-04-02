@@ -189,6 +189,7 @@ class DevisesMixin:
         shutil.copy2(self.xlsx_path, bak_path)
 
         source1, source2 = DEVISE_SOURCES.get(famille, ('', ''))
+        decimals = self.cotations_meta.get(code, {}).get('decimals', 2)
         last_bud = self.budget_last_devise_col  # ex: 24 (X=SEK)
         last_ctrl = self.ctrl_last_devise_col   # ex: 29 (AC)
 
@@ -199,11 +200,17 @@ class DevisesMixin:
             ws_cot = doc.get_sheet(SHEET_COTATIONS)
             cot_data_start = (self._start_cot or COT_FIRST_ROW) + 1
 
-            # Insérer la colonne Nature (B) si absente
+            # Insérer les colonnes Nature/Famille/Décimales si absentes
             header_0 = uno_row(cot_data_start - 2)  # header = START - 1
             if ws_cot.getCellByPosition(uno_col(CotCol.NATURE), header_0).getString().strip() != 'Nature':
                 ws_cot.Columns.insertByIndex(uno_col(CotCol.NATURE), 1)
                 ws_cot.getCellByPosition(uno_col(CotCol.NATURE), header_0).setString('Nature')
+            if ws_cot.getCellByPosition(uno_col(CotCol.FAMILLE), header_0).getString().strip() != 'Famille':
+                ws_cot.Columns.insertByIndex(uno_col(CotCol.FAMILLE), 1)
+                ws_cot.getCellByPosition(uno_col(CotCol.FAMILLE), header_0).setString('Famille')
+            if ws_cot.getCellByPosition(uno_col(CotCol.DECIMALES), header_0).getString().strip() != 'Décimales':
+                ws_cot.Columns.insertByIndex(uno_col(CotCol.DECIMALES), 1)
+                ws_cot.getCellByPosition(uno_col(CotCol.DECIMALES), header_0).setString('Décimales')
 
             # Scanner col A (code) + lookup famille dans cotations_meta
             cot_insert_pos = None
@@ -242,10 +249,12 @@ class DevisesMixin:
 
             # Style propagé automatiquement depuis la model row par insertByIndex
 
-            # Remplir la ligne : A=label, B=nature, C=code
+            # Remplir la ligne : A=label, B=nature, C=famille, D=décimales, E=code
             r0_cot = uno_row(cot_new_row)
             ws_cot.getCellByPosition(uno_col(CotCol.LABEL), r0_cot).setString(nom or code)
             ws_cot.getCellByPosition(uno_col(CotCol.CODE), r0_cot).setString(code)
+            ws_cot.getCellByPosition(uno_col(CotCol.FAMILLE), r0_cot).setString(famille)
+            ws_cot.getCellByPosition(uno_col(CotCol.DECIMALES), r0_cot).setValue(decimals)
 
             # Nature + cours
             ws_cot.getCellByPosition(uno_col(CotCol.NATURE), r0_cot).setString(
@@ -277,9 +286,9 @@ class DevisesMixin:
                 except Exception:
                     pass  # pas bloquant — le cours sera renseigné au prochain fetch
 
-            # Col F : cours de l'Euro = 1/cours_EUR
+            # Col H : cours de l'Euro = 1/cours_EUR
             cot_cours_letter = col_letter(CotCol.COURS_EUR)
-            ws_cot.getCellByPosition(5, r0_cot).setFormula(
+            ws_cot.getCellByPosition(uno_col(CotCol.DATE) + 1, r0_cot).setFormula(
                 f'=1/{cot_cours_letter}{cot_new_row}')
 
             # Créer le named range cours_XXX → cellule cours de la nouvelle cotation
@@ -959,11 +968,11 @@ class DevisesMixin:
         # --- Ligne r+4 : vide (déjà vide par insertByIndex) ---
 
         # Étendre TOTAL portefeuilles pour devise non-EUR
-        # Trouver la ligne TOTAL portefeuilles dans le footer
+        # Trouver la ligne TOTAL portefeuilles dans le footer (col A = SECTION)
         total_pf_row = None
         for scan in range(r + 4, r + 30):
-            val_b = ws_pv.getCellByPosition(uno_col(PvCol.COMPTE), uno_row(scan)).getString().strip()
-            if 'TOTAL portefeuilles' in val_b:
+            val_a = ws_pv.getCellByPosition(uno_col(PvCol.SECTION), uno_row(scan)).getString().strip()
+            if 'TOTAL portefeuilles' in val_a:
                 total_pf_row = scan
                 break
         if total_pf_row:
@@ -1840,9 +1849,9 @@ class DevisesMixin:
                 # Reconstruire la formule TOTAL portefeuilles (peut redevenir générique)
                 pvl_data = (self._start_pvl or 5) + 1
                 for scan in range(pvl_data, pvl_data + 300):
-                    val_b = ws_pv.getCellByPosition(
-                        uno_col(PvCol.COMPTE), uno_row(scan)).getString().strip()
-                    if 'TOTAL portefeuilles' in val_b:
+                    val_a = ws_pv.getCellByPosition(
+                        uno_col(PvCol.SECTION), uno_row(scan)).getString().strip()
+                    if 'TOTAL portefeuilles' in val_a:
                         self._update_pv_total_portefeuilles(ws_pv, scan)
                         break
 
@@ -1868,10 +1877,7 @@ class DevisesMixin:
                     date_debut=avoirs_ref.get('date_debut'),
                     date_solde=avoirs_ref.get('date_solde'),
                     montant_debut=avoirs_ref.get('montant_debut'),
-                    doc=doc, end_op=self._end_op)
-                # END_OP décalé par les 2 insertions
-                if self._end_op:
-                    self._end_op += 2
+                    doc=doc)
 
             # --- Opérations : supprimer / reloger les lignes des comptes supprimés ---
             deleted_set = set(self._deleted_accounts)

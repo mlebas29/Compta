@@ -8,21 +8,22 @@ Compta est un projet de comptabilité familiale ; il a deux composants :
 
 1. Un **classeur** structuré avec des données brutes et de synthèse
 2. Une **application d'assistance** qui
-   - contrôle les structures du classeur
+   - gère les structures du classeur (configuration)
    - collecte les données brutes, depuis des sites financiers vers le classeur
 
 ### Mode classeur
 
-Le classeur `comptes.xlsm` est utilisable seul, sur Linux, MacOS ou Windows, avec toute application compatible Excel. L'utilisateur importe manuellement les données financières (xls, PDF, zip, txt, html, CSV) et gère lui-même ses comptes, devises, catégories, etc.
+Le classeur `comptes.xlsm` est utilisable seul avec toute application compatible Excel. L'utilisateur importe manuellement les données financières (xls, PDF, zip, txt, html, CSV) et gère lui-même ses avoirs, comptes, devises, catégories, portefeuilles, etc.
+
+Ce mode convient pour une comptabilité simple, peu diversifiée.
 
 ### Mode assisté
 
-L'application graphique Linux s'intercale entre l'utilisateur et les sites financiers. 
+L'application graphique s'intercale entre le classeur et les sites financiers. 
 
-1. Elle collecte, formate et importe les données dans le classeur, depuis les sites financiers
-2. Elle permet de gérer sans expertise Excel les structures du classeur (comptes, catégories, devises, titres) 
+Ses deux principales fonctions de configuration et collecte sont au choix de l'utilisateur qui peut vouloir l'assistance de configuration seule ou l'assistance complète (configuration et collecte)
 
-Ces deux usages sont au choix de l'utilisateur qui peut vouloir l'assistance de configuration seule ou l'assistance complète (configuration et collecte)
+Ce mode convient pour une compatabilité diversifiée, uniquement sous Linux.
 
 | Mode classeur | Mode assisté |
 |:---:|:---:|
@@ -32,7 +33,7 @@ Ces deux usages sont au choix de l'utilisateur qui peut vouloir l'assistance de 
 
 ![](images/Compta.png)
 
-## 2. Fonctionnalités
+## 2. Fonctions
 
 Le classeur :
 
@@ -42,7 +43,7 @@ Le classeur :
 - présente une feuille **plus/moins-values latentes**
 - présente une feuille **budget**
 
-L'application graphique **Comptabilité** automatise :
+L'application graphique automatise :
 
 - **Collecte** des données depuis les sites bancaires et financiers (via Playwright/Chrome)
 - **Import** des opérations collectées dans le tableur (déduplication automatique)
@@ -67,43 +68,52 @@ et aussi :
 
 
 
-###### (*) Tout télécharger et installer (mode assisté)
-
-```bash
-sudo apt install git
-git clone https://github.com/mlebas29/Compta.git ~/Compta
-cd ~/Compta && ./install.sh
-```
-
-> **NB** : Le script `install.sh` installe les dépendances Python, le navigateur Playwright/Chrome, et le raccourci bureau. En cas de prérequis manquant, il indique la commande `apt install` correspondante.
-
-> **NB** : mise à jour ultérieure avec `cd ~/Compta && git pull` 
-
+> ###### (*) Tout télécharger et installer (mode assisté)
+>
+> ```bash
+> sudo apt install git
+> git clone https://github.com/mlebas29/Compta.git ~/Compta
+> cd ~/Compta && ./install.sh
+> # Compta peut être remplacé par un autre nom
+> ```
+>
+> Le Shell script `install.sh` installe les dépendances Python, le navigateur Playwright/Chrome, et le raccourci bureau. En cas de prérequis manquant, il indique la commande `apt install` correspondante. Après quoi il suffira de relancer le script.
 
 
-## 4. Documentation
 
--  [`Compta.md`](Compta.md)  : présentation des fonctions et données
+## 4. Mise à jour
+
+
+
+| Mode classeur                                                | Mode assisté              |
+| ------------------------------------------------------------ | ------------------------- |
+| Télécharger  [`comptes_exemple.xlsx`](https://github.com/mlebas29/Compta/raw/main/comptes_exemple.xlsx) | `cd ~/Compta && git pull` |
+
+
+
+## 5. Documentation
+
+-  [`Compta.md`](Compta.md)  : guide d'utilisation
 -  [`Compta_plus.md`](Compta_plus.md) : commandes avancées, dépannage
 -  [`Compta_tools.md`](Compta_tools.md) : outils de maintenance du classeur
 
 
 
-## 5. Utilisation — mode classeur
+## 6. Utilisation — mode classeur
 
 Le classeur d'exemple contient des données fictives à remplacer par les vôtres.
 
 > **Conseils de personnalisation :**
 >
-> - Renommer les comptes, catégories, devises et titres existants plutôt que les supprimer
+> - Renommer les comptes, catégories, devises et titres existants plutôt que les supprimer ; ceci permet de conserver formules et formats
 > - Supprimer les **lignes d'opérations** (feuille Opérations) librement, en conservant deux lignes #Solde par compte, à des dates différentes
-> - Conserver au moins **une ligne par feuille de données** (Opérations, Avoirs, Plus_value, Cotations) pour préserver les formules et le format — les nouvelles lignes se créent par copier/coller d'une ligne existante
-> - Modifier avec prudence la structure des feuilles (colonnes, en-têtes, noms définis)
+> - Conserver au moins **une ligne par tableau de données** (Opérations, Avoirs, Plus_value, Cotations) pour préserver les formules et le format — les nouvelles lignes se créent par copier/coller d'une ligne existante
+> - Modifier avec prudence la structure des feuilles (colonnes, en-têtes et pieds de tableaux, noms définis)
 >
 
 
 
-## 6. Utilisation — mode assisté
+## 7. Utilisation — mode assisté
 
 ### Sécurité
 
@@ -122,11 +132,13 @@ python3 cpt_gui.py
 
 L'interface guide l'utilisateur à travers les étapes : sélection des sites, collecte, import, vérification. Elle peut aussi être utilisée uniquement pour la gestion du classeur (comptes, catégories, devises, titres), sans activer la collecte.
 
+Une fois l'application lancée, elle peut être épinglée dans la barre des tâches.
+
 ### En ligne de commande
 
 ```bash
 # Collecte d'un site
-python3 cpt_fetch.py SG
+python3 cpt_fetch.py SOCGEN
 
 # Import des fichiers collectés
 python3 cpt_update.py
@@ -140,6 +152,8 @@ python3 cpt_fetch_quotes.py
 # Diagnostics
 python3 tool_controles.py -v
 ```
+
+> NB : Toute modification par l'utilisateur des fichiers livrés dans un environnement `git` est possible mais est soumise aux règles de cet environnement. 
 
 ### Structure du projet
 
@@ -162,12 +176,12 @@ config.ini              # Configuration générale
 tool_*.py               # Outils de maintenance
 ```
 
-## 7. Restrictions
+## 8. Restrictions
 
 - **Mode classeur** : aucune restriction, fonctionne sur tout OS avec un tableur compatible Excel.
 - **Mode assisté** : testé sur Ubuntu 22.04 et dérivés (Zorin, Mint). Le script `install.sh` utilise `apt` et ne supporte pas les distributions non Debian/Ubuntu (Fedora, Arch, openSUSE). Sur ces systèmes, une installation manuelle des dépendances est nécessaire (voir `requirements.txt`).
 
-## 8. Licence
+## 9. Licence
 
 Compta [EX] est distribué gratuitement sous licence GNU GPL v3.
 

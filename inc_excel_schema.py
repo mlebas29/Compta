@@ -192,9 +192,11 @@ class CotCol(IntEnum):
     """Colonnes de la feuille Cotations (1-indexed, openpyxl)."""
     LABEL = 1          # A
     NATURE = 2         # B  (primaire / dérivée)
-    CODE = 3           # C
-    COURS_EUR = 4      # D
-    DATE = 5           # E
+    FAMILLE = 3        # C  (metal / crypto / fiat / immobilier)
+    DECIMALES = 4      # D  (nombre de décimales pour le format)
+    CODE = 5           # E
+    COURS_EUR = 6      # F
+    DATE = 7           # G
 
 
 # ============================================================================

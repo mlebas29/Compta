@@ -1209,17 +1209,17 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
             # Détecter la première colonne devise = cat_col + 1
             first_devise_col = cat_col + 1
             # Détecter la dernière devise (scan en-tête = 2 lignes au-dessus de START_CAT)
+            # Compter colonnes non-vides depuis cat_col, soustraire 6 structurelles
+            # Structure : CATÉGORIES(1) + devises(N) + Total(1) + Alloc%(1) + Alloc(1) + Poste(1)
             header_row = (start_row - 2) if start_row else 27
-            budget_last_devise = first_devise_col  # fallback
-            for col_idx in range(first_devise_col, first_devise_col + 30):
+            total_cols = 0
+            for col_idx in range(cat_col, cat_col + 30):
                 val = ws.cell(header_row, col_idx).value
                 if not val:
-                    budget_last_devise = col_idx - 1
                     break
-                s = str(val).strip()
-                if s.startswith('Équivalent') or s.startswith('Equivalent'):
-                    budget_last_devise = col_idx - 1
-                    break
+                total_cols += 1
+            n_devises = total_cols - 5  # 5 = CATÉGORIES + Total + Alloc% + Alloc + Poste
+            budget_last_devise = first_devise_col + max(0, n_devises - 1)
 
             # Collecter les codes devises depuis le header Budget
             budget_devises = set()

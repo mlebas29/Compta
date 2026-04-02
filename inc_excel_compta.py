@@ -294,12 +294,15 @@ class ComptaExcel:
 
         Retourne au minimum OP_MODEL_ROW (row 4) pour que l'insertion
         commence en row 5 et copie le format de la model row, pas de l'en-tête.
+        Ignore les model rows ✓ (coches START/END).
         """
         if not self.ws_operations:
             return self.OP_MODEL_ROW
 
         for row in range(self.ws_operations.max_row, self.OP_MODEL_ROW, -1):
             date = self.ws_operations.cell(row, OpCol.DATE).value
+            if date and str(date).strip() == '✓':
+                continue  # model row — ignorer
             label = self.ws_operations.cell(row, OpCol.LABEL).value
             montant = self.ws_operations.cell(row, OpCol.MONTANT).value
 
