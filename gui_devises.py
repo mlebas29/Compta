@@ -790,25 +790,29 @@ class DevisesMixin:
 
             # ==== Contrôles : supprimer la colonne de la devise ====
             ws_ctrl = doc.get_sheet(SHEET_CONTROLES)
-            h = self.ctrl2_header_row
-            ctrl_col = None
-            for col_idx in range(16, 48):  # EUR col onwards
-                val = ws_ctrl.getCellByPosition(
-                    uno_col(col_idx), uno_row(h)).getString().strip()
+            # Coche START_CTRL2 = première ligne data (h+2) et première col devise.
+            # Header devises = 2 lignes au-dessus.
+            from inc_uno import get_named_range_pos
+            ctrl2_pos = get_named_range_pos(doc.document, 'START_CTRL2')
+            first_devise_col_0 = ctrl2_pos[1]   # 0-indexed col du EUR
+            header_row_0 = ctrl2_pos[2] - 2      # 0-indexed row du header devises
+            ctrl_col_0 = None
+            for col_0 in range(first_devise_col_0, first_devise_col_0 + 32):
+                val = ws_ctrl.getCellByPosition(col_0, header_row_0).getString().strip()
                 if not val:
                     break
                 if val == code:
-                    ctrl_col = col_idx
+                    ctrl_col_0 = col_0
                     break
-            if ctrl_col is not None:
-                ws_ctrl.Columns.removeByIndex(uno_col(ctrl_col), 1)
+            if ctrl_col_0 is not None:
+                ws_ctrl.Columns.removeByIndex(ctrl_col_0, 1)
 
             self._uno_finalize(doc)
 
         # ==== Mise à jour état mémoire ====
         if bud_col is not None:
             self.budget_last_devise_col -= 1
-        if ctrl_col is not None:
+        if ctrl_col_0 is not None:
             self.ctrl_last_devise_col -= 1
 
         # ==== JSON : supprimer l'entrée ====
