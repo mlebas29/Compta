@@ -21,7 +21,7 @@ Ce mode convient pour une comptabilité simple, peu diversifiée.
 
 L'application graphique s'intercale entre le classeur et les sites financiers. 
 
-Ses deux principales fonctions de configuration et collecte sont au choix de l'utilisateur qui peut vouloir l'assistance de configuration seule ou l'assistance complète (configuration et collecte)
+L'utilisateur peut vouloir l'assistance de configuration seule ou l'assistance complète (configuration et collecte)
 
 Ce mode convient pour une compatabilité diversifiée, uniquement sous Linux.
 

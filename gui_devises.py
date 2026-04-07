@@ -512,8 +512,8 @@ class DevisesMixin:
             # h+2 : COMPTES — COUNTIFS écarts par devise (CTRL1 ranges)
             # B=devise, K="Oui"(écart détecté), J=valeur écart (0=OK)
             ws_ctrl.getCellByPosition(cc0, uno_row(h + 2)).setFormula(
-                f'=COUNTIFS($B4:$B58;{ctrl_letter}${h};$K4:$K58;"Oui")'
-                f'-COUNTIFS($B4:$B58;{ctrl_letter}${h};$K4:$K58;"Oui";$J4:$J58;0)')
+                f'=COUNTIFS($B4:$B58;{ctrl_letter}${h};$I4:$I58;"Oui")'
+                f'-COUNTIFS($B4:$B58;{ctrl_letter}${h};$I4:$I58;"Oui";$H4:$H58;0)')
 
             # h+3 : CATÉGORIES = Budget.{bud_letter}${total_row+2}
             if total_row:
@@ -1737,42 +1737,50 @@ class DevisesMixin:
                 if self._end_ctrl1 and r <= self._end_ctrl1:
                     self._end_ctrl1 += 1
 
-                # Formules et données (UNO : pas de préfixe _xlfn.)
+                # Formules nouveau modèle : ancrage min + relevé max via XLOOKUP
+                # Tolère 0..N #Solde, doublons même date résolus déterministiquement
                 ws_ctrl.getCellByPosition(uno_col(CtrlCol.COMPTE), r0).setFormula(
                     f'=Avoirs.A{avoirs_row}')
                 if devise:
                     ws_ctrl.getCellByPosition(uno_col(CtrlCol.DEVISE), r0).setString(devise)
-                # Formules calquées sur row 4 existante (post-migration sous-comptes)
-                ws_ctrl.getCellByPosition(2, r0).setFormula(  # Col C = date début
-                    f'=MINIFS(OPdate;OPcompte;$A{r};OPdevise;$B{r};OPcatégorie;Solde)')
-                ws_ctrl.getCellByPosition(3, r0).setFormula(  # Col D = nb soldes début
-                    f'=COUNTIFS(OPdate;C{r};OPcompte;$A{r};OPdevise;$B{r};OPcatégorie;Solde)')
-                ws_ctrl.getCellByPosition(uno_col(CtrlCol.DATE_FIN), r0).setFormula(  # Col E = date fin
-                    f'=SUMIF(AVRintitulé;$A{r};AVRdate_solde)')
-                ws_ctrl.getCellByPosition(5, r0).setFormula(f'=E{r}-C{r}')  # Col F = durée
-                ws_ctrl.getCellByPosition(6, r0).setFormula(  # Col G = solde initial
-                    f'=SUMIFS(OPmontant;OPdate;$C{r};OPcompte;$A{r};OPdevise;$B{r};OPcatégorie;Solde)')
-                ws_ctrl.getCellByPosition(uno_col(CtrlCol.SOLDE_CALC), r0).setFormula(  # Col H = solde calculé
-                    f'=SUMIFS(OPmontant;OPcompte;$A{r};OPdevise;$B{r};OPcatégorie;"<>"&Spéciale;OPdate;">"&C{r}) + $G{r}')
-                ws_ctrl.getCellByPosition(uno_col(CtrlCol.SOLDE_RELEVE), r0).setFormula(  # Col I = solde relevé
-                    f'=SUMIF(AVRintitulé;$A{r};AVRmontant_solde)')
-                ws_ctrl.getCellByPosition(uno_col(CtrlCol.ECART), r0).setFormula(  # Col J = écart
-                    f'=ROUND($I{r}-$H{r};2)')
-                ws_ctrl.getCellByPosition(uno_col(CtrlCol.CONTROLE_FLAG), r0).setString(  # Col K
+                # Col C = date ancrage : MINIFS si >=2 #Solde, sinon 0 (epoch)
+                ws_ctrl.getCellByPosition(uno_col(CtrlCol.DATE_ANCRAGE), r0).setFormula(
+                    f'=IF(COUNTIFS(OPcompte;$A{r};OPdevise;$B{r};OPcatégorie;Solde)>=2;'
+                    f'MINIFS(OPdate;OPcompte;$A{r};OPdevise;$B{r};OPcatégorie;Solde);0)')
+                # Col D = date relevé : MAXIFS sur les #Solde
+                ws_ctrl.getCellByPosition(uno_col(CtrlCol.DATE_RELEVE), r0).setFormula(
+                    f'=MAXIFS(OPdate;OPcompte;$A{r};OPdevise;$B{r};OPcatégorie;Solde)')
+                # Col E = montant ancrage : XLOOKUP first occurrence à date C, 0 si C=0
+                ws_ctrl.getCellByPosition(uno_col(CtrlCol.MONTANT_ANCRAGE), r0).setFormula(
+                    f'=IF($C{r}=0;0;'
+                    f'XLOOKUP(1;(OPcompte=$A{r})*(OPdevise=$B{r})*(OPcatégorie=Solde)*(OPdate=$C{r});'
+                    f'OPmontant;0;0;1))')
+                # Col F = solde calculé : montant_ancrage + flux entre C (excl) et D (incl)
+                ws_ctrl.getCellByPosition(uno_col(CtrlCol.SOLDE_CALC), r0).setFormula(
+                    f'=$E{r}+SUMIFS(OPmontant;OPcompte;$A{r};OPdevise;$B{r};'
+                    f'OPdate;">"&$C{r};OPdate;"<="&$D{r};'
+                    f'OPcatégorie;"<>Solde";OPcatégorie;"<>"&Spéciale)')
+                # Col G = montant relevé : XLOOKUP last occurrence à date D
+                ws_ctrl.getCellByPosition(uno_col(CtrlCol.MONTANT_RELEVE), r0).setFormula(
+                    f'=XLOOKUP(1;(OPcompte=$A{r})*(OPdevise=$B{r})*(OPcatégorie=Solde)*(OPdate=$D{r});'
+                    f'OPmontant;0;0;-1)')
+                # Col H = écart : relevé - calculé, tolérance 1 centime
+                ws_ctrl.getCellByPosition(uno_col(CtrlCol.ECART), r0).setFormula(
+                    f'=IF(ABS($G{r}-$F{r})<0.015;0;ROUND($G{r}-$F{r};2))')
+                # Col I = Oui/Non
+                ws_ctrl.getCellByPosition(uno_col(CtrlCol.CONTROLE_FLAG), r0).setString(
                     'Oui' if entry['controle'] else 'Non')
-                ws_ctrl.getCellByPosition(uno_col(CtrlCol.REPORTS_FIN), r0).setFormula(  # Col L = nb soldes fin
-                    f'=COUNTIFS(OPcompte;$A{r};OPdate;$E{r};OPdevise;$B{r};OPcatégorie;Solde)')
 
-                # Format nombre sur G/H/I/J si devise spécifique
+                # Format nombre sur E/F/G/H si devise spécifique
                 k_fmt_str = self.AVOIRS_K_FORMATS.get(devise)
                 if k_fmt_str:
                     fmt_key = doc.register_number_format(k_fmt_str)
-                    for c in (6, uno_col(CtrlCol.SOLDE_CALC), uno_col(CtrlCol.SOLDE_RELEVE),
-                              uno_col(CtrlCol.ECART)):
+                    for c in (uno_col(CtrlCol.MONTANT_ANCRAGE), uno_col(CtrlCol.SOLDE_CALC),
+                              uno_col(CtrlCol.MONTANT_RELEVE), uno_col(CtrlCol.ECART)):
                         ws_ctrl.getCellByPosition(c, r0).NumberFormat = fmt_key
                 if devise and devise not in ('EUR', ''):
-                    for c in (6, uno_col(CtrlCol.SOLDE_CALC), uno_col(CtrlCol.SOLDE_RELEVE),
-                              uno_col(CtrlCol.ECART)):
+                    for c in (uno_col(CtrlCol.MONTANT_ANCRAGE), uno_col(CtrlCol.SOLDE_CALC),
+                              uno_col(CtrlCol.MONTANT_RELEVE), uno_col(CtrlCol.ECART)):
                         ws_ctrl.getCellByPosition(c, r0).CellBackColor = 0xDCDCDC
 
                 entry['ctrl_row'] = r
@@ -1793,31 +1801,11 @@ class DevisesMixin:
                 f = ctrl1_first
                 l = f
 
-            # -- CTRL1 gardes (row Erreurs = END + 1) --
-            # Conditionnées à K="Oui" pour exclure les Portefeuilles Titres (K=Non)
-            # Lire END_CTRL1 depuis UNO (ajusté par removeByIndex/insertByIndex)
+            # -- CTRL1 gardes supprimées (refonte 0..N #Solde) --
+            # CTRL2 h+2 COMPTES fait déjà le décompte des écarts par devise.
             from inc_uno import get_table_bounds_uno
             _, ctrl_end_now = get_table_bounds_uno(doc.document, 'CTRL1')
             ctrl_end_now = ctrl_end_now or self._end_ctrl1 or ctrl_next_row
-            guard_row_0 = uno_row(ctrl_end_now + 1)  # Erreurs = juste après END ✓
-            has_data = ctrl1_last >= ctrl1_first
-            if has_data:
-                ws_ctrl.getCellByPosition(3, guard_row_0).setFormula(   # D = nb soldes début
-                    f'=SUMPRODUCT(($K{f}:$K{l}="Oui")*(D{f}:D{l}<>1)*(D{f}:D{l}<>""))')
-                ws_ctrl.getCellByPosition(5, guard_row_0).setFormula(   # F = durée nulle
-                    f'=SUMPRODUCT(($K{f}:$K{l}="Oui")*($F{f}:$F{l}=0))')
-                ws_ctrl.getCellByPosition(11, guard_row_0).setFormula(  # L = nb soldes fin
-                    f'=SUMPRODUCT(($K{f}:$K{l}="Oui")*(L{f}:L{l}<>1)*(L{f}:L{l}<>""))')
-            else:
-                # Pas de données → formules template (ABS/SUMIFS sur model rows)
-                s = self._start_ctrl1 or CTRL_FIRST_ROW
-                e = ctrl_end_now
-                ws_ctrl.getCellByPosition(3, guard_row_0).setFormula(
-                    f'=ABS(SUMIFS(D{s}:D{e};D{s}:D{e};1)-COUNTA(D{s}:D{e}))')
-                ws_ctrl.getCellByPosition(5, guard_row_0).setFormula(
-                    f'=COUNTIF($F${s}:$F${e};0)')
-                ws_ctrl.getCellByPosition(11, guard_row_0).setFormula(
-                    f'=ABS(SUMIFS(L{s}:L{e};L{s}:L{e};1)-COUNTA(L{s}:L{e}))')
 
             # -- CTRL2 h+2 COMPTES : COUNTIFS par devise --
             ctrl2_pos = get_named_range_pos(doc.document, 'START_CTRL2')
@@ -1833,8 +1821,8 @@ class DevisesMixin:
                     cl = col_letter(col_0 + 1)  # 1-indexed → lettre
                     # h+2 : COMPTES
                     ws_ctrl.getCellByPosition(col_0, h2_row_0).setFormula(
-                        f'=COUNTIFS($B{f}:$B{l};{cl}${h1};$K{f}:$K{l};"Oui")'
-                        f'-COUNTIFS($B{f}:$B{l};{cl}${h1};$K{f}:$K{l};"Oui";$J{f}:$J{l};0)')
+                        f'=COUNTIFS($B{f}:$B{l};{cl}${h1};$I{f}:$I{l};"Oui")'
+                        f'-COUNTIFS($B{f}:$B{l};{cl}${h1};$I{f}:$I{l};"Oui";$H{f}:$H{l};0)')
                     # h+4 : Dates — vider (seul O général est pertinent)
                     ws_ctrl.getCellByPosition(col_0, h2_row_0 + 2).setString('')
 

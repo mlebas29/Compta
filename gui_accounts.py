@@ -1063,8 +1063,7 @@ class AccountsMixin:
             parts = [f"• {total} opération(s) supprimée(s)"]
         if titles:
             parts.append(f"• {len(titles)} titre(s) portefeuille supprimé(s)")
-        parts.append("• 2 lignes #Solde à zéro (hier + aujourd'hui)")
-        parts.append("• Le compte reste dans la liste active")
+        parts.append("• Le compte reste dans la liste active (sans #Solde)")
 
         msg = f"Purger '{label}' ?\n\n" + "\n".join(parts) + "\n\nContinuer ?"
 
@@ -1435,14 +1434,19 @@ class AccountsMixin:
     def _append_solde_lines(ws_ops, account_name, devise,
                             date_debut=None, date_solde=None,
                             montant_debut=None, doc=None, **_kwargs):
-        """Ajoute 2 lignes #Solde après la dernière opération.
+        """Ajoute 0 ou 1 ligne #Solde initial après la dernière opération.
 
-        date_debut/date_solde : datetime optionnels. Par défaut hier/aujourd'hui.
-        montant_debut : montant du #Solde initial (défaut 0).
+        Refonte 0..N #Solde : si aucune valeur n'est fournie en GUI
+        (montant_debut=None), aucune ligne n'est créée. Si une valeur est
+        donnée, une seule ligne #Solde est ajoutée à date_debut (par défaut
+        aujourd'hui) avec ce montant.
         """
+        if montant_debut is None:
+            return  # Pas de valeur initiale → aucun #Solde
+
         from inc_excel_schema import uno_col, uno_row, OpCol
         from inc_uno import copy_row_style
-        from datetime import datetime, timedelta
+        from datetime import datetime
 
         cursor = ws_ops.createCursor()
         cursor.gotoEndOfUsedArea(True)
@@ -1454,9 +1458,7 @@ class AccountsMixin:
         template_ops_0 = max(ops_last_0, min_data_0)
         epoch = datetime(1899, 12, 30)
         if date_debut is None:
-            date_debut = datetime(2020, 1, 1)
-        if date_solde is None:
-            date_solde = datetime(2020, 1, 2)
+            date_debut = datetime.today()
         from inc_formats import FORMATS_DEVISE, FORMAT_EUR, GRIS
         is_non_eur = devise and devise != 'EUR'
         if doc is not None:
@@ -1466,24 +1468,22 @@ class AccountsMixin:
             fmt_devise = None
             fmt_eur = None
 
-        for dt in (date_debut, date_solde):
-            serial = (dt - epoch).days
-            copy_row_style(ws_ops, template_ops_0, ops_next_0, col_start=0, col_end=9)
-            ws_ops.getCellByPosition(uno_col(OpCol.DATE), ops_next_0).setValue(serial)
-            ws_ops.getCellByPosition(uno_col(OpCol.LABEL), ops_next_0).setString('Relevé compte')
-            c_cell = ws_ops.getCellByPosition(uno_col(OpCol.MONTANT), ops_next_0)
-            c_cell.setValue(montant_debut if montant_debut is not None else 0)
-            if fmt_devise is not None:
-                c_cell.NumberFormat = fmt_devise
-            if fmt_eur is not None:
-                ws_ops.getCellByPosition(uno_col(OpCol.EQUIV), ops_next_0).NumberFormat = fmt_eur
-            ws_ops.getCellByPosition(uno_col(OpCol.DEVISE), ops_next_0).setString(devise or '')
-            ws_ops.getCellByPosition(uno_col(OpCol.CATEGORIE), ops_next_0).setString('#Solde')
-            ws_ops.getCellByPosition(uno_col(OpCol.COMPTE), ops_next_0).setString(account_name)
-            if is_non_eur:
-                c_cell.CellBackColor = GRIS
-                ws_ops.getCellByPosition(uno_col(OpCol.DEVISE), ops_next_0).CellBackColor = GRIS
-            ops_next_0 += 1
+        serial = (date_debut - epoch).days
+        copy_row_style(ws_ops, template_ops_0, ops_next_0, col_start=0, col_end=9)
+        ws_ops.getCellByPosition(uno_col(OpCol.DATE), ops_next_0).setValue(serial)
+        ws_ops.getCellByPosition(uno_col(OpCol.LABEL), ops_next_0).setString('Relevé compte')
+        c_cell = ws_ops.getCellByPosition(uno_col(OpCol.MONTANT), ops_next_0)
+        c_cell.setValue(montant_debut)
+        if fmt_devise is not None:
+            c_cell.NumberFormat = fmt_devise
+        if fmt_eur is not None:
+            ws_ops.getCellByPosition(uno_col(OpCol.EQUIV), ops_next_0).NumberFormat = fmt_eur
+        ws_ops.getCellByPosition(uno_col(OpCol.DEVISE), ops_next_0).setString(devise or '')
+        ws_ops.getCellByPosition(uno_col(OpCol.CATEGORIE), ops_next_0).setString('#Solde')
+        ws_ops.getCellByPosition(uno_col(OpCol.COMPTE), ops_next_0).setString(account_name)
+        if is_non_eur:
+            c_cell.CellBackColor = GRIS
+            ws_ops.getCellByPosition(uno_col(OpCol.DEVISE), ops_next_0).CellBackColor = GRIS
 
     @staticmethod
     @staticmethod

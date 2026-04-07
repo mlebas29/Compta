@@ -153,16 +153,18 @@ class AvCol(IntEnum):
 class CtrlCol(IntEnum):
     """Colonnes de la feuille Contrôles (1-indexed, openpyxl).
 
-    Après migration sous-comptes : colonnes B (sous-compte) et N (SC_ABSENT) supprimées.
+    Refonte 2026-04 : modèle 0..N #Solde via XLOOKUP min/max.
+    Colonnes D (# déb), F (durée), L (reports fin) supprimées physiquement.
     """
-    COMPTE = 1         # A
-    DEVISE = 2         # B  (ex-C)
-    DATE_FIN = 5       # E  (ex-F, date la plus récente)
-    SOLDE_CALC = 8     # H  (ex-I, solde calculé)
-    SOLDE_RELEVE = 9   # I  (ex-J, solde relevé)
-    ECART = 10         # J  (ex-K)
-    CONTROLE_FLAG = 11 # K  (ex-L, Oui/Non)
-    REPORTS_FIN = 12   # L  (ex-M)
+    COMPTE = 1           # A — =Avoirs.A{n}
+    DEVISE = 2           # B
+    DATE_ANCRAGE = 3     # C — IF(n>=2; MINIFS; 0)
+    DATE_RELEVE = 4      # D — MAXIFS (ex-E)
+    MONTANT_ANCRAGE = 5  # E — XLOOKUP +1 (ex-G)
+    SOLDE_CALC = 6       # F — montant_ancrage + flux (ex-H)
+    MONTANT_RELEVE = 7   # G — XLOOKUP -1 (ex-I)
+    ECART = 8            # H — releve - calc (ex-J)
+    CONTROLE_FLAG = 9    # I — Oui/Non (ex-K)
 
 
 # ============================================================================
@@ -307,14 +309,16 @@ def get_table_bounds(named, table_name):
     """
     s = named.get(f'START_{table_name}')
     e = named.get(f'END_{table_name}')
+    s_row = s[2] if s else None
+    e_row = e[2] if e else None
     if s and e:
-        return s[2], e[2]  # (row_1indexed, row_1indexed)
+        return s_row, e_row
     import logging
     missing = []
     if not s: missing.append(f'START_{table_name}')
     if not e: missing.append(f'END_{table_name}')
-    logging.warning(f"Named range(s) manquant(s): {', '.join(missing)} — fallback constante")
-    return None, None
+    logging.warning(f"Named range(s) manquant(s): {', '.join(missing)} — fallback partiel")
+    return s_row, e_row
 
 
 # Fallbacks pour les tableaux sans named ranges ou fichiers anciens

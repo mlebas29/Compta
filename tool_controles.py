@@ -109,31 +109,25 @@ def print_ctrl_summary(tokens):
 
 def get_rows_with_discrepancies(sheet, verbose=False):
     """
-    Récupère les lignes avec écarts et problèmes selon les règles Contrôles
+    Récupère les lignes avec écarts selon les règles CTRL1 (refonte 0..N #Solde).
 
-    Retourne un dictionnaire avec :
-    - comptes_errors: lignes avec écart != 0 (col J) ET Ctrl écart = "Oui" (col K)
-    - reports_errors: lignes avec Reports # Fin != 1 (col L)
+    Retourne : {'comptes': [...]} — lignes avec écart != 0 ET Ctrl écart = "Oui"
     """
     comptes_errors = []
-    reports_errors = []
 
     for row_idx in range(2, 60):  # Lignes 3 à 60
         compte = sheet.getCellByPosition(uno_col(CtrlCol.COMPTE), row_idx).String
         if compte and compte.strip() == '✓':
             continue
         devise = sheet.getCellByPosition(uno_col(CtrlCol.DEVISE), row_idx).String
-        date_fin = sheet.getCellByPosition(uno_col(CtrlCol.DATE_FIN), row_idx).String
         solde_calc = sheet.getCellByPosition(uno_col(CtrlCol.SOLDE_CALC), row_idx).Value
-        solde_releve = sheet.getCellByPosition(uno_col(CtrlCol.SOLDE_RELEVE), row_idx).Value
+        solde_releve = sheet.getCellByPosition(uno_col(CtrlCol.MONTANT_RELEVE), row_idx).Value
         ecart = sheet.getCellByPosition(uno_col(CtrlCol.ECART), row_idx).Value
         ctrl_ecart = sheet.getCellByPosition(uno_col(CtrlCol.CONTROLE_FLAG), row_idx).String
-        reports_fin = sheet.getCellByPosition(uno_col(CtrlCol.REPORTS_FIN), row_idx).Value
 
         if not compte:
             continue
 
-        # Erreur COMPTES : écart != 0 ET ctrl_ecart = "Oui"
         if abs(ecart) > 0.01 and ctrl_ecart == "Oui":
             comptes_errors.append({
                 'row': row_idx + 1,
@@ -142,23 +136,9 @@ def get_rows_with_discrepancies(sheet, verbose=False):
                 'solde_calc': solde_calc,
                 'solde_releve': solde_releve,
                 'ecart': ecart,
-                'reports_fin': reports_fin
             })
 
-        # Erreur Reports # Fin : L != 1
-        if reports_fin != 1 and compte:
-            reports_errors.append({
-                'row': row_idx + 1,
-                'compte': compte,
-                'date_fin': date_fin,
-                'reports_fin': reports_fin,
-                'ecart': ecart
-            })
-
-    return {
-        'comptes': comptes_errors,
-        'reports': reports_errors,
-    }
+    return {'comptes': comptes_errors}
 
 
 def print_comptes_errors(errors, verbose=False):
@@ -180,30 +160,9 @@ def print_comptes_errors(errors, verbose=False):
         print(f"{err['row']:<6} {err['compte']:<35} {solde_calc_str:<15} {solde_releve_str:<15} {ecart_str:<15}")
 
     print(f"\n💡 Piste de résolution:")
-    print(f"  1. Vérifier qu'un #Solde existe pour ce compte (voir avertissement COMPTES SANS SOLDE)")
+    print(f"  1. Vérifier qu'au moins un #Solde existe pour ce compte (sinon le contrôle est inactif)")
     print(f"  2. Vérifier les opérations manquantes dans la feuille Opérations")
-    print(f"  3. Vérifier les #Solde en double (voir Reports # Fin ci-dessous)")
-    print(f"  4. Comparer avec les relevés bancaires")
-
-
-def print_reports_errors(errors, verbose=False):
-    """Affiche les erreurs Reports # Fin"""
-    if not errors:
-        return
-
-    print("\n⚠️  DOUBLONS #SOLDE (Reports # Fin != 1)")
-    print("=" * 95)
-    print(f"{'Ligne':<6} {'Compte':<35} {'Date Fin':<12} {'Reports # Fin':<15} {'Écart':<15}")
-    print("-" * 95)
-
-    for err in errors:
-        print(f"{err['row']:<6} {err['compte']:<35} {err['date_fin']:<12} {err['reports_fin']:<15.0f} {err['ecart']:<15.2f}")
-
-    print(f"\n💡 Piste de résolution:")
-    print(f"  1. Rechercher dans Opérations les lignes #Solde en double pour ce compte à la date indiquée (Date Fin)")
-    print(f"  2. Vérifier si changement de format des libellés par la banque (cause fréquente)")
-    print(f"  3. Supprimer les doublons manuellement dans Excel")
-    print(f"  4. Si l'erreur persiste après correction, utiliser --fallback")
+    print(f"  3. Comparer avec les relevés bancaires")
 
 
 def get_unknown_accounts(operations_sheet, avoirs_sheet, verbose=False):
@@ -516,7 +475,6 @@ Codes de sortie:
                 if has_comptes:
                     errors = get_rows_with_discrepancies(controles_sheet, args.verbose)
                     print_comptes_errors(errors['comptes'], args.verbose)
-                    print_reports_errors(errors['reports'], args.verbose)
                     exit_code = 1
 
                 if has_comptes_inconnus:
