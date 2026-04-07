@@ -1722,6 +1722,9 @@ class DevisesMixin:
             for entry in self.display_accounts:
                 if entry.get('ctrl_row') is not None:
                     continue
+                # Biens matériels : exclus de CTRL1 (pas d'opérations, valeurs manuelles)
+                if entry.get('type') == 'Biens matériels':
+                    continue
                 avoirs_acct = entry['avoirs_ref']
                 avoirs_row = avoirs_acct.get('row')
                 if not avoirs_row:
@@ -1778,10 +1781,13 @@ class DevisesMixin:
                     for c in (uno_col(CtrlCol.MONTANT_ANCRAGE), uno_col(CtrlCol.SOLDE_CALC),
                               uno_col(CtrlCol.MONTANT_RELEVE), uno_col(CtrlCol.ECART)):
                         ws_ctrl.getCellByPosition(c, r0).NumberFormat = fmt_key
-                if devise and devise not in ('EUR', ''):
-                    for c in (uno_col(CtrlCol.MONTANT_ANCRAGE), uno_col(CtrlCol.SOLDE_CALC),
-                              uno_col(CtrlCol.MONTANT_RELEVE), uno_col(CtrlCol.ECART)):
-                        ws_ctrl.getCellByPosition(c, r0).CellBackColor = 0xDCDCDC
+                # GRIS pour non-EUR ; blanc explicite pour EUR
+                # (insertByIndex peut propager le GRIS d'une ligne voisine non-EUR ;
+                # transparent -1 prendrait la couleur du thème = noir en mode sombre)
+                bg_color = 0xDCDCDC if (devise and devise not in ('EUR', '')) else 0xFFFFFF
+                for c in (uno_col(CtrlCol.MONTANT_ANCRAGE), uno_col(CtrlCol.SOLDE_CALC),
+                          uno_col(CtrlCol.MONTANT_RELEVE), uno_col(CtrlCol.ECART)):
+                    ws_ctrl.getCellByPosition(c, r0).CellBackColor = bg_color
 
                 entry['ctrl_row'] = r
                 ctrl_next_row += 1
