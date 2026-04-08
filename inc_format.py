@@ -40,10 +40,15 @@ def require_account(accounts, keyword, site, ignorecase=False):
 def site_name_from_file(filepath):
     """Extrait le nom du site depuis le chemin du script appelant.
 
-    Usage dans cpt_format_SITE.py :
-        SITE = site_name_from_file(__file__)  # 'BB', 'SG', etc.
+    Usage :
+        SITE = site_name_from_file(__file__)  # 'BB', 'SG', 'BTC', etc.
+    Gère les prefixes cpt_format_ et cpt_fetch_.
     """
-    return Path(filepath).stem.replace('cpt_format_', '')
+    stem = Path(filepath).stem
+    for prefix in ('cpt_format_', 'cpt_fetch_'):
+        if stem.startswith(prefix):
+            return stem[len(prefix):]
+    return stem
 
 
 def get_file_date(filepath):
