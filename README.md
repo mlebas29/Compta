@@ -106,7 +106,7 @@ Le classeur d'exemple contient des données fictives à remplacer par les vôtre
 > **Conseils de personnalisation :**
 >
 > - Renommer les comptes, catégories, devises et titres existants plutôt que les supprimer ; ceci permet de conserver formules et formats
-> - Supprimer les **lignes d'opérations** (feuille Opérations) librement, en conservant deux lignes #Solde par compte, à des dates différentes
+> - Supprimer les **lignes d'opérations** (feuille Opérations) librement, en conservant la cohérence avec les lignes #Solde de chaque compte
 > - Conserver au moins **une ligne par tableau de données** (Opérations, Avoirs, Plus_value, Cotations) pour préserver les formules et le format — les nouvelles lignes se créent par copier/coller d'une ligne existante
 > - Modifier avec prudence la structure des feuilles (colonnes, en-têtes et pieds de tableaux, noms définis)
 >

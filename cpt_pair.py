@@ -973,7 +973,8 @@ Exemples:
                 if count > 0:
                     print(f"  {phase}: {count}")
         # Recalcul + miroir C1 si lancé depuis la GUI
-        if not args.dry_run and os.environ.get('COMPTA_GUI'):
+        if not args.dry_run:
+            # Recalcul UNO + sauvegarde des cached (la GUI lit A1/L2 cached)
             from inc_uno import refresh_controles
             refresh_controles(COMPTES_FILE)
     else:
