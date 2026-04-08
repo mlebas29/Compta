@@ -331,9 +331,9 @@ class EtoroFetcher(BaseFetcher):
             self.logger.alert("VALIDATION REQUISE — Résous le CAPTCHA et/ou saisis le code 2FA dans Chrome")
 
         # Poll hybride :
-        # - Phase 1 (0-60s) : observation passive (ne pas interférer avec la 2FA)
-        # - Phase 2 (60s+) : vérification active (navigation vers /home toutes les 20s)
-        PASSIVE_PHASE_S = 60
+        # - Phase 1 (0-180s) : observation passive (laisser le temps CAPTCHA + 2FA)
+        # - Phase 2 (180s+) : vérification active (navigation vers /home toutes les 20s)
+        PASSIVE_PHASE_S = 180
         ACTIVE_CHECK_INTERVAL_S = 20
         start_time = time.time()
         last_url = ""
@@ -344,7 +344,12 @@ class EtoroFetcher(BaseFetcher):
             # Vérifier self.page (JS pour éviter page.url stale)
             try:
                 current_url = self.page.evaluate("window.location.href")
-            except Exception:
+            except Exception as e:
+                if 'closed' in str(e).lower():
+                    self.logger.error(
+                        "Navigateur fermé pendant la 2FA — relance le script "
+                        "et NE FERME PAS le navigateur jusqu'à la fin de la collecte")
+                    return False
                 current_url = self.page.url
             if current_url != last_url:
                 self.logger.debug(f"URL courante: {current_url}")

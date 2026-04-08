@@ -132,13 +132,25 @@ class PeeFetcher(BaseFetcher):
             next_btn.click()
             self.logger.info("Mot de passe validé")
 
-            # Vérifier connexion réussie
-            self.page.wait_for_function(
-                "() => document.title.includes('Tableau de bord')",
-                timeout=15000
-            )
-            self.logger.info("Connexion réussie")
-            return True
+            # Vérifier connexion réussie : attendre une URL stable hors du flux login
+            try:
+                self.page.wait_for_function(
+                    "() => !window.location.href.includes('/login') "
+                    "&& !window.location.href.includes('/auth') "
+                    "&& document.readyState === 'complete'",
+                    timeout=30000
+                )
+                self.logger.info(f"Connexion réussie — title='{self.page.title()}' url='{self.page.url}'")
+                return True
+            except Exception as e:
+                # Diagnostic : afficher l'état actuel
+                try:
+                    cur_title = self.page.title()
+                    cur_url = self.page.url
+                    self.logger.error(f"Timeout connexion : title='{cur_title}' url='{cur_url}'")
+                except Exception:
+                    pass
+                raise
 
         except Exception as e:
             self.logger.error(f"Erreur connexion: {e}")
