@@ -285,7 +285,9 @@ class UnoDocument:
 def refresh_controles(file_path, logger=None):
     """Recalcule les formules et met à jour le miroir Avoirs L1.
 
-    Appelé par les scripts openpyxl en fin de traitement quand COMPTA_GUI=1.
+    Appelé par les scripts openpyxl en fin de traitement (les sauvegardes
+    openpyxl n'écrivent pas les valeurs cached des formules — la GUI en a
+    besoin pour lire A1/L2 rapidement via ZIP).
     Force LibreOffice à recalculer toutes les formules et à re-écrire les
     valeurs cached (utilisées ensuite par la lecture rapide ZIP de la GUI).
     """

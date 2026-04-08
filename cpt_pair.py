@@ -524,8 +524,23 @@ class ComptaPairer:
         updates = []
 
         if equiv1 is not None and equiv2 is not None:
-            if abs(abs(equiv1) - abs(equiv2)) > 0.01:
+            # Wise (et cross-currency en général) : taux légèrement différents
+            # de chaque côté. Si l'écart relatif est tolérable, on moyenne et
+            # on force la balance à zéro en réécrivant les 2 equiv.
+            diff = abs(abs(equiv1) - abs(equiv2))
+            avg = (abs(equiv1) + abs(equiv2)) / 2
+            if avg > 0.01 and diff / avg > max_ratio - 1.0:
+                # ratio dépasse la tolérance globale (ex max_ratio=2.0 → 100%)
                 return None
+            if diff > 0.01:
+                # Forcer balance nulle : moyenne, signes préservés
+                sign1 = -1 if equiv1 < 0 else 1
+                equiv1 = sign1 * avg
+                equiv2 = -equiv1
+                updates.append((op1.row, equiv1))
+                updates.append((op2.row, equiv2))
+                self.logger.verbose(
+                    f"Equiv normalisés (avg) : {equiv1:+.2f}€ / {equiv2:+.2f}€")
         elif equiv1 is not None and equiv2 is None:
             d2_devise = op2.devise
             if d2_devise != 'EUR' and abs(equiv1) > 0.01:

@@ -1033,8 +1033,9 @@ class ComptaUpdater:
         # Ne sauvegarde PAS s'il y a erreur bloquante (success=False)
         self.excel.close_workbook(save=success)
 
-        # Recalcul + miroir C1 si lancé depuis la GUI
-        if success and os.environ.get('COMPTA_GUI'):
+        # Recalcul UNO + sauvegarde des valeurs cached des formules
+        # (nécessaire pour que la GUI puisse lire A1/L2 sans recalcul)
+        if success:
             from inc_uno import refresh_controles
             refresh_controles(COMPTES_FILE, self.logger)
 
