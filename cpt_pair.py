@@ -126,7 +126,16 @@ def _extract_effective_date(op):
     - Carte à débit différé : 'CARTE X0612 31/12 LECLERC' → 31/12
     - Date explicite en début de libellé : '27/01/2026 Easycash bijoux' → 27/01/2026
     Retourne date_parsed en repli.
+
+    Toujours retourné comme datetime.date (jamais datetime.datetime) pour
+    permettre les soustractions cohérentes côté appelant.
     """
+    def _to_date(d):
+        # Normaliser datetime → date pour éviter les TypeError de soustraction
+        if hasattr(d, 'date') and callable(d.date):
+            return d.date()
+        return d
+
     # Carte à débit différé (JJ/MM sans année)
     match = _CARD_DATE_RE.match(op.label)
     if match:
@@ -135,7 +144,7 @@ def _extract_effective_date(op):
             card_date = op.date_parsed.replace(day=int(card_day), month=int(card_month))
             if card_date > op.date_parsed:
                 card_date = card_date.replace(year=card_date.year - 1)
-            return card_date
+            return _to_date(card_date)
         except (ValueError, TypeError):
             pass
 
@@ -147,7 +156,7 @@ def _extract_effective_date(op):
         except (ValueError, TypeError):
             pass
 
-    return op.date_parsed
+    return _to_date(op.date_parsed)
 
 
 # ============================================================================

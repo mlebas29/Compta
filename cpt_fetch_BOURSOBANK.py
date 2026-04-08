@@ -910,26 +910,39 @@ class BbFetcher(BaseFetcher):
                 self.page.locator("#form_submit").click(force=True)
                 time.sleep(2)  # Attendre rechargement complet
 
-                # Télécharger CSV si disponible
-                try:
-                    csv_link = self.page.locator("a:has-text('Exporter en CSV')")
-                    csv_link.first.wait_for(state="visible", timeout=5000)
+                # Télécharger CSV si disponible (retry avec re-fetch du href si 401)
+                downloaded = False
+                for attempt in range(1, 4):
+                    try:
+                        csv_link = self.page.locator("a:has-text('Exporter en CSV')")
+                        csv_link.first.wait_for(state="visible", timeout=5000)
 
-                    # Extraire le href pour téléchargement direct
-                    csv_href = csv_link.first.get_attribute('href')
-                    if csv_href:
+                        # Extraire le href (frais à chaque tentative — token peut expirer)
+                        csv_href = csv_link.first.get_attribute('href')
+                        if not csv_href:
+                            self.logger.info(f"      Pas de lien CSV")
+                            break
                         if csv_href.startswith('/'):
                             csv_href = self.base_url + csv_href
                         target_name = f"export-operations-{month_value}.csv"
                         target_path = self.dropbox_dir / target_name
                         if self._fetch_download(csv_href, target_path, f'mouvements_{month_text}'):
                             self.logger.info(f"      Export CSV: {target_name}")
-                        else:
-                            self.logger.info(f"      Échec téléchargement {month_text}")
-                    else:
-                        self.logger.info(f"      Pas de lien CSV")
-                except Exception:
-                    self.logger.info(f"      Pas de mouvements")
+                            downloaded = True
+                            break
+                        # Échec : retry après pause
+                        if attempt < 3:
+                            self.logger.info(f"      Retry {attempt + 1}/3 dans 2s...")
+                            time.sleep(2)
+                            # Re-soumettre pour rafraîchir le token
+                            self.page.locator("#form_submit").click(force=True)
+                            time.sleep(2)
+                    except Exception as e:
+                        self.logger.info(f"      Tentative {attempt}/3 échouée: {e}")
+                        if attempt < 3:
+                            time.sleep(2)
+                if not downloaded:
+                    self.logger.info(f"      Échec téléchargement {month_text} après 3 tentatives")
 
             self.logger.info("  Mouvements titres collectés")
             return True

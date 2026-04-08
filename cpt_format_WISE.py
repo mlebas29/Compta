@@ -166,6 +166,7 @@ def parse_wise_xlsx(xlsx_file, verbose=False):
     # Process rows (skip header row 1, start from row 2)
     for row_idx in range(2, ws.max_row + 1):
         # Column indices (1-based in openpyxl)
+        wise_id = ws.cell(row_idx, 1).value  # Column A: Pièce d'identité (transaction ID)
         date_val = ws.cell(row_idx, 2).value  # Column B: Date
         amount_val = ws.cell(row_idx, 4).value  # Column D: Montant
         currency_val = ws.cell(row_idx, 5).value  # Column E: Devise
@@ -183,7 +184,9 @@ def parse_wise_xlsx(xlsx_file, verbose=False):
 
         # Catégorisation automatique via patterns
         category, opts = inc_categorize.categorize_operation(description, SITE)
-        ref = opts.get('ref', '')
+        # Réf : ID Wise (TRANSFER-..., BALANCE-..., ACCRUAL_...) si dispo
+        # garantit le dédoublonnage stable même si la date varie d'1 jour
+        ref = str(wise_id).strip() if wise_id else opts.get('ref', '')
         equiv = opts.get('equiv', '')
 
         # Build operation tuple: (Date, Libellé, Montant, Devise, Equiv, Réf, Catégorie, Compte, Commentaire)
