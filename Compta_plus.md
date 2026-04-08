@@ -142,6 +142,7 @@ killall -9 soffice.bin     # Fermer LibreOffice
 rm -f ~/Compta/.~lock.*    # Supprimer verrous
 ```
 
+
 ## Mode debug
 
 Dans `config.ini` :

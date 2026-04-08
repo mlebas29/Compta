@@ -254,26 +254,14 @@ class UnoDocument:
         return sheets.getByName(name)
 
     def save(self):
-        """Sauvegarde le document. Erreur si read_only. Met à jour le miroir Contrôles C1."""
+        """Sauvegarde le document. Erreur si read_only.
+
+        Les miroirs Contrôles C1 et Avoirs L1 ont été supprimés : la GUI lit
+        directement A1/L2 (cached values des formules, à jour après tout save).
+        """
         if self._read_only:
             raise RuntimeError("Document ouvert en lecture seule, save() interdit")
-        self._update_controles_mirror()
         self._document.store()
-
-    def _update_controles_mirror(self):
-        """Copie Contrôles A1 → C1 et Avoirs L2 → L1 (valeurs brutes lisibles par openpyxl)."""
-        try:
-            sheets = self._document.getSheets()
-            if sheets.hasByName('Contrôles'):
-                ws = sheets.getByName('Contrôles')
-                val = ws.getCellByPosition(0, 0).getString().strip()
-                ws.getCellByPosition(2, 0).setString(val)
-            if sheets.hasByName('Avoirs'):
-                ws = sheets.getByName('Avoirs')
-                total = ws.getCellByPosition(11, 1).getValue()
-                ws.getCellByPosition(11, 0).setValue(total)
-        except Exception:
-            pass
 
     def calculate_all(self):
         """Force le recalcul de toutes les formules."""
@@ -295,16 +283,18 @@ class UnoDocument:
 
 
 def refresh_controles(file_path, logger=None):
-    """Recalcule les formules et met à jour le miroir Contrôles C1.
+    """Recalcule les formules et met à jour le miroir Avoirs L1.
 
     Appelé par les scripts openpyxl en fin de traitement quand COMPTA_GUI=1.
+    Force LibreOffice à recalculer toutes les formules et à re-écrire les
+    valeurs cached (utilisées ensuite par la lecture rapide ZIP de la GUI).
     """
     if not HAS_UNO:
         return
     try:
         with UnoDocument(file_path, read_only=False, logger=logger) as doc:
             doc.calculate_all()
-            doc.save()  # save() écrit automatiquement le miroir C1
+            doc.save()  # save() recalcule + écrit le miroir Avoirs L1
     except Exception as e:
         if logger:
             logger.warning(f"refresh_controles: {e}")

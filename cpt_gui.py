@@ -421,7 +421,7 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
             btn.bind('<Button-1>',
                      lambda e, w=btn, t=help_text: self._show_help_tooltip(w, t))
 
-        # Lecture Contrôles C1 (miroir de A1) au démarrage
+        # Lecture Contrôles A1 (synthèse) au démarrage
         if self.xlsx_path:
             self._refresh_status_bar()
             self._start_file_watcher()
@@ -459,7 +459,7 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
             self._inotify_stop.set()
 
     def _read_status_cells_zip(self):
-        """Lecture rapide Contrôles C1/A1 + Avoirs L1 via ZIP (~11ms vs ~70ms openpyxl).
+        """Lecture rapide Contrôles A1 + Avoirs L2 via ZIP (~9ms vs ~70ms openpyxl).
 
         Returns:
             tuple: (ctrl_text, total_value) — ctrl_text str, total_value float|None
@@ -495,19 +495,22 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
                 if name in (SHEET_CONTROLES, SHEET_AVOIRS):
                     sheet_targets[name] = 'xl/' + rel_map[rid]
 
-            # Contrôles C1/A1
+            # Contrôles A1 = formule synthèse, sa valeur cached est mise à
+            # jour par LO à chaque save (manuel ou via UNO). ~0ms supplémentaire
+            # vs C1 puisque le tree XML est déjà parsé.
             ctrl = ''
             if SHEET_CONTROLES in sheet_targets:
                 with z.open(sheet_targets[SHEET_CONTROLES]) as f:
                     tree = ET.parse(f)
-                ctrl = (_read_cell(tree, 'C1') or _read_cell(tree, 'A1') or '').strip()
+                ctrl = (_read_cell(tree, 'A1') or '').strip()
 
-            # Avoirs L1
+            # Avoirs L2 = formule Total (=L81 ou similaire), cached value
+            # mise à jour par LO à chaque save. Pas besoin de miroir L1.
             total = None
             if SHEET_AVOIRS in sheet_targets:
                 with z.open(sheet_targets[SHEET_AVOIRS]) as f:
                     tree = ET.parse(f)
-                val = _read_cell(tree, 'L1')
+                val = _read_cell(tree, 'L2')
                 if val:
                     try:
                         total = float(val)
@@ -517,7 +520,7 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
         return ctrl, total
 
     def _refresh_status_bar(self):
-        """Lecture Contrôles C1 + Avoirs L1 + cohérence JSON au démarrage."""
+        """Lecture Contrôles A1 + Avoirs L2 + cohérence JSON au démarrage."""
         try:
             # Lecture rapide ZIP, fallback openpyxl si erreur
             try:
@@ -528,10 +531,10 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
                 ctrl, total = '', None
                 if SHEET_CONTROLES in wb.sheetnames:
                     ws = wb[SHEET_CONTROLES]
-                    ctrl = str(ws['C1'].value or ws['A1'].value or '').strip()
+                    ctrl = str(ws['A1'].value or '').strip()
                 if SHEET_AVOIRS in wb.sheetnames:
                     ws = wb[SHEET_AVOIRS]
-                    val = ws['L1'].value
+                    val = ws['L2'].value
                     if isinstance(val, (int, float)):
                         total = val
                 wb.close()
@@ -557,7 +560,7 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
             self._status_ctrl = ctrl if ctrl and ctrl != '.' else ''
             self._status_details = details
 
-            # Synthèse zone 1 : C1 brut + indicateur alertes config
+            # Synthèse zone 1 : A1 brut + indicateur alertes config
             status_text = ctrl or '.'
             if self._coherence_warnings:
                 status_text += ' ⚙'
