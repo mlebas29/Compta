@@ -313,6 +313,9 @@ def get_table_bounds(named, table_name):
     e_row = e[2] if e else None
     if s and e:
         return s_row, e_row
+    # OP n'a pas d'END_OP depuis v3.0.0 — pas de warning si seul END manque
+    if table_name == 'OP' and s and not e:
+        return s_row, None
     import logging
     missing = []
     if not s: missing.append(f'START_{table_name}')

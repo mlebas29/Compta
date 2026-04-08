@@ -1448,12 +1448,14 @@ class DevisesMixin:
                 if val_b == name:
                     block_rows.append(scan)
                 elif not val_b and not val_c:
-                    # Vérifier si c'est un spacer structurel (avant section header ou TOTAL)
+                    # Vérifier si c'est un spacer structurel (avant section header,
+                    # TOTAL, ou END marker ✓ qui est sur col A)
                     next_a = ws_pv.getCellByPosition(
                         uno_col(PvCol.SECTION), uno_row(scan + 1)).getString().strip()
                     next_b = ws_pv.getCellByPosition(
                         col_b, uno_row(scan + 1)).getString().strip()
-                    if next_a.startswith('Les ') or 'TOTAL' in next_b.upper():
+                    if (next_a.startswith('Les ') or 'TOTAL' in next_b.upper()
+                            or next_a == '✓'):
                         break  # Spacer structurel → préserver
                     # Ligne vide après le bloc → inclure puis stop
                     block_rows.append(scan)
@@ -1799,23 +1801,14 @@ class DevisesMixin:
             # Model rows CTRL1 : préservées (pas de cleanup)
             # Elles servent d'ancrage aux named ranges et de modèle de format.
 
-            # --- Recalibrer formules CTRL1 gardes + CTRL2 sur le range réel ---
-            # Les insertions de lignes décalent les refs du template (single-cell ou
-            # range rétréci par l'export).  On réécrit avec le range réel.
-            ctrl1_first = (self._start_ctrl1 or CTRL_FIRST_ROW) + 1  # données (après model row)
-            ctrl1_last = ctrl_next_row - 1
-            if ctrl1_last >= ctrl1_first:
-                f = ctrl1_first
-                l = ctrl1_last
-            else:
-                f = ctrl1_first
-                l = f
-
-            # -- CTRL1 gardes supprimées (refonte 0..N #Solde) --
-            # CTRL2 h+2 COMPTES fait déjà le décompte des écarts par devise.
+            # --- Recalibrer formules CTRL2 sur les bornes CTRL1 (model rows incluses) ---
+            # On couvre START_CTRL1..END_CTRL1 pour matcher le template (B3:B4 vide)
+            # plutôt que de pointer le data range qui peut être vide.
             from inc_uno import get_table_bounds_uno
-            _, ctrl_end_now = get_table_bounds_uno(doc.document, 'CTRL1')
+            ctrl_start_now, ctrl_end_now = get_table_bounds_uno(doc.document, 'CTRL1')
             ctrl_end_now = ctrl_end_now or self._end_ctrl1 or ctrl_next_row
+            f = ctrl_start_now or self._start_ctrl1 or CTRL_FIRST_ROW
+            l = ctrl_end_now
 
             # -- CTRL2 h+2 COMPTES : COUNTIFS par devise --
             ctrl2_pos = get_named_range_pos(doc.document, 'START_CTRL2')
@@ -1904,12 +1897,13 @@ class DevisesMixin:
                 for row_0 in reversed(rows_to_delete):
                     ws_ops.Rows.removeByIndex(row_0, 1)
 
-                # Garantir 2 model rows minimum (L4-L5) si plus d'opérations
+                # Garantir la model row START_OP (row 4 = 0-indexed 3)
+                # OP n'a plus qu'une seule model row depuis suppression END_OP (v3.0.0)
                 cursor2 = ws_ops.createCursor()
                 cursor2.gotoEndOfUsedArea(True)
                 last_0 = cursor2.getRangeAddress().EndRow
-                if last_0 < 4:  # rows 0-2 = en-têtes, besoin de 3-4 = model rows
-                    count = 4 - last_0
+                if last_0 < 3:  # rows 0-2 = en-têtes, besoin de row 3 = model row START
+                    count = 3 - last_0
                     ws_ops.Rows.insertByIndex(last_0 + 1, count)
                     # Appliquer le format données (l'insertion hérite de l'en-tête)
                     from com.sun.star.table import BorderLine2
@@ -1956,9 +1950,11 @@ class DevisesMixin:
                 avr_start_now, avr_end_now = get_table_bounds_uno(doc.document, 'AVR')
                 avr_first = avr_start_now or self._start_avr or AV_FIRST_ROW
                 last_data = avr_end_now or (total_row - 1)
+                # SUM couvre les 2 model rows START_AVR..END_AVR (inclus)
+                # pour éviter le collapse à SUM(L5) quand toutes les data sont supprimées
                 ws.getCellByPosition(
                     uno_col(AvCol.FORMULE_L), uno_row(total_row)
-                ).setFormula(f'=ROUND(SUM(L{avr_data}:L{last_data});2)')
+                ).setFormula(f'=ROUND(SUM(L{avr_first}:L{last_data});2)')
                 # Recaler AVR* + START/END_AVR (incluant model rows)
                 avr_names = {
                     'AVRintitulé': 'A', 'AVRtype': 'B', 'AVRdomiciliation': 'C',
@@ -2155,14 +2151,32 @@ class DevisesMixin:
                     continue
 
                 # Supprimer les lignes non conservées (de bas en haut)
-                # Supprime aussi les lignes B vide (spacers, formules orphelines)
+                # Préserve : valeurs dans `keep`, ligne placeholder '-' (structurelle).
+                # Supprime : lignes B vide (spacers, formules orphelines) et autres
                 deleted = 0
+                has_dash = False
                 for r in range(total_row - 1, header_row, -1):
                     val = ws.getCellByPosition(1, r).getString().strip()
+                    if val == '-':
+                        has_dash = True
+                        continue
                     if not val or val not in keep:
                         ws.Rows.removeByIndex(r, 1)
                         deleted += 1
                         total_row -= 1
+                # Si pas de '-' présent et bloc vidé : insérer le placeholder
+                if not has_dash and total_row == header_row + 1:
+                    ws.Rows.insertByIndex(total_row, 1)
+                    new_dash_row = total_row
+                    total_row += 1
+                    ws.getCellByPosition(1, new_dash_row).setString('-')
+                    # Formules COUNTIF/SUMIF pour cohérence avec le template
+                    new_dash_1 = new_dash_row + 1
+                    ws.getCellByPosition(2, new_dash_row).setFormula(
+                        f'=COUNTIF({avr_name},$B{new_dash_1})')
+                    ws.getCellByPosition(3, new_dash_row).setFormula(
+                        f'=SUMIF({avr_name},$B{new_dash_1},AVRmontant_solde_euro)')
+                    deleted += 1  # force recalcul TOTAL ci-dessous
 
                 if deleted:
                     # Recalculer les formules TOTAL

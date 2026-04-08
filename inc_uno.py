@@ -145,6 +145,9 @@ def get_table_bounds_uno(xdoc, table_name):
     e = get_named_range_pos(xdoc, f'END_{table_name}')
     if s and e:
         return s[2] + 1, e[2] + 1  # 0-indexed → 1-indexed
+    # OP n'a pas d'END_OP depuis v3.0.0 — pas de warning si seul END manque
+    if table_name == 'OP' and s and not e:
+        return s[2] + 1, None
     import logging
     missing = []
     if not s: missing.append(f'START_{table_name}')
