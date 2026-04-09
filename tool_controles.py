@@ -31,7 +31,7 @@ import sys
 from pathlib import Path
 import argparse
 from inc_excel_schema import (
-    OpCol, CtrlCol, AvCol, BudgetCol, uno_col,
+    ColResolver,
     SHEET_OPERATIONS, SHEET_AVOIRS, SHEET_CONTROLES, SHEET_BUDGET,
 )
 from inc_uno import UnoDocument, get_named_range_pos
@@ -107,7 +107,7 @@ def print_ctrl_summary(tokens):
         print(f"  {status} {label:<22} {detail}")
 
 
-def get_rows_with_discrepancies(sheet, verbose=False):
+def get_rows_with_discrepancies(sheet, cr, verbose=False):
     """
     Récupère les lignes avec écarts selon les règles CTRL1 (refonte 0..N #Solde).
 
@@ -116,14 +116,14 @@ def get_rows_with_discrepancies(sheet, verbose=False):
     comptes_errors = []
 
     for row_idx in range(2, 60):  # Lignes 3 à 60
-        compte = sheet.getCellByPosition(uno_col(CtrlCol.COMPTE), row_idx).String
+        compte = sheet.getCellByPosition(cr.col('CTRL1compte'), row_idx).String
         if compte and compte.strip() == '✓':
             continue
-        devise = sheet.getCellByPosition(uno_col(CtrlCol.DEVISE), row_idx).String
-        solde_calc = sheet.getCellByPosition(uno_col(CtrlCol.SOLDE_CALC), row_idx).Value
-        solde_releve = sheet.getCellByPosition(uno_col(CtrlCol.MONTANT_RELEVE), row_idx).Value
-        ecart = sheet.getCellByPosition(uno_col(CtrlCol.ECART), row_idx).Value
-        ctrl_ecart = sheet.getCellByPosition(uno_col(CtrlCol.CONTROLE_FLAG), row_idx).String
+        devise = sheet.getCellByPosition(cr.col('CTRL1devise'), row_idx).String
+        solde_calc = sheet.getCellByPosition(cr.col('CTRL1solde_calc'), row_idx).Value
+        solde_releve = sheet.getCellByPosition(cr.col('CTRL1montant_releve'), row_idx).Value
+        ecart = sheet.getCellByPosition(cr.col('CTRL1ecart'), row_idx).Value
+        ctrl_ecart = sheet.getCellByPosition(cr.col('CTRL1controle'), row_idx).String
 
         if not compte:
             continue
@@ -165,7 +165,7 @@ def print_comptes_errors(errors, verbose=False):
     print(f"  3. Comparer avec les relevés bancaires")
 
 
-def get_unknown_accounts(operations_sheet, avoirs_sheet, verbose=False):
+def get_unknown_accounts(operations_sheet, avoirs_sheet, cr, verbose=False):
     """
     Cherche les comptes dans Opérations qui n'existent pas dans Avoirs
 
@@ -175,7 +175,7 @@ def get_unknown_accounts(operations_sheet, avoirs_sheet, verbose=False):
     # Récupérer les comptes de référence depuis Avoirs (colonne A)
     valid_accounts = set()
     for row_idx in range(3, 100):  # Lignes 4 à 100
-        compte = avoirs_sheet.getCellByPosition(uno_col(AvCol.INTITULE), row_idx).String
+        compte = avoirs_sheet.getCellByPosition(cr.col('AVRintitulé'), row_idx).String
         if compte and compte.strip() and compte not in ('Total', '✓'):
             valid_accounts.add(compte.strip())
 
@@ -187,7 +187,7 @@ def get_unknown_accounts(operations_sheet, avoirs_sheet, verbose=False):
     empty_rows_count = 0
 
     for row_idx in range(3, 10000):  # Commencer à la ligne 4
-        compte = operations_sheet.getCellByPosition(uno_col(OpCol.COMPTE), row_idx).String
+        compte = operations_sheet.getCellByPosition(cr.col('OPcompte'), row_idx).String
 
         if not compte:
             empty_rows_count += 1
@@ -202,8 +202,8 @@ def get_unknown_accounts(operations_sheet, avoirs_sheet, verbose=False):
             if compte not in unknown_accounts:
                 unknown_accounts[compte] = []
             if len(unknown_accounts[compte]) < 3:  # Garder max 3 exemples par compte
-                date = operations_sheet.getCellByPosition(uno_col(OpCol.DATE), row_idx).String
-                libelle = operations_sheet.getCellByPosition(uno_col(OpCol.LABEL), row_idx).String
+                date = operations_sheet.getCellByPosition(cr.col('OPdate'), row_idx).String
+                libelle = operations_sheet.getCellByPosition(cr.col('OPlibellé'), row_idx).String
                 unknown_accounts[compte].append({
                     'row': row_idx + 1,
                     'date': date,
@@ -234,26 +234,28 @@ def print_unknown_accounts_errors(unknown_accounts, verbose=False):
     print(f"  3. Vérifier la casse (majuscules/minuscules) - la comparaison est sensible à la casse")
 
 
-def get_valid_categories(budget_sheet, verbose=False, xdoc=None):
+def get_valid_categories(budget_sheet, cr, verbose=False):
     """
     Lit les catégories valides depuis feuille Budget.
 
-    La colonne catégories est résolue via le nom défini START_CAT si xdoc est fourni,
-    sinon fallback sur BudgetCol.CATEGORIES.
-
+    La colonne catégories est résolue via le named range CATnom.
     Plage délimitée par marqueurs textuels START / Total.
 
     Returns:
         set: ensemble des catégories valides (y compris '-')
     """
-    # Résoudre la colonne catégories via nom défini
-    cat_col_0 = uno_col(BudgetCol.CATEGORIES)  # fallback
+    cat_col_0 = cr.col('CATnom')
+    # Trouver la ligne START via le contenu (première ligne du range)
+    from inc_uno import get_col_range_bounds
+    # On n'a pas xdoc ici, mais cr a déjà résolu les colonnes
+    # Scan depuis le début de la zone Budget
     start_from = 0
-    if xdoc is not None:
-        pos = get_named_range_pos(xdoc, 'START_CAT')
-        if pos is not None:
-            cat_col_0 = pos[1]  # déjà 0-indexed
-            start_from = pos[2]  # ligne START, 0-indexed
+    # Chercher le marqueur '✓' ou 'START' à partir de row 0
+    for probe in range(0, 100):
+        v = budget_sheet.getCellByPosition(cat_col_0, probe).String.strip()
+        if v == '✓':
+            start_from = probe
+            break
 
     categories = set()
     collecting = start_from > 0
@@ -269,7 +271,7 @@ def get_valid_categories(budget_sheet, verbose=False, xdoc=None):
 
         cell_value = cell_value.strip()
 
-        # Détecter le marqueur de début
+        # Détecter le marqueur de début (fallback si pas de START trouvé)
         if not collecting and 'START' in cell_value.upper():
             collecting = True
             first_row = row_idx + 1
@@ -285,14 +287,13 @@ def get_valid_categories(budget_sheet, verbose=False, xdoc=None):
             categories.add(cell_value)
 
     if verbose and first_row is not None and last_row is not None:
-        from inc_excel_schema import col_letter
-        col_l = col_letter(cat_col_0 + 1)
+        col_l = cr.letter('CATnom')
         print(f"  📋 Catégories Budget : {col_l}{first_row+1}:{col_l}{last_row+1} ({len(categories)} catégories)")
 
     return categories
 
 
-def get_categories_errors(operations_sheet, valid_categories, verbose=False):
+def get_categories_errors(operations_sheet, valid_categories, cr, verbose=False):
     """
     Cherche les opérations avec catégories manquantes ou invalides
 
@@ -316,12 +317,12 @@ def get_categories_errors(operations_sheet, valid_categories, verbose=False):
         if row_idx == 2:
             continue
 
-        date = operations_sheet.getCellByPosition(uno_col(OpCol.DATE), row_idx).String
-        libelle = operations_sheet.getCellByPosition(uno_col(OpCol.LABEL), row_idx).String
-        montant = operations_sheet.getCellByPosition(uno_col(OpCol.MONTANT), row_idx).Value
-        devise = operations_sheet.getCellByPosition(uno_col(OpCol.DEVISE), row_idx).String
-        categorie = operations_sheet.getCellByPosition(uno_col(OpCol.CATEGORIE), row_idx).String
-        compte = operations_sheet.getCellByPosition(uno_col(OpCol.COMPTE), row_idx).String
+        date = operations_sheet.getCellByPosition(cr.col('OPdate'), row_idx).String
+        libelle = operations_sheet.getCellByPosition(cr.col('OPlibellé'), row_idx).String
+        montant = operations_sheet.getCellByPosition(cr.col('OPmontant'), row_idx).Value
+        devise = operations_sheet.getCellByPosition(cr.col('OPdevise'), row_idx).String
+        categorie = operations_sheet.getCellByPosition(cr.col('OPcatégorie'), row_idx).String
+        compte = operations_sheet.getCellByPosition(cr.col('OPcompte'), row_idx).String
 
         # Ignorer les lignes vides ou incomplètes
         if not date or not devise or not compte:
@@ -447,6 +448,7 @@ Codes de sortie:
 
     try:
         with UnoDocument(excel_file.absolute(), read_only=True) as doc:
+            cr = ColResolver.from_uno(doc.document)
             controles_sheet = doc.get_sheet(SHEET_CONTROLES)
             budget_sheet = doc.get_sheet(SHEET_BUDGET)
             operations_sheet = doc.get_sheet(SHEET_OPERATIONS)
@@ -473,19 +475,19 @@ Codes de sortie:
                 has_warnings = any(t in ('-', '!', '⚠') for t in tokens)
 
                 if has_comptes:
-                    errors = get_rows_with_discrepancies(controles_sheet, args.verbose)
+                    errors = get_rows_with_discrepancies(controles_sheet, cr, args.verbose)
                     print_comptes_errors(errors['comptes'], args.verbose)
                     exit_code = 1
 
                 if has_comptes_inconnus:
-                    unknown_accounts = get_unknown_accounts(operations_sheet, avoirs_sheet, args.verbose)
+                    unknown_accounts = get_unknown_accounts(operations_sheet, avoirs_sheet, cr, args.verbose)
                     print_unknown_accounts_errors(unknown_accounts, args.verbose)
                     if exit_code == 0:
                         exit_code = 1
 
                 if has_categories:
-                    valid_categories = get_valid_categories(budget_sheet, xdoc=doc.document)
-                    categories_errors = get_categories_errors(operations_sheet, valid_categories, args.verbose)
+                    valid_categories = get_valid_categories(budget_sheet, cr)
+                    categories_errors = get_categories_errors(operations_sheet, valid_categories, cr, args.verbose)
                     print_categories_errors(categories_errors, args.verbose)
                     exit_code = 2
 
