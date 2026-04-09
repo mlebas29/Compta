@@ -46,7 +46,6 @@ with open(Path(__file__).parent / 'config_gui_help.json', encoding='utf-8') as _
 from inc_excel_schema import (
     SHEET_AVOIRS, SHEET_CONTROLES, SHEET_BUDGET, SHEET_OPERATIONS, SHEET_COTATIONS,
     SHEET_PLUS_VALUE,
-    AV_FIRST_ROW, CTRL_FIRST_ROW, COT_FIRST_ROW,
     DEVISE_SOURCES,
     get_named_ranges, col_letter, uno_col,
 )
@@ -659,7 +658,7 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
         try:
             wb_check = openpyxl.load_workbook(self.xlsx_path, data_only=False, read_only=True)
             ws_ctrl = wb_check[SHEET_CONTROLES]
-            ctrl_data_start = (self._start_ctrl1 or CTRL_FIRST_ROW) + 1
+            ctrl_data_start = self._start_ctrl1 + 1
             for row_idx in range(ctrl_data_start, self._end_ctrl1 + 1):
                 cell_val = ws_ctrl.cell(row_idx, self.cr.col('CTRL1compte')).value
                 if not cell_val:
@@ -1020,7 +1019,7 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
         self._accounts_total_row = None
 
         # Données entre START_AVR+1 et END_AVR, Total = END_AVR+1
-        avr_data_start = (self._start_avr or AV_FIRST_ROW) + 1
+        avr_data_start = self._start_avr + 1
         self._accounts_total_row = (self._end_avr + 1) if self._end_avr else None
         for row_idx in range(avr_data_start, self._end_avr or avr_data_start + 200):
             cell_a = ws_formula.cell(row_idx, self.cr.col('AVRintitulé')).value
@@ -1070,7 +1069,7 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
         self.display_accounts = []
         seen_avoirs = set()  # intitulés vus dans Contrôles
 
-        ctrl_data_start = (self._start_ctrl1 or CTRL_FIRST_ROW) + 1
+        ctrl_data_start = self._start_ctrl1 + 1
         for row_idx in range(ctrl_data_start, self._end_ctrl1 + 1):
             cell_a = ws_ctrl.cell(row_idx, self.cr.col('CTRL1compte')).value
             if not cell_a or str(cell_a).strip() == '✓':

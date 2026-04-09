@@ -15,7 +15,6 @@ import unicodedata
 
 from inc_excel_schema import (
     ColResolver,
-    AV_FIRST_ROW, CTRL_FIRST_ROW,
     SHEET_AVOIRS, SHEET_CONTROLES, SHEET_OPERATIONS, SHEET_PLUS_VALUE,
 )
 
@@ -883,7 +882,7 @@ class AccountsMixin:
             # 1. Avoirs col A — trouver et renommer
             ws_av = doc.get_sheet(SHEET_AVOIRS)
             col_a_av = cr.col('AVRintitulé')
-            avr_data = (self._start_avr or AV_FIRST_ROW) + 1
+            avr_data = self._start_avr + 1
             for r in range(uno_row(avr_data), uno_row(self._end_avr + 1)):
                 cell = ws_av.getCellByPosition(col_a_av, r)
                 if cell.getString() == old_name:
@@ -931,7 +930,7 @@ class AccountsMixin:
             # 5. Contrôles col A — texte brut uniquement (formules =Avoirs.A{row} auto-propagées)
             ws_ctrl = doc.get_sheet(SHEET_CONTROLES)
             col_a_ctrl = cr.col('CTRL1compte')
-            ctrl_data = (self._start_ctrl1 or CTRL_FIRST_ROW) + 1
+            ctrl_data = self._start_ctrl1 + 1
             for r in range(uno_row(ctrl_data), uno_row(self._end_ctrl1 + 1)):
                 cell = ws_ctrl.getCellByPosition(col_a_ctrl, r)
                 if cell.getType().value == 0:  # EMPTY

@@ -14,7 +14,6 @@ import tkinter as tk
 from inc_excel_schema import (
     ColResolver,
     DEVISE_SOURCES,
-    AV_FIRST_ROW, CTRL_FIRST_ROW,
     SHEET_AVOIRS, SHEET_BUDGET, SHEET_CONTROLES,
     SHEET_OPERATIONS, SHEET_PLUS_VALUE,
 )
@@ -181,7 +180,7 @@ class DevisesMixin:
         from contextlib import nullcontext
         from inc_uno import UnoDocument, copy_col_style
         from inc_excel_schema import (
-            uno_col, uno_row, col_letter, CotCol, COT_FIRST_ROW,
+            uno_col, uno_row, col_letter, CotCol,
             SHEET_COTATIONS,
         )
 
@@ -199,7 +198,7 @@ class DevisesMixin:
             cr = ColResolver.from_uno(doc.document)
             # ==== ÉTAPE A — Cotations : insérer une ligne dans le groupe ====
             ws_cot = doc.get_sheet(SHEET_COTATIONS)
-            cot_data_start = (self._start_cot or COT_FIRST_ROW) + 1
+            cot_data_start = self._start_cot + 1
 
             # Insérer les colonnes Nature/Famille/Décimales si absentes
             header_0 = uno_row(cot_data_start - 2)  # header = START - 1
@@ -667,7 +666,7 @@ class DevisesMixin:
             try:
                 wb2 = openpyxl.load_workbook(self.xlsx_path, data_only=True)
                 ws_av = wb2[SHEET_AVOIRS]
-                avr_data = (self._start_avr or AV_FIRST_ROW) + 1
+                avr_data = self._start_avr + 1
                 for row in range(avr_data, ws_av.max_row + 1):
                     dev = ws_av.cell(row, self.cr.col('AVRdevise')).value
                     if dev and str(dev).strip() == code:
@@ -755,7 +754,7 @@ class DevisesMixin:
         """Supprime une devise de Cotations, Budget, Contrôles et JSON."""
         from inc_uno import UnoDocument
         from inc_excel_schema import (
-            uno_col, uno_row, CotCol, COT_FIRST_ROW,
+            uno_col, uno_row, CotCol,
             SHEET_COTATIONS,
         )
 
@@ -766,7 +765,7 @@ class DevisesMixin:
             cr = ColResolver.from_uno(doc.document)
             # ==== Cotations : supprimer la ligne du code ====
             ws_cot = doc.get_sheet(SHEET_COTATIONS)
-            cot_data_start = (self._start_cot or COT_FIRST_ROW) + 1
+            cot_data_start = self._start_cot + 1
             cot_row = None
             for row_idx in range(cot_data_start, self._end_cot + 1):
                 cell_code = ws_cot.getCellByPosition(
@@ -1552,7 +1551,7 @@ class DevisesMixin:
 
             # --- Trouver la ligne Total actuelle (1-indexed) ---
             # Scanner au-delà de _end_avr : Total est après la dernière donnée
-            avr_data = (self._start_avr or AV_FIRST_ROW) + 1
+            avr_data = self._start_avr + 1
             total_row = (self._end_avr + 1) if self._end_avr else None
 
             # --- Avoirs : supprimer les lignes des comptes supprimés ---
@@ -1732,7 +1731,7 @@ class DevisesMixin:
             # --- Contrôles : créer les lignes manquantes pour nouveaux comptes ---
             ctrl_last_data = max(
                 (e['ctrl_row'] for e in self.display_accounts if e.get('ctrl_row')),
-                default=(self._start_ctrl1 or CTRL_FIRST_ROW) + 1)
+                default=self._start_ctrl1 + 1)
             # Borner par la model row END (✓) — ne jamais insérer après
             ctrl_end_model = self._end_ctrl1 or (ctrl_last_data + 1)
             ctrl_next_row = min(ctrl_last_data + 1, ctrl_end_model)
@@ -1819,7 +1818,7 @@ class DevisesMixin:
             from inc_uno import get_table_bounds_uno
             ctrl_start_now, ctrl_end_now = get_table_bounds_uno(doc.document, 'CTRL1')
             ctrl_end_now = ctrl_end_now or self._end_ctrl1 or ctrl_next_row
-            f = ctrl_start_now or self._start_ctrl1 or CTRL_FIRST_ROW
+            f = ctrl_start_now or self._start_ctrl1
             l = ctrl_end_now
 
             # -- CTRL2 h+2 COMPTES : COUNTIFS par devise --
@@ -1960,7 +1959,7 @@ class DevisesMixin:
                 # Lire START/END_AVR depuis UNO (ajustés par removeByIndex/insertByIndex)
                 from inc_uno import get_table_bounds_uno
                 avr_start_now, avr_end_now = get_table_bounds_uno(doc.document, 'AVR')
-                avr_first = avr_start_now or self._start_avr or AV_FIRST_ROW
+                avr_first = avr_start_now or self._start_avr
                 last_data = avr_end_now or (total_row - 1)
                 # SUM couvre les 2 model rows START_AVR..END_AVR (inclus)
                 # pour éviter le collapse à SUM(L5) quand toutes les data sont supprimées
