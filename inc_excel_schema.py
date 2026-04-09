@@ -233,14 +233,12 @@ SHEET_COTATIONS = 'Cotations'
 # CONSTANTES DE LIGNES
 # ============================================================================
 
-# DEPRECATED — utiliser get_table_bounds() ou get_table_bounds_uno() à la place.
-# Conservés comme fallback si les named ranges START/END sont absentes.
+# DEPRECATED — utiliser ColResolver.rows() à la place.
+# Conservés temporairement comme fallback dans les fichiers pas encore migrés.
 AV_FIRST_ROW = 4
 CTRL_FIRST_ROW = 3
-PV_FIRST_ROW = 2
 PV_PROTECTED_FIRST_ROW = 5
 COT_FIRST_ROW = 3
-# Pas de LAST_ROW : utiliser ws.max_row pour scanner dynamiquement
 ASSET_TYPES = {'fiat', 'crypto', 'metal', 'immobilier'}
 
 # Sources API par famille de devise (source1, source2/fallback)
@@ -295,59 +293,6 @@ def get_named_ranges(wb):
         result[name_str] = (sheet_name, col, row)
     return result
 
-
-def get_table_bounds(named, table_name):
-    """Retourne (start_row, end_row) 1-indexed depuis les named ranges openpyxl.
-
-    START pointe sur la model row ✓. Les données commencent à start_row + 1.
-    Retourne (None, None) si les named ranges sont absentes.
-
-    Usage:
-        named = get_named_ranges(wb)
-        start, end = get_table_bounds(named, 'AVR')
-        for r in range(start + 1, end):  # données entre les 2 model rows
-    """
-    s = named.get(f'START_{table_name}')
-    e = named.get(f'END_{table_name}')
-    s_row = s[2] if s else None
-    e_row = e[2] if e else None
-    if s and e:
-        return s_row, e_row
-    # OP n'a pas d'END_OP depuis v3.0.0 — pas de warning si seul END manque
-    if table_name == 'OP' and s and not e:
-        return s_row, None
-    import logging
-    missing = []
-    if not s: missing.append(f'START_{table_name}')
-    if not e: missing.append(f'END_{table_name}')
-    logging.warning(f"Named range(s) manquant(s): {', '.join(missing)} — fallback partiel")
-    return s_row, e_row
-
-
-# Fallbacks pour les tableaux sans named ranges ou fichiers anciens
-_TABLE_FALLBACKS = {
-    'AVR': (AV_FIRST_ROW, None),
-    'CTRL1': (CTRL_FIRST_ROW, None),
-    'PVL': (PV_FIRST_ROW, None),
-    'COT': (COT_FIRST_ROW, None),
-    'OP': (4, None),
-    'POSTES': (4, None),
-    'CAT': (31, None),
-}
-
-
-def get_table_start(named, table_name):
-    """Retourne le start_row 1-indexed (model row ✓) avec fallback.
-
-    Usage:
-        start = get_table_start(named, 'AVR')
-        for r in range(start + 1, end):  # données après la model row
-    """
-    s, _ = get_table_bounds(named, table_name)
-    if s is not None:
-        return s
-    fb = _TABLE_FALLBACKS.get(table_name)
-    return fb[0] if fb else None
 
 
 def uno_col(col):
