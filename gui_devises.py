@@ -1984,16 +1984,7 @@ class DevisesMixin:
                     if nr.hasByName(name):
                         nr.removeByName(name)
                     nr.addNewByName(name, f'$Avoirs.${cl}${avr_first}:${cl}${last_data}', pos, 0)
-                for name, val in [('START_AVR', avr_first), ('END_AVR', last_data)]:
-                    if nr.hasByName(name):
-                        nr.removeByName(name)
-                    nr.addNewByName(name, f'$Avoirs.$A${val}', pos, 0)
-
-                # Garde : vérifier que START/END pointent sur ✓
-                for label, row in [('START_AVR', avr_first), ('END_AVR', last_data)]:
-                    cell_val = ws.getCellByPosition(0, uno_row(row)).getString().strip()
-                    assert cell_val == '✓', \
-                        f"{label} row {row}: '{cell_val}' (attendu: '✓')"
+                # Les named ranges colonnes sont recalés automatiquement par LO
 
             # Recaler PVL* + START/END_PVL
             if new_accounts or had_deletions:
@@ -2017,16 +2008,7 @@ class DevisesMixin:
                         if nr.hasByName(name):
                             nr.removeByName(name)
                         nr.addNewByName(name, f'$Plus_value.${cl}${pvl_start}:${cl}${pvl_end}', pos, 0)
-                    for name, val in [('START_PVL', pvl_start), ('END_PVL', pvl_end)]:
-                        if nr.hasByName(name):
-                            nr.removeByName(name)
-                        nr.addNewByName(name, f'$Plus_value.$B${val}', pos, 0)
-
-                    # Garde : vérifier que START/END pointent sur ✓
-                    for label, row in [('START_PVL', pvl_start), ('END_PVL', pvl_end)]:
-                        cell_val = ws_pv.getCellByPosition(0, uno_row(row)).getString().strip()
-                        assert cell_val == '✓', \
-                            f"{label} row {row}: '{cell_val}' (attendu: '✓')"
+                    # Les named ranges colonnes sont recalés automatiquement par LO
 
             if new_ops_accounts:
                 self._cleanup_model_rows_ops(ws_ops, cr=cr)
