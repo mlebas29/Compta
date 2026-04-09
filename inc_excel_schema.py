@@ -377,10 +377,11 @@ class ColResolver:
         cell.setFormula(f'=SUM({cr.letter("PATvaleur")}{start}:{cr.letter("PATvaleur")}{end})')
     """
 
-    def __init__(self, cols, letters):
+    def __init__(self, cols, letters, rows=None):
         """Constructeur interne — utiliser from_uno() ou from_openpyxl()."""
         self._cols = cols        # {name: col_index}
         self._letters = letters  # {name: col_letter_string}
+        self._rows = rows or {}  # {name: (start_row_1idx, end_row_1idx)}
 
     def col(self, name):
         """Retourne l'indice de colonne (0-indexed UNO ou 1-indexed openpyxl)."""
@@ -389,6 +390,15 @@ class ColResolver:
     def letter(self, name):
         """Retourne la lettre de colonne (ex: 'A', 'AB')."""
         return self._letters[name]
+
+    def rows(self, name):
+        """Retourne (start_row, end_row) 1-indexed depuis le named range colonne.
+
+        Usage :
+            s, e = cr.rows('AVRintitulé')
+            for r in range(s + 1, e):  # données entre model rows
+        """
+        return self._rows.get(name, (None, None))
 
     @staticmethod
     def _idx_to_letter(n):
@@ -406,14 +416,16 @@ class ColResolver:
         nr = xdoc.NamedRanges
         cols = {}
         letters = {}
+        rows = {}
         for i in range(nr.Count):
             name = nr.getByIndex(i).Name
             bounds = get_col_range_bounds(xdoc, name)
             if bounds:
-                _, col_0, _, _ = bounds
+                _, col_0, start_1, end_1 = bounds
                 cols[name] = col_0
                 letters[name] = cls._idx_to_letter(col_0 + 1)
-        return cls(cols, letters)
+                rows[name] = (start_1, end_1)
+        return cls(cols, letters, rows)
 
     @classmethod
     def from_openpyxl(cls, wb):
@@ -421,17 +433,21 @@ class ColResolver:
         import re
         cols = {}
         letters = {}
+        rows = {}
         for dn in wb.defined_names.values():
             attr = dn.attr_text
             # Parser 'Sheet!$A$4:$A$80' ou 'Sheet!$A$4'
-            m = re.match(r"'?[^'!]+'?!\$([A-Z]+)\$\d+", attr)
+            m = re.match(r"'?[^'!]+'?!\$([A-Z]+)\$(\d+)(?::\$[A-Z]+\$(\d+))?", attr)
             if not m:
                 continue
             col_str = m.group(1)
+            start_row = int(m.group(2))
+            end_row = int(m.group(3)) if m.group(3) else start_row
             # Lettre → index 1-indexed
             col_1 = 0
             for ch in col_str:
                 col_1 = col_1 * 26 + (ord(ch) - 64)
             cols[dn.name] = col_1
             letters[dn.name] = col_str
-        return cls(cols, letters)
+            rows[dn.name] = (start_row, end_row)
+        return cls(cols, letters, rows)
