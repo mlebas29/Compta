@@ -96,21 +96,8 @@ def copy_col_style(sheet, src_col, dst_col, row_start=0, row_end=100, skip_rows=
         dst_cell.VertJustify = src_cell.VertJustify
 
 
-def get_named_range_pos(xdoc, name):
-    """Retourne (sheet_name, col_0indexed, row_0indexed) pour un nom défini UNO.
-
-    Retourne None si le nom n'existe pas.
-    """
-    nr = xdoc.NamedRanges
-    if not nr.hasByName(name):
-        return None
-    content = nr.getByName(name).Content  # e.g. "$Contrôles.$A$3"
-    # Parse: $Sheet.$Col$Row
-    content = content.lstrip('$')
-    parts = content.split('.$')
-    sheet_name = parts[0]
-    cell_ref = parts[1] if len(parts) > 1 else parts[0]
-    # Parse col/row from e.g. "A$3" or "A3" or "$A$3"
+def _parse_cell_ref(cell_ref):
+    """Parse 'A3' ou 'A$3' ou '$A$3' → (col_0indexed, row_0indexed)."""
     cell_ref = cell_ref.replace('$', '')
     col_str = ''
     row_str = ''
@@ -126,8 +113,54 @@ def get_named_range_pos(xdoc, name):
     try:
         row = int(row_str) - 1  # 0-indexed
     except ValueError:
-        return None  # Named range corrompu (#REF!, etc.)
-    return sheet_name, col, row
+        return None
+    return col, row
+
+
+def get_col_range_bounds(xdoc, name):
+    """Retourne (sheet_name, col_0indexed, start_row_1indexed, end_row_1indexed).
+
+    Pour un named range colonne comme AVRintitulé = $Avoirs.$A$4:$A$80.
+    Retourne None si le nom n'existe pas ou est une cellule unique.
+    """
+    nr = xdoc.NamedRanges
+    if not nr.hasByName(name):
+        return None
+    content = nr.getByName(name).Content  # e.g. "$Avoirs.$A$4:$A$80"
+    if ':' not in content:
+        return None
+    left, right = content.split(':')
+    left = left.lstrip('$')
+    parts = left.split('.$')
+    sheet_name = parts[0]
+    start_ref = parts[1] if len(parts) > 1 else parts[0]
+    start = _parse_cell_ref(start_ref)
+    end = _parse_cell_ref(right)
+    if not start or not end:
+        return None
+    return sheet_name, start[0], start[1] + 1, end[1] + 1  # 1-indexed
+
+
+def get_named_range_pos(xdoc, name):
+    """Retourne (sheet_name, col_0indexed, row_0indexed) pour un nom défini UNO.
+
+    Retourne None si le nom n'existe pas.
+    """
+    nr = xdoc.NamedRanges
+    if not nr.hasByName(name):
+        return None
+    content = nr.getByName(name).Content  # e.g. "$Contrôles.$A$3"
+    # Pour un range (A$4:A$80), prendre le début
+    if ':' in content:
+        content = content.split(':')[0]
+    content = content.lstrip('$')
+    parts = content.split('.$')
+    sheet_name = parts[0]
+    cell_ref = parts[1] if len(parts) > 1 else parts[0]
+    result = _parse_cell_ref(cell_ref)
+    if not result:
+        return None
+    return sheet_name, result[0], result[1]
 
 
 def get_table_bounds_uno(xdoc, table_name):
