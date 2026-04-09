@@ -220,25 +220,6 @@ def col_letter(col):
     return result
 
 
-def get_named_ranges(wb):
-    """Extrait les noms définis d'un workbook openpyxl.
-
-    Retourne un dict {name: (sheet_name, col_1indexed, row_1indexed)}.
-    Pour les ranges (ex: $A$4:$A$71), retourne le coin supérieur gauche.
-    """
-    from openpyxl.utils import coordinate_to_tuple
-    result = {}
-    for name_str in wb.defined_names:
-        dn = wb.defined_names[name_str]
-        dests = list(dn.destinations)
-        if len(dests) != 1:
-            continue
-        sheet_name, cell_ref = dests[0]  # ('Budget', '$L$27') ou ('Avoirs', '$A$4:$A$71')
-        # Prendre le coin supérieur gauche si c'est un range
-        cell_ref = cell_ref.split(':')[0].replace('$', '')
-        row, col = coordinate_to_tuple(cell_ref)
-        result[name_str] = (sheet_name, col, row)
-    return result
 
 
 
