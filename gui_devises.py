@@ -2045,7 +2045,18 @@ class DevisesMixin:
 
     def _sync_patrimoine(self, doc):
         """Ajoute dans Patrimoine les lignes manquantes pour les nouvelles valeurs."""
+        from inc_uno import col_of, letter_of
         ws = doc.get_sheet('Patrimoine')
+        xdoc = doc.document
+
+        # Résoudre les colonnes PAT depuis les named ranges
+        cB = col_of(xdoc, 'PATlabel')
+        cC = col_of(xdoc, 'PATnombre')
+        cD = col_of(xdoc, 'PATvaleur')
+        cE = col_of(xdoc, 'PATpoids')
+        lB = letter_of(xdoc, 'PATlabel')
+        lC = letter_of(xdoc, 'PATnombre')
+        lD = letter_of(xdoc, 'PATvaleur')
 
         # Collecter toutes les valeurs actuelles des comptes
         values_by_field = {}
@@ -2059,7 +2070,7 @@ class DevisesMixin:
             header_row = None
             total_row = None
             for r in range(0, 70):
-                b = ws.getCellByPosition(1, r).getString().strip()
+                b = ws.getCellByPosition(cB, r).getString().strip()
                 if header_row is None and b.lower().startswith(header_prefix.lower()):
                     header_row = r
                 elif header_row is not None and b == 'TOTAL':
@@ -2072,7 +2083,7 @@ class DevisesMixin:
             # Lire les valeurs existantes dans le bloc
             existing = set()
             for r in range(header_row + 1, total_row):
-                val = ws.getCellByPosition(1, r).getString().strip()
+                val = ws.getCellByPosition(cB, r).getString().strip()
                 if val:
                     existing.add(val)
 
@@ -2083,14 +2094,14 @@ class DevisesMixin:
                 ws.Rows.insertByIndex(total_row, 1)
                 # Copier le style de la ligne au-dessus
                 if total_row > header_row + 1:
-                    copy_row_style(ws, total_row - 1, total_row, col_start=1, col_end=5)
+                    copy_row_style(ws, total_row - 1, total_row, col_start=cB, col_end=cE)
                 # Écrire les formules (row = total_row + 1 en 1-indexed)
                 row_1 = total_row + 1
-                ws.getCellByPosition(1, total_row).setString(new_val)
-                ws.getCellByPosition(2, total_row).setFormula(
-                    f'=COUNTIF({avr_name};$B{row_1})')
-                ws.getCellByPosition(3, total_row).setFormula(
-                    f'=SUMIF({avr_name};$B{row_1};AVRmontant_solde_euro)')
+                ws.getCellByPosition(cB, total_row).setString(new_val)
+                ws.getCellByPosition(cC, total_row).setFormula(
+                    f'=COUNTIF({avr_name};${lB}{row_1})')
+                ws.getCellByPosition(cD, total_row).setFormula(
+                    f'=SUMIF({avr_name};${lB}{row_1};AVRmontant_solde_euro)')
                 # Le ratio sera corrigé en bloc après
                 total_row += 1
 
@@ -2102,15 +2113,15 @@ class DevisesMixin:
                 first_1 = first_data + 1
 
                 # TOTAL SUM
-                ws.getCellByPosition(2, total_row).setFormula(
-                    f'=SUM(C{first_1}:C{total_1 - 1})')
-                ws.getCellByPosition(3, total_row).setFormula(
-                    f'=ROUND(SUM(D{first_1}:D{total_1 - 1});2)')
+                ws.getCellByPosition(cC, total_row).setFormula(
+                    f'=SUM({lC}{first_1}:{lC}{total_1 - 1})')
+                ws.getCellByPosition(cD, total_row).setFormula(
+                    f'=ROUND(SUM({lD}{first_1}:{lD}{total_1 - 1});2)')
 
                 # Ratios E
                 for r in range(first_data, total_row):
-                    ws.getCellByPosition(4, r).setFormula(
-                        f'=D{r + 1}/D${total_1}')
+                    ws.getCellByPosition(cE, r).setFormula(
+                        f'={lD}{r + 1}/{lD}${total_1}')
 
     def _cleanup_patrimoine(self, keep_values=None, doc=None):
         """Supprime les lignes Patrimoine non conservées.
@@ -2124,7 +2135,7 @@ class DevisesMixin:
             doc: UnoDocument ouvert (mode batch). Si None, ouvre/ferme automatiquement.
         """
         from contextlib import nullcontext
-        from inc_uno import UnoDocument
+        from inc_uno import UnoDocument, col_of, letter_of
 
         keep_values = keep_values or {}
 
@@ -2132,6 +2143,15 @@ class DevisesMixin:
         ctx = UnoDocument(self.xlsx_path) if owned else nullcontext(doc)
         with ctx as doc:
             ws = doc.get_sheet('Patrimoine')
+            xdoc = doc.document
+
+            # Résoudre les colonnes PAT depuis les named ranges
+            cB = col_of(xdoc, 'PATlabel')
+            cC = col_of(xdoc, 'PATnombre')
+            cD = col_of(xdoc, 'PATvaleur')
+            lB = letter_of(xdoc, 'PATlabel')
+            lC = letter_of(xdoc, 'PATnombre')
+            lD = letter_of(xdoc, 'PATvaleur')
 
             for field, (avr_name, header_prefix) in self._PATRIMOINE_BLOCKS.items():
                 if field == 'type':
@@ -2142,7 +2162,7 @@ class DevisesMixin:
                 header_row = None
                 total_row = None
                 for r in range(0, 70):
-                    b = ws.getCellByPosition(1, r).getString().strip()
+                    b = ws.getCellByPosition(cB, r).getString().strip()
                     if header_row is None and b.lower().startswith(header_prefix.lower()):
                         header_row = r
                     elif header_row is not None and b == 'TOTAL':
@@ -2158,7 +2178,7 @@ class DevisesMixin:
                 deleted = 0
                 has_dash = False
                 for r in range(total_row - 1, header_row, -1):
-                    val = ws.getCellByPosition(1, r).getString().strip()
+                    val = ws.getCellByPosition(cB, r).getString().strip()
                     if val == '-':
                         has_dash = True
                         continue
@@ -2171,13 +2191,13 @@ class DevisesMixin:
                     ws.Rows.insertByIndex(total_row, 1)
                     new_dash_row = total_row
                     total_row += 1
-                    ws.getCellByPosition(1, new_dash_row).setString('-')
+                    ws.getCellByPosition(cB, new_dash_row).setString('-')
                     # Formules COUNTIF/SUMIF pour cohérence avec le template
                     new_dash_1 = new_dash_row + 1
-                    ws.getCellByPosition(2, new_dash_row).setFormula(
-                        f'=COUNTIF({avr_name},$B{new_dash_1})')
-                    ws.getCellByPosition(3, new_dash_row).setFormula(
-                        f'=SUMIF({avr_name},$B{new_dash_1},AVRmontant_solde_euro)')
+                    ws.getCellByPosition(cC, new_dash_row).setFormula(
+                        f'=COUNTIF({avr_name},${lB}{new_dash_1})')
+                    ws.getCellByPosition(cD, new_dash_row).setFormula(
+                        f'=SUMIF({avr_name},${lB}{new_dash_1},AVRmontant_solde_euro)')
                     deleted += 1  # force recalcul TOTAL ci-dessous
 
                 if deleted:
@@ -2187,14 +2207,14 @@ class DevisesMixin:
                     total_1 = total_row + 1
                     if total_row > first_data:
                         # Bloc non vide : SUM des lignes restantes
-                        ws.getCellByPosition(2, total_row).setFormula(
-                            f'=SUM(C{first_1}:C{total_1 - 1})')
-                        ws.getCellByPosition(3, total_row).setFormula(
-                            f'=ROUND(SUM(D{first_1}:D{total_1 - 1});2)')
+                        ws.getCellByPosition(cC, total_row).setFormula(
+                            f'=SUM({lC}{first_1}:{lC}{total_1 - 1})')
+                        ws.getCellByPosition(cD, total_row).setFormula(
+                            f'=ROUND(SUM({lD}{first_1}:{lD}{total_1 - 1});2)')
                     else:
                         # Bloc vide : TOTAL = 0 (éviter #REF!)
-                        ws.getCellByPosition(2, total_row).setValue(0)
-                        ws.getCellByPosition(3, total_row).setValue(0)
+                        ws.getCellByPosition(cC, total_row).setValue(0)
+                        ws.getCellByPosition(cD, total_row).setValue(0)
                     print(f"Patrimoine {field}: {deleted} lignes supprimées")
 
             if owned:

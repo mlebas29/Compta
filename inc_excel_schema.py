@@ -358,3 +358,80 @@ def uno_col(col):
 def uno_row(row):
     """Convertit un indice de ligne Excel/openpyxl (1-indexed) en indice UNO (0-indexed)."""
     return int(row) - 1
+
+
+# ============================================================================
+# ColResolver — résolution dynamique des colonnes via named ranges
+# ============================================================================
+
+class ColResolver:
+    """Résout les colonnes dynamiquement depuis les named ranges du classeur.
+
+    Deux modes :
+    - UNO (0-indexed) : cr = ColResolver.from_uno(xdoc)
+    - openpyxl (1-indexed) : cr = ColResolver.from_openpyxl(wb)
+
+    Usage :
+        cr = ColResolver.from_uno(xdoc)
+        ws.getCellByPosition(cr.col('PATlabel'), r0)
+        cell.setFormula(f'=SUM({cr.letter("PATvaleur")}{start}:{cr.letter("PATvaleur")}{end})')
+    """
+
+    def __init__(self, cols, letters):
+        """Constructeur interne — utiliser from_uno() ou from_openpyxl()."""
+        self._cols = cols        # {name: col_index}
+        self._letters = letters  # {name: col_letter_string}
+
+    def col(self, name):
+        """Retourne l'indice de colonne (0-indexed UNO ou 1-indexed openpyxl)."""
+        return self._cols[name]
+
+    def letter(self, name):
+        """Retourne la lettre de colonne (ex: 'A', 'AB')."""
+        return self._letters[name]
+
+    @staticmethod
+    def _idx_to_letter(n):
+        """Convertit un index 1-indexed en lettre (1→A, 26→Z, 27→AA)."""
+        result = ''
+        while n > 0:
+            n, rem = divmod(n - 1, 26)
+            result = chr(65 + rem) + result
+        return result
+
+    @classmethod
+    def from_uno(cls, xdoc):
+        """Construit un ColResolver depuis un document UNO (colonnes 0-indexed)."""
+        from inc_uno import get_col_range_bounds
+        nr = xdoc.NamedRanges
+        cols = {}
+        letters = {}
+        for i in range(nr.Count):
+            name = nr.getByIndex(i).Name
+            bounds = get_col_range_bounds(xdoc, name)
+            if bounds:
+                _, col_0, _, _ = bounds
+                cols[name] = col_0
+                letters[name] = cls._idx_to_letter(col_0 + 1)
+        return cls(cols, letters)
+
+    @classmethod
+    def from_openpyxl(cls, wb):
+        """Construit un ColResolver depuis un workbook openpyxl (colonnes 1-indexed)."""
+        import re
+        cols = {}
+        letters = {}
+        for dn in wb.defined_names.values():
+            attr = dn.attr_text
+            # Parser 'Sheet!$A$4:$A$80' ou 'Sheet!$A$4'
+            m = re.match(r"'?[^'!]+'?!\$([A-Z]+)\$\d+", attr)
+            if not m:
+                continue
+            col_str = m.group(1)
+            # Lettre → index 1-indexed
+            col_1 = 0
+            for ch in col_str:
+                col_1 = col_1 * 26 + (ord(ch) - 64)
+            cols[dn.name] = col_1
+            letters[dn.name] = col_str
+        return cls(cols, letters)

@@ -141,6 +141,39 @@ def get_col_range_bounds(xdoc, name):
     return sheet_name, start[0], start[1] + 1, end[1] + 1  # 1-indexed
 
 
+def col_of(xdoc, name):
+    """Retourne la colonne (0-indexed) d'un named range colonne.
+
+    Résout dynamiquement depuis le classeur — résiste aux insertions/suppressions
+    de colonnes puisque LO recale automatiquement les named ranges.
+
+    Usage:
+        col = col_of(xdoc, 'PATlabel')
+        ws.getCellByPosition(col, r0)
+    """
+    bounds = get_col_range_bounds(xdoc, name)
+    return bounds[1] if bounds else None
+
+
+def letter_of(xdoc, name):
+    """Retourne la lettre de colonne d'un named range colonne.
+
+    Usage pour les formules Excel :
+        letter = letter_of(xdoc, 'PATlabel')
+        cell.setFormula(f'=SUM({letter}{start}:{letter}{end})')
+    """
+    c = col_of(xdoc, name)
+    if c is None:
+        return None
+    # 0-indexed → lettre (A=0, B=1, ..., Z=25, AA=26, ...)
+    result = ''
+    n = c + 1  # 1-indexed
+    while n > 0:
+        n, rem = divmod(n - 1, 26)
+        result = chr(65 + rem) + result
+    return result
+
+
 def get_named_range_pos(xdoc, name):
     """Retourne (sheet_name, col_0indexed, row_0indexed) pour un nom défini UNO.
 
