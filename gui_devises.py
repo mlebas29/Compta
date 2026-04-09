@@ -1676,9 +1676,11 @@ class DevisesMixin:
 
                     cours = self.cours_name(devise)
                     if cours:
-                        ws.getCellByPosition(cr.col('AVRmontant_solde_euro'), r0).setFormula(f'=K{r}*{cours}')
+                        lK = cr.letter('AVRmontant_solde')
+                        ws.getCellByPosition(cr.col('AVRmontant_solde_euro'), r0).setFormula(f'={lK}{r}*{cours}')
                     elif devise in ('EUR', None, ''):
-                        ws.getCellByPosition(cr.col('AVRmontant_solde_euro'), r0).setFormula(f'=K{r}')
+                        lK = cr.letter('AVRmontant_solde')
+                        ws.getCellByPosition(cr.col('AVRmontant_solde_euro'), r0).setFormula(f'={lK}{r}')
 
                     # Format date sur J
                     j_cell = ws.getCellByPosition(cr.col('AVRdate_solde'), r0)
@@ -1723,7 +1725,7 @@ class DevisesMixin:
                 if new_avoirs_row:
                     ws_ctrl.getCellByPosition(
                         cr.col('CTRL1compte'), uno_row(ctrl_row)
-                    ).setFormula(f'=Avoirs.A{new_avoirs_row}')
+                    ).setFormula(f'=Avoirs.{cr.letter("AVRintitulé")}{new_avoirs_row}')
                 ws_ctrl.getCellByPosition(
                     cr.col('CTRL1controle'), uno_row(ctrl_row)
                 ).setString('Oui' if entry['controle'] else 'Non')
@@ -1965,7 +1967,7 @@ class DevisesMixin:
                 # pour éviter le collapse à SUM(L5) quand toutes les data sont supprimées
                 ws.getCellByPosition(
                     cr.col('AVRmontant_solde_euro'), uno_row(total_row)
-                ).setFormula(f'=ROUND(SUM(L{avr_first}:L{last_data});2)')
+                ).setFormula('=ROUND(SUM(AVRmontant_solde_euro);2)')
                 # Recaler AVR* + START/END_AVR (incluant model rows)
                 avr_names = {
                     'AVRintitulé': 'A', 'AVRtype': 'B', 'AVRdomiciliation': 'C',

@@ -266,7 +266,7 @@ class ColResolver:
     Usage :
         cr = ColResolver.from_uno(xdoc)
         ws.getCellByPosition(cr.col('PATlabel'), r0)
-        cell.setFormula(f'=SUM({cr.letter("PATvaleur")}{start}:{cr.letter("PATvaleur")}{end})')
+        cell.setFormula('=SUM(PATvaleur)')  # named range = range colonne complet
     """
 
     def __init__(self, cols, letters, rows=None):
