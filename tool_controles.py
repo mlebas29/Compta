@@ -34,7 +34,7 @@ from inc_excel_schema import (
     ColResolver,
     SHEET_OPERATIONS, SHEET_AVOIRS, SHEET_CONTROLES, SHEET_BUDGET,
 )
-from inc_uno import UnoDocument, get_named_range_pos
+from inc_uno import UnoDocument
 
 
 def read_a1_status(sheet):
