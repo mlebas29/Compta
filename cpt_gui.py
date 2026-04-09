@@ -996,15 +996,16 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
 
     def _load_accounts_data_inner(self, wb_formula, wb_values):
         """Charge Avoirs + Contrôles depuis les workbooks déjà ouverts."""
-        # Bornes via noms définis (START = model row ✓, END = model row ✓)
-        from inc_excel_schema import ColResolver, get_table_bounds
+        # Bornes via named ranges colonnes (cr.rows retourne start/end 1-indexed)
+        from inc_excel_schema import ColResolver
         self.cr = ColResolver.from_openpyxl(wb_formula)
         named = get_named_ranges(wb_formula)
-        self._start_avr, self._end_avr = get_table_bounds(named, 'AVR')
-        self._start_ctrl1, self._end_ctrl1 = get_table_bounds(named, 'CTRL1')
-        self._start_pvl, self._end_pvl = get_table_bounds(named, 'PVL')
-        self._start_cot, self._end_cot = get_table_bounds(named, 'COT')
-        self._start_op, self._end_op = get_table_bounds(named, 'OP')
+        self._start_avr, self._end_avr = self.cr.rows('AVRintitulé')
+        self._start_ctrl1, self._end_ctrl1 = self.cr.rows('CTRL1compte')
+        self._start_pvl, self._end_pvl = self.cr.rows('PVLcompte')
+        self._start_cot, self._end_cot = self.cr.rows('COTcode')
+        self._start_op, _ = self.cr.rows('OPdate')
+        self._end_op = None  # OP n'a pas de borne END fixe
         # Fallbacks
         if self._end_avr is None: self._end_avr = 200
         if self._end_ctrl1 is None: self._end_ctrl1 = 100
@@ -1157,10 +1158,8 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
             # Résoudre les colonnes/lignes via noms définis
             named = get_named_ranges(wb_values)
             cat_col = self.cr.col('CATnom')
-            cat_start_row = named['START_CAT'][2] if 'START_CAT' in named else None
-            cat_end_row = named['END_CAT'][2] if 'END_CAT' in named else None
-            postes_start_row = named['START_POSTES'][2] if 'START_POSTES' in named else None
-            postes_end_row = named['END_POSTES'][2] if 'END_POSTES' in named else None
+            cat_start_row, cat_end_row = self.cr.rows('CATnom')
+            postes_start_row, postes_end_row = self.cr.rows('POSTESnom')
 
             # Catégories : colonne cat_col entre START_CAT et END_CAT
             cats = []
@@ -1238,15 +1237,12 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
             ctrl2_header_row = None
             if SHEET_CONTROLES in wb_values.sheetnames:
                 ws_ctrl = wb_values[SHEET_CONTROLES]
-                if 'START_CTRL2' in named:
-                    ctrl2_col = named['START_CTRL2'][1]
-                    ctrl2_start = named['START_CTRL2'][2]
-                    ctrl2_header_row = ctrl2_start - 2
-                elif 'END_CTRL2' in named:
-                    ctrl2_col = named['END_CTRL2'][1]
-                    ctrl2_header_row = named['END_CTRL2'][2] - 14
+                ctrl2_s, ctrl2_e = self.cr.rows('CTRL2type')
+                if ctrl2_s:
+                    ctrl2_col = self.cr.col('CTRL2type')  # openpyxl 1-indexed
+                    ctrl2_header_row = ctrl2_s - 2
                 else:
-                    ctrl2_col = 18  # fallback R
+                    ctrl2_col = 18  # fallback
                     ctrl2_header_row = 62
                 # Scanner la ligne header pour trouver la dernière devise
                 for col_idx in range(ctrl2_col, ctrl2_col + 30):

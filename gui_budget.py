@@ -100,20 +100,18 @@ class BudgetMixin:
             return False
 
         from contextlib import nullcontext
-        from inc_uno import UnoDocument, get_named_range_pos
+        from inc_uno import UnoDocument
+        from inc_excel_schema import ColResolver
 
         owned = doc is None
         ctx = UnoDocument(self.xlsx_path) if owned else nullcontext(doc)
         with ctx as doc:
+            cr = ColResolver.from_uno(doc.document)
             ws = doc.get_sheet(SHEET_BUDGET)
 
-            # Insérer avant END_POSTES (model row)
-            xdoc = doc.document
-            end_pos = get_named_range_pos(xdoc, 'END_POSTES')
-            if end_pos:
-                insert_row = end_pos[2] + 1  # 0-indexed → 1-indexed
-            else:
-                insert_row = max(self.budget_post_rows.values()) + 1 if self.budget_post_rows else 10
+            # Insérer avant END (dernière model row)
+            _, end_row = cr.rows('POSTESnom')
+            insert_row = end_row if end_row else (max(self.budget_post_rows.values()) + 1 if self.budget_post_rows else 10)
 
             r0 = uno_row(insert_row)
             ws.Rows.insertByIndex(r0, 1)

@@ -1454,7 +1454,7 @@ class AccountsMixin:
         cursor = ws_ops.createCursor()
         cursor.gotoEndOfUsedArea(True)
         ops_last_0 = cursor.getRangeAddress().EndRow
-        min_data_0 = 3  # model row START_OP (0-indexed)
+        min_data_0 = cr.rows('OPdate')[0] - 1  # model row START (0-indexed)
         while ops_last_0 > min_data_0 and not ws_ops.getCellByPosition(0, ops_last_0).getString():
             ops_last_0 -= 1
         ops_next_0 = ops_last_0 + 1
