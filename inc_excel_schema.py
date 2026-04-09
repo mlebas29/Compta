@@ -16,7 +16,8 @@ from typing import Optional
 
 
 # ============================================================================
-# COLONNES — Feuille Opérations
+# DEPRECATED IntEnum — garder pour inc_compare_xlsx + phases recalage
+# Utiliser ColResolver.col()/letter()/rows() partout ailleurs
 # ============================================================================
 
 class OpCol(IntEnum):
@@ -127,48 +128,8 @@ class Operation:
 
 
 # ============================================================================
-# COLONNES — Feuille Avoirs
 # ============================================================================
-
-class AvCol(IntEnum):
-    """Colonnes de la feuille Avoirs (1-indexed, openpyxl)."""
-    INTITULE = 1       # A
-    TYPE = 2           # B
-    DOMICILIATION = 3  # C
-    SOUS_TYPE = 4      # D
-    DEVISE = 5         # E
-    TITULAIRE = 6      # F
-    PROPRIETE = 7      # G
-    DATE_ANTER = 8     # H
-    MONTANT_ANTER = 9  # I
-    DATE_SOLDE = 10    # J  (date du dernier solde)
-    MONTANT_SOLDE = 11 # K  (montant du dernier solde, en devise)
-    FORMULE_L = 12     # L  (équivalent EUR)
-
-
-# ============================================================================
-# COLONNES — Feuille Contrôles
-# ============================================================================
-
-class CtrlCol(IntEnum):
-    """Colonnes de la feuille Contrôles (1-indexed, openpyxl).
-
-    Refonte 2026-04 : modèle 0..N #Solde via XLOOKUP min/max.
-    Colonnes D (# déb), F (durée), L (reports fin) supprimées physiquement.
-    """
-    COMPTE = 1           # A — =Avoirs.A{n}
-    DEVISE = 2           # B
-    DATE_ANCRAGE = 3     # C — IF(n>=2; MINIFS; 0)
-    DATE_RELEVE = 4      # D — MAXIFS (ex-E)
-    MONTANT_ANCRAGE = 5  # E — XLOOKUP +1 (ex-G)
-    SOLDE_CALC = 6       # F — montant_ancrage + flux (ex-H)
-    MONTANT_RELEVE = 7   # G — XLOOKUP -1 (ex-I)
-    ECART = 8            # H — releve - calc (ex-J)
-    CONTROLE_FLAG = 9    # I — Oui/Non (ex-K)
-
-
-# ============================================================================
-# COLONNES — Feuille Plus_value
+# Plus_value + Cotations : garder pour inc_compare_xlsx + phases recalage
 # ============================================================================
 
 class PvCol(IntEnum):
@@ -200,20 +161,6 @@ class CotCol(IntEnum):
     COURS_EUR = 6      # F
     DATE = 7           # G
 
-
-# ============================================================================
-# COLONNES — Feuille Budget
-# ============================================================================
-
-class BudgetCol(IntEnum):
-    """Colonnes de la feuille Budget (1-indexed, openpyxl)."""
-    CATEGORIES = 12    # L — nom catégorie
-    FIRST_DEVISE = 13  # M — première devise (EUR)
-    LAST_DEVISE = 24   # X — dernière devise (SEK)
-    EQUIV_EUR = 25     # Y — =SUMPRODUCT(M:W * taux)
-    ALLOC_PCT = 26     # Z — % affectation
-    ALLOC_MONTANT = 27 # AA — =Y*Z
-    POSTE = 28         # AB — poste budgétaire
 
 
 # ============================================================================
