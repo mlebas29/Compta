@@ -256,10 +256,9 @@ class ComptaExcel:
             self.ws_operations = self.wb[SHEET_OPERATIONS]
 
             # Résolveur de colonnes dynamique
-            from inc_excel_schema import ColResolver, get_named_ranges, get_table_start
+            from inc_excel_schema import ColResolver
             self.cr = ColResolver.from_openpyxl(self.wb)
-            named = get_named_ranges(self.wb)
-            pvl_start = get_table_start(named, 'PVL')
+            pvl_start, _ = self.cr.rows('PVLcompte')
             self._pvl_data_start = (pvl_start or 5) + 1
 
             # Onglet Contrôles optionnel

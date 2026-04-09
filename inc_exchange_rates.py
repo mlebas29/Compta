@@ -20,7 +20,7 @@ import sys
 import time
 import requests
 from datetime import datetime
-from inc_excel_schema import CotCol, SHEET_COTATIONS, COT_FIRST_ROW
+from inc_excel_schema import SHEET_COTATIONS, ColResolver
 
 # Cache des taux : {date_str: {currency: rate_to_eur}}
 _rates_cache = {}
@@ -63,12 +63,12 @@ def _load_excel_fallback():
 
         rates = {'EUR': 1.0}
 
-        from inc_excel_schema import get_named_ranges, get_table_start
-        named = get_named_ranges(wb)
-        cot_start = get_table_start(named, 'COT') or COT_FIRST_ROW
+        cr = ColResolver.from_openpyxl(wb)
+        cot_start, _ = cr.rows('COTcode')
+        cot_start = cot_start or 3
         for row in range(cot_start + 1, ws.max_row + 1):
-            code = ws.cell(row=row, column=CotCol.CODE).value
-            cours_eur = ws.cell(row=row, column=CotCol.COURS_EUR).value
+            code = ws.cell(row=row, column=cr.col('COTcode')).value
+            cours_eur = ws.cell(row=row, column=cr.col('COTcours')).value
             if code and code.strip() and cours_eur and float(cours_eur) > 0:
                 # Inverser : 1 EUR = 1/cours_eur devise
                 rates[code.strip()] = 1.0 / float(cours_eur)

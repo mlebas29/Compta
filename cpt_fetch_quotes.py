@@ -20,7 +20,7 @@ import openpyxl
 import inc_mode
 import inc_exchange_rates
 from inc_logging import Logger
-from inc_excel_schema import CotCol, SHEET_COTATIONS, COT_FIRST_ROW
+from inc_excel_schema import SHEET_COTATIONS, ColResolver
 
 # ============================================================================
 # CONFIGURATION
@@ -69,13 +69,13 @@ def load_cotations_config():
     wb = openpyxl.load_workbook(COMPTES_FILE, data_only=True)
     ws = wb[SHEET_COTATIONS]
 
-    from inc_excel_schema import get_named_ranges, get_table_start
-    named = get_named_ranges(wb)
-    cot_start = get_table_start(named, 'COT') or COT_FIRST_ROW
+    cr = ColResolver.from_openpyxl(wb)
+    cot_start, _ = cr.rows('COTcode')
+    cot_start = cot_start or 3
     config = []
     excel_codes = set()
     for row in range(cot_start + 1, ws.max_row + 1):
-        code = ws.cell(row=row, column=CotCol.CODE).value
+        code = ws.cell(row=row, column=cr.col('COTcode')).value
         if not code:
             continue
         code = str(code).strip()
@@ -369,8 +369,8 @@ def update_excel(quotes, config, dry_run=False):
         if code not in quotes:
             continue
 
-        ws.cell(row=item['row'], column=CotCol.COURS_EUR).value = quotes[code]
-        ws.cell(row=item['row'], column=CotCol.DATE).value = today
+        ws.cell(row=item['row'], column=cr.col('COTcours')).value = quotes[code]
+        ws.cell(row=item['row'], column=cr.col('COTdate')).value = today
         updated_count += 1
 
     if updated_count > 0:

@@ -173,10 +173,10 @@ def get_valid_accounts(excel_file, verbose=False):
         sheet = wb[SHEET_AVOIRS]
         accounts = []
 
-        from inc_excel_schema import ColResolver, get_named_ranges, get_table_start
+        from inc_excel_schema import ColResolver
         cr = ColResolver.from_openpyxl(wb)
-        named = get_named_ranges(wb)
-        avr_start = get_table_start(named, 'AVR') or 4
+        avr_start, _ = cr.rows('AVRintitulé')
+        avr_start = avr_start or 4
         for row_idx in range(avr_start + 1, avr_start + 200):
             compte_name = sheet.cell(row_idx, cr.col('AVRintitulé')).value
             if compte_name and 'total' in str(compte_name).lower():
