@@ -1,39 +1,19 @@
 """
 Schéma centralisé des colonnes et feuilles de comptes.xlsx.
 
-Ce module définit les indices de colonnes (IntEnum, 1-indexed openpyxl),
-les noms de feuilles, les constantes de lignes et le dataclass Operation
-utilisées dans tout le codebase.
+Ce module définit le ColResolver (résolution dynamique des colonnes via
+named ranges), les noms de feuilles et le dataclass Operation.
 
-Convention : toutes les colonnes sont 1-indexed (openpyxl).
-Pour tool_controles.py (UNO, 0-indexed), utiliser uno_col().
+Les colonnes sont résolues dynamiquement via ColResolver.from_uno(xdoc) ou
+ColResolver.from_openpyxl(wb). Plus d'IntEnum en dur.
 """
 
 from dataclasses import dataclass, fields
 from datetime import datetime
-from enum import IntEnum
 from typing import Optional
 
 
-# ============================================================================
-# DEPRECATED IntEnum — garder pour inc_compare_xlsx + phases recalage
-# Utiliser ColResolver.col()/letter()/rows() partout ailleurs
-# ============================================================================
-
-class OpCol(IntEnum):
-    """Colonnes de la feuille Opérations (1-indexed, openpyxl)."""
-    DATE = 1           # A
-    LABEL = 2          # B
-    MONTANT = 3        # C
-    DEVISE = 4         # D
-    EQUIV = 5          # E
-    REF = 6            # F
-    CATEGORIE = 7      # G
-    COMPTE = 8         # H
-    COMMENTAIRE = 9    # I
-
-
-# Noms des 9 champs de base, dans l'ordre OpCol (pour from_tuple / __iter__)
+# Noms des 9 champs de base (colonnes Opérations A-I)
 _BASE_FIELD_NAMES = (
     'date', 'label', 'montant', 'devise', 'equiv',
     'ref', 'categorie', 'compte', 'commentaire',
@@ -128,39 +108,6 @@ class Operation:
 
 
 # ============================================================================
-# ============================================================================
-# Plus_value + Cotations : garder pour inc_compare_xlsx + phases recalage
-# ============================================================================
-
-class PvCol(IntEnum):
-    """Colonnes de la feuille Plus_value (1-indexed, openpyxl)."""
-    SECTION = 1        # A — indicateur de section (portefeuilles/métaux/crypto/devises)
-    COMPTE = 2         # B
-    LIGNE = 3          # C
-    DEVISE = 4         # D
-    PVL = 5            # E
-    PCT = 6            # F
-    DATE_INIT = 7      # G
-    MONTANT_INIT = 8   # H
-    SIGMA = 9          # I
-    DATE_SOLDE = 10    # J
-    SOLDE = 11         # K
-
-
-# ============================================================================
-# COLONNES — Feuille Cotations
-# ============================================================================
-
-class CotCol(IntEnum):
-    """Colonnes de la feuille Cotations (1-indexed, openpyxl)."""
-    LABEL = 1          # A
-    NATURE = 2         # B  (primaire / dérivée)
-    FAMILLE = 3        # C  (metal / crypto / fiat / immobilier)
-    DECIMALES = 4      # D  (nombre de décimales pour le format)
-    CODE = 5           # E
-    COURS_EUR = 6      # F
-    DATE = 7           # G
-
 
 
 # ============================================================================
