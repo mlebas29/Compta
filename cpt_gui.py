@@ -47,7 +47,7 @@ from inc_excel_schema import (
     SHEET_AVOIRS, SHEET_CONTROLES, SHEET_BUDGET, SHEET_OPERATIONS, SHEET_COTATIONS,
     SHEET_PLUS_VALUE,
     DEVISE_SOURCES,
-    get_named_ranges, col_letter, uno_col,
+    col_letter, uno_col,
 )
 
 # ============================================================================
@@ -998,7 +998,6 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
         # Bornes via named ranges colonnes (cr.rows retourne start/end 1-indexed)
         from inc_excel_schema import ColResolver
         self.cr = ColResolver.from_openpyxl(wb_formula)
-        named = get_named_ranges(wb_formula)
         self._start_avr, self._end_avr = self.cr.rows('AVRintitulé')
         self._start_ctrl1, self._end_ctrl1 = self.cr.rows('CTRL1compte')
         self._start_pvl, self._end_pvl = self.cr.rows('PVLcompte')
@@ -1154,8 +1153,7 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
         try:
             ws = wb_values[SHEET_BUDGET]
 
-            # Résoudre les colonnes/lignes via noms définis
-            named = get_named_ranges(wb_values)
+            # Résoudre les colonnes/lignes via ColResolver
             cat_col = self.cr.col('CATnom')
             cat_start_row, cat_end_row = self.cr.rows('CATnom')
             postes_start_row, postes_end_row = self.cr.rows('POSTESnom')
