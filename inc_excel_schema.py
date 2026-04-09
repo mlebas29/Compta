@@ -181,12 +181,8 @@ SHEET_COTATIONS = 'Cotations'
 # ============================================================================
 
 # DEPRECATED — utiliser ColResolver.rows() à la place.
-# Conservés temporairement comme fallback dans les fichiers pas encore migrés.
-AV_FIRST_ROW = 4
-CTRL_FIRST_ROW = 3
-PV_PROTECTED_FIRST_ROW = 5
-COT_FIRST_ROW = 3
-ASSET_TYPES = {'fiat', 'crypto', 'metal', 'immobilier'}
+AV_FIRST_ROW = 4       # tool_template_xlsm fallback
+PV_PROTECTED_FIRST_ROW = 5  # tool_purge
 
 # Sources API par famille de devise (source1, source2/fallback)
 DEVISE_SOURCES = {
@@ -210,16 +206,6 @@ PAIRING_COUNTER_CELL = (2, 6)
 # ============================================================================
 # HELPER UNO (0-indexed)
 # ============================================================================
-
-def col_letter(col):
-    """Convertit un indice de colonne 1-indexed en lettres Excel (1→A, 26→Z, 27→AA, 30→AD)."""
-    result = ''
-    while col > 0:
-        col, remainder = divmod(col - 1, 26)
-        result = chr(65 + remainder) + result
-    return result
-
-
 
 
 

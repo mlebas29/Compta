@@ -47,7 +47,6 @@ from inc_excel_schema import (
     SHEET_AVOIRS, SHEET_CONTROLES, SHEET_BUDGET, SHEET_OPERATIONS, SHEET_COTATIONS,
     SHEET_PLUS_VALUE,
     DEVISE_SOURCES,
-    col_letter, uno_col,
 )
 
 # ============================================================================

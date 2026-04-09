@@ -1327,7 +1327,7 @@ class AccountsMixin:
     def _pv_title_delete(self):
         """Supprime un titre de portefeuille après confirmation.
 
-        Garde : le solde du titre (PvCol.SOLDE) doit être à zéro.
+        Garde : le solde du titre (PVLmontant) doit être à zéro.
         """
         info = self._get_selected_title_info()
         if not info:

@@ -9,7 +9,6 @@ import sys
 import tkinter as tk
 
 from inc_excel_schema import (
-    col_letter,
     SHEET_BUDGET, SHEET_OPERATIONS,
 )
 

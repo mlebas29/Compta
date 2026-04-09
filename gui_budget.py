@@ -2,7 +2,7 @@
 
 import shutil
 from inc_excel_schema import (
-    uno_col, uno_row, col_letter,
+    uno_col, uno_row, ColResolver,
     SHEET_BUDGET,
 )
 
@@ -43,17 +43,17 @@ class BudgetMixin:
 
             # Devises : SUMIFS par devise
             hr = self.budget_header_row
-            cat_letter = col_letter(self.budget_cat_col)
+            cat_letter = ColResolver._idx_to_letter(self.budget_cat_col)
             last = self.budget_last_devise_col
             for col in range(self.budget_first_devise_col, last + 1):
-                cl = col_letter(col)
+                cl = ColResolver._idx_to_letter(col)
                 ws.getCellByPosition(uno_col(col), r0).setFormula(
                     f'=SUMIFS(OPmontant;OPdevise;{cl}${hr};OPcatégorie;${cat_letter}{r};OPdate;">"&$C$2-365)')
 
             # Equiv EUR : SUMPRODUCT
             equiv_col = last + 1
-            first_dev_letter = col_letter(self.budget_first_devise_col)
-            last_letter = col_letter(last)
+            first_dev_letter = ColResolver._idx_to_letter(self.budget_first_devise_col)
+            last_letter = ColResolver._idx_to_letter(last)
             sr = self.budget_start_row
             ws.getCellByPosition(uno_col(equiv_col), r0).setFormula(
                 f'=SUMPRODUCT({first_dev_letter}{r}:{last_letter}{r};{first_dev_letter}${sr}:{last_letter}${sr})')
@@ -66,9 +66,9 @@ class BudgetMixin:
             cell_pct.setValue(alloc_pct)
             # Format % (la model row a General → patcher la 1ère ligne, les suivantes propagent)
             cell_pct.NumberFormat = doc.register_number_format('0%')
-            equiv_letter = col_letter(equiv_col)
+            equiv_letter = ColResolver._idx_to_letter(equiv_col)
             ws.getCellByPosition(uno_col(alloc_montant_col), r0).setFormula(
-                f'={equiv_letter}{r}*{col_letter(alloc_pct_col)}{r}')
+                f'={equiv_letter}{r}*{ColResolver._idx_to_letter(alloc_pct_col)}{r}')
 
             # Poste budgétaire
             ws.getCellByPosition(uno_col(poste_col), r0).setString(poste)
@@ -143,8 +143,8 @@ class BudgetMixin:
             # Formule SUMIF (col C) : =SUMIF(poste_range, A{row}, alloc_range)
             poste_col = self.budget_last_devise_col + 4
             alloc_col = self.budget_last_devise_col + 3
-            pl = col_letter(poste_col)
-            al = col_letter(alloc_col)
+            pl = ColResolver._idx_to_letter(poste_col)
+            al = ColResolver._idx_to_letter(alloc_col)
             first_cat = min(self.budget_cat_rows.values()) if self.budget_cat_rows else (self.budget_start_row or 14) + 2
             sep = self.budget_insert_row or first_cat
             ws.getCellByPosition(2, r0).setFormula(

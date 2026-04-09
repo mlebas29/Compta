@@ -180,7 +180,7 @@ class DevisesMixin:
         from contextlib import nullcontext
         from inc_uno import UnoDocument, copy_col_style
         from inc_excel_schema import (
-            uno_col, uno_row, col_letter, CotCol,
+            uno_col, uno_row,
             SHEET_COTATIONS,
         )
 
@@ -754,7 +754,7 @@ class DevisesMixin:
         """Supprime une devise de Cotations, Budget, Contrôles et JSON."""
         from inc_uno import UnoDocument
         from inc_excel_schema import (
-            uno_col, uno_row, CotCol,
+            uno_col, uno_row,
             SHEET_COTATIONS,
         )
 
@@ -868,7 +868,7 @@ class DevisesMixin:
         from inc_excel_schema import uno_col, uno_row, ColResolver
         cr = ColResolver.from_uno(doc.document)
 
-        # Lettres de colonnes via PvCol
+        # Lettres de colonnes via cr.letter()
         cB = cr.letter('PVLcompte')
         cD = cr.letter('PVLdevise')
         cE = cr.letter('PVLpvl')
@@ -1213,7 +1213,7 @@ class DevisesMixin:
         nom = acct['intitule']
         devise = acct.get('devise') or ''
 
-        # Lettres de colonnes via PvCol
+        # Lettres de colonnes via cr.letter()
         cB = cr.letter('PVLcompte')
         cD = cr.letter('PVLdevise')
         cG = cr.letter('PVLdate_init')
@@ -1849,7 +1849,6 @@ class DevisesMixin:
             ws_pv = doc.get_sheet(SHEET_PLUS_VALUE) if need_pv else None
 
             if self._deleted_accounts and ws_pv:
-                pass  # PvCol removed — using cr.col() instead
                 self._delete_pv_entries(ws_pv, self._deleted_accounts)
                 # Reconstruire la formule TOTAL portefeuilles (peut redevenir générique)
                 pvl_data = (self._start_pvl or 5) + 1
@@ -1998,7 +1997,6 @@ class DevisesMixin:
 
             # Recaler PVL* + START/END_PVL
             if new_accounts or had_deletions:
-                pass  # PvCol removed — using cr.col() instead
                 ws_pv = doc.get_sheet(SHEET_PLUS_VALUE)
                 # Lire START/END_PVL depuis les named ranges UNO (ajustés par insertByIndex)
                 _pvl_b = get_col_range_bounds(doc.document, 'PVLcompte')
