@@ -796,7 +796,7 @@ class DevisesMixin:
             # Coche START_CTRL2 = première ligne data (h+2) et première col devise.
             # Header devises = 2 lignes au-dessus.
             _ctrl2_s, _ = cr.rows('CTRL2type')
-            first_devise_col_0 = cr.col('CTRL2type') + 3  # J+3=M = EUR
+            first_devise_col_0 = cr.col('CTRL2eur')
             header_row_0 = uno_row(_ctrl2_s) - 2      # 0-indexed row du header devises
             ctrl_col_0 = None
             for col_0 in range(first_devise_col_0, first_devise_col_0 + 32):
@@ -1829,7 +1829,7 @@ class DevisesMixin:
             if _ctrl2_s2:
                 h2_row_0 = uno_row(_ctrl2_s2)  # 0-indexed row of h+2
                 h0_row_0 = h2_row_0 - 2       # 0-indexed row of h+0 (header devises)
-                first_col_0 = cr.col('CTRL2type') + 3  # J+3=M = EUR
+                first_col_0 = cr.col('CTRL2eur')
                 h1 = h0_row_0 + 1              # 1-indexed header row
                 for col_0 in range(first_col_0, first_col_0 + 30):
                     code = ws_ctrl.getCellByPosition(col_0, h0_row_0).getString().strip()
