@@ -334,12 +334,12 @@ class DevisesMixin:
             style_src_bud = self.budget_first_devise_col if famille == 'fiat' else last_bud
             bud_end = (self.budget_total_row or self.budget_header_row + 20) + 5
             # Identifier les model rows à ne pas toucher
-            from inc_uno import get_named_range_pos
+            from inc_excel_schema import uno_row as _ur
             _model_rows_0 = set()
-            for _nr in ('START_CAT', 'END_CAT', 'START_POSTES', 'END_POSTES'):
-                _p = get_named_range_pos(doc.document, _nr)
-                if _p:
-                    _model_rows_0.add(_p[2])
+            for _ref in ('CATnom', 'POSTESnom'):
+                _s, _e = cr.rows(_ref)
+                if _s: _model_rows_0.add(_ur(_s))
+                if _e: _model_rows_0.add(_ur(_e))
             copy_col_style(ws_bud, uno_col(style_src_bud), uno_col(new_col),
                            row_start=uno_row(self.budget_header_row), row_end=uno_row(bud_end),
                            skip_rows=_model_rows_0)
@@ -795,10 +795,9 @@ class DevisesMixin:
             ws_ctrl = doc.get_sheet(SHEET_CONTROLES)
             # Coche START_CTRL2 = première ligne data (h+2) et première col devise.
             # Header devises = 2 lignes au-dessus.
-            from inc_uno import get_named_range_pos
-            ctrl2_pos = get_named_range_pos(doc.document, 'START_CTRL2')
-            first_devise_col_0 = ctrl2_pos[1]   # 0-indexed col du EUR
-            header_row_0 = ctrl2_pos[2] - 2      # 0-indexed row du header devises
+            _ctrl2_s, _ = cr.rows('CTRL2type')
+            first_devise_col_0 = cr.col('CTRL2type') + 3  # J+3=M = EUR
+            header_row_0 = uno_row(_ctrl2_s) - 2      # 0-indexed row du header devises
             ctrl_col_0 = None
             for col_0 in range(first_devise_col_0, first_devise_col_0 + 32):
                 val = ws_ctrl.getCellByPosition(col_0, header_row_0).getString().strip()
@@ -1534,7 +1533,7 @@ class DevisesMixin:
             doc: UnoDocument ouvert (mode batch). Si None, ouvre/ferme automatiquement.
         """
         from contextlib import nullcontext
-        from inc_uno import UnoDocument, copy_row_style, get_named_range_pos
+        from inc_uno import UnoDocument, copy_row_style, get_col_range_bounds
         from inc_excel_schema import uno_col, uno_row
 
         # Backup
@@ -1817,18 +1816,20 @@ class DevisesMixin:
             # --- Recalibrer formules CTRL2 sur les bornes CTRL1 (model rows incluses) ---
             # On couvre START_CTRL1..END_CTRL1 pour matcher le template (B3:B4 vide)
             # plutôt que de pointer le data range qui peut être vide.
-            from inc_uno import get_table_bounds_uno
-            ctrl_start_now, ctrl_end_now = get_table_bounds_uno(doc.document, 'CTRL1')
+            from inc_uno import get_col_range_bounds
+            _cb = get_col_range_bounds(doc.document, 'CTRL1compte')
+            ctrl_start_now = _cb[2] if _cb else None
+            ctrl_end_now = _cb[3] if _cb else None
             ctrl_end_now = ctrl_end_now or self._end_ctrl1 or ctrl_next_row
             f = ctrl_start_now or self._start_ctrl1
             l = ctrl_end_now
 
             # -- CTRL2 h+2 COMPTES : COUNTIFS par devise --
-            ctrl2_pos = get_named_range_pos(doc.document, 'START_CTRL2')
-            if ctrl2_pos:
-                h2_row_0 = ctrl2_pos[2]       # 0-indexed row of h+2
+            _ctrl2_s2, _ = cr.rows('CTRL2type')
+            if _ctrl2_s2:
+                h2_row_0 = uno_row(_ctrl2_s2)  # 0-indexed row of h+2
                 h0_row_0 = h2_row_0 - 2       # 0-indexed row of h+0 (header devises)
-                first_col_0 = ctrl2_pos[1]     # 0-indexed col of first devise
+                first_col_0 = cr.col('CTRL2type') + 3  # J+3=M = EUR
                 h1 = h0_row_0 + 1              # 1-indexed header row
                 for col_0 in range(first_col_0, first_col_0 + 30):
                     code = ws_ctrl.getCellByPosition(col_0, h0_row_0).getString().strip()
@@ -1959,8 +1960,9 @@ class DevisesMixin:
             # et sont vides donc n'affectent pas les calculs.
             if total_row and (new_accounts or had_deletions):
                 # Lire START/END_AVR depuis UNO (ajustés par removeByIndex/insertByIndex)
-                from inc_uno import get_table_bounds_uno
-                avr_start_now, avr_end_now = get_table_bounds_uno(doc.document, 'AVR')
+                _avr_b = get_col_range_bounds(doc.document, 'AVRintitulé')
+                avr_start_now = _avr_b[2] if _avr_b else None
+                avr_end_now = _avr_b[3] if _avr_b else None
                 avr_first = avr_start_now or self._start_avr
                 last_data = avr_end_now or (total_row - 1)
                 # SUM couvre les 2 model rows START_AVR..END_AVR (inclus)
@@ -1999,8 +2001,9 @@ class DevisesMixin:
                 pass  # PvCol removed — using cr.col() instead
                 ws_pv = doc.get_sheet(SHEET_PLUS_VALUE)
                 # Lire START/END_PVL depuis les named ranges UNO (ajustés par insertByIndex)
-                from inc_uno import get_named_range_pos, get_table_bounds_uno
-                pvl_start_now, pvl_end_now = get_table_bounds_uno(doc.document, 'PVL')
+                _pvl_b = get_col_range_bounds(doc.document, 'PVLcompte')
+                pvl_start_now = _pvl_b[2] if _pvl_b else None
+                pvl_end_now = _pvl_b[3] if _pvl_b else None
                 if pvl_start_now and pvl_end_now:
                     pvl_start = pvl_start_now
                     pvl_end = pvl_end_now
