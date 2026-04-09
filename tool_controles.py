@@ -448,7 +448,7 @@ Codes de sortie:
 
     try:
         with UnoDocument(excel_file.absolute(), read_only=True) as doc:
-            cr = ColResolver.from_uno(doc.document)
+            cr = doc.cr
             controles_sheet = doc.get_sheet(SHEET_CONTROLES)
             budget_sheet = doc.get_sheet(SHEET_BUDGET)
             operations_sheet = doc.get_sheet(SHEET_OPERATIONS)

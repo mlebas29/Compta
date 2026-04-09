@@ -215,6 +215,19 @@ class UnoDocument:
         self._process = None
         self._document = None
         self._desktop = None
+        self._cr = None
+
+    @property
+    def cr(self):
+        """ColResolver lazy — construit une seule fois, réutilisé ensuite."""
+        if self._cr is None:
+            from inc_excel_schema import ColResolver
+            self._cr = ColResolver.from_uno(self._document)
+        return self._cr
+
+    @cr.setter
+    def cr(self, value):
+        self._cr = value
 
     def _log(self, msg):
         if self._logger:

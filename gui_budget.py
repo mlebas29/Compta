@@ -29,7 +29,7 @@ class BudgetMixin:
         owned = doc is None
         ctx = UnoDocument(self.xlsx_path) if owned else nullcontext(doc)
         with ctx as doc:
-            cr = ColResolver.from_uno(doc.document)
+            cr = doc.cr
             ws = doc.get_sheet(SHEET_BUDGET)
             insert_row = self.budget_insert_row
             r = insert_row
@@ -107,7 +107,7 @@ class BudgetMixin:
         owned = doc is None
         ctx = UnoDocument(self.xlsx_path) if owned else nullcontext(doc)
         with ctx as doc:
-            cr = ColResolver.from_uno(doc.document)
+            cr = doc.cr
             ws = doc.get_sheet(SHEET_BUDGET)
 
             # Insérer avant END (dernière model row)
@@ -188,7 +188,7 @@ class BudgetMixin:
         owned = doc is None
         ctx = UnoDocument(self.xlsx_path) if owned else nullcontext(doc)
         with ctx as doc:
-            cr = ColResolver.from_uno(doc.document)
+            cr = doc.cr
             # Réaffecter les opérations col G si demandé
             if reassign_to:
                 ws_ops = doc.get_sheet(SHEET_OPERATIONS)

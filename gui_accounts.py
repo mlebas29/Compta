@@ -878,7 +878,7 @@ class AccountsMixin:
         shutil.copy2(self.xlsx_path, bak_path)
 
         with UnoDocument(self.xlsx_path) as doc:
-            cr = ColResolver.from_uno(doc.document)
+            cr = doc.cr
             # 1. Avoirs col A — trouver et renommer
             ws_av = doc.get_sheet(SHEET_AVOIRS)
             col_a_av = cr.col('AVRintitulé')
@@ -1094,7 +1094,7 @@ class AccountsMixin:
         from inc_excel_schema import (uno_row, uno_col, SHEET_PLUS_VALUE)
 
         with UnoDocument(self.xlsx_path) as doc:
-            cr = ColResolver.from_uno(doc.document)
+            cr = doc.cr
             # 1. Opérations : supprimer non appariées, reloger appariées → "Compte clos"
             COMPTE_CLOS = 'Compte clos'
             ws_ops = doc.get_sheet(SHEET_OPERATIONS)
@@ -1398,7 +1398,7 @@ class AccountsMixin:
         """
         from inc_uno import UnoDocument
         from inc_excel_schema import uno_row, uno_col
-        cr = ColResolver.from_uno(doc.document)
+        cr = doc.cr
         import re
 
         bak_path = self.xlsx_path.with_suffix('.xlsm.bak')

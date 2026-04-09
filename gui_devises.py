@@ -195,7 +195,7 @@ class DevisesMixin:
         owned = doc is None
         ctx = UnoDocument(self.xlsx_path) if owned else nullcontext(doc)
         with ctx as doc:
-            cr = ColResolver.from_uno(doc.document)
+            cr = doc.cr
             # ==== ÉTAPE A — Cotations : insérer une ligne dans le groupe ====
             ws_cot = doc.get_sheet(SHEET_COTATIONS)
             cot_data_start = self._start_cot + 1
@@ -762,7 +762,7 @@ class DevisesMixin:
         shutil.copy2(self.xlsx_path, bak_path)
 
         with UnoDocument(self.xlsx_path) as doc:
-            cr = ColResolver.from_uno(doc.document)
+            cr = doc.cr
             # ==== Cotations : supprimer la ligne du code ====
             ws_cot = doc.get_sheet(SHEET_COTATIONS)
             cot_data_start = self._start_cot + 1
@@ -846,7 +846,7 @@ class DevisesMixin:
     def _find_pv_row_by_label(self, ws_pv, label):
         """Trouve la ligne (1-indexed) d'un label dans la colonne B (Compte) de Plus_value."""
         from inc_excel_schema import uno_row, uno_col, ColResolver
-        cr = ColResolver.from_uno(doc.document)
+        cr = doc.cr
         col_b = cr.col('PVLcompte')
         for row_idx in range(1, 200):
             val = ws_pv.getCellByPosition(col_b, uno_row(row_idx)).getString().strip()
@@ -866,7 +866,7 @@ class DevisesMixin:
         """
         from inc_uno import copy_row_style
         from inc_excel_schema import uno_col, uno_row, ColResolver
-        cr = ColResolver.from_uno(doc.document)
+        cr = doc.cr
 
         # Lettres de colonnes via cr.letter()
         cB = cr.letter('PVLcompte')
@@ -999,7 +999,7 @@ class DevisesMixin:
             count: nombre de lignes à formater (3 pour bloc, 0 pour simple)
         """
         from inc_excel_schema import uno_col, uno_row, ColResolver
-        cr = ColResolver.from_uno(doc.document)
+        cr = doc.cr
         from inc_formats import FORMATS_DEVISE, FORMAT_EUR, FORMAT_EUR_RED, GRIS, BLANC
 
         fmt_date = doc.register_number_format('DD/MM/YY')
@@ -1068,7 +1068,7 @@ class DevisesMixin:
         Appelé à chaque ajout de portefeuille.
         """
         from inc_excel_schema import uno_col, uno_row, ColResolver
-        cr = ColResolver.from_uno(doc.document)
+        cr = doc.cr
 
         # Scanner les devises des lignes Retenu portefeuilles
         # Utiliser total_row comme borne (pas _end_pvl qui peut être stale en batch)
@@ -1111,7 +1111,7 @@ class DevisesMixin:
         Multi-devise : SUMIFS par devise avec conversion cours.
         """
         from inc_excel_schema import uno_col, uno_row
-        cr = ColResolver.from_uno(doc.document)
+        cr = doc.cr
 
         col_b = cr.col('PVLcompte')
         col_c = cr.col('PVLtitre')
@@ -1164,7 +1164,7 @@ class DevisesMixin:
         """
         from inc_uno import copy_row_style
         from inc_excel_schema import uno_col, uno_row
-        cr = ColResolver.from_uno(doc.document)
+        cr = doc.cr
 
         # Déduire la section depuis le total_label
         section_map = {
@@ -1269,7 +1269,7 @@ class DevisesMixin:
         owned = doc is None
         ctx = UnoDocument(self.xlsx_path) if owned else nullcontext(doc)
         with ctx as doc:
-            cr = ColResolver.from_uno(doc.document)
+            cr = doc.cr
             cB = cr.letter('PVLcompte')
             cC = cr.letter('PVLtitre')
             cD = cr.letter('PVLdevise')
@@ -1432,7 +1432,7 @@ class DevisesMixin:
         Les TOTALs en pied utilisent SUMIFS → pas besoin de les mettre à jour.
         """
         from inc_excel_schema import uno_row, uno_col
-        cr = ColResolver.from_uno(doc.document)
+        cr = doc.cr
 
         deleted_set = set(deleted_names)
         col_b = cr.col('PVLcompte')
@@ -1543,7 +1543,7 @@ class DevisesMixin:
         owned = doc is None
         ctx = UnoDocument(self.xlsx_path) if owned else nullcontext(doc)
         with ctx as doc:
-            cr = ColResolver.from_uno(doc.document)
+            cr = doc.cr
             ws = doc.get_sheet(SHEET_AVOIRS)
             ws_ctrl = doc.get_sheet(SHEET_CONTROLES)
             ws_ops = doc.get_sheet(SHEET_OPERATIONS)

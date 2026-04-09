@@ -650,7 +650,7 @@ class CategoriesMixin:
             raise ValueError(f'Catégorie "{old_name}" introuvable dans budget_cat_rows')
 
         with UnoDocument(self.xlsx_path) as doc:
-            cr = ColResolver.from_uno(doc.document)
+            cr = doc.cr
             # 1. Budget — colonne catégories
             ws = doc.get_sheet(SHEET_BUDGET)
             ws.getCellByPosition(cr.col('CATnom'), uno_row(cat_row)).setString(new_name)
