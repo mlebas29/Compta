@@ -28,8 +28,8 @@ except ImportError:
 
 from inc_excel_compta import ComptaExcel, LINKED_OPERATIONS, SOLDE_AUTO_ACCOUNTS, parse_date, parse_montant
 from inc_excel_schema import (
-    OpCol, AvCol, PvCol, SHEET_OPERATIONS, SHEET_AVOIRS, SHEET_PLUS_VALUE,
-    SHEET_CONTROLES, AV_FIRST_ROW, PV_FIRST_ROW, Operation,
+    SHEET_OPERATIONS, SHEET_AVOIRS, SHEET_PLUS_VALUE,
+    SHEET_CONTROLES, Operation,
 )
 
 
@@ -173,14 +173,15 @@ def get_valid_accounts(excel_file, verbose=False):
         sheet = wb[SHEET_AVOIRS]
         accounts = []
 
-        from inc_excel_schema import get_named_ranges, get_table_start
+        from inc_excel_schema import ColResolver, get_named_ranges, get_table_start
+        cr = ColResolver.from_openpyxl(wb)
         named = get_named_ranges(wb)
-        avr_start = get_table_start(named, 'AVR') or AV_FIRST_ROW
+        avr_start = get_table_start(named, 'AVR') or 4
         for row_idx in range(avr_start + 1, avr_start + 200):
-            compte_name = sheet.cell(row_idx, AvCol.INTITULE).value
+            compte_name = sheet.cell(row_idx, cr.col('AVRintitulé')).value
             if compte_name and 'total' in str(compte_name).lower():
                 break
-            devise = sheet.cell(row_idx, AvCol.DEVISE).value
+            devise = sheet.cell(row_idx, cr.col('AVRdevise')).value
             if compte_name and devise:
                 compte_clean = str(compte_name).strip()
                 if compte_clean:
@@ -229,9 +230,9 @@ class ComptaExcelImport(ComptaExcel):
         last_row = self.find_last_data_row()
 
         for row in range(2, last_row + 1):
-            row_compte = self.ws_operations.cell(row, OpCol.COMPTE).value
-            categorie = self.ws_operations.cell(row, OpCol.CATEGORIE).value
-            montant = self.ws_operations.cell(row, OpCol.MONTANT).value
+            row_compte = self.ws_operations.cell(row, self.cr.col('OPcompte')).value
+            categorie = self.ws_operations.cell(row, self.cr.col('OPcatégorie')).value
+            montant = self.ws_operations.cell(row, self.cr.col('OPmontant')).value
 
             if row_compte == compte and categorie and str(categorie).lower() == '#solde':
                 if montant is not None:
@@ -252,9 +253,9 @@ class ComptaExcelImport(ComptaExcel):
         last_row = self.find_last_data_row()
 
         for row in range(2, last_row + 1):
-            row_compte = self.ws_operations.cell(row, OpCol.COMPTE).value
-            categorie = self.ws_operations.cell(row, OpCol.CATEGORIE).value
-            date = self.ws_operations.cell(row, OpCol.DATE).value
+            row_compte = self.ws_operations.cell(row, self.cr.col('OPcompte')).value
+            categorie = self.ws_operations.cell(row, self.cr.col('OPcatégorie')).value
+            date = self.ws_operations.cell(row, self.cr.col('OPdate')).value
 
             if row_compte == compte and categorie and str(categorie).lower() == '#solde':
                 if date:
@@ -283,13 +284,13 @@ class ComptaExcelImport(ComptaExcel):
             last_row = self.find_last_data_row()
 
             for row in range(2, last_row + 1):
-                categorie = self.ws_operations.cell(row, OpCol.CATEGORIE).value
+                categorie = self.ws_operations.cell(row, self.cr.col('OPcatégorie')).value
                 if not categorie or not str(categorie).startswith('#'):
                     continue
 
-                date = self.ws_operations.cell(row, OpCol.DATE).value
-                montant = self.ws_operations.cell(row, OpCol.MONTANT).value
-                compte = self.ws_operations.cell(row, OpCol.COMPTE).value
+                date = self.ws_operations.cell(row, self.cr.col('OPdate')).value
+                montant = self.ws_operations.cell(row, self.cr.col('OPmontant')).value
+                compte = self.ws_operations.cell(row, self.cr.col('OPcompte')).value
 
                 if not date or not compte:
                     continue
@@ -330,11 +331,11 @@ class ComptaExcelImport(ComptaExcel):
                 self.logger.verbose(f"Dernière ligne avec données: {last_row}")
 
             for row in range(2, last_row + 1):
-                date = self.ws_operations.cell(row, OpCol.DATE).value
-                label = self.ws_operations.cell(row, OpCol.LABEL).value
-                montant_cell = self.ws_operations.cell(row, OpCol.MONTANT)
+                date = self.ws_operations.cell(row, self.cr.col('OPdate')).value
+                label = self.ws_operations.cell(row, self.cr.col('OPlibellé')).value
+                montant_cell = self.ws_operations.cell(row, self.cr.col('OPmontant'))
                 montant = montant_cell.value
-                row_compte = self.ws_operations.cell(row, OpCol.COMPTE).value
+                row_compte = self.ws_operations.cell(row, self.cr.col('OPcompte')).value
 
                 # Si montant est une formule, essayer de l'évaluer
                 if isinstance(montant, str) and montant.startswith('='):
@@ -753,7 +754,7 @@ class ComptaExcelImport(ComptaExcel):
                 if compte not in template_cache:
                     template_row = None
                     for row in range(last_data_row, 1, -1):
-                        row_compte = self.ws_operations.cell(row, OpCol.COMPTE).value
+                        row_compte = self.ws_operations.cell(row, self.cr.col('OPcompte')).value
                         if row_compte == compte:
                             template_row = row
                             break
@@ -765,7 +766,7 @@ class ComptaExcelImport(ComptaExcel):
 
                         devise = op.devise
                         for row in range(last_data_row, 1, -1):
-                            row_devise = self.ws_operations.cell(row, OpCol.DEVISE).value
+                            row_devise = self.ws_operations.cell(row, self.cr.col('OPdevise')).value
                             if row_devise == devise:
                                 template_row = row
                                 break
@@ -780,27 +781,27 @@ class ComptaExcelImport(ComptaExcel):
                 template_cells = template_cache[compte]
 
                 # Date
-                cell = self.ws_operations.cell(next_row, OpCol.DATE)
+                cell = self.ws_operations.cell(next_row, self.cr.col('OPdate'))
                 date_obj = parse_date(op.date)
                 cell.value = date_obj if date_obj else op.date
                 if template_cells:
-                    copy_cell_formatting(template_cells[OpCol.DATE - 1], cell)
+                    copy_cell_formatting(template_cells[self.cr.col('OPdate') - 1], cell)
 
                 # Libellé
-                cell = self.ws_operations.cell(next_row, OpCol.LABEL)
+                cell = self.ws_operations.cell(next_row, self.cr.col('OPlibellé'))
                 cell.value = op.label
                 if template_cells:
-                    copy_cell_formatting(template_cells[OpCol.LABEL - 1], cell)
+                    copy_cell_formatting(template_cells[self.cr.col('OPlibellé') - 1], cell)
 
                 # Montant
-                cell = self.ws_operations.cell(next_row, OpCol.MONTANT)
+                cell = self.ws_operations.cell(next_row, self.cr.col('OPmontant'))
                 montant_str = op.montant.replace(',', '.')
                 try:
                     cell.value = float(montant_str)
                 except ValueError:
                     cell.value = montant_str
                 if template_cells:
-                    copy_cell_formatting(template_cells[OpCol.MONTANT - 1], cell)
+                    copy_cell_formatting(template_cells[self.cr.col('OPmontant') - 1], cell)
                 devise = op.devise
                 if devise in CURRENCY_NUMBER_FORMATS:
                     cell.number_format = CURRENCY_NUMBER_FORMATS[devise]
@@ -808,15 +809,15 @@ class ComptaExcelImport(ComptaExcel):
                     cell.fill = NON_EUR_FILL
 
                 # Devise
-                cell_devise = self.ws_operations.cell(next_row, OpCol.DEVISE)
+                cell_devise = self.ws_operations.cell(next_row, self.cr.col('OPdevise'))
                 cell_devise.value = op.devise
                 if template_cells:
-                    copy_cell_formatting(template_cells[OpCol.DEVISE - 1], cell_devise)
+                    copy_cell_formatting(template_cells[self.cr.col('OPdevise') - 1], cell_devise)
                 if devise != 'EUR':
                     cell_devise.fill = NON_EUR_FILL
 
                 # Equiv
-                cell = self.ws_operations.cell(next_row, OpCol.EQUIV)
+                cell = self.ws_operations.cell(next_row, self.cr.col('OPequiv_euro'))
                 equiv_str = op.equiv
                 if equiv_str:
                     try:
@@ -826,32 +827,32 @@ class ComptaExcelImport(ComptaExcel):
                 else:
                     cell.value = None
                 if template_cells:
-                    copy_cell_formatting(template_cells[OpCol.EQUIV - 1], cell)
+                    copy_cell_formatting(template_cells[self.cr.col('OPequiv_euro') - 1], cell)
                 cell.number_format = EQUIV_EUR_FORMAT
 
                 # Ref
-                cell = self.ws_operations.cell(next_row, OpCol.REF)
+                cell = self.ws_operations.cell(next_row, self.cr.col('OPréf'))
                 cell.value = op.ref if op.ref else None
                 if template_cells:
-                    copy_cell_formatting(template_cells[OpCol.REF - 1], cell)
+                    copy_cell_formatting(template_cells[self.cr.col('OPréf') - 1], cell)
 
                 # Catégorie
-                cell = self.ws_operations.cell(next_row, OpCol.CATEGORIE)
+                cell = self.ws_operations.cell(next_row, self.cr.col('OPcatégorie'))
                 cell.value = op.categorie
                 if template_cells:
-                    copy_cell_formatting(template_cells[OpCol.CATEGORIE - 1], cell)
+                    copy_cell_formatting(template_cells[self.cr.col('OPcatégorie') - 1], cell)
 
                 # Compte
-                cell = self.ws_operations.cell(next_row, OpCol.COMPTE)
+                cell = self.ws_operations.cell(next_row, self.cr.col('OPcompte'))
                 cell.value = op.compte
                 if template_cells:
-                    copy_cell_formatting(template_cells[OpCol.COMPTE - 1], cell)
+                    copy_cell_formatting(template_cells[self.cr.col('OPcompte') - 1], cell)
 
                 # Commentaire
-                cell = self.ws_operations.cell(next_row, OpCol.COMMENTAIRE)
+                cell = self.ws_operations.cell(next_row, self.cr.col('OPcommentaire'))
                 cell.value = op.commentaire or None
-                if template_cells and len(template_cells) > OpCol.COMMENTAIRE - 1:
-                    copy_cell_formatting(template_cells[OpCol.COMMENTAIRE - 1], cell)
+                if template_cells and len(template_cells) > self.cr.col('OPcommentaire') - 1:
+                    copy_cell_formatting(template_cells[self.cr.col('OPcommentaire') - 1], cell)
 
                 next_row += 1
                 self.stats['lines_added'] += 1
@@ -927,8 +928,8 @@ class ComptaExcelImport(ComptaExcel):
                     pv_row_idx = None
 
                     for row_idx in range(self._pvl_data_start, ws_pv.max_row + 1):
-                        compte_pv = ws_pv.cell(row_idx, PvCol.COMPTE).value
-                        ligne_pv = ws_pv.cell(row_idx, PvCol.LIGNE).value
+                        compte_pv = ws_pv.cell(row_idx, self.cr.col('PVLcompte')).value
+                        ligne_pv = ws_pv.cell(row_idx, self.cr.col('PVLtitre')).value
 
                         if compte_pv != compte:
                             continue
@@ -963,11 +964,11 @@ class ComptaExcelImport(ComptaExcel):
                             fallback_template_row = None
 
                             for row_idx in range(last_data_row, max(1, last_data_row - 200), -1):
-                                if ws_operations.cell(row_idx, OpCol.CATEGORIE).value == '#Solde':
+                                if ws_operations.cell(row_idx, self.cr.col('OPcatégorie')).value == '#Solde':
                                     if fallback_template_row is None:
                                         fallback_template_row = row_idx
 
-                                    compte_cell = ws_operations.cell(row_idx, OpCol.COMPTE)
+                                    compte_cell = ws_operations.cell(row_idx, self.cr.col('OPcompte'))
                                     if compte_cell.value == compte:
                                         template_row = row_idx
                                         break
@@ -983,40 +984,40 @@ class ComptaExcelImport(ComptaExcel):
                             except ValueError:
                                 date_solde = date_aujourdhui
 
-                            ws_operations.cell(target_row, OpCol.DATE).value = date_solde
-                            ws_operations.cell(target_row, OpCol.LABEL).value = 'Relevé compte'
-                            ws_operations.cell(target_row, OpCol.MONTANT).value = montant
-                            ws_operations.cell(target_row, OpCol.DEVISE).value = extract_currency_from_account(compte)
-                            ws_operations.cell(target_row, OpCol.EQUIV).value = None
-                            ws_operations.cell(target_row, OpCol.REF).value = None
-                            ws_operations.cell(target_row, OpCol.CATEGORIE).value = '#Solde'
-                            ws_operations.cell(target_row, OpCol.COMPTE).value = compte
-                            ws_operations.cell(target_row, OpCol.COMMENTAIRE).value = None
+                            ws_operations.cell(target_row, self.cr.col('OPdate')).value = date_solde
+                            ws_operations.cell(target_row, self.cr.col('OPlibellé')).value = 'Relevé compte'
+                            ws_operations.cell(target_row, self.cr.col('OPmontant')).value = montant
+                            ws_operations.cell(target_row, self.cr.col('OPdevise')).value = extract_currency_from_account(compte)
+                            ws_operations.cell(target_row, self.cr.col('OPequiv_euro')).value = None
+                            ws_operations.cell(target_row, self.cr.col('OPréf')).value = None
+                            ws_operations.cell(target_row, self.cr.col('OPcatégorie')).value = '#Solde'
+                            ws_operations.cell(target_row, self.cr.col('OPcompte')).value = compte
+                            ws_operations.cell(target_row, self.cr.col('OPcommentaire')).value = None
 
                             if template_row:
-                                template_date_format = ws_operations.cell(template_row, OpCol.DATE).number_format
-                                ws_operations.cell(target_row, OpCol.DATE).number_format = template_date_format
+                                template_date_format = ws_operations.cell(template_row, self.cr.col('OPdate')).number_format
+                                ws_operations.cell(target_row, self.cr.col('OPdate')).number_format = template_date_format
 
                             devise = extract_currency_from_account(compte)
                             if devise in CURRENCY_NUMBER_FORMATS:
-                                ws_operations.cell(target_row, OpCol.MONTANT).number_format = CURRENCY_NUMBER_FORMATS[devise]
-                            ws_operations.cell(target_row, OpCol.EQUIV).number_format = EQUIV_EUR_FORMAT
+                                ws_operations.cell(target_row, self.cr.col('OPmontant')).number_format = CURRENCY_NUMBER_FORMATS[devise]
+                            ws_operations.cell(target_row, self.cr.col('OPequiv_euro')).number_format = EQUIV_EUR_FORMAT
                             if devise != 'EUR':
-                                ws_operations.cell(target_row, OpCol.MONTANT).fill = NON_EUR_FILL
-                                ws_operations.cell(target_row, OpCol.DEVISE).fill = NON_EUR_FILL
+                                ws_operations.cell(target_row, self.cr.col('OPmontant')).fill = NON_EUR_FILL
+                                ws_operations.cell(target_row, self.cr.col('OPdevise')).fill = NON_EUR_FILL
 
                             self.stats['comptes_avec_solde'].add(compte)
                             self.logger.verbose(f"  ✓ #Solde Opérations ajouté (ligne {target_row}): {compte} = {montant:.2f}")
 
                     elif pv_row_idx:
-                        cell_solde = ws_pv.cell(pv_row_idx, PvCol.SOLDE)
+                        cell_solde = ws_pv.cell(pv_row_idx, self.cr.col('PVLmontant'))
                         is_formula = isinstance(cell_solde.value, str) and cell_solde.value.startswith('=')
 
                         if not is_formula:
-                            cell_date = ws_pv.cell(pv_row_idx, PvCol.DATE_SOLDE)
+                            cell_date = ws_pv.cell(pv_row_idx, self.cr.col('PVLdate'))
                             cell_date.value = date_aujourdhui
                             cell_date.font = cell_date.font.copy(color=BLUE_COLOR)
-                            cell_solde = ws_pv.cell(pv_row_idx, PvCol.SOLDE)
+                            cell_solde = ws_pv.cell(pv_row_idx, self.cr.col('PVLmontant'))
                             cell_solde.value = montant
                             cell_solde.font = cell_solde.font.copy(color=BLUE_COLOR)
                             nb_updates += 1
@@ -1030,8 +1031,8 @@ class ComptaExcelImport(ComptaExcel):
                             # Ne signaler que si le compte a un sous-compte Titres dans Plus_value
                             # (sinon c'est un compte simple sans titres individuels)
                             has_titres = any(
-                                ws_pv.cell(r, PvCol.COMPTE).value == compte
-                                and ws_pv.cell(r, PvCol.LIGNE).value == 'Titres'
+                                ws_pv.cell(r, self.cr.col('PVLcompte')).value == compte
+                                and ws_pv.cell(r, self.cr.col('PVLtitre')).value == 'Titres'
                                 for r in range(self._pvl_data_start, ws_pv.max_row + 1)
                             )
                             if has_titres:
@@ -1089,32 +1090,32 @@ class ComptaExcelImport(ComptaExcel):
             devise = None
 
             for row in range(2, last_data_row + 1):
-                row_compte = self.ws_operations.cell(row, OpCol.COMPTE).value
+                row_compte = self.ws_operations.cell(row, self.cr.col('OPcompte')).value
                 if row_compte != compte:
                     continue
-                categorie = self.ws_operations.cell(row, OpCol.CATEGORIE).value
-                montant = self.ws_operations.cell(row, OpCol.MONTANT).value
+                categorie = self.ws_operations.cell(row, self.cr.col('OPcatégorie')).value
+                montant = self.ws_operations.cell(row, self.cr.col('OPmontant')).value
                 if categorie and str(categorie).lower() == '#solde':
                     if montant is not None:
                         last_solde = normalize_amount(montant)
                         last_solde_row = row
                 else:
                     if not devise:
-                        devise = self.ws_operations.cell(row, OpCol.DEVISE).value
+                        devise = self.ws_operations.cell(row, self.cr.col('OPdevise')).value
 
             # Sommer les opérations après le dernier #Solde
             sum_ops = 0.0
             for row in range(max(last_solde_row + 1, 2), last_data_row + 1):
-                row_compte = self.ws_operations.cell(row, OpCol.COMPTE).value
+                row_compte = self.ws_operations.cell(row, self.cr.col('OPcompte')).value
                 if row_compte != compte:
                     continue
-                categorie = self.ws_operations.cell(row, OpCol.CATEGORIE).value
+                categorie = self.ws_operations.cell(row, self.cr.col('OPcatégorie')).value
                 if categorie and str(categorie).lower() in ('#solde', '#info'):
                     continue
-                montant = self.ws_operations.cell(row, OpCol.MONTANT).value
+                montant = self.ws_operations.cell(row, self.cr.col('OPmontant')).value
                 if montant is not None:
                     sum_ops += normalize_amount(montant)
-                date_val = self.ws_operations.cell(row, OpCol.DATE).value
+                date_val = self.ws_operations.cell(row, self.cr.col('OPdate')).value
                 if date_val:
                     last_op_date = date_val
 
@@ -1131,58 +1132,58 @@ class ComptaExcelImport(ComptaExcel):
             # Template de formatage depuis une ligne existante du même compte
             template_cells = None
             for row in range(last_data_row, 1, -1):
-                if self.ws_operations.cell(row, OpCol.COMPTE).value == compte:
+                if self.ws_operations.cell(row, self.cr.col('OPcompte')).value == compte:
                     template_cells = [self.ws_operations.cell(row, col) for col in range(1, 11)]
                     break
 
-            cell = self.ws_operations.cell(next_row, OpCol.DATE)
+            cell = self.ws_operations.cell(next_row, self.cr.col('OPdate'))
             cell.value = last_op_date
             if template_cells:
-                copy_cell_formatting(template_cells[OpCol.DATE - 1], cell)
+                copy_cell_formatting(template_cells[self.cr.col('OPdate') - 1], cell)
 
-            cell = self.ws_operations.cell(next_row, OpCol.LABEL)
+            cell = self.ws_operations.cell(next_row, self.cr.col('OPlibellé'))
             cell.value = 'Solde calculé'
             if template_cells:
-                copy_cell_formatting(template_cells[OpCol.LABEL - 1], cell)
+                copy_cell_formatting(template_cells[self.cr.col('OPlibellé') - 1], cell)
 
-            cell = self.ws_operations.cell(next_row, OpCol.MONTANT)
+            cell = self.ws_operations.cell(next_row, self.cr.col('OPmontant'))
             cell.value = round(solde_calc, 2)
             if template_cells:
-                copy_cell_formatting(template_cells[OpCol.MONTANT - 1], cell)
+                copy_cell_formatting(template_cells[self.cr.col('OPmontant') - 1], cell)
             if devise in CURRENCY_NUMBER_FORMATS:
                 cell.number_format = CURRENCY_NUMBER_FORMATS[devise]
             if devise != 'EUR':
                 cell.fill = NON_EUR_FILL
 
-            cell = self.ws_operations.cell(next_row, OpCol.DEVISE)
+            cell = self.ws_operations.cell(next_row, self.cr.col('OPdevise'))
             cell.value = devise
             if template_cells:
-                copy_cell_formatting(template_cells[OpCol.DEVISE - 1], cell)
+                copy_cell_formatting(template_cells[self.cr.col('OPdevise') - 1], cell)
             if devise != 'EUR':
                 cell.fill = NON_EUR_FILL
 
-            cell = self.ws_operations.cell(next_row, OpCol.EQUIV)
+            cell = self.ws_operations.cell(next_row, self.cr.col('OPequiv_euro'))
             cell.value = None
             if template_cells:
-                copy_cell_formatting(template_cells[OpCol.EQUIV - 1], cell)
+                copy_cell_formatting(template_cells[self.cr.col('OPequiv_euro') - 1], cell)
             cell.number_format = EQUIV_EUR_FORMAT
 
-            cell = self.ws_operations.cell(next_row, OpCol.REF)
+            cell = self.ws_operations.cell(next_row, self.cr.col('OPréf'))
             cell.value = None
             if template_cells:
-                copy_cell_formatting(template_cells[OpCol.REF - 1], cell)
+                copy_cell_formatting(template_cells[self.cr.col('OPréf') - 1], cell)
 
-            cell = self.ws_operations.cell(next_row, OpCol.CATEGORIE)
+            cell = self.ws_operations.cell(next_row, self.cr.col('OPcatégorie'))
             cell.value = '#Solde'
             if template_cells:
-                copy_cell_formatting(template_cells[OpCol.CATEGORIE - 1], cell)
+                copy_cell_formatting(template_cells[self.cr.col('OPcatégorie') - 1], cell)
 
-            cell = self.ws_operations.cell(next_row, OpCol.COMPTE)
+            cell = self.ws_operations.cell(next_row, self.cr.col('OPcompte'))
             cell.value = compte
             if template_cells:
-                copy_cell_formatting(template_cells[OpCol.COMPTE - 1], cell)
+                copy_cell_formatting(template_cells[self.cr.col('OPcompte') - 1], cell)
 
-            for col in (OpCol.COMMENTAIRE,):
+            for col in (self.cr.col('OPcommentaire'),):
                 cell = self.ws_operations.cell(next_row, col)
                 cell.value = None
                 if template_cells and len(template_cells) > col - 1:
@@ -1207,10 +1208,10 @@ class ComptaExcelImport(ComptaExcel):
         lignes_non_maj = []
 
         for row_idx in range(self._pvl_data_start, ws_pv.max_row + 1):
-            compte_pv = ws_pv.cell(row_idx, PvCol.COMPTE).value
-            ligne_pv = ws_pv.cell(row_idx, PvCol.LIGNE).value
-            date_cell = ws_pv.cell(row_idx, PvCol.DATE_SOLDE)
-            solde_cell = ws_pv.cell(row_idx, PvCol.SOLDE)
+            compte_pv = ws_pv.cell(row_idx, self.cr.col('PVLcompte')).value
+            ligne_pv = ws_pv.cell(row_idx, self.cr.col('PVLtitre')).value
+            date_cell = ws_pv.cell(row_idx, self.cr.col('PVLdate'))
+            solde_cell = ws_pv.cell(row_idx, self.cr.col('PVLmontant'))
 
             if compte_pv not in self.comptes_valorises:
                 continue

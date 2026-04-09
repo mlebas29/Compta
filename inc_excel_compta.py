@@ -24,7 +24,7 @@ except ImportError:
     sys.exit(1)
 
 from inc_excel_schema import (
-    OpCol, SHEET_OPERATIONS, SHEET_CONTROLES, SHEET_CONTROLES_LEGACY,
+    SHEET_OPERATIONS, SHEET_CONTROLES, SHEET_CONTROLES_LEGACY,
     PAIRING_COUNTER_CELL, Operation,
 )
 
@@ -255,11 +255,12 @@ class ComptaExcel:
 
             self.ws_operations = self.wb[SHEET_OPERATIONS]
 
-            # Bornes tableaux via named ranges
-            from inc_excel_schema import get_named_ranges, get_table_start, PV_FIRST_ROW
+            # Résolveur de colonnes dynamique
+            from inc_excel_schema import ColResolver, get_named_ranges, get_table_start
+            self.cr = ColResolver.from_openpyxl(self.wb)
             named = get_named_ranges(self.wb)
             pvl_start = get_table_start(named, 'PVL')
-            self._pvl_data_start = (pvl_start or PV_FIRST_ROW) + 1
+            self._pvl_data_start = (pvl_start or 5) + 1
 
             # Onglet Contrôles optionnel
             if SHEET_CONTROLES in self.wb.sheetnames:
@@ -300,11 +301,11 @@ class ComptaExcel:
             return self.OP_MODEL_ROW
 
         for row in range(self.ws_operations.max_row, self.OP_MODEL_ROW, -1):
-            date = self.ws_operations.cell(row, OpCol.DATE).value
+            date = self.ws_operations.cell(row, self.cr.col('OPdate')).value
             if date and str(date).strip() == '✓':
                 continue  # model row — ignorer
-            label = self.ws_operations.cell(row, OpCol.LABEL).value
-            montant = self.ws_operations.cell(row, OpCol.MONTANT).value
+            label = self.ws_operations.cell(row, self.cr.col('OPlibellé')).value
+            montant = self.ws_operations.cell(row, self.cr.col('OPmontant')).value
 
             if date or label or montant is not None:
                 return row
@@ -325,18 +326,18 @@ class ComptaExcel:
         last_row = self.find_last_data_row()
 
         for row in range(3, last_row + 1):
-            ref = self.ws_operations.cell(row, OpCol.REF).value
+            ref = self.ws_operations.cell(row, self.cr.col('OPréf')).value
             if ref != '-':
                 continue
 
-            date_val = self.ws_operations.cell(row, OpCol.DATE).value
-            label = self.ws_operations.cell(row, OpCol.LABEL).value or ''
-            montant_raw = self.ws_operations.cell(row, OpCol.MONTANT).value
-            devise = self.ws_operations.cell(row, OpCol.DEVISE).value or 'EUR'
-            equiv_raw = self.ws_operations.cell(row, OpCol.EQUIV).value
-            categorie = self.ws_operations.cell(row, OpCol.CATEGORIE).value or '-'
-            compte = self.ws_operations.cell(row, OpCol.COMPTE).value or ''
-            commentaire = self.ws_operations.cell(row, OpCol.COMMENTAIRE).value or ''
+            date_val = self.ws_operations.cell(row, self.cr.col('OPdate')).value
+            label = self.ws_operations.cell(row, self.cr.col('OPlibellé')).value or ''
+            montant_raw = self.ws_operations.cell(row, self.cr.col('OPmontant')).value
+            devise = self.ws_operations.cell(row, self.cr.col('OPdevise')).value or 'EUR'
+            equiv_raw = self.ws_operations.cell(row, self.cr.col('OPequiv_euro')).value
+            categorie = self.ws_operations.cell(row, self.cr.col('OPcatégorie')).value or '-'
+            compte = self.ws_operations.cell(row, self.cr.col('OPcompte')).value or ''
+            commentaire = self.ws_operations.cell(row, self.cr.col('OPcommentaire')).value or ''
 
             date_parsed = parse_date(date_val)
             montant_parsed = parse_montant(montant_raw)
@@ -373,18 +374,18 @@ class ComptaExcel:
 
         Ne remplace pas une ref existante (différente de '' et '-').
         """
-        existing = self.ws_operations.cell(row, OpCol.REF).value
+        existing = self.ws_operations.cell(row, self.cr.col('OPréf')).value
         if existing and str(existing).strip() not in ('', '-'):
             self.logger.verbose(f"Ref existante '{existing}' préservée (row {row}), "
                                 f"ref '{ref}' ignorée")
             return
-        self.ws_operations.cell(row, OpCol.REF).value = ref
+        self.ws_operations.cell(row, self.cr.col('OPréf')).value = ref
         if categorie:
-            self.ws_operations.cell(row, OpCol.CATEGORIE).value = categorie
+            self.ws_operations.cell(row, self.cr.col('OPcatégorie')).value = categorie
 
     def write_equiv_to_excel(self, row, equiv_value):
         """Écrit une valeur Equiv dans Excel"""
-        self.ws_operations.cell(row, OpCol.EQUIV).value = equiv_value
+        self.ws_operations.cell(row, self.cr.col('OPequiv_euro')).value = equiv_value
 
     def _init_pairing_counter(self):
         """Initialise le compteur d'appariement à MAX(partie numérique des refs) + 1.
@@ -455,16 +456,16 @@ class ComptaExcel:
         refs = defaultdict(list)
 
         for row in range(4, self.ws_operations.max_row + 1):
-            ref_val = self.ws_operations.cell(row, OpCol.REF).value
+            ref_val = self.ws_operations.cell(row, self.cr.col('OPréf')).value
 
             if ref_val and str(ref_val) not in ['-', '#Solde']:
                 ref_str = str(ref_val)
-                date_val = self.ws_operations.cell(row, OpCol.DATE).value
-                cat_val = self.ws_operations.cell(row, OpCol.CATEGORIE).value
-                amount_val = self.ws_operations.cell(row, OpCol.MONTANT).value
-                devise_val = self.ws_operations.cell(row, OpCol.DEVISE).value
-                equiv_val = self.ws_operations.cell(row, OpCol.EQUIV).value
-                account_val = self.ws_operations.cell(row, OpCol.COMPTE).value
+                date_val = self.ws_operations.cell(row, self.cr.col('OPdate')).value
+                cat_val = self.ws_operations.cell(row, self.cr.col('OPcatégorie')).value
+                amount_val = self.ws_operations.cell(row, self.cr.col('OPmontant')).value
+                devise_val = self.ws_operations.cell(row, self.cr.col('OPdevise')).value
+                equiv_val = self.ws_operations.cell(row, self.cr.col('OPequiv_euro')).value
+                account_val = self.ws_operations.cell(row, self.cr.col('OPcompte')).value
 
                 # Filtrer par année
                 if year_filter and date_val:
