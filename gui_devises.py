@@ -12,7 +12,7 @@ import time
 import tkinter as tk
 
 from inc_excel_schema import (
-    AvCol, CtrlCol,
+    ColResolver,
     DEVISE_SOURCES,
     AV_FIRST_ROW, CTRL_FIRST_ROW,
     SHEET_AVOIRS, SHEET_BUDGET, SHEET_CONTROLES,
@@ -196,29 +196,30 @@ class DevisesMixin:
         owned = doc is None
         ctx = UnoDocument(self.xlsx_path) if owned else nullcontext(doc)
         with ctx as doc:
+            cr = ColResolver.from_uno(doc.document)
             # ==== ÉTAPE A — Cotations : insérer une ligne dans le groupe ====
             ws_cot = doc.get_sheet(SHEET_COTATIONS)
             cot_data_start = (self._start_cot or COT_FIRST_ROW) + 1
 
             # Insérer les colonnes Nature/Famille/Décimales si absentes
             header_0 = uno_row(cot_data_start - 2)  # header = START - 1
-            if ws_cot.getCellByPosition(uno_col(CotCol.NATURE), header_0).getString().strip() != 'Nature':
-                ws_cot.Columns.insertByIndex(uno_col(CotCol.NATURE), 1)
-                ws_cot.getCellByPosition(uno_col(CotCol.NATURE), header_0).setString('Nature')
-            if ws_cot.getCellByPosition(uno_col(CotCol.FAMILLE), header_0).getString().strip() != 'Famille':
-                ws_cot.Columns.insertByIndex(uno_col(CotCol.FAMILLE), 1)
-                ws_cot.getCellByPosition(uno_col(CotCol.FAMILLE), header_0).setString('Famille')
-            if ws_cot.getCellByPosition(uno_col(CotCol.DECIMALES), header_0).getString().strip() != 'Décimales':
-                ws_cot.Columns.insertByIndex(uno_col(CotCol.DECIMALES), 1)
-                ws_cot.getCellByPosition(uno_col(CotCol.DECIMALES), header_0).setString('Décimales')
+            if ws_cot.getCellByPosition(cr.col('COTnature'), header_0).getString().strip() != 'Nature':
+                ws_cot.Columns.insertByIndex(cr.col('COTnature'), 1)
+                ws_cot.getCellByPosition(cr.col('COTnature'), header_0).setString('Nature')
+            if ws_cot.getCellByPosition(cr.col('COTfamille'), header_0).getString().strip() != 'Famille':
+                ws_cot.Columns.insertByIndex(cr.col('COTfamille'), 1)
+                ws_cot.getCellByPosition(cr.col('COTfamille'), header_0).setString('Famille')
+            if ws_cot.getCellByPosition(cr.col('COTdecimales'), header_0).getString().strip() != 'Décimales':
+                ws_cot.Columns.insertByIndex(cr.col('COTdecimales'), 1)
+                ws_cot.getCellByPosition(cr.col('COTdecimales'), header_0).setString('Décimales')
 
             # Scanner col A (code) + lookup famille dans cotations_meta
             cot_insert_pos = None
             cot_last_data = cot_data_start  # fallback
             for row_idx in range(cot_data_start, self._end_cot + 1):
-                cell_code = ws_cot.getCellByPosition(uno_col(CotCol.CODE), uno_row(row_idx))
+                cell_code = ws_cot.getCellByPosition(cr.col('COTcode'), uno_row(row_idx))
                 row_code = cell_code.getString().strip()
-                cell_label = ws_cot.getCellByPosition(uno_col(CotCol.LABEL), uno_row(row_idx))
+                cell_label = ws_cot.getCellByPosition(cr.col('COTlabel'), uno_row(row_idx))
                 row_label = cell_label.getString().strip()
                 if not row_code and not row_label:
                     continue
@@ -251,25 +252,25 @@ class DevisesMixin:
 
             # Remplir la ligne : A=label, B=nature, C=famille, D=décimales, E=code
             r0_cot = uno_row(cot_new_row)
-            ws_cot.getCellByPosition(uno_col(CotCol.LABEL), r0_cot).setString(nom or code)
-            ws_cot.getCellByPosition(uno_col(CotCol.CODE), r0_cot).setString(code)
-            ws_cot.getCellByPosition(uno_col(CotCol.FAMILLE), r0_cot).setString(famille)
-            ws_cot.getCellByPosition(uno_col(CotCol.DECIMALES), r0_cot).setValue(decimals)
+            ws_cot.getCellByPosition(cr.col('COTlabel'), r0_cot).setString(nom or code)
+            ws_cot.getCellByPosition(cr.col('COTcode'), r0_cot).setString(code)
+            ws_cot.getCellByPosition(cr.col('COTfamille'), r0_cot).setString(famille)
+            ws_cot.getCellByPosition(cr.col('COTdecimales'), r0_cot).setValue(decimals)
 
             # Nature + cours
-            ws_cot.getCellByPosition(uno_col(CotCol.NATURE), r0_cot).setString(
+            ws_cot.getCellByPosition(cr.col('COTnature'), r0_cot).setString(
                 'dérivée' if derived_from else 'primaire')
             if derived_from and formula:
                 # Formule dérivée : trouver le row du spot (col CODE)
                 spot_row = None
                 for ri in range(cot_data_start, cot_new_row + 5):
-                    if ws_cot.getCellByPosition(uno_col(CotCol.CODE), uno_row(ri)).getString().strip() == derived_from:
+                    if ws_cot.getCellByPosition(cr.col('COTcode'), uno_row(ri)).getString().strip() == derived_from:
                         spot_row = ri
                         break
                 if spot_row:
-                    cot_cours_letter = col_letter(CotCol.COURS_EUR)
+                    cot_cours_letter = cr.letter('COTcours')
                     cell = ws_cot.getCellByPosition(
-                        uno_col(CotCol.COURS_EUR), r0_cot)
+                        cr.col('COTcours'), r0_cot)
                     cell.setFormula(
                         f'={cot_cours_letter}${spot_row}{formula}')
                     cell.CharColor = 0x000000  # noir = formule
@@ -281,23 +282,23 @@ class DevisesMixin:
                         result = fetcher([code])
                         if code in result:
                             ws_cot.getCellByPosition(
-                                uno_col(CotCol.COURS_EUR), r0_cot).setValue(result[code])
+                                cr.col('COTcours'), r0_cot).setValue(result[code])
                             ws_cot.getCellByPosition(
-                                uno_col(CotCol.DATE), r0_cot).setString(
+                                cr.col('COTdate'), r0_cot).setString(
                                 datetime.now().strftime('%d/%m/%Y'))
                 except Exception:
                     pass  # pas bloquant — le cours sera renseigné au prochain fetch
 
             # Col H : cours de l'Euro = 1/cours_EUR
-            cot_cours_letter = col_letter(CotCol.COURS_EUR)
-            ws_cot.getCellByPosition(uno_col(CotCol.DATE) + 1, r0_cot).setFormula(
+            cot_cours_letter = cr.letter('COTcours')
+            ws_cot.getCellByPosition(cr.col('COTdate') + 1, r0_cot).setFormula(
                 f'=1/{cot_cours_letter}{cot_new_row}')
 
             # Créer le named range cours_XXX → cellule cours de la nouvelle cotation
             cours_name = self.cours_name(code)
             if cours_name:
                 from com.sun.star.table import CellAddress
-                cot_cours_col_letter = col_letter(CotCol.COURS_EUR)
+                cot_cours_col_letter = cr.letter('COTcours')
                 nr = doc.document.NamedRanges
                 if nr.hasByName(cours_name):
                     nr.removeByName(cours_name)
@@ -308,7 +309,7 @@ class DevisesMixin:
             # Déterminer la dernière ligne de données Cotations (pour SUMIF range)
             cot_last_row = cot_new_row
             for row_idx in range(cot_new_row + 1, cot_new_row + 30):
-                cell_e = ws_cot.getCellByPosition(uno_col(CotCol.CODE), uno_row(row_idx))
+                cell_e = ws_cot.getCellByPosition(cr.col('COTcode'), uno_row(row_idx))
                 if cell_e.getString().strip():
                     cot_last_row = row_idx
                 else:
@@ -323,9 +324,9 @@ class DevisesMixin:
             # Maintenant : new_col = equiv_col, Equiv EUR décalé à equiv_col+1
 
             new_col = equiv_col           # la nouvelle colonne devise
-            new_col_letter = col_letter(new_col)
+            new_col_letter = ColResolver._idx_to_letter(new_col)
             new_equiv_col = equiv_col + 1
-            new_equiv_letter = col_letter(new_equiv_col)
+            new_equiv_letter = ColResolver._idx_to_letter(new_equiv_col)
             new_alloc_pct_col = new_equiv_col + 1
             new_alloc_montant_col = new_equiv_col + 2
             new_poste_col = new_equiv_col + 3
@@ -371,8 +372,8 @@ class DevisesMixin:
             ws_bud.getCellByPosition(nc0, uno_row(hr)).setString(code)
 
             # Row START : taux = SUMIF(Cotations)
-            cot_code_letter = col_letter(CotCol.CODE)
-            cot_cours_letter = col_letter(CotCol.COURS_EUR)
+            cot_code_letter = cr.letter('COTcode')
+            cot_cours_letter = cr.letter('COTcours')
             if has_budget:
                 ws_bud.getCellByPosition(nc0, uno_row(self.budget_start_row)).setFormula(
                     f'=SUMIF(Cotations.${cot_code_letter}${cot_data_start}:${cot_code_letter}${cot_last_row};{new_col_letter}${hr};'
@@ -385,7 +386,7 @@ class DevisesMixin:
                 cell_l = ws_bud.getCellByPosition(uno_col(self.budget_cat_col), uno_row(r))
                 val_l = cell_l.getString().strip()
                 if val_l and val_l != '✓':
-                    cat_letter = col_letter(self.budget_cat_col)
+                    cat_letter = ColResolver._idx_to_letter(self.budget_cat_col)
                     ws_bud.getCellByPosition(nc0, uno_row(r)).setFormula(
                         f'=SUMIFS(OPmontant;OPdevise;{new_col_letter}${hr};OPcatégorie;${cat_letter}{r};OPdate;">"&$C$2-365)')
 
@@ -416,7 +417,7 @@ class DevisesMixin:
                 # Réécrire Total+3 pour TOUTES les colonnes devise (y compris EUR)
                 # Les formules template single-cell ne s'étendent pas avec les inserts
                 for dc in range(self.budget_first_devise_col, new_col + 1):
-                    dcl = col_letter(dc)
+                    dcl = ColResolver._idx_to_letter(dc)
                     ws_bud.getCellByPosition(uno_col(dc), uno_row(total_row + 3)).setFormula(
                         f'=SUM({dcl}{changes_row}:{dcl}{sep_row})')
 
@@ -430,7 +431,7 @@ class DevisesMixin:
             # Réécrire les formules en SUMPRODUCT première_devise → nouvelle devise incluse
             # Ne toucher que les lignes qui ont déjà une formule Equiv EUR
             sumproduct_last = new_col_letter  # ex: Y si PLN=col25 → inclut PLN
-            fdl = col_letter(self.budget_first_devise_col)
+            fdl = ColResolver._idx_to_letter(self.budget_first_devise_col)
 
             for r in range(first_cat_row, sep_row + 1):  # inclut le séparateur
                 cell_equiv = ws_bud.getCellByPosition(nec0, uno_row(r))
@@ -451,7 +452,7 @@ class DevisesMixin:
 
                 # Total+3 Alloc montant
                 alloc_m_col = new_equiv_col + 2
-                alloc_m_letter = col_letter(alloc_m_col)
+                alloc_m_letter = ColResolver._idx_to_letter(alloc_m_col)
                 ws_bud.getCellByPosition(uno_col(alloc_m_col), uno_row(total_row + 3)).setFormula(
                     f'=SUM({alloc_m_letter}{changes_row}:{alloc_m_letter}{sep_row})')
 
@@ -466,7 +467,7 @@ class DevisesMixin:
             h = self.ctrl2_header_row  # row des codes devises (1-indexed)
             new_ctrl_col = last_ctrl + 1
             cc0 = uno_col(new_ctrl_col)
-            ctrl_letter = col_letter(new_ctrl_col)
+            ctrl_letter = ColResolver._idx_to_letter(new_ctrl_col)
 
             # Copier le style depuis la colonne EUR CTRL2 (= première devise CTRL2)
             # last_ctrl pointe sur la dernière colonne existante avant insertion
@@ -556,8 +557,8 @@ class DevisesMixin:
                 f'={ctrl_letter}{h+8}+{ctrl_letter}{h+10}+{ctrl_letter}{h+11}')
 
             # ==== ÉTAPE F — Contrôles : étendre 4 ranges SUM ====
-            new_end = col_letter(new_ctrl_col)
-            old_end = col_letter(last_ctrl)
+            new_end = ColResolver._idx_to_letter(new_ctrl_col)
+            old_end = ColResolver._idx_to_letter(last_ctrl)
 
             # P(h+2) : IF(SUM(…)=0…) → étendre le range
             cell_p = ws_ctrl.getCellByPosition(uno_col(16), uno_row(h + 2))  # P=16
@@ -668,9 +669,9 @@ class DevisesMixin:
                 ws_av = wb2[SHEET_AVOIRS]
                 avr_data = (self._start_avr or AV_FIRST_ROW) + 1
                 for row in range(avr_data, ws_av.max_row + 1):
-                    dev = ws_av.cell(row, AvCol.DEVISE).value
+                    dev = ws_av.cell(row, self.cr.col('AVRdevise')).value
                     if dev and str(dev).strip() == code:
-                        intitule = ws_av.cell(row, AvCol.INTITULE).value or ''
+                        intitule = ws_av.cell(row, self.cr.col('AVRintitulé')).value or ''
                         wb2.close()
                         status_label.config(
                             text=f'Compte "{intitule.strip()}" utilise {code}.')
@@ -762,13 +763,14 @@ class DevisesMixin:
         shutil.copy2(self.xlsx_path, bak_path)
 
         with UnoDocument(self.xlsx_path) as doc:
+            cr = ColResolver.from_uno(doc.document)
             # ==== Cotations : supprimer la ligne du code ====
             ws_cot = doc.get_sheet(SHEET_COTATIONS)
             cot_data_start = (self._start_cot or COT_FIRST_ROW) + 1
             cot_row = None
             for row_idx in range(cot_data_start, self._end_cot + 1):
                 cell_code = ws_cot.getCellByPosition(
-                    uno_col(CotCol.CODE), uno_row(row_idx))
+                    cr.col('COTcode'), uno_row(row_idx))
                 if cell_code.getString().strip() == code:
                     cot_row = row_idx
                     break
@@ -845,8 +847,9 @@ class DevisesMixin:
 
     def _find_pv_row_by_label(self, ws_pv, label):
         """Trouve la ligne (1-indexed) d'un label dans la colonne B (Compte) de Plus_value."""
-        from inc_excel_schema import uno_row, uno_col, PvCol
-        col_b = uno_col(PvCol.COMPTE)
+        from inc_excel_schema import uno_row, uno_col, ColResolver
+        cr = ColResolver.from_uno(doc.document)
+        col_b = cr.col('PVLcompte')
         for row_idx in range(1, 200):
             val = ws_pv.getCellByPosition(col_b, uno_row(row_idx)).getString().strip()
             if val == label:
@@ -864,24 +867,25 @@ class DevisesMixin:
           r+4 : ligne vide
         """
         from inc_uno import copy_row_style
-        from inc_excel_schema import uno_col, uno_row, PvCol, col_letter
+        from inc_excel_schema import uno_col, uno_row, ColResolver
+        cr = ColResolver.from_uno(doc.document)
 
         # Lettres de colonnes via PvCol
-        cB = col_letter(PvCol.COMPTE)
-        cD = col_letter(PvCol.DEVISE)
-        cE = col_letter(PvCol.PVL)
-        cG = col_letter(PvCol.DATE_INIT)
-        cH = col_letter(PvCol.MONTANT_INIT)
-        cI = col_letter(PvCol.SIGMA)
-        cJ = col_letter(PvCol.DATE_SOLDE)
-        cK = col_letter(PvCol.SOLDE)
+        cB = cr.letter('PVLcompte')
+        cD = cr.letter('PVLdevise')
+        cE = cr.letter('PVLpvl')
+        cG = cr.letter('PVLdate_init')
+        cH = cr.letter('PVLmontant_init')
+        cI = cr.letter('PVLsigma')
+        cJ = cr.letter('PVLdate')
+        cK = cr.letter('PVLmontant')
 
         # Trouver l'emplacement — TOTAL portefeuilles est maintenant dans les TOTALs en pied
         # Les nouveaux blocs sont insérés avant la dernière ligne vide de la section portefeuilles
         # Chercher la dernière ligne de données portefeuilles (section = "portefeuilles")
         last_pf_data_row = None
         for scan in range(200, 0, -1):
-            val_a = ws_pv.getCellByPosition(uno_col(PvCol.SECTION), uno_row(scan)).getString().strip()
+            val_a = ws_pv.getCellByPosition(cr.col('PVLsection'), uno_row(scan)).getString().strip()
             if val_a == 'portefeuilles' or val_a == self.PV_SECTION_LABELS['portefeuilles']:
                 last_pf_data_row = scan
                 break
@@ -911,7 +915,7 @@ class DevisesMixin:
         # Template de style : la dernière ligne Retenu avant notre insertion
         template_row = None
         for scan in range(r - 1, 0, -1):
-            val_c = ws_pv.getCellByPosition(uno_col(PvCol.LIGNE), uno_row(scan)).getString().strip()
+            val_c = ws_pv.getCellByPosition(cr.col('PVLtitre'), uno_row(scan)).getString().strip()
             if val_c == 'Retenu':
                 template_row = uno_row(scan)
                 break
@@ -923,52 +927,52 @@ class DevisesMixin:
             copy_row_style(ws_pv, template_row, r0 + offset, col_start=0, col_end=12)
 
         # --- Ligne r : en-tête ---
-        ws_pv.getCellByPosition(uno_col(PvCol.SECTION), r0).setString('portefeuilles')
-        ws_pv.getCellByPosition(uno_col(PvCol.COMPTE), r0).setString(nom)
-        ws_pv.getCellByPosition(uno_col(PvCol.LIGNE), r0).setString('Portefeuille')
+        ws_pv.getCellByPosition(cr.col('PVLsection'), r0).setString('portefeuilles')
+        ws_pv.getCellByPosition(cr.col('PVLcompte'), r0).setString(nom)
+        ws_pv.getCellByPosition(cr.col('PVLtitre'), r0).setString('Portefeuille')
 
         # --- Ligne r+1 : Total (vide, valeurs 0) ---
-        ws_pv.getCellByPosition(uno_col(PvCol.SECTION), r0 + 1).setString('portefeuilles')
-        ws_pv.getCellByPosition(uno_col(PvCol.COMPTE), r0 + 1).setString(nom)
-        ws_pv.getCellByPosition(uno_col(PvCol.LIGNE), r0 + 1).setString('Total')
-        ws_pv.getCellByPosition(uno_col(PvCol.DEVISE), r0 + 1).setString(devise)
-        ws_pv.getCellByPosition(uno_col(PvCol.PVL), r0 + 1).setFormula(
+        ws_pv.getCellByPosition(cr.col('PVLsection'), r0 + 1).setString('portefeuilles')
+        ws_pv.getCellByPosition(cr.col('PVLcompte'), r0 + 1).setString(nom)
+        ws_pv.getCellByPosition(cr.col('PVLtitre'), r0 + 1).setString('Total')
+        ws_pv.getCellByPosition(cr.col('PVLdevise'), r0 + 1).setString(devise)
+        ws_pv.getCellByPosition(cr.col('PVLpvl'), r0 + 1).setFormula(
             f'={cK}{r+1}-({cH}{r+1}+{cI}{r+1})')
-        ws_pv.getCellByPosition(uno_col(PvCol.DATE_INIT), r0 + 1).setValue(0)
-        ws_pv.getCellByPosition(uno_col(PvCol.MONTANT_INIT), r0 + 1).setValue(0)
-        ws_pv.getCellByPosition(uno_col(PvCol.SIGMA), r0 + 1).setValue(0)
-        ws_pv.getCellByPosition(uno_col(PvCol.SOLDE), r0 + 1).setValue(0)
+        ws_pv.getCellByPosition(cr.col('PVLdate_init'), r0 + 1).setValue(0)
+        ws_pv.getCellByPosition(cr.col('PVLmontant_init'), r0 + 1).setValue(0)
+        ws_pv.getCellByPosition(cr.col('PVLsigma'), r0 + 1).setValue(0)
+        ws_pv.getCellByPosition(cr.col('PVLmontant'), r0 + 1).setValue(0)
 
         # --- Ligne r+2 : #Solde Opérations ---
-        ws_pv.getCellByPosition(uno_col(PvCol.SECTION), r0 + 2).setString('portefeuilles')
-        ws_pv.getCellByPosition(uno_col(PvCol.COMPTE), r0 + 2).setString(nom)
-        ws_pv.getCellByPosition(uno_col(PvCol.LIGNE), r0 + 2).setString('#Solde Opérations')
-        ws_pv.getCellByPosition(uno_col(PvCol.DEVISE), r0 + 2).setString(devise)
-        ws_pv.getCellByPosition(uno_col(PvCol.PVL), r0 + 2).setFormula(
+        ws_pv.getCellByPosition(cr.col('PVLsection'), r0 + 2).setString('portefeuilles')
+        ws_pv.getCellByPosition(cr.col('PVLcompte'), r0 + 2).setString(nom)
+        ws_pv.getCellByPosition(cr.col('PVLtitre'), r0 + 2).setString('#Solde Opérations')
+        ws_pv.getCellByPosition(cr.col('PVLdevise'), r0 + 2).setString(devise)
+        ws_pv.getCellByPosition(cr.col('PVLpvl'), r0 + 2).setFormula(
             f'={cK}{r+2}-({cH}{r+2}+{cI}{r+2})')
-        ws_pv.getCellByPosition(uno_col(PvCol.DATE_INIT), r0 + 2).setFormula(
+        ws_pv.getCellByPosition(cr.col('PVLdate_init'), r0 + 2).setFormula(
             f'=MINIFS(OPdate;OPcompte;${cB}{r+2};OPdevise;{cD}{r+2};OPcatégorie;Solde)')
-        ws_pv.getCellByPosition(uno_col(PvCol.MONTANT_INIT), r0 + 2).setFormula(
+        ws_pv.getCellByPosition(cr.col('PVLmontant_init'), r0 + 2).setFormula(
             f'=SUMIFS(OPmontant;OPcompte;${cB}{r+2};OPdevise;${cD}{r+2};OPdate;${cG}{r+2};OPcatégorie;Solde)')
-        ws_pv.getCellByPosition(uno_col(PvCol.SIGMA), r0 + 2).setFormula(f'={cI}{r+1}')
-        ws_pv.getCellByPosition(uno_col(PvCol.DATE_SOLDE), r0 + 2).setFormula(
+        ws_pv.getCellByPosition(cr.col('PVLsigma'), r0 + 2).setFormula(f'={cI}{r+1}')
+        ws_pv.getCellByPosition(cr.col('PVLdate'), r0 + 2).setFormula(
             f'=MAXIFS(OPdate;OPcompte;${cB}{r+2};OPdevise;${cD}{r+2};OPcatégorie;Solde)')
-        ws_pv.getCellByPosition(uno_col(PvCol.SOLDE), r0 + 2).setFormula(
+        ws_pv.getCellByPosition(cr.col('PVLmontant'), r0 + 2).setFormula(
             f'=SUMIFS(OPmontant;OPcompte;${cB}{r+2};OPdevise;${cD}{r+2};OPcatégorie;Solde;OPdate;{cJ}{r+2})')
 
         # --- Ligne r+3 : Retenu ---
-        ws_pv.getCellByPosition(uno_col(PvCol.SECTION), r0 + 3).setString('portefeuilles')
-        ws_pv.getCellByPosition(uno_col(PvCol.COMPTE), r0 + 3).setString(nom)
-        ws_pv.getCellByPosition(uno_col(PvCol.LIGNE), r0 + 3).setString('Retenu')
-        ws_pv.getCellByPosition(uno_col(PvCol.DEVISE), r0 + 3).setString(devise)
-        ws_pv.getCellByPosition(uno_col(PvCol.PVL), r0 + 3).setFormula(
+        ws_pv.getCellByPosition(cr.col('PVLsection'), r0 + 3).setString('portefeuilles')
+        ws_pv.getCellByPosition(cr.col('PVLcompte'), r0 + 3).setString(nom)
+        ws_pv.getCellByPosition(cr.col('PVLtitre'), r0 + 3).setString('Retenu')
+        ws_pv.getCellByPosition(cr.col('PVLdevise'), r0 + 3).setString(devise)
+        ws_pv.getCellByPosition(cr.col('PVLpvl'), r0 + 3).setFormula(
             f'={cK}{r+3}-({cH}{r+3}+{cI}{r+3})')
-        ws_pv.getCellByPosition(uno_col(PvCol.DATE_INIT), r0 + 3).setFormula(f'={cG}{r+2}')
-        ws_pv.getCellByPosition(uno_col(PvCol.MONTANT_INIT), r0 + 3).setFormula(f'={cH}{r+2}')
-        ws_pv.getCellByPosition(uno_col(PvCol.SIGMA), r0 + 3).setFormula(f'={cI}{r+2}')
-        ws_pv.getCellByPosition(uno_col(PvCol.DATE_SOLDE), r0 + 3).setFormula(
+        ws_pv.getCellByPosition(cr.col('PVLdate_init'), r0 + 3).setFormula(f'={cG}{r+2}')
+        ws_pv.getCellByPosition(cr.col('PVLmontant_init'), r0 + 3).setFormula(f'={cH}{r+2}')
+        ws_pv.getCellByPosition(cr.col('PVLsigma'), r0 + 3).setFormula(f'={cI}{r+2}')
+        ws_pv.getCellByPosition(cr.col('PVLdate'), r0 + 3).setFormula(
             f'=IF({cJ}{r+1}>{cJ}{r+2};{cJ}{r+1};{cJ}{r+2})')
-        ws_pv.getCellByPosition(uno_col(PvCol.SOLDE), r0 + 3).setFormula(
+        ws_pv.getCellByPosition(cr.col('PVLmontant'), r0 + 3).setFormula(
             f'=IF({cJ}{r+1}>{cJ}{r+2};{cK}{r+1};{cK}{r+2})')
 
         # --- Ligne r+4 : vide (déjà vide par insertByIndex) ---
@@ -977,12 +981,12 @@ class DevisesMixin:
         # Trouver la ligne TOTAL portefeuilles dans le footer (col A = SECTION)
         total_pf_row = None
         for scan in range(r + 4, r + 30):
-            val_a = ws_pv.getCellByPosition(uno_col(PvCol.SECTION), uno_row(scan)).getString().strip()
+            val_a = ws_pv.getCellByPosition(cr.col('PVLsection'), uno_row(scan)).getString().strip()
             if 'TOTAL portefeuilles' in val_a:
                 total_pf_row = scan
                 break
         if total_pf_row:
-            self._update_pv_total_portefeuilles(ws_pv, total_pf_row, r + 3, devise)
+            self._update_pv_total_portefeuilles(ws_pv, total_pf_row, r + 3, devise, doc=doc)
 
         # --- Formats nombre sur les 4 lignes de données ---
         self._apply_pv_formats(ws_pv, doc, r, devise, section='portefeuilles', count=3)
@@ -996,7 +1000,8 @@ class DevisesMixin:
             section: 'portefeuilles' ou autre
             count: nombre de lignes à formater (3 pour bloc, 0 pour simple)
         """
-        from inc_excel_schema import uno_col, uno_row, PvCol
+        from inc_excel_schema import uno_col, uno_row, ColResolver
+        cr = ColResolver.from_uno(doc.document)
         from inc_formats import FORMATS_DEVISE, FORMAT_EUR, FORMAT_EUR_RED, GRIS, BLANC
 
         fmt_date = doc.register_number_format('DD/MM/YY')
@@ -1016,14 +1021,14 @@ class DevisesMixin:
             fmt_hi = doc.register_number_format(FORMAT_EUR)
 
         # Colonnes D-K pour fond blanc (lignes données, pas pieds portefeuille)
-        ALL_DK = [PvCol.DEVISE, PvCol.PVL, PvCol.PCT,
-                  PvCol.DATE_INIT, PvCol.MONTANT_INIT, PvCol.SIGMA,
-                  PvCol.DATE_SOLDE, PvCol.SOLDE]
+        ALL_DK = [cr.col('PVLdevise'), cr.col('PVLpvl'), cr.col('PVLpct'),
+                  cr.col('PVLdate_init'), cr.col('PVLmontant_init'), cr.col('PVLsigma'),
+                  cr.col('PVLdate'), cr.col('PVLmontant')]
         # Colonnes qui seront grisées (non-EUR) — pas de blanc dessus
         if is_non_eur:
-            gris_set = {PvCol.DEVISE, PvCol.PVL, PvCol.SOLDE}
+            gris_set = {cr.col('PVLdevise'), cr.col('PVLpvl'), cr.col('PVLmontant')}
             if is_portefeuille:
-                gris_set |= {PvCol.MONTANT_INIT, PvCol.SIGMA}
+                gris_set |= {cr.col('PVLmontant_init'), cr.col('PVLsigma')}
         else:
             gris_set = set()
         # count=0 → ligne donnée unique
@@ -1035,36 +1040,37 @@ class DevisesMixin:
             is_header = is_bloc and offset == 0
             is_pied = is_bloc and offset > 0
             # Dates G et J
-            ws_pv.getCellByPosition(uno_col(PvCol.DATE_INIT), r0).NumberFormat = fmt_date
-            ws_pv.getCellByPosition(uno_col(PvCol.DATE_SOLDE), r0).NumberFormat = fmt_date
+            ws_pv.getCellByPosition(cr.col('PVLdate_init'), r0).NumberFormat = fmt_date
+            ws_pv.getCellByPosition(cr.col('PVLdate'), r0).NumberFormat = fmt_date
             # PVL E et Solde K : devise de la ligne (rouge négatif)
-            ws_pv.getCellByPosition(uno_col(PvCol.PVL), r0).NumberFormat = fmt_ek
-            ws_pv.getCellByPosition(uno_col(PvCol.SOLDE), r0).NumberFormat = fmt_ek
+            ws_pv.getCellByPosition(cr.col('PVLpvl'), r0).NumberFormat = fmt_ek
+            ws_pv.getCellByPosition(cr.col('PVLmontant'), r0).NumberFormat = fmt_ek
             # H et I
-            ws_pv.getCellByPosition(uno_col(PvCol.MONTANT_INIT), r0).NumberFormat = fmt_hi
-            ws_pv.getCellByPosition(uno_col(PvCol.SIGMA), r0).NumberFormat = fmt_hi
+            ws_pv.getCellByPosition(cr.col('PVLmontant_init'), r0).NumberFormat = fmt_hi
+            ws_pv.getCellByPosition(cr.col('PVLsigma'), r0).NumberFormat = fmt_hi
             # Fond blanc D-K pour lignes données (hors pieds et en-tête)
             if not is_pied and not is_header:
-                for col in ALL_DK:
-                    if col not in gris_set:
-                        ws_pv.getCellByPosition(uno_col(col), r0).CellBackColor = BLANC
+                for c0 in ALL_DK:
+                    if c0 not in gris_set:
+                        ws_pv.getCellByPosition(c0, r0).CellBackColor = BLANC
             # Gris non-EUR (se superpose au blanc) — pas sur l'en-tête (cellules vides)
             if is_non_eur and not is_header:
-                ws_pv.getCellByPosition(uno_col(PvCol.DEVISE), r0).CellBackColor = GRIS
-                for col in (PvCol.PVL, PvCol.SOLDE):
-                    ws_pv.getCellByPosition(uno_col(col), r0).CellBackColor = GRIS
+                ws_pv.getCellByPosition(cr.col('PVLdevise'), r0).CellBackColor = GRIS
+                for c0 in (cr.col('PVLpvl'), cr.col('PVLmontant')):
+                    ws_pv.getCellByPosition(c0, r0).CellBackColor = GRIS
                 if is_portefeuille:
-                    ws_pv.getCellByPosition(uno_col(PvCol.MONTANT_INIT), r0).CellBackColor = GRIS
-                    ws_pv.getCellByPosition(uno_col(PvCol.SIGMA), r0).CellBackColor = GRIS
+                    ws_pv.getCellByPosition(cr.col('PVLmontant_init'), r0).CellBackColor = GRIS
+                    ws_pv.getCellByPosition(cr.col('PVLsigma'), r0).CellBackColor = GRIS
 
-    def _update_pv_total_portefeuilles(self, ws_pv, total_row, retenu_row=None, devise=None):
+    def _update_pv_total_portefeuilles(self, ws_pv, total_row, retenu_row=None, devise=None, doc=None):
         """Reconstruit les SUMIFS du TOTAL portefeuilles pour toutes les devises présentes.
 
         Scanne les lignes Retenu pour trouver les devises, puis génère :
           SUMIFS(...;"EUR") + SUMIFS(...;"USD")*cours_USD + ...
         Appelé à chaque ajout de portefeuille.
         """
-        from inc_excel_schema import uno_col, uno_row, PvCol
+        from inc_excel_schema import uno_col, uno_row, ColResolver
+        cr = ColResolver.from_uno(doc.document)
 
         # Scanner les devises des lignes Retenu portefeuilles
         # Utiliser total_row comme borne (pas _end_pvl qui peut être stale en batch)
@@ -1072,9 +1078,9 @@ class DevisesMixin:
         pvl_data = (self._start_pvl or 5) + 1
         pvl_scan_end = total_row
         for scan in range(pvl_data, pvl_scan_end):
-            a = ws_pv.getCellByPosition(uno_col(PvCol.SECTION), uno_row(scan)).getString().strip()
-            c = ws_pv.getCellByPosition(uno_col(PvCol.LIGNE), uno_row(scan)).getString().strip()
-            d = ws_pv.getCellByPosition(uno_col(PvCol.DEVISE), uno_row(scan)).getString().strip()
+            a = ws_pv.getCellByPosition(cr.col('PVLsection'), uno_row(scan)).getString().strip()
+            c = ws_pv.getCellByPosition(cr.col('PVLtitre'), uno_row(scan)).getString().strip()
+            d = ws_pv.getCellByPosition(cr.col('PVLdevise'), uno_row(scan)).getString().strip()
             if a == 'portefeuilles' and c == 'Retenu' and d:
                 devises.add(d)
 
@@ -1083,8 +1089,8 @@ class DevisesMixin:
         # Multi-devise ou non-EUR → formule pondérée par devise
         needs_weighted = devises and (len(devises) > 1 or devises != {'EUR'})
 
-        for col in (PvCol.MONTANT_INIT, PvCol.SIGMA, PvCol.SOLDE):
-            cl = chr(ord('A') + uno_col(col))
+        for nr_name in ('PVLmontant_init', 'PVLsigma', 'PVLmontant'):
+            cl = cr.letter(nr_name)
             if needs_weighted:
                 terms = []
                 for dev in sorted(devises):
@@ -1097,20 +1103,21 @@ class DevisesMixin:
                 formula = '=' + '+'.join(terms)
             else:
                 formula = f'=SUMIFS({cl}:{cl};A:A;"portefeuilles";C:C;"Retenu")'
-            ws_pv.getCellByPosition(uno_col(col), uno_row(total_row)).setFormula(formula)
+            ws_pv.getCellByPosition(cr.col(nr_name), uno_row(total_row)).setFormula(formula)
 
-    def _update_pv_bloc_total(self, ws_pv, account_name, total_row):
+    def _update_pv_bloc_total(self, ws_pv, account_name, total_row, doc=None):
         """Reconstruit les formules Total d'un bloc portefeuille si multi-devise.
 
         Scanne les titres (*...*) du bloc pour trouver les devises.
         Mono-devise : SUM(range) — pas de changement.
         Multi-devise : SUMIFS par devise avec conversion cours.
         """
-        from inc_excel_schema import uno_col, uno_row, PvCol, col_letter
+        from inc_excel_schema import uno_col, uno_row
+        cr = ColResolver.from_uno(doc.document)
 
-        col_b = uno_col(PvCol.COMPTE)
-        col_c = uno_col(PvCol.LIGNE)
-        col_d = uno_col(PvCol.DEVISE)
+        col_b = cr.col('PVLcompte')
+        col_c = cr.col('PVLtitre')
+        col_d = cr.col('PVLdevise')
         total_r0 = uno_row(total_row)
 
         # Scanner les titres du bloc (lignes *...* avant Total)
@@ -1132,8 +1139,8 @@ class DevisesMixin:
         first_titre = min(r for rows in devises.values() for r in rows)
         last_titre = max(r for rows in devises.values() for r in rows)
 
-        for col in (PvCol.MONTANT_INIT, PvCol.SIGMA, PvCol.SOLDE):
-            cl = col_letter(col)
+        for nr_name in ('PVLmontant_init', 'PVLsigma', 'PVLmontant'):
+            cl = cr.letter(nr_name)
             terms = []
             for dev in sorted(devises.keys()):
                 term = f'SUMIFS({cl}{first_titre}:{cl}{last_titre};D{first_titre}:D{last_titre};"{dev}")'
@@ -1144,12 +1151,12 @@ class DevisesMixin:
                     else:
                         term = f'SUMIFS({cl}{first_titre}:{cl}{last_titre};D{first_titre}:D{last_titre};"{dev}")'
                 terms.append(term)
-            ws_pv.getCellByPosition(uno_col(col), total_r0).setFormula('=' + '+'.join(terms))
+            ws_pv.getCellByPosition(cr.col(nr_name), total_r0).setFormula('=' + '+'.join(terms))
 
         # DATE_INIT : MIN de toutes les dates titres
-        cg = col_letter(PvCol.DATE_INIT)
+        cg = cr.letter('PVLdate_init')
         ws_pv.getCellByPosition(
-            uno_col(PvCol.DATE_INIT), total_r0).setFormula(
+            cr.col('PVLdate_init'), total_r0).setFormula(
             f'=MIN({cg}{first_titre}:{cg}{last_titre})')
 
     def _create_pv_simple_line(self, ws_pv, doc, acct, total_label):
@@ -1158,7 +1165,8 @@ class DevisesMixin:
         Les TOTALs en pied utilisent SUMIFS → pas besoin d'étendre les formules.
         """
         from inc_uno import copy_row_style
-        from inc_excel_schema import uno_col, uno_row, PvCol, col_letter
+        from inc_excel_schema import uno_col, uno_row
+        cr = ColResolver.from_uno(doc.document)
 
         # Déduire la section depuis le total_label
         section_map = {
@@ -1174,7 +1182,7 @@ class DevisesMixin:
         section_label = self.PV_SECTION_LABELS.get(section)
         last_section_row = None
         for scan in range(200, 0, -1):
-            val_a = ws_pv.getCellByPosition(uno_col(PvCol.SECTION), uno_row(scan)).getString().strip()
+            val_a = ws_pv.getCellByPosition(cr.col('PVLsection'), uno_row(scan)).getString().strip()
             if val_a == section or val_a == section_label:
                 last_section_row = scan
                 break
@@ -1186,7 +1194,7 @@ class DevisesMixin:
                 prev_section = section_order[prev_idx]
                 prev_label = self.PV_SECTION_LABELS.get(prev_section)
                 for scan in range(200, 0, -1):
-                    val_a = ws_pv.getCellByPosition(uno_col(PvCol.SECTION), uno_row(scan)).getString().strip()
+                    val_a = ws_pv.getCellByPosition(cr.col('PVLsection'), uno_row(scan)).getString().strip()
                     if val_a == prev_section or val_a == prev_label:
                         last_section_row = scan
                         break
@@ -1194,7 +1202,7 @@ class DevisesMixin:
                     break
             if not last_section_row:
                 # Template vierge : insérer avant la ligne TOTAL correspondante
-                col_b = uno_col(PvCol.COMPTE)
+                col_b = cr.col('PVLcompte')
                 pvl_data = (self._start_pvl or 5) + 1
             for scan in range(pvl_data, pvl_data + 200):
                 val_b = ws_pv.getCellByPosition(col_b, uno_row(scan)).getString().strip()
@@ -1208,12 +1216,12 @@ class DevisesMixin:
         devise = acct.get('devise') or ''
 
         # Lettres de colonnes via PvCol
-        cB = col_letter(PvCol.COMPTE)
-        cD = col_letter(PvCol.DEVISE)
-        cG = col_letter(PvCol.DATE_INIT)
-        cH = col_letter(PvCol.MONTANT_INIT)
-        cI = col_letter(PvCol.SIGMA)
-        cK = col_letter(PvCol.SOLDE)
+        cB = cr.letter('PVLcompte')
+        cD = cr.letter('PVLdevise')
+        cG = cr.letter('PVLdate_init')
+        cH = cr.letter('PVLmontant_init')
+        cI = cr.letter('PVLsigma')
+        cK = cr.letter('PVLmontant')
 
         # Insérer 1 ligne après la dernière ligne de la section
         insert_row = last_section_row + 1
@@ -1228,19 +1236,19 @@ class DevisesMixin:
         copy_row_style(ws_pv, template_0, r0, col_start=0, col_end=12)
 
         # Remplir
-        ws_pv.getCellByPosition(uno_col(PvCol.SECTION), r0).setString(section)
-        ws_pv.getCellByPosition(uno_col(PvCol.COMPTE), r0).setString(nom)
-        ws_pv.getCellByPosition(uno_col(PvCol.DEVISE), r0).setString(devise)
-        ws_pv.getCellByPosition(uno_col(PvCol.PVL), r0).setFormula(
+        ws_pv.getCellByPosition(cr.col('PVLsection'), r0).setString(section)
+        ws_pv.getCellByPosition(cr.col('PVLcompte'), r0).setString(nom)
+        ws_pv.getCellByPosition(cr.col('PVLdevise'), r0).setString(devise)
+        ws_pv.getCellByPosition(cr.col('PVLpvl'), r0).setFormula(
             f'={cK}{r}-({cH}{r}+{cI}{r})')
-        ws_pv.getCellByPosition(uno_col(PvCol.DATE_INIT), r0).setFormula(
+        ws_pv.getCellByPosition(cr.col('PVLdate_init'), r0).setFormula(
             f'=MINIFS(OPdate;OPcompte;{cB}{r};OPdevise;{cD}{r};OPcatégorie;Solde)')
-        ws_pv.getCellByPosition(uno_col(PvCol.MONTANT_INIT), r0).setValue(0)
-        ws_pv.getCellByPosition(uno_col(PvCol.SIGMA), r0).setFormula(
+        ws_pv.getCellByPosition(cr.col('PVLmontant_init'), r0).setValue(0)
+        ws_pv.getCellByPosition(cr.col('PVLsigma'), r0).setFormula(
             f'=SUMIFS(OPequiv_euro;OPcompte;{cB}{r};OPdevise;{cD}{r};OPcatégorie;"<>"&Spéciale;OPdate;">="&{cG}{r})')
-        ws_pv.getCellByPosition(uno_col(PvCol.DATE_SOLDE), r0).setFormula(
+        ws_pv.getCellByPosition(cr.col('PVLdate'), r0).setFormula(
             f'=SUMIF(AVRintitulé;${cB}{r};AVRdate_solde)')
-        ws_pv.getCellByPosition(uno_col(PvCol.SOLDE), r0).setFormula(
+        ws_pv.getCellByPosition(cr.col('PVLmontant'), r0).setFormula(
             f'=SUMIF(AVRintitulé;${cB}{r};AVRmontant_solde_euro)')
 
         # Formats nombre
@@ -1254,16 +1262,8 @@ class DevisesMixin:
         """
         from contextlib import nullcontext
         from inc_uno import UnoDocument, copy_row_style
-        from inc_excel_schema import uno_row, uno_col, PvCol, col_letter
+        from inc_excel_schema import uno_row, uno_col
         import re
-
-        cB = col_letter(PvCol.COMPTE)
-        cC = col_letter(PvCol.LIGNE)
-        cD = col_letter(PvCol.DEVISE)
-        cG = col_letter(PvCol.DATE_INIT)
-        cH = col_letter(PvCol.MONTANT_INIT)
-        cI = col_letter(PvCol.SIGMA)
-        cK = col_letter(PvCol.SOLDE)
 
         bak_path = self.xlsx_path.with_suffix('.xlsm.bak')
         shutil.copy2(self.xlsx_path, bak_path)
@@ -1271,13 +1271,21 @@ class DevisesMixin:
         owned = doc is None
         ctx = UnoDocument(self.xlsx_path) if owned else nullcontext(doc)
         with ctx as doc:
+            cr = ColResolver.from_uno(doc.document)
+            cB = cr.letter('PVLcompte')
+            cC = cr.letter('PVLtitre')
+            cD = cr.letter('PVLdevise')
+            cG = cr.letter('PVLdate_init')
+            cH = cr.letter('PVLmontant_init')
+            cI = cr.letter('PVLsigma')
+            cK = cr.letter('PVLmontant')
             ws_pv = doc.get_sheet(SHEET_PLUS_VALUE)
 
             # --- Trouver le bloc : header_row et total_row ---
             header_row = None
             total_row = None
-            col_b = uno_col(PvCol.COMPTE)
-            col_c = uno_col(PvCol.LIGNE)
+            col_b = cr.col('PVLcompte')
+            col_c = cr.col('PVLtitre')
             for scan in range(1, 200):
                 val_b = ws_pv.getCellByPosition(col_b, uno_row(scan)).getString().strip()
                 val_c = ws_pv.getCellByPosition(col_c, uno_row(scan)).getString().strip()
@@ -1323,7 +1331,7 @@ class DevisesMixin:
                         break
                 if template_0 is None:
                     pvl_data2 = (self._start_pvl or 5) + 1
-                    col_d = uno_col(PvCol.DEVISE)
+                    col_d = cr.col('PVLdevise')
                     for scan in range(pvl_data2, self._end_pvl + 1):
                         val_c = ws_pv.getCellByPosition(col_c, uno_row(scan)).getString().strip()
                         val_d = ws_pv.getCellByPosition(col_d, uno_row(scan)).getString().strip()
@@ -1335,51 +1343,51 @@ class DevisesMixin:
             copy_row_style(ws_pv, template_0, r0, col_start=0, col_end=12)
 
             # --- Remplir la ligne titre ---
-            ws_pv.getCellByPosition(uno_col(PvCol.SECTION), r0).setString('portefeuilles')
-            ws_pv.getCellByPosition(uno_col(PvCol.COMPTE), r0).setString(account_name)
-            ws_pv.getCellByPosition(uno_col(PvCol.LIGNE), r0).setString(f'*{title_name}*')
-            ws_pv.getCellByPosition(uno_col(PvCol.DEVISE), r0).setString(devise)
-            ws_pv.getCellByPosition(uno_col(PvCol.PVL), r0).setFormula(
+            ws_pv.getCellByPosition(cr.col('PVLsection'), r0).setString('portefeuilles')
+            ws_pv.getCellByPosition(cr.col('PVLcompte'), r0).setString(account_name)
+            ws_pv.getCellByPosition(cr.col('PVLtitre'), r0).setString(f'*{title_name}*')
+            ws_pv.getCellByPosition(cr.col('PVLdevise'), r0).setString(devise)
+            ws_pv.getCellByPosition(cr.col('PVLpvl'), r0).setFormula(
                 f'={cK}{r}-({cH}{r}+{cI}{r})')
 
             # G = date initiale (serial date) ou 0
             if date_init:
                 serial = (date_init - datetime(1899, 12, 30)).days
-                ws_pv.getCellByPosition(uno_col(PvCol.DATE_INIT), r0).setValue(serial)
+                ws_pv.getCellByPosition(cr.col('PVLdate_init'), r0).setValue(serial)
             else:
-                ws_pv.getCellByPosition(uno_col(PvCol.DATE_INIT), r0).setValue(0)
+                ws_pv.getCellByPosition(cr.col('PVLdate_init'), r0).setValue(0)
 
-            ws_pv.getCellByPosition(uno_col(PvCol.MONTANT_INIT), r0).setValue(0)
+            ws_pv.getCellByPosition(cr.col('PVLmontant_init'), r0).setValue(0)
 
             # I = formule SIGMA
             if has_existing:
                 h_src = ws_pv.getCellByPosition(
-                    uno_col(PvCol.SIGMA), uno_row(first_title_row)).getFormula()
+                    cr.col('PVLsigma'), uno_row(first_title_row)).getFormula()
                 h_formula = re.sub(
                     r'(\$?[A-Z]+)' + str(first_title_row) + r'(?!\d)',
                     lambda m: m.group(1) + str(r),
                     h_src)
-                ws_pv.getCellByPosition(uno_col(PvCol.SIGMA), r0).setFormula(h_formula)
+                ws_pv.getCellByPosition(cr.col('PVLsigma'), r0).setFormula(h_formula)
             else:
-                ws_pv.getCellByPosition(uno_col(PvCol.SIGMA), r0).setFormula(
+                ws_pv.getCellByPosition(cr.col('PVLsigma'), r0).setFormula(
                     f'=SUMIFS(OPmontant;OPcompte;${cB}{r};OPdevise;${cD}{r}'
                     f';OPcatégorie;"<>"&Spéciale'
                     f';OPlibellé;${cC}{r};OPdate;">="&${cG}{r})')
 
-            ws_pv.getCellByPosition(uno_col(PvCol.DATE_SOLDE), r0).setValue(0)
-            ws_pv.getCellByPosition(uno_col(PvCol.SOLDE), r0).setValue(0)
+            ws_pv.getCellByPosition(cr.col('PVLdate'), r0).setValue(0)
+            ws_pv.getCellByPosition(cr.col('PVLmontant'), r0).setValue(0)
 
             # --- Mettre à jour les formules Total ---
             total_r0 = uno_row(new_total_row)
 
             if has_existing:
                 for pv_col, func in [
-                    (PvCol.DATE_INIT, 'MIN'),
-                    (PvCol.MONTANT_INIT, 'SUM'),
-                    (PvCol.SIGMA, 'SUM'),
-                    (PvCol.SOLDE, 'SUM'),
+                    ('PVLdate_init', 'MIN'),
+                    ('PVLmontant_init', 'SUM'),
+                    ('PVLsigma', 'SUM'),
+                    ('PVLmontant', 'SUM'),
                 ]:
-                    ci = uno_col(pv_col)
+                    ci = cr.col(pv_col)
                     formula = ws_pv.getCellByPosition(ci, total_r0).getFormula()
                     # Pattern 1 : range
                     m = re.match(
@@ -1398,19 +1406,19 @@ class DevisesMixin:
                         ws_pv.getCellByPosition(ci, total_r0).setFormula(new_f)
             else:
                 # Premier titre : créer les formules du Total
-                ws_pv.getCellByPosition(uno_col(PvCol.DATE_INIT), total_r0).setFormula(
+                ws_pv.getCellByPosition(cr.col('PVLdate_init'), total_r0).setFormula(
                     f'=MIN({cG}{r}:{cG}{r})')
-                ws_pv.getCellByPosition(uno_col(PvCol.MONTANT_INIT), total_r0).setFormula(
+                ws_pv.getCellByPosition(cr.col('PVLmontant_init'), total_r0).setFormula(
                     f'=SUM({cH}{r}:{cH}{r})')
-                ws_pv.getCellByPosition(uno_col(PvCol.SIGMA), total_r0).setFormula(
+                ws_pv.getCellByPosition(cr.col('PVLsigma'), total_r0).setFormula(
                     f'=SUM({cI}{r}:{cI}{r})')
-                ws_pv.getCellByPosition(uno_col(PvCol.DATE_SOLDE), total_r0).setFormula(
-                    f'={col_letter(PvCol.DATE_SOLDE)}{r}')
-                ws_pv.getCellByPosition(uno_col(PvCol.SOLDE), total_r0).setFormula(
+                ws_pv.getCellByPosition(cr.col('PVLdate'), total_r0).setFormula(
+                    f'={cr.letter("PVLdate")}{r}')
+                ws_pv.getCellByPosition(cr.col('PVLmontant'), total_r0).setFormula(
                     f'=SUM({cK}{r}:{cK}{r})')
 
             # Reconstruire les formules Total du bloc si multi-devise
-            self._update_pv_bloc_total(ws_pv, account_name, new_total_row)
+            self._update_pv_bloc_total(ws_pv, account_name, new_total_row, doc=doc)
 
             # Formats nombre sur la ligne titre
             self._apply_pv_formats(ws_pv, doc, r, devise, section='portefeuilles', count=0)
@@ -1425,11 +1433,12 @@ class DevisesMixin:
         vs ligne simple (métaux/crypto/devises).
         Les TOTALs en pied utilisent SUMIFS → pas besoin de les mettre à jour.
         """
-        from inc_excel_schema import uno_row, uno_col, PvCol
+        from inc_excel_schema import uno_row, uno_col, ColResolver
+        cr = ColResolver.from_uno(doc.document)
 
         deleted_set = set(deleted_names)
-        col_b = uno_col(PvCol.COMPTE)
-        col_c = uno_col(PvCol.LIGNE)
+        col_b = cr.col('PVLcompte')
+        col_c = cr.col('PVLtitre')
 
         for name in list(deleted_set):
             # Scanner toute la feuille pour trouver la première occurrence col B (Compte)
@@ -1453,7 +1462,7 @@ class DevisesMixin:
                     # Vérifier si c'est un spacer structurel (avant section header,
                     # TOTAL, ou END marker ✓ qui est sur col A)
                     next_a = ws_pv.getCellByPosition(
-                        uno_col(PvCol.SECTION), uno_row(scan + 1)).getString().strip()
+                        cr.col('PVLsection'), uno_row(scan + 1)).getString().strip()
                     next_b = ws_pv.getCellByPosition(
                         col_b, uno_row(scan + 1)).getString().strip()
                     if (next_a.startswith('Les ') or 'TOTAL' in next_b.upper()
@@ -1471,7 +1480,7 @@ class DevisesMixin:
             ws_pv.Rows.removeByIndex(uno_row(first_row), count)
 
         # Nettoyer les doubles spacers (2 lignes vides consécutives après un header section)
-        col_a = uno_col(PvCol.SECTION)
+        col_a = cr.col('PVLsection')
         for scan in range(200, 5, -1):
             a2 = ws_pv.getCellByPosition(col_a, uno_row(scan - 2)).getString().strip()
             if not a2.startswith('Les '):
@@ -1504,16 +1513,16 @@ class DevisesMixin:
         return len(rows_to_del)
 
     @staticmethod
-    def _cleanup_model_rows_ops(ws_ops):
+    def _cleanup_model_rows_ops(ws_ops, cr=None):
         """Supprime les model rows vides dans Opérations."""
-        from inc_excel_schema import uno_row, uno_col, OpCol
+        from inc_excel_schema import uno_row, uno_col
         cursor = ws_ops.createCursor()
         cursor.gotoEndOfUsedArea(True)
         last_0 = cursor.getRangeAddress().EndRow
         rows_to_del = []
         for r0 in range(4, last_0 + 1):  # row 5 = 0-indexed 4, skip model_head
-            date_val = ws_ops.getCellByPosition(uno_col(OpCol.DATE), r0).getString().strip()
-            compte_val = ws_ops.getCellByPosition(uno_col(OpCol.COMPTE), r0).getString().strip()
+            date_val = ws_ops.getCellByPosition(cr.col('OPdate'), r0).getString().strip()
+            compte_val = ws_ops.getCellByPosition(cr.col('OPcompte'), r0).getString().strip()
             if not date_val and not compte_val:
                 rows_to_del.append(r0)
         for r0 in reversed(rows_to_del):
@@ -1527,7 +1536,7 @@ class DevisesMixin:
         """
         from contextlib import nullcontext
         from inc_uno import UnoDocument, copy_row_style, get_named_range_pos
-        from inc_excel_schema import uno_col, uno_row, col_letter, OpCol
+        from inc_excel_schema import uno_col, uno_row
 
         # Backup
         bak_path = self.xlsx_path.with_suffix('.xlsm.bak')
@@ -1536,6 +1545,7 @@ class DevisesMixin:
         owned = doc is None
         ctx = UnoDocument(self.xlsx_path) if owned else nullcontext(doc)
         with ctx as doc:
+            cr = ColResolver.from_uno(doc.document)
             ws = doc.get_sheet(SHEET_AVOIRS)
             ws_ctrl = doc.get_sheet(SHEET_CONTROLES)
             ws_ops = doc.get_sheet(SHEET_OPERATIONS)
@@ -1550,7 +1560,7 @@ class DevisesMixin:
                 deleted_set = set(self._deleted_accounts)
                 av_rows_to_delete = []
                 for row_idx in range(avr_data, total_row or self._end_avr + 1):
-                    val = ws.getCellByPosition(uno_col(AvCol.INTITULE), uno_row(row_idx)).getString()
+                    val = ws.getCellByPosition(cr.col('AVRintitulé'), uno_row(row_idx)).getString()
                     if val and val.strip() in deleted_set:
                         av_rows_to_delete.append(row_idx)
                 # Supprimer en ordre inverse (indices hauts restent valides)
@@ -1570,10 +1580,10 @@ class DevisesMixin:
                 if r is None or acct.get('_is_new'):
                     continue
                 r0 = uno_row(r)
-                ws.getCellByPosition(uno_col(AvCol.DOMICILIATION), r0).setString(acct.get('domiciliation') or '')
-                ws.getCellByPosition(uno_col(AvCol.SOUS_TYPE), r0).setString(acct.get('sous_type') or '')
-                ws.getCellByPosition(uno_col(AvCol.TITULAIRE), r0).setString(acct.get('titulaire') or '')
-                ws.getCellByPosition(uno_col(AvCol.PROPRIETE), r0).setString(acct.get('propriete') or '')
+                ws.getCellByPosition(cr.col('AVRdomiciliation'), r0).setString(acct.get('domiciliation') or '')
+                ws.getCellByPosition(cr.col('AVRsous_type'), r0).setString(acct.get('sous_type') or '')
+                ws.getCellByPosition(cr.col('AVRtitulaire'), r0).setString(acct.get('titulaire') or '')
+                ws.getCellByPosition(cr.col('AVRpropriete'), r0).setString(acct.get('propriete') or '')
 
             # --- Avoirs : insérer les nouveaux comptes dans le bloc Type correspondant ---
             new_accounts = [a for a in self.accounts_data if a.get('row') is None]
@@ -1588,8 +1598,8 @@ class DevisesMixin:
                     block_last = None
                     first_empty_or_clos = None
                     for row_idx in range(avr_data, total_row):
-                        val_a = ws.getCellByPosition(uno_col(AvCol.INTITULE), uno_row(row_idx)).getString().strip()
-                        val_b = ws.getCellByPosition(uno_col(AvCol.TYPE), uno_row(row_idx)).getString().strip()
+                        val_a = ws.getCellByPosition(cr.col('AVRintitulé'), uno_row(row_idx)).getString().strip()
+                        val_b = ws.getCellByPosition(cr.col('AVRtype'), uno_row(row_idx)).getString().strip()
                         if val_b == target_type:
                             block_last = row_idx
                         if (not val_a or val_b == 'Clos') and first_empty_or_clos is None:
@@ -1625,24 +1635,24 @@ class DevisesMixin:
                     copy_row_style(ws, template_row_0, r0, col_start=0, col_end=12)
 
                     # Écrire les données
-                    ws.getCellByPosition(uno_col(AvCol.INTITULE), r0).setString(acct['intitule'])
-                    ws.getCellByPosition(uno_col(AvCol.TYPE), r0).setString(acct['type'])
-                    ws.getCellByPosition(uno_col(AvCol.DOMICILIATION), r0).setString(acct.get('domiciliation') or '')
-                    ws.getCellByPosition(uno_col(AvCol.SOUS_TYPE), r0).setString(acct.get('sous_type') or '')
-                    ws.getCellByPosition(uno_col(AvCol.DEVISE), r0).setString(acct.get('devise') or '')
-                    ws.getCellByPosition(uno_col(AvCol.TITULAIRE), r0).setString(acct.get('titulaire') or '')
-                    ws.getCellByPosition(uno_col(AvCol.PROPRIETE), r0).setString(acct.get('propriete') or '')
+                    ws.getCellByPosition(cr.col('AVRintitulé'), r0).setString(acct['intitule'])
+                    ws.getCellByPosition(cr.col('AVRtype'), r0).setString(acct['type'])
+                    ws.getCellByPosition(cr.col('AVRdomiciliation'), r0).setString(acct.get('domiciliation') or '')
+                    ws.getCellByPosition(cr.col('AVRsous_type'), r0).setString(acct.get('sous_type') or '')
+                    ws.getCellByPosition(cr.col('AVRdevise'), r0).setString(acct.get('devise') or '')
+                    ws.getCellByPosition(cr.col('AVRtitulaire'), r0).setString(acct.get('titulaire') or '')
+                    ws.getCellByPosition(cr.col('AVRpropriete'), r0).setString(acct.get('propriete') or '')
                     # DATE_ANTER et MONTANT_ANTER
                     if acct.get('date_anter'):
                         from datetime import datetime
                         epoch = datetime(1899, 12, 30)
                         serial = (acct['date_anter'] - epoch).days
-                        cell_h = ws.getCellByPosition(uno_col(AvCol.DATE_ANTER), r0)
+                        cell_h = ws.getCellByPosition(cr.col('AVRdate_anter'), r0)
                         cell_h.setValue(serial)
                         cell_h.NumberFormat = doc.register_number_format('DD/MM/YYYY')
                     if acct.get('montant_anter') is not None:
                         from inc_formats import FORMAT_EUR
-                        cell_i = ws.getCellByPosition(uno_col(AvCol.MONTANT_ANTER), r0)
+                        cell_i = ws.getCellByPosition(cr.col('AVRmontant_anter'), r0)
                         cell_i.setValue(acct['montant_anter'])
                         cell_i.NumberFormat = doc.register_number_format(FORMAT_EUR)
 
@@ -1650,45 +1660,45 @@ class DevisesMixin:
                     devise = acct['devise']
                     acct_type = acct['type']
                     if acct_type == 'Portefeuilles':
-                        ws.getCellByPosition(uno_col(AvCol.DATE_SOLDE), r0).setFormula(
+                        ws.getCellByPosition(cr.col('AVRdate_solde'), r0).setFormula(
                             f'=SUMIFS(PVLdate;PVLcompte;$A{r};PVLtitre;Retenu)')
-                        ws.getCellByPosition(uno_col(AvCol.MONTANT_SOLDE), r0).setFormula(
+                        ws.getCellByPosition(cr.col('AVRmontant_solde'), r0).setFormula(
                             f'=SUMIFS(PVLmontant;PVLcompte;$A{r};PVLtitre;Retenu)')
                     elif acct_type == 'Biens matériels' and not devise:
                         # Bien matériel sans devise (immobilier, véhicules) : montant statique
                         montant = acct.get('montant_debut')
                         if montant is not None:
-                            ws.getCellByPosition(uno_col(AvCol.MONTANT_SOLDE), r0).setValue(float(montant))
+                            ws.getCellByPosition(cr.col('AVRmontant_solde'), r0).setValue(float(montant))
                     elif devise:
-                        ws.getCellByPosition(uno_col(AvCol.DATE_SOLDE), r0).setFormula(
+                        ws.getCellByPosition(cr.col('AVRdate_solde'), r0).setFormula(
                             f'=MAXIFS(OPdate;OPcompte;$A{r};OPdevise;$E{r};OPcatégorie;Solde)')
-                        ws.getCellByPosition(uno_col(AvCol.MONTANT_SOLDE), r0).setFormula(
+                        ws.getCellByPosition(cr.col('AVRmontant_solde'), r0).setFormula(
                             f'=SUMIFS(OPmontant;OPcompte;$A{r};OPdevise;$E{r};OPcatégorie;Solde;OPdate;$J{r})')
 
                     cours = self.cours_name(devise)
                     if cours:
-                        ws.getCellByPosition(uno_col(AvCol.FORMULE_L), r0).setFormula(f'=K{r}*{cours}')
+                        ws.getCellByPosition(cr.col('AVRmontant_solde_euro'), r0).setFormula(f'=K{r}*{cours}')
                     elif devise in ('EUR', None, ''):
-                        ws.getCellByPosition(uno_col(AvCol.FORMULE_L), r0).setFormula(f'=K{r}')
+                        ws.getCellByPosition(cr.col('AVRmontant_solde_euro'), r0).setFormula(f'=K{r}')
 
                     # Format date sur J
-                    j_cell = ws.getCellByPosition(uno_col(AvCol.DATE_SOLDE), r0)
+                    j_cell = ws.getCellByPosition(cr.col('AVRdate_solde'), r0)
                     j_cell.NumberFormat = doc.register_number_format('DD/MM/YY')
 
                     # Format nombre sur K si devise spécifique
                     k_fmt_str = self.AVOIRS_K_FORMATS.get(devise)
                     if k_fmt_str:
-                        k_cell = ws.getCellByPosition(uno_col(AvCol.MONTANT_SOLDE), r0)
+                        k_cell = ws.getCellByPosition(cr.col('AVRmontant_solde'), r0)
                         k_cell.NumberFormat = doc.register_number_format(k_fmt_str)
 
                     # Format EUR sur L (Equiv EUR)
                     from inc_formats import FORMAT_EUR
-                    l_cell = ws.getCellByPosition(uno_col(AvCol.FORMULE_L), r0)
+                    l_cell = ws.getCellByPosition(cr.col('AVRmontant_solde_euro'), r0)
                     l_cell.NumberFormat = doc.register_number_format(FORMAT_EUR)
                     # Fond gris pour non-EUR (devise E + montant K)
                     if devise and devise not in ('EUR', ''):
-                        ws.getCellByPosition(uno_col(AvCol.DEVISE), r0).CellBackColor = 0xDCDCDC
-                        ws.getCellByPosition(uno_col(AvCol.MONTANT_SOLDE), r0).CellBackColor = 0xDCDCDC
+                        ws.getCellByPosition(cr.col('AVRdevise'), r0).CellBackColor = 0xDCDCDC
+                        ws.getCellByPosition(cr.col('AVRmontant_solde'), r0).CellBackColor = 0xDCDCDC
 
             # (recalibration AVR* + START/END_AVR déplacée après cleanup model rows)
 
@@ -1699,10 +1709,10 @@ class DevisesMixin:
                 ws_ctrl.Rows.removeByIndex(uno_row(row_idx), 1)
             # Ajuster ctrl_row pour les display_accounts restants
             for entry in self.display_accounts:
-                cr = entry.get('ctrl_row')
-                if cr is not None:
-                    shift = sum(1 for d in ctrl_rows_to_delete if d < cr)
-                    entry['ctrl_row'] = cr - shift
+                crow = entry.get('ctrl_row')
+                if crow is not None:
+                    shift = sum(1 for d in ctrl_rows_to_delete if d < crow)
+                    entry['ctrl_row'] = crow - shift
 
             # --- Contrôles : mettre à jour formules + flags contrôle ---
             for entry in self.display_accounts:
@@ -1713,10 +1723,10 @@ class DevisesMixin:
                 new_avoirs_row = avoirs_acct.get('row')
                 if new_avoirs_row:
                     ws_ctrl.getCellByPosition(
-                        uno_col(CtrlCol.COMPTE), uno_row(ctrl_row)
+                        cr.col('CTRL1compte'), uno_row(ctrl_row)
                     ).setFormula(f'=Avoirs.A{new_avoirs_row}')
                 ws_ctrl.getCellByPosition(
-                    uno_col(CtrlCol.CONTROLE_FLAG), uno_row(ctrl_row)
+                    cr.col('CTRL1controle'), uno_row(ctrl_row)
                 ).setString('Oui' if entry['controle'] else 'Non')
 
             # --- Contrôles : créer les lignes manquantes pour nouveaux comptes ---
@@ -1750,51 +1760,51 @@ class DevisesMixin:
 
                 # Formules nouveau modèle : ancrage min + relevé max via XLOOKUP
                 # Tolère 0..N #Solde, doublons même date résolus déterministiquement
-                ws_ctrl.getCellByPosition(uno_col(CtrlCol.COMPTE), r0).setFormula(
+                ws_ctrl.getCellByPosition(cr.col('CTRL1compte'), r0).setFormula(
                     f'=Avoirs.A{avoirs_row}')
                 if devise:
-                    ws_ctrl.getCellByPosition(uno_col(CtrlCol.DEVISE), r0).setString(devise)
+                    ws_ctrl.getCellByPosition(cr.col('CTRL1devise'), r0).setString(devise)
                 # Col C = date ancrage : MINIFS si >=2 #Solde, sinon 0 (epoch)
-                ws_ctrl.getCellByPosition(uno_col(CtrlCol.DATE_ANCRAGE), r0).setFormula(
+                ws_ctrl.getCellByPosition(cr.col('CTRL1date_ancrage'), r0).setFormula(
                     f'=IF(COUNTIFS(OPcompte;$A{r};OPdevise;$B{r};OPcatégorie;Solde)>=2;'
                     f'MINIFS(OPdate;OPcompte;$A{r};OPdevise;$B{r};OPcatégorie;Solde);0)')
                 # Col D = date relevé : MAXIFS sur les #Solde
-                ws_ctrl.getCellByPosition(uno_col(CtrlCol.DATE_RELEVE), r0).setFormula(
+                ws_ctrl.getCellByPosition(cr.col('CTRL1date_releve'), r0).setFormula(
                     f'=MAXIFS(OPdate;OPcompte;$A{r};OPdevise;$B{r};OPcatégorie;Solde)')
                 # Col E = montant ancrage : XLOOKUP first occurrence à date C, 0 si C=0
-                ws_ctrl.getCellByPosition(uno_col(CtrlCol.MONTANT_ANCRAGE), r0).setFormula(
+                ws_ctrl.getCellByPosition(cr.col('CTRL1montant_ancrage'), r0).setFormula(
                     f'=IF($C{r}=0;0;'
                     f'XLOOKUP(1;(OPcompte=$A{r})*(OPdevise=$B{r})*(OPcatégorie=Solde)*(OPdate=$C{r});'
                     f'OPmontant;0;0;1))')
                 # Col F = solde calculé : montant_ancrage + flux entre C (excl) et D (incl)
-                ws_ctrl.getCellByPosition(uno_col(CtrlCol.SOLDE_CALC), r0).setFormula(
+                ws_ctrl.getCellByPosition(cr.col('CTRL1solde_calc'), r0).setFormula(
                     f'=$E{r}+SUMIFS(OPmontant;OPcompte;$A{r};OPdevise;$B{r};'
                     f'OPdate;">"&$C{r};OPdate;"<="&$D{r};'
                     f'OPcatégorie;"<>Solde";OPcatégorie;"<>"&Spéciale)')
                 # Col G = montant relevé : XLOOKUP last occurrence à date D
-                ws_ctrl.getCellByPosition(uno_col(CtrlCol.MONTANT_RELEVE), r0).setFormula(
+                ws_ctrl.getCellByPosition(cr.col('CTRL1montant_releve'), r0).setFormula(
                     f'=XLOOKUP(1;(OPcompte=$A{r})*(OPdevise=$B{r})*(OPcatégorie=Solde)*(OPdate=$D{r});'
                     f'OPmontant;0;0;-1)')
                 # Col H = écart : relevé - calculé, tolérance 1 centime
-                ws_ctrl.getCellByPosition(uno_col(CtrlCol.ECART), r0).setFormula(
+                ws_ctrl.getCellByPosition(cr.col('CTRL1ecart'), r0).setFormula(
                     f'=IF(ABS($G{r}-$F{r})<0.015;0;ROUND($G{r}-$F{r};2))')
                 # Col I = Oui/Non
-                ws_ctrl.getCellByPosition(uno_col(CtrlCol.CONTROLE_FLAG), r0).setString(
+                ws_ctrl.getCellByPosition(cr.col('CTRL1controle'), r0).setString(
                     'Oui' if entry['controle'] else 'Non')
 
                 # Format nombre sur E/F/G/H si devise spécifique
                 k_fmt_str = self.AVOIRS_K_FORMATS.get(devise)
                 if k_fmt_str:
                     fmt_key = doc.register_number_format(k_fmt_str)
-                    for c in (uno_col(CtrlCol.MONTANT_ANCRAGE), uno_col(CtrlCol.SOLDE_CALC),
-                              uno_col(CtrlCol.MONTANT_RELEVE), uno_col(CtrlCol.ECART)):
+                    for c in (cr.col('CTRL1montant_ancrage'), cr.col('CTRL1solde_calc'),
+                              cr.col('CTRL1montant_releve'), cr.col('CTRL1ecart')):
                         ws_ctrl.getCellByPosition(c, r0).NumberFormat = fmt_key
                 # GRIS pour non-EUR ; blanc explicite pour EUR
                 # (insertByIndex peut propager le GRIS d'une ligne voisine non-EUR ;
                 # transparent -1 prendrait la couleur du thème = noir en mode sombre)
                 bg_color = 0xDCDCDC if (devise and devise not in ('EUR', '')) else 0xFFFFFF
-                for c in (uno_col(CtrlCol.MONTANT_ANCRAGE), uno_col(CtrlCol.SOLDE_CALC),
-                          uno_col(CtrlCol.MONTANT_RELEVE), uno_col(CtrlCol.ECART)):
+                for c in (cr.col('CTRL1montant_ancrage'), cr.col('CTRL1solde_calc'),
+                          cr.col('CTRL1montant_releve'), cr.col('CTRL1ecart')):
                     ws_ctrl.getCellByPosition(c, r0).CellBackColor = bg_color
 
                 entry['ctrl_row'] = r
@@ -1823,7 +1833,7 @@ class DevisesMixin:
                     code = ws_ctrl.getCellByPosition(col_0, h0_row_0).getString().strip()
                     if not code:
                         break
-                    cl = col_letter(col_0 + 1)  # 1-indexed → lettre
+                    cl = ColResolver._idx_to_letter(col_0 + 1)  # 1-indexed → lettre
                     # h+2 : COMPTES
                     ws_ctrl.getCellByPosition(col_0, h2_row_0).setFormula(
                         f'=COUNTIFS($B{f}:$B{l};{cl}${h1};$I{f}:$I{l};"Oui")'
@@ -1837,15 +1847,15 @@ class DevisesMixin:
             ws_pv = doc.get_sheet(SHEET_PLUS_VALUE) if need_pv else None
 
             if self._deleted_accounts and ws_pv:
-                from inc_excel_schema import PvCol
+                pass  # PvCol removed — using cr.col() instead
                 self._delete_pv_entries(ws_pv, self._deleted_accounts)
                 # Reconstruire la formule TOTAL portefeuilles (peut redevenir générique)
                 pvl_data = (self._start_pvl or 5) + 1
                 for scan in range(pvl_data, pvl_data + 300):
                     val_a = ws_pv.getCellByPosition(
-                        uno_col(PvCol.SECTION), uno_row(scan)).getString().strip()
+                        cr.col('PVLsection'), uno_row(scan)).getString().strip()
                     if 'TOTAL portefeuilles' in val_a:
-                        self._update_pv_total_portefeuilles(ws_pv, scan)
+                        self._update_pv_total_portefeuilles(ws_pv, scan, doc=doc)
                         break
 
             if new_pv_accounts and ws_pv:
@@ -1883,16 +1893,16 @@ class DevisesMixin:
                 cursor.gotoEndOfUsedArea(True)
                 last_row_0 = cursor.getRangeAddress().EndRow
                 for row_0 in range(2, last_row_0 + 1):
-                    compte = ws_ops.getCellByPosition(uno_col(OpCol.COMPTE), row_0).getString()
+                    compte = ws_ops.getCellByPosition(cr.col('OPcompte'), row_0).getString()
                     if not compte or compte.strip() not in deleted_set:
                         continue
                     name = compte.strip()
                     if name in rehouse_set:
                         # Ops appariées → reloger dans "Compte clos"
-                        ref = ws_ops.getCellByPosition(uno_col(OpCol.REF), row_0).getString().strip()
-                        cat = ws_ops.getCellByPosition(uno_col(OpCol.CATEGORIE), row_0).getString().strip()
+                        ref = ws_ops.getCellByPosition(cr.col('OPréf'), row_0).getString().strip()
+                        cat = ws_ops.getCellByPosition(cr.col('OPcatégorie'), row_0).getString().strip()
                         if ref and ref != '-' and not cat.startswith('#'):
-                            ws_ops.getCellByPosition(uno_col(OpCol.COMPTE), row_0).setString(COMPTE_CLOS)
+                            ws_ops.getCellByPosition(cr.col('OPcompte'), row_0).setString(COMPTE_CLOS)
                             continue
                     rows_to_delete.append(row_0)
                 # Supprimer en ordre inverse
@@ -1955,7 +1965,7 @@ class DevisesMixin:
                 # SUM couvre les 2 model rows START_AVR..END_AVR (inclus)
                 # pour éviter le collapse à SUM(L5) quand toutes les data sont supprimées
                 ws.getCellByPosition(
-                    uno_col(AvCol.FORMULE_L), uno_row(total_row)
+                    cr.col('AVRmontant_solde_euro'), uno_row(total_row)
                 ).setFormula(f'=ROUND(SUM(L{avr_first}:L{last_data});2)')
                 # Recaler AVR* + START/END_AVR (incluant model rows)
                 avr_names = {
@@ -1985,7 +1995,7 @@ class DevisesMixin:
 
             # Recaler PVL* + START/END_PVL
             if new_accounts or had_deletions:
-                from inc_excel_schema import PvCol
+                pass  # PvCol removed — using cr.col() instead
                 ws_pv = doc.get_sheet(SHEET_PLUS_VALUE)
                 # Lire START/END_PVL depuis les named ranges UNO (ajustés par insertByIndex)
                 from inc_uno import get_named_range_pos, get_table_bounds_uno
@@ -2017,7 +2027,7 @@ class DevisesMixin:
                             f"{label} row {row}: '{cell_val}' (attendu: '✓')"
 
             if new_ops_accounts:
-                self._cleanup_model_rows_ops(ws_ops)
+                self._cleanup_model_rows_ops(ws_ops, cr=cr)
 
             # Patrimoine : insérer les lignes manquantes
             self._sync_patrimoine(doc)
