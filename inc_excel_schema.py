@@ -400,6 +400,22 @@ class ColResolver:
         """
         return self._rows.get(name, (None, None))
 
+    def refresh(self, xdoc=None, wb=None):
+        """Reconstruit le cache après modifications structurelles (insertion/suppression colonnes).
+
+        Appeler après des opérations qui changent les colonnes (ex: phase_clean_budget).
+        Passer xdoc (UNO) ou wb (openpyxl) selon le contexte.
+        """
+        if xdoc:
+            fresh = ColResolver.from_uno(xdoc)
+        elif wb:
+            fresh = ColResolver.from_openpyxl(wb)
+        else:
+            return
+        self._cols = fresh._cols
+        self._letters = fresh._letters
+        self._rows = fresh._rows
+
     @staticmethod
     def _idx_to_letter(n):
         """Convertit un index 1-indexed en lettre (1→A, 26→Z, 27→AA)."""
