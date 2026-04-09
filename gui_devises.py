@@ -1424,14 +1424,14 @@ class DevisesMixin:
             if owned:
                 self._uno_finalize(doc)
 
-    def _delete_pv_entries(self, ws_pv, deleted_names):
+    def _delete_pv_entries(self, ws_pv, deleted_names, doc=None):
         """Supprime les entrées Plus_value des comptes supprimés.
 
         Détecte automatiquement bloc multi-lignes (Portefeuille, Assurance-vie...)
         vs ligne simple (métaux/crypto/devises).
         Les TOTALs en pied utilisent SUMIFS → pas besoin de les mettre à jour.
         """
-        from inc_excel_schema import uno_row, uno_col, ColResolver
+        from inc_excel_schema import uno_row, uno_col
         cr = ColResolver.from_uno(doc.document)
 
         deleted_set = set(deleted_names)
@@ -1849,7 +1849,7 @@ class DevisesMixin:
             ws_pv = doc.get_sheet(SHEET_PLUS_VALUE) if need_pv else None
 
             if self._deleted_accounts and ws_pv:
-                self._delete_pv_entries(ws_pv, self._deleted_accounts)
+                self._delete_pv_entries(ws_pv, self._deleted_accounts, doc=doc)
                 # Reconstruire la formule TOTAL portefeuilles (peut redevenir générique)
                 pvl_data = (self._start_pvl or 5) + 1
                 for scan in range(pvl_data, pvl_data + 300):

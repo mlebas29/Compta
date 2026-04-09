@@ -1094,6 +1094,7 @@ class AccountsMixin:
         from inc_excel_schema import (uno_row, uno_col, SHEET_PLUS_VALUE)
 
         with UnoDocument(self.xlsx_path) as doc:
+            cr = ColResolver.from_uno(doc.document)
             # 1. Opérations : supprimer non appariées, reloger appariées → "Compte clos"
             COMPTE_CLOS = 'Compte clos'
             ws_ops = doc.get_sheet(SHEET_OPERATIONS)
@@ -1120,7 +1121,7 @@ class AccountsMixin:
             # 1a. Balai : supprimer les paires entièrement dans "Compte clos"
             swept = 0
             if rehoused > 0:
-                swept = self._sweep_compte_clos_uno(ws_ops)
+                swept = self._sweep_compte_clos_uno(ws_ops, cr=cr)
             self._last_sweep_count = swept
 
             # 1b. Ajouter 2 lignes #Solde (hier + aujourd'hui)
@@ -1171,7 +1172,7 @@ class AccountsMixin:
             if rehoused > 0:
                 total_row = None
                 total_row = (self._end_avr + 1) if self._end_avr else None
-                self._ensure_compte_clos(ws_av, total_row)
+                self._ensure_compte_clos(ws_av, total_row, cr=cr)
 
             self._uno_finalize(doc)
 
@@ -1489,7 +1490,7 @@ class AccountsMixin:
 
     @staticmethod
     @staticmethod
-    def _sweep_compte_clos_uno(ws_ops):
+    def _sweep_compte_clos_uno(ws_ops, cr=None):
         """Supprime les paires où les deux côtés sont dans 'Compte clos'.
 
         Scan toutes les ops : pour chaque ref, si AUCUNE op n'est dans un
@@ -1535,7 +1536,7 @@ class AccountsMixin:
 
         return len(rows_to_delete)
 
-    def _ensure_compte_clos(self, ws_avoirs, total_row):
+    def _ensure_compte_clos(self, ws_avoirs, total_row, cr=None):
         """Crée 'Compte clos' dans Avoirs s'il n'existe pas. Retourne True si créé."""
         from inc_excel_schema import uno_row, uno_col
         COMPTE_CLOS = 'Compte clos'
