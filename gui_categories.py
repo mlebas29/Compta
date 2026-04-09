@@ -9,7 +9,7 @@ import sys
 import tkinter as tk
 
 from inc_excel_schema import (
-    OpCol, col_letter,
+    col_letter,
     SHEET_BUDGET, SHEET_OPERATIONS,
 )
 
@@ -625,10 +625,13 @@ class CategoriesMixin:
             return 0
         wb = openpyxl.load_workbook(self.xlsx_path, read_only=True, data_only=True)
         try:
+            from inc_excel_schema import ColResolver
+            cr_xl = ColResolver.from_openpyxl(wb)
             ws = wb[SHEET_OPERATIONS]
             count = 0
-            for row in ws.iter_rows(min_row=3, max_col=OpCol.CATEGORIE):
-                val = row[OpCol.CATEGORIE - 1].value
+            cat_col = cr_xl.col('OPcatégorie')
+            for row in ws.iter_rows(min_row=3, max_col=cat_col):
+                val = row[cat_col - 1].value
                 if val and str(val).strip() == cat_name:
                     count += 1
             return count
@@ -638,7 +641,7 @@ class CategoriesMixin:
     def _rename_budget_category(self, old_name, new_name):
         """Worker UNO : renomme une catégorie dans Budget (col L) + Opérations (col G)."""
         from inc_uno import UnoDocument
-        from inc_excel_schema import uno_row, uno_col, OpCol
+        from inc_excel_schema import uno_row, uno_col, ColResolver
 
         bak_path = self.xlsx_path.with_suffix('.xlsm.bak')
         shutil.copy2(self.xlsx_path, bak_path)
@@ -648,13 +651,14 @@ class CategoriesMixin:
             raise ValueError(f'Catégorie "{old_name}" introuvable dans budget_cat_rows')
 
         with UnoDocument(self.xlsx_path) as doc:
+            cr = ColResolver.from_uno(doc.document)
             # 1. Budget — colonne catégories
             ws = doc.get_sheet(SHEET_BUDGET)
-            ws.getCellByPosition(uno_col(self.budget_cat_col), uno_row(cat_row)).setString(new_name)
+            ws.getCellByPosition(cr.col('CATnom'), uno_row(cat_row)).setString(new_name)
 
             # 2. Opérations col G — renommer toutes les occurrences
             ws_ops = doc.get_sheet(SHEET_OPERATIONS)
-            col_g = uno_col(OpCol.CATEGORIE)
+            col_g = cr.col('OPcatégorie')
             cursor = ws_ops.createCursor()
             cursor.gotoStartOfUsedArea(False)
             cursor.gotoEndOfUsedArea(True)

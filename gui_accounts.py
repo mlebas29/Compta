@@ -14,7 +14,7 @@ import tkinter as tk
 import unicodedata
 
 from inc_excel_schema import (
-    AvCol, CtrlCol, OpCol, PvCol,
+    ColResolver,
     AV_FIRST_ROW, CTRL_FIRST_ROW,
     SHEET_AVOIRS, SHEET_CONTROLES, SHEET_OPERATIONS, SHEET_PLUS_VALUE,
 )
@@ -873,15 +873,16 @@ class AccountsMixin:
         config_accounts.json : mis à jour (fait dans on_ok avant appel).
         """
         from inc_uno import UnoDocument
-        from inc_excel_schema import uno_row, uno_col, AvCol, CtrlCol, OpCol, PvCol
+        from inc_excel_schema import uno_row, uno_col, ColResolver
 
         bak_path = self.xlsx_path.with_suffix('.xlsm.bak')
         shutil.copy2(self.xlsx_path, bak_path)
 
         with UnoDocument(self.xlsx_path) as doc:
+            cr = ColResolver.from_uno(doc.document)
             # 1. Avoirs col A — trouver et renommer
             ws_av = doc.get_sheet(SHEET_AVOIRS)
-            col_a_av = uno_col(AvCol.INTITULE)
+            col_a_av = cr.col('AVRintitulé')
             avr_data = (self._start_avr or AV_FIRST_ROW) + 1
             for r in range(uno_row(avr_data), uno_row(self._end_avr + 1)):
                 cell = ws_av.getCellByPosition(col_a_av, r)
@@ -895,13 +896,13 @@ class AccountsMixin:
                 if r is None or acct.get('_is_new'):
                     continue
                 r0 = uno_row(r)
-                ws_av.getCellByPosition(uno_col(AvCol.DOMICILIATION), r0).setString(acct.get('domiciliation') or '')
-                ws_av.getCellByPosition(uno_col(AvCol.TITULAIRE), r0).setString(acct.get('titulaire') or '')
-                ws_av.getCellByPosition(uno_col(AvCol.PROPRIETE), r0).setString(acct.get('propriete') or '')
+                ws_av.getCellByPosition(cr.col('AVRdomiciliation'), r0).setString(acct.get('domiciliation') or '')
+                ws_av.getCellByPosition(cr.col('AVRtitulaire'), r0).setString(acct.get('titulaire') or '')
+                ws_av.getCellByPosition(cr.col('AVRpropriete'), r0).setString(acct.get('propriete') or '')
 
             # 3. Opérations col H — renommer toutes les occurrences
             ws_ops = doc.get_sheet(SHEET_OPERATIONS)
-            col_h = uno_col(OpCol.COMPTE)
+            col_h = cr.col('OPcompte')
             cursor = ws_ops.createCursor()
             cursor.gotoStartOfUsedArea(False)
             cursor.gotoEndOfUsedArea(True)
@@ -915,7 +916,7 @@ class AccountsMixin:
 
             # 4. Plus_value col A — renommer toutes les occurrences
             ws_pv = doc.get_sheet(SHEET_PLUS_VALUE)
-            col_a = uno_col(PvCol.COMPTE)
+            col_a = cr.col('PVLcompte')
             cursor_pv = ws_pv.createCursor()
             cursor_pv.gotoStartOfUsedArea(False)
             cursor_pv.gotoEndOfUsedArea(True)
@@ -929,7 +930,7 @@ class AccountsMixin:
 
             # 5. Contrôles col A — texte brut uniquement (formules =Avoirs.A{row} auto-propagées)
             ws_ctrl = doc.get_sheet(SHEET_CONTROLES)
-            col_a_ctrl = uno_col(CtrlCol.COMPTE)
+            col_a_ctrl = cr.col('CTRL1compte')
             ctrl_data = (self._start_ctrl1 or CTRL_FIRST_ROW) + 1
             for r in range(uno_row(ctrl_data), uno_row(self._end_ctrl1 + 1)):
                 cell = ws_ctrl.getCellByPosition(col_a_ctrl, r)
@@ -951,13 +952,14 @@ class AccountsMixin:
         unpaired = 0
         try:
             wb = openpyxl.load_workbook(self.xlsx_path, read_only=True, data_only=True)
+            cr_xl = ColResolver.from_openpyxl(wb)
             ws = wb[SHEET_OPERATIONS]
-            for row in ws.iter_rows(min_row=3, min_col=1, max_col=max(OpCol.COMPTE, OpCol.REF)):
-                compte = row[OpCol.COMPTE - 1].value
+            for row in ws.iter_rows(min_row=3, min_col=1, max_col=max(cr_xl.col('OPcompte'), cr_xl.col('OPréf'))):
+                compte = row[cr_xl.col('OPcompte') - 1].value
                 if not compte or str(compte).strip() != account_name:
                     continue
-                ref = str(row[OpCol.REF - 1].value or '').strip()
-                cat = str(row[OpCol.CATEGORIE - 1].value or '').strip()
+                ref = str(row[cr_xl.col('OPréf') - 1].value or '').strip()
+                cat = str(row[cr_xl.col('OPcatégorie') - 1].value or '').strip()
                 # Appariée = ref non vide, non "-", et catégorie ne commence pas par "#"
                 if ref and ref != '-' and not cat.startswith('#'):
                     paired += 1
@@ -1090,8 +1092,7 @@ class AccountsMixin:
     def _purge_account_uno(self, account_name, titles):
         """Worker UNO : purge les opérations et titres d'un compte."""
         from inc_uno import UnoDocument
-        from inc_excel_schema import (uno_row, uno_col, OpCol, AvCol, PvCol,
-                                      SHEET_PLUS_VALUE)
+        from inc_excel_schema import (uno_row, uno_col, SHEET_PLUS_VALUE)
 
         with UnoDocument(self.xlsx_path) as doc:
             # 1. Opérations : supprimer non appariées, reloger appariées → "Compte clos"
@@ -1104,13 +1105,13 @@ class AccountsMixin:
             rows_to_delete = []
             rehoused = 0
             for row_0 in range(2, last_row_0 + 1):
-                compte = ws_ops.getCellByPosition(uno_col(OpCol.COMPTE), row_0).getString()
+                compte = ws_ops.getCellByPosition(cr.col('OPcompte'), row_0).getString()
                 if not compte or compte.strip() != account_name:
                     continue
-                ref = ws_ops.getCellByPosition(uno_col(OpCol.REF), row_0).getString().strip()
-                cat = ws_ops.getCellByPosition(uno_col(OpCol.CATEGORIE), row_0).getString().strip()
+                ref = ws_ops.getCellByPosition(cr.col('OPréf'), row_0).getString().strip()
+                cat = ws_ops.getCellByPosition(cr.col('OPcatégorie'), row_0).getString().strip()
                 if ref and ref != '-' and not cat.startswith('#'):
-                    ws_ops.getCellByPosition(uno_col(OpCol.COMPTE), row_0).setString(COMPTE_CLOS)
+                    ws_ops.getCellByPosition(cr.col('OPcompte'), row_0).setString(COMPTE_CLOS)
                     rehoused += 1
                 else:
                     rows_to_delete.append(row_0)
@@ -1134,8 +1135,8 @@ class AccountsMixin:
             # 2. Plus_value : supprimer uniquement les titres, garder la structure
             if titles:
                 ws_pv = doc.get_sheet(SHEET_PLUS_VALUE)
-                col_b = uno_col(PvCol.COMPTE)
-                col_c = uno_col(PvCol.LIGNE)
+                col_b = cr.col('PVLcompte')
+                col_c = cr.col('PVLtitre')
                 # Identifier les lignes titres (*nom*) et la ligne Total
                 title_rows = []
                 total_row_pv = None
@@ -1160,9 +1161,9 @@ class AccountsMixin:
                 if total_row_pv is not None:
                     adjusted = total_row_pv - len(title_rows)
                     t0 = uno_row(adjusted)
-                    for pv_c in (PvCol.DATE_INIT, PvCol.MONTANT_INIT,
-                                 PvCol.SIGMA, PvCol.DATE_SOLDE, PvCol.SOLDE):
-                        ws_pv.getCellByPosition(uno_col(pv_c), t0).setValue(0)
+                    for pv_c in ('PVLdate_init', 'PVLmontant_init',
+                                 'PVLsigma', 'PVLdate', 'PVLmontant'):
+                        ws_pv.getCellByPosition(cr.col(pv_c), t0).setValue(0)
 
             # 3. Avoirs : ne pas toucher (les formules J/K se recalculent automatiquement)
 
@@ -1339,7 +1340,8 @@ class AccountsMixin:
         # Garde : vérifier que le solde est à zéro
         wb = openpyxl.load_workbook(self.xlsx_path, data_only=True)
         try:
-            solde = wb[SHEET_PLUS_VALUE].cell(pv_row, PvCol.SOLDE).value
+            from inc_excel_schema import ColResolver as _CR
+            solde = wb[SHEET_PLUS_VALUE].cell(pv_row, _CR.from_openpyxl(wb).col('PVLmontant')).value
         finally:
             wb.close()
         solde_f = float(solde) if solde else 0.0
@@ -1384,7 +1386,7 @@ class AccountsMixin:
 
         with UnoDocument(self.xlsx_path) as doc:
             ws_pv = doc.get_sheet(SHEET_PLUS_VALUE)
-            ws_pv.getCellByPosition(uno_col(PvCol.LIGNE), uno_row(pv_row)).setString(f'*{new_name}*')
+            ws_pv.getCellByPosition(cr.col('PVLtitre'), uno_row(pv_row)).setString(f'*{new_name}*')
             self._uno_finalize(doc)
 
     def _delete_pv_title(self, account_name, title_name, pv_row):
@@ -1395,7 +1397,8 @@ class AccountsMixin:
         - Sinon removeByIndex ajuste automatiquement les SUM/MIN du Total
         """
         from inc_uno import UnoDocument
-        from inc_excel_schema import uno_row, uno_col, PvCol
+        from inc_excel_schema import uno_row, uno_col
+        cr = ColResolver.from_uno(doc.document)
         import re
 
         bak_path = self.xlsx_path.with_suffix('.xlsm.bak')
@@ -1411,7 +1414,7 @@ class AccountsMixin:
             if is_last:
                 # Dernier titre : trouver le Total et mettre ses formules à 0
                 total_row = None
-                col_c = uno_col(PvCol.LIGNE)
+                col_c = cr.col('PVLtitre')
                 for scan in range(pv_row + 1, pv_row + 10):
                     val_c = ws_pv.getCellByPosition(col_c, uno_row(scan)).getString().strip()
                     if val_c == 'Total':
@@ -1421,8 +1424,8 @@ class AccountsMixin:
                 if total_row:
                     # Total a décalé de -1
                     total_r0 = uno_row(total_row - 1)
-                    for pv_c in (PvCol.DATE_INIT, PvCol.MONTANT_INIT,
-                                 PvCol.SIGMA, PvCol.DATE_SOLDE, PvCol.SOLDE):
+                    for pv_c in ('PVLdate_init', 'PVLmontant_init',
+                                 'PVLsigma', 'PVLdate', 'PVLmontant'):
                         ws_pv.getCellByPosition(uno_col(pv_c), total_r0).setValue(0)
             else:
                 # Pas le dernier : removeByIndex ajuste auto les SUM
@@ -1444,7 +1447,7 @@ class AccountsMixin:
         if montant_debut is None:
             return  # Pas de valeur initiale → aucun #Solde
 
-        from inc_excel_schema import uno_col, uno_row, OpCol
+        from inc_excel_schema import uno_col, uno_row
         from inc_uno import copy_row_style
         from datetime import datetime
 
@@ -1470,20 +1473,20 @@ class AccountsMixin:
 
         serial = (date_debut - epoch).days
         copy_row_style(ws_ops, template_ops_0, ops_next_0, col_start=0, col_end=9)
-        ws_ops.getCellByPosition(uno_col(OpCol.DATE), ops_next_0).setValue(serial)
-        ws_ops.getCellByPosition(uno_col(OpCol.LABEL), ops_next_0).setString('Relevé compte')
-        c_cell = ws_ops.getCellByPosition(uno_col(OpCol.MONTANT), ops_next_0)
+        ws_ops.getCellByPosition(cr.col('OPdate'), ops_next_0).setValue(serial)
+        ws_ops.getCellByPosition(cr.col('OPlibellé'), ops_next_0).setString('Relevé compte')
+        c_cell = ws_ops.getCellByPosition(cr.col('OPmontant'), ops_next_0)
         c_cell.setValue(montant_debut)
         if fmt_devise is not None:
             c_cell.NumberFormat = fmt_devise
         if fmt_eur is not None:
-            ws_ops.getCellByPosition(uno_col(OpCol.EQUIV), ops_next_0).NumberFormat = fmt_eur
-        ws_ops.getCellByPosition(uno_col(OpCol.DEVISE), ops_next_0).setString(devise or '')
-        ws_ops.getCellByPosition(uno_col(OpCol.CATEGORIE), ops_next_0).setString('#Solde')
-        ws_ops.getCellByPosition(uno_col(OpCol.COMPTE), ops_next_0).setString(account_name)
+            ws_ops.getCellByPosition(cr.col('OPequiv_euro'), ops_next_0).NumberFormat = fmt_eur
+        ws_ops.getCellByPosition(cr.col('OPdevise'), ops_next_0).setString(devise or '')
+        ws_ops.getCellByPosition(cr.col('OPcatégorie'), ops_next_0).setString('#Solde')
+        ws_ops.getCellByPosition(cr.col('OPcompte'), ops_next_0).setString(account_name)
         if is_non_eur:
             c_cell.CellBackColor = GRIS
-            ws_ops.getCellByPosition(uno_col(OpCol.DEVISE), ops_next_0).CellBackColor = GRIS
+            ws_ops.getCellByPosition(cr.col('OPdevise'), ops_next_0).CellBackColor = GRIS
 
     @staticmethod
     @staticmethod
@@ -1497,7 +1500,7 @@ class AccountsMixin:
         Returns:
             int: nombre de lignes supprimées
         """
-        from inc_excel_schema import uno_col, OpCol
+        from inc_excel_schema import uno_col
         COMPTE_CLOS = 'Compte clos'
 
         cursor = ws_ops.createCursor()
@@ -1510,13 +1513,13 @@ class AccountsMixin:
         active_refs = set()  # refs présentes dans un compte actif
 
         for row_0 in range(2, last_row_0 + 1):
-            ref = ws_ops.getCellByPosition(uno_col(OpCol.REF), row_0).getString().strip()
+            ref = ws_ops.getCellByPosition(cr.col('OPréf'), row_0).getString().strip()
             if not ref or ref == '-':
                 continue
-            cat = ws_ops.getCellByPosition(uno_col(OpCol.CATEGORIE), row_0).getString().strip()
+            cat = ws_ops.getCellByPosition(cr.col('OPcatégorie'), row_0).getString().strip()
             if cat.startswith('#'):
                 continue
-            compte = ws_ops.getCellByPosition(uno_col(OpCol.COMPTE), row_0).getString().strip()
+            compte = ws_ops.getCellByPosition(cr.col('OPcompte'), row_0).getString().strip()
             if compte == COMPTE_CLOS:
                 clos_rows.setdefault(ref, []).append(row_0)
             else:
@@ -1535,20 +1538,20 @@ class AccountsMixin:
 
     def _ensure_compte_clos(self, ws_avoirs, total_row):
         """Crée 'Compte clos' dans Avoirs s'il n'existe pas. Retourne True si créé."""
-        from inc_excel_schema import uno_row, uno_col, AvCol
+        from inc_excel_schema import uno_row, uno_col
         COMPTE_CLOS = 'Compte clos'
         avr_data = (self._start_avr or 4) + 1
         end_avr = self._end_avr or (total_row and total_row - 1)
         if not end_avr:
             return False
         for row_idx in range(avr_data, end_avr + 1):
-            val = ws_avoirs.getCellByPosition(uno_col(AvCol.INTITULE), uno_row(row_idx)).getString()
+            val = ws_avoirs.getCellByPosition(cr.col('AVRintitulé'), uno_row(row_idx)).getString()
             if val and val.strip() == COMPTE_CLOS:
                 return False
         # Insérer avant END_AVR (dans la zone données)
         insert_0 = uno_row(end_avr)
         ws_avoirs.Rows.insertByIndex(insert_0, 1)
-        ws_avoirs.getCellByPosition(uno_col(AvCol.INTITULE), insert_0).setString(COMPTE_CLOS)
+        ws_avoirs.getCellByPosition(cr.col('AVRintitulé'), insert_0).setString(COMPTE_CLOS)
         self._end_avr += 1
         return True
 

@@ -184,15 +184,16 @@ class BudgetMixin:
 
         from contextlib import nullcontext
         from inc_uno import UnoDocument
-        from inc_excel_schema import OpCol
+        from inc_excel_schema import ColResolver
 
         owned = doc is None
         ctx = UnoDocument(self.xlsx_path) if owned else nullcontext(doc)
         with ctx as doc:
+            cr = ColResolver.from_uno(doc.document)
             # Réaffecter les opérations col G si demandé
             if reassign_to:
                 ws_ops = doc.get_sheet(SHEET_OPERATIONS)
-                col_g = uno_col(OpCol.CATEGORIE)
+                col_g = cr.col('OPcatégorie')
                 cursor = ws_ops.createCursor()
                 cursor.gotoStartOfUsedArea(False)
                 cursor.gotoEndOfUsedArea(True)
