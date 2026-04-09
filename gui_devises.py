@@ -268,9 +268,11 @@ class DevisesMixin:
                         break
                 if spot_row:
                     cot_cours_letter = col_letter(CotCol.COURS_EUR)
-                    ws_cot.getCellByPosition(
-                        uno_col(CotCol.COURS_EUR), r0_cot).setFormula(
+                    cell = ws_cot.getCellByPosition(
+                        uno_col(CotCol.COURS_EUR), r0_cot)
+                    cell.setFormula(
                         f'={cot_cours_letter}${spot_row}{formula}')
+                    cell.CharColor = 0x000000  # noir = formule
             elif source1:
                 try:
                     from cpt_fetch_quotes import API_FETCHERS
