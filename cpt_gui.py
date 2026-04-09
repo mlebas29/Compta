@@ -1016,7 +1016,7 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
         self.accounts_data = []
         self._accounts_total_row = None
 
-        # Données entre START_AVR+1 et END_AVR, Total = END_AVR+1
+        # Données entre start AVR+1 et end AVR, Total = end AVR+1
         avr_data_start = self._start_avr + 1
         self._accounts_total_row = (self._end_avr + 1) if self._end_avr else None
         for row_idx in range(avr_data_start, self._end_avr or avr_data_start + 200):
@@ -1157,13 +1157,13 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
             cat_start_row, cat_end_row = self.cr.rows('CATnom')
             postes_start_row, postes_end_row = self.cr.rows('POSTESnom')
 
-            # Catégories : colonne cat_col entre START_CAT et END_CAT
+            # Catégories : colonne cat_col entre start CAT et end CAT
             cats = []
             cat_rows = {}
             start_row = cat_start_row
             total_row = None
             separator_row = None
-            # Scanner les catégories entre START_CAT et END_CAT (exclus)
+            # Scanner les catégories entre start CAT et end CAT (exclus)
             scan_start = (start_row or 0) + 1
             scan_end = cat_end_row if cat_end_row else scan_start + 200
             for row_idx in range(scan_start, scan_end):
@@ -1179,7 +1179,7 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
                 if name:
                     cats.append(name)
                     cat_rows[name] = row_idx
-            # Total = row après END_CAT (pas de scan texte)
+            # Total = row après end CAT (pas de scan texte)
             total_row = (cat_end_row + 1) if cat_end_row else None
 
             # Postes budgétaires : col A (nom), col B (type Fixe/Variable)
@@ -1201,12 +1201,12 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
                     post_rows[name_a] = row_idx
                     type_val = ws.cell(row_idx, 2).value  # col B
                     post_types[name_a] = str(type_val).strip() if type_val else ''
-            # Total postes = row après END_POSTES (pas de scan texte)
+            # Total postes = row après end POSTES (pas de scan texte)
             posts_total_row = (postes_end_row + 1) if postes_end_row else None
 
             # Détecter la première colonne devise = cat_col + 1
             first_devise_col = cat_col + 1
-            # Détecter la dernière devise (scan en-tête = 2 lignes au-dessus de START_CAT)
+            # Détecter la dernière devise (scan en-tête = 2 lignes au-dessus de start CAT)
             # Compter colonnes non-vides depuis cat_col, soustraire 6 structurelles
             # Structure : CATÉGORIES(1) + devises(N) + Total(1) + Alloc%(1) + Alloc(1) + Poste(1)
             header_row = (start_row - 2) if start_row else 27
@@ -1227,7 +1227,7 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
                     budget_devises.add(str(val).strip())
 
             # Détecter la dernière colonne devise dans Contrôles
-            # START_CTRL2 pointe sur la première ligne de données (COMPTES).
+            # start CTRL2 pointe sur la première ligne de données (COMPTES).
             # Le header devises est 2 lignes au-dessus (START - 2).
             ctrl_last_devise = None
             ctrl2_header_row = None
@@ -1254,7 +1254,7 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
             self.budget_categories = cats
             self.budget_cat_rows = cat_rows
             self.budget_cat_col = cat_col
-            # start_row = START_CAT (model row). Les taux sont 1 ligne au-dessus.
+            # start_row = start CAT (model row). Les taux sont 1 ligne au-dessus.
             # Le header devises (EUR, USD...) est 2 lignes au-dessus.
             self.budget_start_row = (start_row - 1) if start_row else None  # ligne taux (START)
             self.budget_header_row = (start_row - 2) if start_row else 27   # ligne headers devises

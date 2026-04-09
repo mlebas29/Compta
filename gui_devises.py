@@ -793,7 +793,7 @@ class DevisesMixin:
 
             # ==== Contrôles : supprimer la colonne de la devise ====
             ws_ctrl = doc.get_sheet(SHEET_CONTROLES)
-            # Coche START_CTRL2 = première ligne data (h+2) et première col devise.
+            # Coche start CTRL2 = première ligne data (h+2) et première col devise.
             # Header devises = 2 lignes au-dessus.
             _ctrl2_s, _ = cr.rows('CTRL2type')
             first_devise_col_0 = cr.col('CTRL2eur')
@@ -1700,7 +1700,7 @@ class DevisesMixin:
                         ws.getCellByPosition(cr.col('AVRdevise'), r0).CellBackColor = 0xDCDCDC
                         ws.getCellByPosition(cr.col('AVRmontant_solde'), r0).CellBackColor = 0xDCDCDC
 
-            # (recalibration AVR* + START/END_AVR déplacée après cleanup model rows)
+            # (recalibration AVR* + START/end AVR déplacée après cleanup model rows)
 
             # --- Contrôles : supprimer les lignes des comptes supprimés ---
             ctrl_rows_to_delete = sorted(self._deleted_ctrl_rows)
@@ -1814,7 +1814,7 @@ class DevisesMixin:
             # Elles servent d'ancrage aux named ranges et de modèle de format.
 
             # --- Recalibrer formules CTRL2 sur les bornes CTRL1 (model rows incluses) ---
-            # On couvre START_CTRL1..END_CTRL1 pour matcher le template (B3:B4 vide)
+            # On couvre start CTRL1..end CTRL1 pour matcher le template (B3:B4 vide)
             # plutôt que de pointer le data range qui peut être vide.
             from inc_uno import get_col_range_bounds
             _cb = get_col_range_bounds(doc.document, 'CTRL1compte')
@@ -1910,8 +1910,8 @@ class DevisesMixin:
                 for row_0 in reversed(rows_to_delete):
                     ws_ops.Rows.removeByIndex(row_0, 1)
 
-                # Garantir la model row START_OP (row 4 = 0-indexed 3)
-                # OP n'a plus qu'une seule model row depuis suppression END_OP (v3.0.0)
+                # Garantir la model row start OP (row 4 = 0-indexed 3)
+                # OP n'a plus qu'une seule model row depuis suppression end OP (v3.0.0)
                 cursor2 = ws_ops.createCursor()
                 cursor2.gotoEndOfUsedArea(True)
                 last_0 = cursor2.getRangeAddress().EndRow
@@ -1958,18 +1958,18 @@ class DevisesMixin:
             # Elles restent dans les named ranges (ancrage pour SUM, SUMIFS, etc.)
             # et sont vides donc n'affectent pas les calculs.
             if total_row and (new_accounts or had_deletions):
-                # Lire START/END_AVR depuis UNO (ajustés par removeByIndex/insertByIndex)
+                # Lire START/end AVR depuis UNO (ajustés par removeByIndex/insertByIndex)
                 _avr_b = get_col_range_bounds(doc.document, 'AVRintitulé')
                 avr_start_now = _avr_b[2] if _avr_b else None
                 avr_end_now = _avr_b[3] if _avr_b else None
                 avr_first = avr_start_now or self._start_avr
                 last_data = avr_end_now or (total_row - 1)
-                # SUM couvre les 2 model rows START_AVR..END_AVR (inclus)
+                # SUM couvre les 2 model rows start AVR..end AVR (inclus)
                 # pour éviter le collapse à SUM(L5) quand toutes les data sont supprimées
                 ws.getCellByPosition(
                     cr.col('AVRmontant_solde_euro'), uno_row(total_row)
                 ).setFormula('=ROUND(SUM(AVRmontant_solde_euro);2)')
-                # Recaler AVR* + START/END_AVR (incluant model rows)
+                # Recaler AVR* + START/end AVR (incluant model rows)
                 avr_names = {
                     'AVRintitulé': 'A', 'AVRtype': 'B', 'AVRdomiciliation': 'C',
                     'AVRsous_type': 'D', 'AVRtitulaire': 'F', 'AVRpropriete': 'G',
@@ -1986,10 +1986,10 @@ class DevisesMixin:
                     nr.addNewByName(name, f'$Avoirs.${cl}${avr_first}:${cl}${last_data}', pos, 0)
                 # Les named ranges colonnes sont recalés automatiquement par LO
 
-            # Recaler PVL* + START/END_PVL
+            # Recaler PVL* + START/end PVL
             if new_accounts or had_deletions:
                 ws_pv = doc.get_sheet(SHEET_PLUS_VALUE)
-                # Lire START/END_PVL depuis les named ranges UNO (ajustés par insertByIndex)
+                # Lire START/end PVL depuis les named ranges UNO (ajustés par insertByIndex)
                 _pvl_b = get_col_range_bounds(doc.document, 'PVLcompte')
                 pvl_start_now = _pvl_b[2] if _pvl_b else None
                 pvl_end_now = _pvl_b[3] if _pvl_b else None

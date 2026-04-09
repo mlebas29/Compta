@@ -1547,7 +1547,7 @@ class AccountsMixin:
             val = ws_avoirs.getCellByPosition(cr.col('AVRintitulé'), uno_row(row_idx)).getString()
             if val and val.strip() == COMPTE_CLOS:
                 return False
-        # Insérer avant END_AVR (dans la zone données)
+        # Insérer avant end AVR (dans la zone données)
         insert_0 = uno_row(end_avr)
         ws_avoirs.Rows.insertByIndex(insert_0, 1)
         ws_avoirs.getCellByPosition(cr.col('AVRintitulé'), insert_0).setString(COMPTE_CLOS)
