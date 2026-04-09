@@ -44,7 +44,6 @@ import json
 with open(Path(__file__).parent / 'config_gui_help.json', encoding='utf-8') as _f:
     FRAME_HELP = json.load(_f)
 from inc_excel_schema import (
-    AvCol, CtrlCol, BudgetCol, CotCol, OpCol, PvCol,
     SHEET_AVOIRS, SHEET_CONTROLES, SHEET_BUDGET, SHEET_OPERATIONS, SHEET_COTATIONS,
     SHEET_PLUS_VALUE,
     AV_FIRST_ROW, CTRL_FIRST_ROW, COT_FIRST_ROW,
@@ -662,7 +661,7 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
             ws_ctrl = wb_check[SHEET_CONTROLES]
             ctrl_data_start = (self._start_ctrl1 or CTRL_FIRST_ROW) + 1
             for row_idx in range(ctrl_data_start, self._end_ctrl1 + 1):
-                cell_val = ws_ctrl.cell(row_idx, CtrlCol.COMPTE).value
+                cell_val = ws_ctrl.cell(row_idx, self.cr.col('CTRL1compte')).value
                 if not cell_val:
                     continue
                 cell_str = str(cell_val).strip()
@@ -998,8 +997,9 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
     def _load_accounts_data_inner(self, wb_formula, wb_values):
         """Charge Avoirs + Contrôles depuis les workbooks déjà ouverts."""
         # Bornes via noms définis (START = model row ✓, END = model row ✓)
+        from inc_excel_schema import ColResolver, get_table_bounds
+        self.cr = ColResolver.from_openpyxl(wb_formula)
         named = get_named_ranges(wb_formula)
-        from inc_excel_schema import get_table_bounds
         self._start_avr, self._end_avr = get_table_bounds(named, 'AVR')
         self._start_ctrl1, self._end_ctrl1 = get_table_bounds(named, 'CTRL1')
         self._start_pvl, self._end_pvl = get_table_bounds(named, 'PVL')
@@ -1022,7 +1022,7 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
         avr_data_start = (self._start_avr or AV_FIRST_ROW) + 1
         self._accounts_total_row = (self._end_avr + 1) if self._end_avr else None
         for row_idx in range(avr_data_start, self._end_avr or avr_data_start + 200):
-            cell_a = ws_formula.cell(row_idx, AvCol.INTITULE).value
+            cell_a = ws_formula.cell(row_idx, self.cr.col('AVRintitulé')).value
             if not cell_a or str(cell_a).strip() == '✓':
                 continue
 
@@ -1030,17 +1030,17 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
             account = {
                 'row': row_idx,
                 'intitule': orig_name,
-                'type': str(ws_formula.cell(row_idx, AvCol.TYPE).value or '').strip(),
-                'domiciliation': str(ws_formula.cell(row_idx, AvCol.DOMICILIATION).value or '').strip(),
-                'sous_type': str(ws_formula.cell(row_idx, AvCol.SOUS_TYPE).value or '').strip(),
-                'devise': str(ws_formula.cell(row_idx, AvCol.DEVISE).value or '').strip(),
-                'titulaire': str(ws_formula.cell(row_idx, AvCol.TITULAIRE).value or '').strip(),
-                'propriete': str(ws_formula.cell(row_idx, AvCol.PROPRIETE).value or '').strip(),
-                'date_anter': ws_formula.cell(row_idx, AvCol.DATE_ANTER).value,
-                'montant_anter': ws_formula.cell(row_idx, AvCol.MONTANT_ANTER).value,
-                'formula_j': ws_formula.cell(row_idx, AvCol.DATE_SOLDE).value,
-                'formula_k': ws_formula.cell(row_idx, AvCol.MONTANT_SOLDE).value,
-                'formula_l': ws_formula.cell(row_idx, AvCol.FORMULE_L).value,
+                'type': str(ws_formula.cell(row_idx, self.cr.col('AVRtype')).value or '').strip(),
+                'domiciliation': str(ws_formula.cell(row_idx, self.cr.col('AVRdomiciliation')).value or '').strip(),
+                'sous_type': str(ws_formula.cell(row_idx, self.cr.col('AVRsous_type')).value or '').strip(),
+                'devise': str(ws_formula.cell(row_idx, self.cr.col('AVRdevise')).value or '').strip(),
+                'titulaire': str(ws_formula.cell(row_idx, self.cr.col('AVRtitulaire')).value or '').strip(),
+                'propriete': str(ws_formula.cell(row_idx, self.cr.col('AVRpropriete')).value or '').strip(),
+                'date_anter': ws_formula.cell(row_idx, self.cr.col('AVRdate_anter')).value,
+                'montant_anter': ws_formula.cell(row_idx, self.cr.col('AVRmontant_anter')).value,
+                'formula_j': ws_formula.cell(row_idx, self.cr.col('AVRdate_solde')).value,
+                'formula_k': ws_formula.cell(row_idx, self.cr.col('AVRmontant_solde')).value,
+                'formula_l': ws_formula.cell(row_idx, self.cr.col('AVRmontant_solde_euro')).value,
                 'site': self.account_site_map.get(orig_name, ''),
             }
 
@@ -1071,7 +1071,7 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
 
         ctrl_data_start = (self._start_ctrl1 or CTRL_FIRST_ROW) + 1
         for row_idx in range(ctrl_data_start, self._end_ctrl1 + 1):
-            cell_a = ws_ctrl.cell(row_idx, CtrlCol.COMPTE).value
+            cell_a = ws_ctrl.cell(row_idx, self.cr.col('CTRL1compte')).value
             if not cell_a or str(cell_a).strip() == '✓':
                 continue
 
@@ -1090,7 +1090,7 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
 
             avoirs_acct = avoirs_by_name[name]
             seen_avoirs.add(name)
-            ctrl_val = str(ws_ctrl_val.cell(row_idx, CtrlCol.CONTROLE_FLAG).value or '').strip()
+            ctrl_val = str(ws_ctrl_val.cell(row_idx, self.cr.col('CTRL1controle')).value or '').strip()
 
             self.display_accounts.append({
                 'ctrl_row': row_idx,
@@ -1131,13 +1131,13 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
             ws = wb_values[SHEET_PLUS_VALUE]
             pvl_data_start = (self._start_pvl or 5) + 1
             for row_idx in range(pvl_data_start, ws.max_row + 1):
-                val_a = str(ws.cell(row_idx, PvCol.COMPTE).value or '').strip()
-                val_b = str(ws.cell(row_idx, PvCol.LIGNE).value or '').strip()
+                val_a = str(ws.cell(row_idx, self.cr.col('PVLcompte')).value or '').strip()
+                val_b = str(ws.cell(row_idx, self.cr.col('PVLtitre')).value or '').strip()
                 if not val_a or not val_b:
                     continue
                 if val_b.startswith('*') and val_b.endswith('*') and len(val_b) > 2:
                     title = val_b[1:-1]  # enlever les *
-                    devise = str(ws.cell(row_idx, PvCol.DEVISE).value or '').strip()
+                    devise = str(ws.cell(row_idx, self.cr.col('PVLdevise')).value or '').strip()
                     self.pv_titles.setdefault(val_a, []).append(
                         (title, devise, row_idx))
             if close_wb:
@@ -1156,7 +1156,7 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
 
             # Résoudre les colonnes/lignes via noms définis
             named = get_named_ranges(wb_values)
-            cat_col = named['START_CAT'][1] if 'START_CAT' in named else BudgetCol.CATEGORIES
+            cat_col = self.cr.col('CATnom')
             cat_start_row = named['START_CAT'][2] if 'START_CAT' in named else None
             cat_end_row = named['END_CAT'][2] if 'END_CAT' in named else None
             postes_start_row = named['START_POSTES'][2] if 'START_POSTES' in named else None
@@ -1280,7 +1280,7 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
         except Exception:
             self.budget_categories = []
             self.budget_cat_rows = {}
-            self.budget_cat_col = BudgetCol.CATEGORIES
+            self.budget_cat_col = self.cr.col('CATnom')
             self.budget_start_row = None
             self.budget_header_row = 27
             self.budget_total_row = None
@@ -1289,8 +1289,8 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
             self.budget_post_rows = {}
             self.budget_post_types = {}
             self.budget_posts_total_row = None
-            self.budget_first_devise_col = BudgetCol.FIRST_DEVISE
-            self.budget_last_devise_col = BudgetCol.LAST_DEVISE
+            self.budget_first_devise_col = self.cr.col('CATnom') + 1
+            self.budget_last_devise_col = self.cr.col('CATtotal_euro') - 1
             self.budget_devises = {'EUR'}
             self.ctrl_last_devise_col = 29
             self.ctrl2_header_row = 62
