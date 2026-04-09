@@ -26,7 +26,7 @@ from inc_excel_compta import (
     LINKED_OPERATIONS,
     parse_montant,
 )
-from inc_excel_schema import OpCol
+from inc_excel_schema import ColResolver
 
 # ============================================================================
 # CONFIGURATION
@@ -185,6 +185,7 @@ class ComptaPairer:
             verbose=verbose,
             logger=self.logger,
         )
+        self.cr = ColResolver.from_openpyxl(self.excel.wb)
 
         self.stats = {
             'paired': 0,
@@ -689,7 +690,7 @@ class ComptaPairer:
         for idx, op in eligible:
             if idx in matched:
                 continue
-            eq = parse_montant(self.excel.ws_operations.cell(op.row, OpCol.EQUIV).value)
+            eq = parse_montant(self.excel.ws_operations.cell(op.row, self.cr.col('OPequiv_euro')).value)
             if eq is not None:
                 eur_estimates[idx] = abs(eq)
             elif op.devise == 'EUR':
@@ -739,8 +740,8 @@ class ComptaPairer:
                         continue
 
                 # Relire equiv (peut avoir été enrichi entre-temps par d'autres phases)
-                eq1 = parse_montant(self.excel.ws_operations.cell(op1.row, OpCol.EQUIV).value)
-                eq2 = parse_montant(self.excel.ws_operations.cell(op2.row, OpCol.EQUIV).value)
+                eq1 = parse_montant(self.excel.ws_operations.cell(op1.row, self.cr.col('OPequiv_euro')).value)
+                eq2 = parse_montant(self.excel.ws_operations.cell(op2.row, self.cr.col('OPequiv_euro')).value)
 
                 result = self._match_equiv(
                     op1, op1.montant_parsed, eq1, d1_eff,

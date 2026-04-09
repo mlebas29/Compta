@@ -26,7 +26,7 @@ from inc_excel_compta import (
     classify_reference_pattern,
     normalize_reference_case,
 )
-from inc_excel_schema import OpCol, PAIRING_COUNTER_CELL
+from inc_excel_schema import PAIRING_COUNTER_CELL, ColResolver
 
 # Configuration environnement
 BASE_DIR = inc_mode.get_base_dir()
@@ -51,6 +51,7 @@ class ComptaRefsTool:
             verbose=verbose,
             logger=self.logger,
         )
+        self.cr = ColResolver.from_openpyxl(self.excel.wb)
 
     # ====================================================================
     # Mode --audit
@@ -417,7 +418,7 @@ class ComptaRefsTool:
 
         corrections_count = 0
         for row in range(4, self.excel.ws_operations.max_row + 1):
-            ref_cell = self.excel.ws_operations.cell(row, OpCol.REF)
+            ref_cell = self.excel.ws_operations.cell(row, self.cr.col('OPréf'))
             ref_val = ref_cell.value
 
             if ref_val and str(ref_val) in ref_mapping:
@@ -498,7 +499,7 @@ class ComptaRefsTool:
 
         max_num = 0
         for row in range(4, self.excel.ws_operations.max_row + 1):
-            ref = self.excel.ws_operations.cell(row, OpCol.REF).value
+            ref = self.excel.ws_operations.cell(row, self.cr.col('OPréf')).value
             if ref:
                 ref_str = str(ref)
                 match = re.match(r'^[a-zA-Z]+(\d+)$', ref_str)
@@ -618,7 +619,7 @@ class ComptaRefsTool:
 
             corrections_count = 0
             for row_num, new_ref in ref_mapping.items():
-                self.excel.ws_operations.cell(row_num, OpCol.REF).value = new_ref
+                self.excel.ws_operations.cell(row_num, self.cr.col('OPréf')).value = new_ref
                 corrections_count += 1
 
             print(f"✓ {corrections_count} cellules corrigées\n")

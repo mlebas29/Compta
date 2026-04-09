@@ -31,8 +31,8 @@ import argparse
 from copy import copy
 from inc_logging import Logger
 from inc_excel_schema import (
-    OpCol, PvCol, SHEET_OPERATIONS, SHEET_PLUS_VALUE,
-    PV_PROTECTED_FIRST_ROW,
+    SHEET_OPERATIONS, SHEET_PLUS_VALUE,
+    PV_PROTECTED_FIRST_ROW, ColResolver,
 )
 
 
@@ -96,7 +96,7 @@ def load_protected_accounts(ws_plusvalue):
     protected = set()
 
     for row in range(PV_PROTECTED_FIRST_ROW, ws_plusvalue.max_row + 1):
-        cell_value = ws_plusvalue.cell(row=row, column=PvCol.COMPTE).value
+        cell_value = ws_plusvalue.cell(row=row, column=cr.col('PVLcompte')).value
         if cell_value:
             account_name = str(cell_value).strip()
             if account_name:
@@ -157,10 +157,10 @@ def analyze_operations(ws_operations, cutoff_date, protected_accounts):
 
     # Parcourir toutes les lignes (skip header row 1-2)
     for row in range(3, ws_operations.max_row + 1):
-        date_cell = ws_operations.cell(row=row, column=OpCol.DATE).value
-        account_cell = ws_operations.cell(row=row, column=OpCol.COMPTE).value
-        category_cell = ws_operations.cell(row=row, column=OpCol.CATEGORIE).value
-        amount_cell = ws_operations.cell(row=row, column=OpCol.MONTANT).value
+        date_cell = ws_operations.cell(row=row, column=cr.col('OPdate')).value
+        account_cell = ws_operations.cell(row=row, column=cr.col('OPcompte')).value
+        category_cell = ws_operations.cell(row=row, column=cr.col('OPcatégorie')).value
+        amount_cell = ws_operations.cell(row=row, column=cr.col('OPmontant')).value
 
         # Skip lignes vides
         if not date_cell:
@@ -258,7 +258,7 @@ def check_broken_pairs(ws_operations, purgeable_rows, protected_rows):
 
     # Parcourir toutes les lignes avec une référence
     for row in range(3, ws_operations.max_row + 1):
-        ref_cell = ws_operations.cell(row=row, column=OpCol.REF).value
+        ref_cell = ws_operations.cell(row=row, column=cr.col('OPréf')).value
 
         if not ref_cell:
             continue
@@ -270,7 +270,7 @@ def check_broken_pairs(ws_operations, purgeable_rows, protected_rows):
             continue
 
         # Ignorer les #Info
-        category_cell = ws_operations.cell(row=row, column=OpCol.CATEGORIE).value
+        category_cell = ws_operations.cell(row=row, column=cr.col('OPcatégorie')).value
         if category_cell and ('#Info' in str(category_cell) or '#info' in str(category_cell).lower()):
             continue
 
@@ -535,9 +535,9 @@ def execute_purge(ws_operations, plan, cutoff_date, dry_run=False):
 
         # 1. Chercher un #Solde du même compte
         for row in range(3, ws_operations.max_row + 1):
-            account_cell = ws_operations.cell(row=row, column=OpCol.COMPTE).value
-            cat_cell = ws_operations.cell(row=row, column=OpCol.CATEGORIE).value
-            date_cell = ws_operations.cell(row=row, column=OpCol.DATE).value
+            account_cell = ws_operations.cell(row=row, column=cr.col('OPcompte')).value
+            cat_cell = ws_operations.cell(row=row, column=cr.col('OPcatégorie')).value
+            date_cell = ws_operations.cell(row=row, column=cr.col('OPdate')).value
 
             if account_cell and str(account_cell).strip() == account:
                 if cat_cell and '#Solde' in str(cat_cell):
@@ -552,7 +552,7 @@ def execute_purge(ws_operations, plan, cutoff_date, dry_run=False):
         # 2. Fallback : chercher n'importe quelle ligne EUR si template pas trouvé
         if template_row is None:
             for row in range(ws_operations.max_row, 3, -1):  # Chercher depuis la fin
-                row_devise = ws_operations.cell(row, OpCol.DEVISE).value
+                row_devise = ws_operations.cell(row, cr.col('OPdevise')).value
                 if row_devise == 'EUR':
                     template_row = row
                     break
@@ -566,7 +566,7 @@ def execute_purge(ws_operations, plan, cutoff_date, dry_run=False):
         insert_row = None
 
         for row in range(3, ws_operations.max_row + 1):
-            date_cell = ws_operations.cell(row=row, column=OpCol.DATE).value
+            date_cell = ws_operations.cell(row=row, column=cr.col('OPdate')).value
 
             if not date_cell:
                 continue
@@ -588,7 +588,7 @@ def execute_purge(ws_operations, plan, cutoff_date, dry_run=False):
         # Si aucune opération >= cutoff trouvée, insérer avant #Balance
         if insert_row is None:
             for row in range(3, ws_operations.max_row + 1):
-                cat = ws_operations.cell(row=row, column=OpCol.CATEGORIE).value
+                cat = ws_operations.cell(row=row, column=cr.col('OPcatégorie')).value
                 if cat and '#Balance' in str(cat):
                     insert_row = row
                     break
@@ -604,49 +604,49 @@ def execute_purge(ws_operations, plan, cutoff_date, dry_run=False):
         new_solde_date = solde_info['new_solde_date']
 
         # Date (déjà datetime)
-        cell = ws_operations.cell(insert_row, OpCol.DATE)
+        cell = ws_operations.cell(insert_row, cr.col('OPdate'))
         cell.value = new_solde_date
-        copy_cell_formatting(ws_operations.cell(template_row, OpCol.DATE), cell)
+        copy_cell_formatting(ws_operations.cell(template_row, cr.col('OPdate')), cell)
 
         # Libellé
-        cell = ws_operations.cell(insert_row, OpCol.LABEL)
+        cell = ws_operations.cell(insert_row, cr.col('OPlibellé'))
         cell.value = "Relevé compte"
-        copy_cell_formatting(ws_operations.cell(template_row, OpCol.LABEL), cell)
+        copy_cell_formatting(ws_operations.cell(template_row, cr.col('OPlibellé')), cell)
 
         # Montant (déjà float)
-        cell = ws_operations.cell(insert_row, OpCol.MONTANT)
+        cell = ws_operations.cell(insert_row, cr.col('OPmontant'))
         cell.value = solde_info['new_solde_amount']
-        copy_cell_formatting(ws_operations.cell(template_row, OpCol.MONTANT), cell)
+        copy_cell_formatting(ws_operations.cell(template_row, cr.col('OPmontant')), cell)
 
         # Devise
-        cell = ws_operations.cell(insert_row, OpCol.DEVISE)
+        cell = ws_operations.cell(insert_row, cr.col('OPdevise'))
         cell.value = "EUR"
-        copy_cell_formatting(ws_operations.cell(template_row, OpCol.DEVISE), cell)
+        copy_cell_formatting(ws_operations.cell(template_row, cr.col('OPdevise')), cell)
 
         # Equiv
-        cell = ws_operations.cell(insert_row, OpCol.EQUIV)
+        cell = ws_operations.cell(insert_row, cr.col('OPequiv_euro'))
         cell.value = None
-        copy_cell_formatting(ws_operations.cell(template_row, OpCol.EQUIV), cell)
+        copy_cell_formatting(ws_operations.cell(template_row, cr.col('OPequiv_euro')), cell)
 
         # Réf
-        cell = ws_operations.cell(insert_row, OpCol.REF)
+        cell = ws_operations.cell(insert_row, cr.col('OPréf'))
         cell.value = None
-        copy_cell_formatting(ws_operations.cell(template_row, OpCol.REF), cell)
+        copy_cell_formatting(ws_operations.cell(template_row, cr.col('OPréf')), cell)
 
         # Catégorie
-        cell = ws_operations.cell(insert_row, OpCol.CATEGORIE)
+        cell = ws_operations.cell(insert_row, cr.col('OPcatégorie'))
         cell.value = "#Solde"
-        copy_cell_formatting(ws_operations.cell(template_row, OpCol.CATEGORIE), cell)
+        copy_cell_formatting(ws_operations.cell(template_row, cr.col('OPcatégorie')), cell)
 
         # Compte
-        cell = ws_operations.cell(insert_row, OpCol.COMPTE)
+        cell = ws_operations.cell(insert_row, cr.col('OPcompte'))
         cell.value = account
-        copy_cell_formatting(ws_operations.cell(template_row, OpCol.COMPTE), cell)
+        copy_cell_formatting(ws_operations.cell(template_row, cr.col('OPcompte')), cell)
 
         # Commentaire
-        cell = ws_operations.cell(insert_row, OpCol.COMMENTAIRE)
+        cell = ws_operations.cell(insert_row, cr.col('OPcommentaire'))
         cell.value = None
-        copy_cell_formatting(ws_operations.cell(template_row, OpCol.COMMENTAIRE), cell)
+        copy_cell_formatting(ws_operations.cell(template_row, cr.col('OPcommentaire')), cell)
 
     return len(rows_to_delete)
 
@@ -700,6 +700,7 @@ def main():
 
     print(f"📖 Lecture de {excel_file}...")
     wb = load_workbook(excel_file, keep_vba=True)
+    cr = ColResolver.from_openpyxl(wb)
 
     if SHEET_OPERATIONS not in wb.sheetnames:
         print(f"❌ Feuille '{SHEET_OPERATIONS}' introuvable", file=sys.stderr)
