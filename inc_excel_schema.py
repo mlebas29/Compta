@@ -127,9 +127,7 @@ SHEET_COTATIONS = 'Cotations'
 # CONSTANTES DE LIGNES
 # ============================================================================
 
-# DEPRECATED — utiliser ColResolver.rows() à la place.
-AV_FIRST_ROW = 4       # tool_template_xlsm fallback
-PV_PROTECTED_FIRST_ROW = 5  # tool_purge
+PV_PROTECTED_FIRST_ROW = 5  # tool_purge : première ligne titre protégé
 
 # Sources API par famille de devise (source1, source2/fallback)
 DEVISE_SOURCES = {

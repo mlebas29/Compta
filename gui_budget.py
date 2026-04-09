@@ -29,6 +29,7 @@ class BudgetMixin:
         owned = doc is None
         ctx = UnoDocument(self.xlsx_path) if owned else nullcontext(doc)
         with ctx as doc:
+            cr = ColResolver.from_uno(doc.document)
             ws = doc.get_sheet(SHEET_BUDGET)
             insert_row = self.budget_insert_row
             r = insert_row
@@ -51,7 +52,7 @@ class BudgetMixin:
                     f'=SUMIFS(OPmontant;OPdevise;{cl}${hr};OPcatégorie;${cat_letter}{r};OPdate;">"&$C$2-365)')
 
             # Equiv EUR : SUMPRODUCT
-            equiv_col = last + 1
+            equiv_col = cr.col('CATtotal_euro') + 1  # openpyxl 1-indexed
             first_dev_letter = ColResolver._idx_to_letter(self.budget_first_devise_col)
             last_letter = ColResolver._idx_to_letter(last)
             sr = self.budget_start_row
@@ -59,9 +60,9 @@ class BudgetMixin:
                 f'=SUMPRODUCT({first_dev_letter}{r}:{last_letter}{r};{first_dev_letter}${sr}:{last_letter}${sr})')
 
             # Allocation 100%
-            alloc_pct_col = last + 2
-            alloc_montant_col = last + 3
-            poste_col = last + 4
+            alloc_pct_col = cr.col('CATaffectation_pct') + 1
+            alloc_montant_col = cr.col('CATaffectation') + 1
+            poste_col = cr.col('CATposte') + 1
             cell_pct = ws.getCellByPosition(uno_col(alloc_pct_col), r0)
             cell_pct.setValue(alloc_pct)
             # Format % (la model row a General → patcher la 1ère ligne, les suivantes propagent)
@@ -141,8 +142,8 @@ class BudgetMixin:
                     self.budget_cat_rows[cat_name] += 1
 
             # Formule SUMIF (col C) : =SUMIF(poste_range, A{row}, alloc_range)
-            poste_col = self.budget_last_devise_col + 4
-            alloc_col = self.budget_last_devise_col + 3
+            poste_col = cr.col('CATposte') + 1  # openpyxl 1-indexed
+            alloc_col = cr.col('CATaffectation') + 1
             pl = ColResolver._idx_to_letter(poste_col)
             al = ColResolver._idx_to_letter(alloc_col)
             first_cat = min(self.budget_cat_rows.values()) if self.budget_cat_rows else (self.budget_start_row or 14) + 2
