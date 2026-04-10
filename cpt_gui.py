@@ -581,19 +581,31 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
 
     def _startup_check(self):
         """Check de cohérence au démarrage : charge Excel puis vérifie."""
-        self._ensure_excel_loaded()
-        # Relire les JSON depuis le disque (ils ont pu être modifiés en externe)
-        self.accounts_json_data = self._load_accounts_json()
-        self.account_site_map = accounts_to_site_map(self.accounts_json_data)
-        self.cotations_meta = read_cotations_json(self.cotations_json_path)
-        auto_fixes, warnings = self._check_coherence()
+        out = self._exec_output
+        try:
+            self._ensure_excel_loaded()
+            # Relire les JSON depuis le disque (ils ont pu être modifiés en externe)
+            self.accounts_json_data = self._load_accounts_json()
+            self.account_site_map = accounts_to_site_map(self.accounts_json_data)
+            self.cotations_meta = read_cotations_json(self.cotations_json_path)
+            auto_fixes, warnings = self._check_coherence()
+        except Exception as e:
+            import traceback
+            self._coherence_auto_fixes = []
+            self._coherence_warnings = [str(e)]
+            out.configure(state='normal')
+            out.delete('1.0', 'end')
+            out.insert('end', f'❌ Erreur au check de cohérence :\n\n{traceback.format_exc()}')
+            out.see('end')
+            out.configure(state='disabled')
+            self._set_status('ERR', 'error')
+            return
 
         # Mettre à jour les attributs pour la status bar
         self._coherence_auto_fixes = auto_fixes
         self._coherence_warnings = warnings
 
         # Afficher dans la zone Résultat
-        out = self._exec_output
         out.configure(state='normal')
         out.delete('1.0', 'end')
 
