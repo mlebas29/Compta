@@ -388,6 +388,7 @@ class AccountsMixin:
         # Frame dynamique pour champs conditionnels
         extra_frame = ttk.Frame(dlg)
         extra_frame.grid(row=row, column=0, columnspan=2, sticky='ew')
+        row += 1
         extra_fields = {}
         extra_widgets = []
 
@@ -726,6 +727,7 @@ class AccountsMixin:
         # Frame dynamique pour champs conditionnels
         extra_frame = ttk.Frame(dlg)
         extra_frame.grid(row=row, column=0, columnspan=2, sticky='ew')
+        row += 1
         extra_fields = {}
         extra_widgets = []
 
