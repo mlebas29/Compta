@@ -881,14 +881,19 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
         """Construit les onglets restants en arrière-plan, un par tick event-loop."""
         if not self._deferred_tabs:
             return
-        self._ensure_excel_loaded()
-        # Prendre le premier onglet en attente et le construire
-        tab_id, builder_name = next(iter(self._deferred_tabs.items()))
-        del self._deferred_tabs[tab_id]
-        builder = getattr(self, builder_name)
-        tab_frame = self.notebook.nametowidget(tab_id)
-        builder(tab=tab_frame)
-        self._install_help_buttons()
+        try:
+            self._ensure_excel_loaded()
+            # Prendre le premier onglet en attente et le construire
+            tab_id, builder_name = next(iter(self._deferred_tabs.items()))
+            del self._deferred_tabs[tab_id]
+            builder = getattr(self, builder_name)
+            tab_frame = self.notebook.nametowidget(tab_id)
+            builder(tab=tab_frame)
+            self._install_help_buttons()
+        except Exception:
+            import traceback
+            traceback.print_exc()
+            self._deferred_tabs.clear()
         # Planifier le suivant au prochain tick (laisse le GUI respirer)
         if self._deferred_tabs:
             self.root.after_idle(self._build_deferred_tabs)
