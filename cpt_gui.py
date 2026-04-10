@@ -261,6 +261,7 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
         self.root.title(f'Comptabilité [{self._mode_label}]')
         self.root.geometry('1100x880')
         self.root.minsize(900, 600)
+        self.root.report_callback_exception = self._handle_tk_exception
 
         # Icône fenêtre et barre des tâches (bleu=test, rouge=prod, jaune=export)
         _ICON_NAMES = {'prod': 'cpt_gui_prod.png', 'export': 'cpt_gui_export.png'}
@@ -1348,6 +1349,21 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
     # ----------------------------------------------------------------
     # LANCEMENT
     # ----------------------------------------------------------------
+    def _handle_tk_exception(self, exc_type, exc_value, exc_tb):
+        """Attrape les exceptions non gérées dans les callbacks Tkinter."""
+        import traceback
+        msg = ''.join(traceback.format_exception(exc_type, exc_value, exc_tb))
+        print(msg, file=sys.stderr)
+        try:
+            out = self._exec_output
+            out.configure(state='normal')
+            out.insert('end', f'\n❌ Erreur inattendue :\n\n{msg}')
+            out.see('end')
+            out.configure(state='disabled')
+            self._set_status('ERR', 'error')
+        except Exception:
+            pass  # zone Résultat pas encore construite
+
     def run(self):
         self.root.mainloop()
 
@@ -1400,4 +1416,14 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except Exception:
+        import traceback
+        traceback.print_exc()
+        try:
+            from tkinter import messagebox
+            messagebox.showerror('Erreur fatale', traceback.format_exc())
+        except Exception:
+            pass
+        sys.exit(1)
