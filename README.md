@@ -11,6 +11,10 @@ Compta est un projet de comptabilité familiale ; il a deux composants :
    - gère les structures du classeur (configuration)
    - collecte les données brutes, depuis des sites financiers vers le classeur
 
+| Mode classeur | Mode assisté |
+|:---:|:---:|
+| ![Mode classeur](images/mode_classeur.png) | ![Mode assisté](images/mode_assiste.png) |
+
 ### Mode classeur
 
 Le classeur `comptes.xlsm` est utilisable seul avec toute application compatible Excel. L'utilisateur importe manuellement les données financières (xls, PDF, zip, txt, html, CSV) et gère lui-même ses avoirs, comptes, devises, catégories, portefeuilles, etc.
@@ -23,11 +27,7 @@ L'application graphique s'intercale entre le classeur et les sites financiers.
 
 L'utilisateur peut vouloir l'assistance de configuration seule ou l'assistance complète (configuration et collecte)
 
-Ce mode convient pour une compatabilité diversifiée, uniquement sous Linux.
-
-| Mode classeur | Mode assisté |
-|:---:|:---:|
-| ![Mode classeur](images/mode_classeur.png) | ![Mode assisté](images/mode_assiste.png) |
+Ce mode convient pour une comptabilité diversifiée, uniquement sous Linux.
 
 ### Capture d'écran
 
@@ -68,7 +68,7 @@ et aussi :
 
 
 
-> ###### (*) Tout télécharger et installer (mode assisté)
+> ###### (*) Tout télécharger et installer
 >
 > ```bash
 > sudo apt install git
@@ -83,8 +83,6 @@ et aussi :
 
 ## 4. Mise à jour
 
-
-
 | Mode classeur                                                | Mode assisté              |
 | ------------------------------------------------------------ | ------------------------- |
 | Télécharger  [`comptes_exemple.xlsx`](https://github.com/mlebas29/Compta/raw/main/comptes_exemple.xlsx) | `cd ~/Compta && git pull` |
@@ -92,6 +90,8 @@ et aussi :
 
 
 ## 5. Documentation
+
+La documentation concerne essentiellement le mode assisté
 
 -  [`Compta.md`](Compta.md)  : guide d'utilisation
 -  [`Compta_plus.md`](Compta_plus.md) : commandes avancées, dépannage
@@ -103,13 +103,12 @@ et aussi :
 
 Le classeur d'exemple contient des données fictives à remplacer par les vôtres.
 
-> **Conseils de personnalisation :**
->
-> - Renommer les comptes, catégories, devises et titres existants plutôt que les supprimer ; ceci permet de conserver formules et formats
-> - Supprimer les **lignes d'opérations** (feuille Opérations) librement, en conservant la cohérence avec les lignes #Solde de chaque compte
-> - Conserver au moins **une ligne par tableau de données** (Opérations, Avoirs, Plus_value, Cotations) pour préserver les formules et le format — les nouvelles lignes se créent par copier/coller d'une ligne existante
-> - Modifier avec prudence la structure des feuilles (colonnes, en-têtes et pieds de tableaux, noms définis)
->
+**Conseils de personnalisation :**
+
+- Renommer les comptes, catégories, devises et titres existants plutôt que les supprimer ; ceci permet de conserver formules et formats
+- Supprimer et ajouter librement les **lignes d'opérations** (feuille Opérations)  en conservant la cohérence avec les lignes #Solde de chaque compte ; a minima avec la plus récente
+- Conserver au moins **une ligne par tableau de données** (Opérations, Avoirs, Plus_value, Cotations) pour préserver les formules et le format — les nouvelles lignes se créent par copier/coller d'une ligne existante
+- Modifier avec prudence la structure des feuilles (colonnes, en-têtes et pieds de tableaux, noms définis)
 
 
 
@@ -130,7 +129,7 @@ rm config_credentials.md
 python3 cpt_gui.py
 ```
 
-L'interface guide l'utilisateur à travers les étapes : sélection des sites, collecte, import, vérification. Elle peut aussi être utilisée uniquement pour la gestion du classeur (comptes, catégories, devises, titres), sans activer la collecte.
+L'application graphique guide l'utilisateur à travers les étapes : sélection des sites, collecte, import, vérification. Elle peut aussi être utilisée uniquement pour la gestion du classeur (comptes, catégories, devises, titres), sans activer la collecte.
 
 Une fois l'application lancée, elle peut être épinglée dans la barre des tâches.
 
@@ -153,8 +152,6 @@ python3 cpt_fetch_quotes.py
 python3 tool_controles.py -v
 ```
 
-> NB : Toute modification par l'utilisateur des fichiers livrés dans un environnement `git` est possible mais est soumise aux règles de cet environnement. 
-
 ### Structure du projet
 
 ```
@@ -176,10 +173,19 @@ config.ini              # Configuration générale
 tool_*.py               # Outils de maintenance
 ```
 
+### Modification de l'application
+
+Toute modification par l'utilisateur des fichiers versionnés sous `git` est possible mais est soumise aux règles de cet environnement, en particulier au moment de la mise à jour. 
+
+Voir à ce sujet [`Compta_plus.md`](Compta_plus.md) : commandes avancées, dépannage
+
 ## 8. Restrictions
 
-- **Mode classeur** : aucune restriction, fonctionne sur tout OS avec un tableur compatible Excel.
-- **Mode assisté** : testé sur Ubuntu 22.04 et dérivés (Zorin, Mint). Le script `install.sh` utilise `apt` et ne supporte pas les distributions non Debian/Ubuntu (Fedora, Arch, openSUSE). Sur ces systèmes, une installation manuelle des dépendances est nécessaire (voir `requirements.txt`).
+| Mode classeur                                                | Mode assisté                                                 |
+| ------------------------------------------------------------ | ------------------------------------------------------------ |
+| Aucune restriction; fonctionne sur tout OS avec un tableur compatible Excel. | Installation testée sur Ubuntu 22.04 et dérivés (Zorin, Mint)  **(1)** |
+
+- **(1) **:  Le script `install.sh` utilise `apt` et ne supporte pas les distributions non Debian/Ubuntu (Fedora, Arch, openSUSE). Sur ces systèmes, une installation manuelle des dépendances est nécessaire (voir `requirements.txt`).
 
 ## 9. Licence
 

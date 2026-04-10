@@ -117,6 +117,79 @@ Restaure le backup Excel précédent et remet les fichiers collectés dans dropb
 cpt --reset                # Purge archives/dropbox/logs
 ```
 
+## Mise à jour et modifications locales
+
+### Mise à jour simple
+
+```bash
+cd ~/Compta && git pull
+```
+
+Cette commande télécharge les dernières modifications depuis le dépôt distant et les applique. Si vous n'avez modifié aucun fichier versionné, tout se passe automatiquement.
+
+### Fichiers personnels hors versionnement
+
+Les fichiers de configuration personnels ne sont pas versionnés par git : `config.ini`, `config_category_mappings.json`, `config_accounts.json`, `config_cotations.json`, `config_pipeline.json`. Ils ne sont donc jamais affectés par `git pull`.
+
+### Si vous avez modifié des fichiers versionnés
+
+Si vous avez modifié un script ou un fichier versionné (par exemple un formatteur `cpt_format_*.py`), `git pull` peut échouer avec un message du type :
+
+```
+error: Your local changes to the following files would be overwritten by merge
+```
+
+**Méthode recommandée — mettre de côté puis réappliquer :**
+
+```bash
+git stash                  # Met vos modifications de côté
+git pull                   # Télécharge la mise à jour
+git stash pop              # Réapplique vos modifications
+```
+
+Si `git stash pop` signale un conflit (les mêmes lignes ont été modifiées des deux côtés), git insère des marqueurs dans le fichier concerné :
+
+```
+<<<<<<< Updated upstream
+    ligne de la version distante
+=======
+    votre ligne modifiée
+>>>>>>> Stashed changes
+```
+
+Ouvrez le fichier, choisissez la version à garder (ou combinez les deux), puis supprimez les marqueurs `<<<<<<<`, `=======`, `>>>>>>>`. Ensuite :
+
+```bash
+git add le_fichier_corrigé.py
+git stash drop             # Supprime le stash résolu
+```
+
+**Alternatives rapides :**
+
+```bash
+# Garder votre version pour un fichier (ignorer la mise à jour distante)
+git checkout --ours le_fichier.py
+
+# Garder la version distante (abandonner votre modification)
+git checkout --theirs le_fichier.py
+```
+
+### Voir ce qui a été modifié localement
+
+```bash
+git status                 # Liste des fichiers modifiés
+git diff                   # Détail des modifications
+git diff le_fichier.py     # Modifications d'un fichier spécifique
+```
+
+### Annuler toutes les modifications locales
+
+Pour revenir à l'état du dépôt (perte de toutes vos modifications) :
+
+```bash
+git checkout .             # Restaure tous les fichiers versionnés
+```
+
 ## Dépannage
 
 Signification des erreurs : voir **Compta.md** (Annexe A - Contrôles Excel).

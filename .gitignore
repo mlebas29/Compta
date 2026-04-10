@@ -8,3 +8,8 @@ logs/
 .~lock.*
 .claude/
 comptes.xlsm
+config.ini
+config_accounts.json
+config_category_mappings.json
+config_cotations.json
+config_pipeline.json

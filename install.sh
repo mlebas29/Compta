@@ -233,6 +233,32 @@ else
 fi
 
 # ------------------------------------------------------------------
+# 9. Fichiers de configuration
+# ------------------------------------------------------------------
+echo
+echo "--- Configuration ---"
+
+# config.ini : copié depuis le .default si absent
+if [[ ! -f "config.ini" && -f "config.ini.default" ]]; then
+    cp config.ini.default config.ini
+    ok "config.ini créé depuis config.ini.default"
+elif [[ -f "config.ini" ]]; then
+    ok "config.ini déjà présent"
+else
+    warn "config.ini.default absent — créer config.ini manuellement"
+fi
+
+# config_category_mappings.json : copié depuis le .default si absent
+if [[ ! -f "config_category_mappings.json" && -f "config_category_mappings.json.default" ]]; then
+    cp config_category_mappings.json.default config_category_mappings.json
+    ok "config_category_mappings.json créé depuis le .default"
+elif [[ -f "config_category_mappings.json" ]]; then
+    ok "config_category_mappings.json déjà présent"
+else
+    warn "config_category_mappings.json.default absent — configurer via l'onglet Catégories"
+fi
+
+# ------------------------------------------------------------------
 # Résumé
 # ------------------------------------------------------------------
 echo
