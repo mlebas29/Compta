@@ -684,9 +684,9 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
         avoirs_names = {a['intitule'] for a in self.accounts_data}
         avoirs_by_row = {a['row']: a for a in self.accounts_data}
 
-        # --- JSON vides : détection et auto-correction ---
-        if not self.accounts_json_data and self.accounts_data:
-            # config_accounts.json vide mais le classeur a des comptes → reconstruire
+        # --- JSON absent : détection et auto-correction ---
+        if not self.accounts_json_path.exists() and self.accounts_data:
+            # config_accounts.json absent mais le classeur a des comptes → reconstruire
             self._save_site_map()
             self.accounts_json_data = read_accounts_json(self.accounts_json_path)
             self.account_site_map = accounts_to_site_map(self.accounts_json_data)
