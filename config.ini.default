@@ -80,7 +80,7 @@ credentials_file = ./config_credentials.md.gpg
 
 [sites]
 # Sites activés (séparés par des virgules)
-enabled = SOCGEN, NATIXIS, BOURSOBANK, DEGIRO, ETORO, WISE, KRAKEN, BTC, XMR, MANUEL, PAYPAL, AMAZON
+enabled =
 [SOCGEN]
 name = Société Générale
 dossier = SOCGEN
