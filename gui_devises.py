@@ -2213,7 +2213,7 @@ class DevisesMixin:
             if owned:
                 doc.save()
 
-        if owned:
+        if owned and hasattr(self, '_load_excel_data'):
             self._load_excel_data()
 
     def _save_config(self):

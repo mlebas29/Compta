@@ -84,7 +84,7 @@ class BudgetMixin:
             if owned:
                 doc.save()
 
-        if owned:
+        if owned and hasattr(self, '_load_excel_data'):
             self._load_excel_data()
 
         print(f"Catégorie ajoutée: {name} (poste={poste})")
@@ -165,7 +165,7 @@ class BudgetMixin:
             if owned:
                 doc.save()
 
-        if owned:
+        if owned and hasattr(self, '_load_excel_data'):
             self._load_excel_data()
 
         print(f"Poste ajouté: {name} ({'Fixe' if fixe else 'Variable'})")
@@ -221,7 +221,7 @@ class BudgetMixin:
             if owned:
                 doc.save()
 
-        if owned:
+        if owned and hasattr(self, '_load_excel_data'):
             self._load_excel_data()
 
         print(f"Catégorie supprimée: {name}")
@@ -268,7 +268,7 @@ class BudgetMixin:
             if owned:
                 doc.save()
 
-        if owned:
+        if owned and hasattr(self, '_load_excel_data'):
             self._load_excel_data()
 
         print(f"Poste supprimé: {name}")
