@@ -54,9 +54,9 @@ Le champ Réf. du tableau Opérations est un identifiant, par ex V32, qui sert �
 - Dans le cas des titres, il y a autant de références txxx que nécessaire, notamment dans les cas d'arbitrage ou de rachat de portefeuilles comportant plusieurs titres. 
 
 ### Contrôles
-La feuille Contrôles porte deux tableaux et une cellule de statut global A1 (`.` = OK, `COMPTES`, `CATÉGORIES` ou `INCONNUS` = erreur bloquante).
+La feuille Contrôles porte deux tableaux et une cellule de statut global A1 (synthèse de 6 symboles `✓`/`✗`/`⚠`, cf. ANNEXE A de Compta.md).
 
-- **Tableau 1** : pour chaque compte et devise, compare le solde relevé (#Solde le plus récent) au solde calculé (somme des opérations). L'écart est en colonne K, le flag bloquant en L.
+- **Tableau 1** : pour chaque compte et devise, compare le solde relevé (#Solde le plus récent) au solde calculé (somme des opérations). Colonnes définies par named ranges CTRL1 (écart, contrôle).
 - **Tableau 2** : autres contrôles par devise — catégories invalides, comptes inconnus, appariements incomplets, balances.
 
 ### Cotations
