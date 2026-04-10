@@ -169,8 +169,6 @@ class DevisesMixin:
             on_success
         )
 
-        check_done()
-
     def _save_devise(self, code, famille, nom=None,
                       derived_from=None, formula=None, doc=None):
         """Insère une nouvelle devise dans Cotations, Budget et Contrôles via UNO.
