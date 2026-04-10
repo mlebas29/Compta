@@ -1360,9 +1360,12 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
             out.insert('end', f'\n❌ Erreur inattendue :\n\n{msg}')
             out.see('end')
             out.configure(state='disabled')
-            self._set_status('ERR', 'error')
         except Exception:
             pass  # zone Résultat pas encore construite
+        try:
+            self._set_status('ERR', 'error')
+        except Exception:
+            pass
 
     def run(self):
         self.root.mainloop()
