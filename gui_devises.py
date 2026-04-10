@@ -9,7 +9,6 @@ import re
 import shutil
 import threading
 
-from cpt_gui import write_config_section_key, _insert_key_in_section
 import time
 import tkinter as tk
 
@@ -2220,6 +2219,7 @@ class DevisesMixin:
             self._load_excel_data()
 
     def _save_config(self):
+        from cpt_gui import write_config_section_key, _insert_key_in_section
         raw = self.config_raw
 
         # Onglet Paramètres
