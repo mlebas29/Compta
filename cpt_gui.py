@@ -751,8 +751,14 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
         enabled_sites = {s.strip() for s in enabled_str.split(',') if s.strip()}
         enabled_sites.discard('MANUEL')
         sites_with_accounts = set(self.account_site_map.values()) - {'N/A'}
-        for s in sorted(enabled_sites - sites_with_accounts):
-            warnings.append(f'Site « {s} » activé mais aucun compte associé')
+        orphan_enabled = sorted(enabled_sites - sites_with_accounts)
+        if orphan_enabled:
+            for s in orphan_enabled:
+                if s in self.site_vars:
+                    self.site_vars[s].set(False)
+            self._save_config()
+            auto_fixes.append(
+                f'{", ".join(orphan_enabled)} : site(s) désactivé(s) (aucun compte associé)')
 
         # --- Sites avec comptes mais désactivés ---
         for s in sorted(sites_with_accounts - enabled_sites):
