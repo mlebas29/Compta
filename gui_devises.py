@@ -8,6 +8,8 @@ import openpyxl
 import re
 import shutil
 import threading
+
+from cpt_gui import write_config_section_key, _insert_key_in_section
 import time
 import tkinter as tk
 
