@@ -1037,6 +1037,7 @@ class AccountsMixin:
             if remaining == 0:
                 if site in self.site_vars:
                     self.site_vars[site].set(False)
+                    self._refresh_site_list()
                 messagebox.showinfo('Site désactivé',
                     f"Plus aucun compte pour {site}.\nLe site a été désactivé.",
                     parent=self.root)
