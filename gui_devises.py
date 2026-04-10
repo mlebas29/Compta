@@ -2264,6 +2264,8 @@ class DevisesMixin:
         with open(self.config_path, 'w', encoding='utf-8') as f:
             f.write(raw)
         self.config_raw = raw
+        # Recharger le ConfigParser pour que _check_coherence voie les nouvelles valeurs
+        self.config.read_string(raw)
 
     def _load_pipeline_json(self):
         """Charge config_pipeline.json et retourne le dict."""
