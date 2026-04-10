@@ -588,19 +588,18 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
         from inc_excel_schema import SCHEMA_VERSION
         try:
             wb = openpyxl.load_workbook(self.xlsx_path, data_only=True, read_only=True)
-            ws = wb[SHEET_CONTROLES]
-            cell_val = ws.cell(2, 11).value  # K2
+            dn = wb.defined_names.get('SCHEMA_VERSION')
             wb.close()
         except Exception:
             return None  # pas bloquant si lecture impossible
 
-        if cell_val is None:
+        if dn is None:
             return (f'Classeur sans numéro de version (version {SCHEMA_VERSION} attendue).\n'
                     f'Voir Compta_upgrade.md pour la procédure de mise à niveau.')
         try:
-            classeur_version = int(cell_val)
+            classeur_version = int(dn.attr_text)
         except (ValueError, TypeError):
-            return (f'Contrôles!K2 invalide : « {cell_val} » (entier attendu).\n'
+            return (f'SCHEMA_VERSION invalide : « {dn.attr_text} » (entier attendu).\n'
                     f'Voir Compta_upgrade.md.')
         if classeur_version < SCHEMA_VERSION:
             return (f'Classeur version {classeur_version}, version {SCHEMA_VERSION} attendue.\n'

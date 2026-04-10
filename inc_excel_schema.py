@@ -14,7 +14,8 @@ from typing import Optional
 
 
 # Version du schéma classeur — incrémentée à chaque changement de structure
-# (named ranges, colonnes, formules). Contrôles!K2 doit contenir cette valeur.
+# (named ranges, colonnes, formules). Le classeur doit avoir un named range
+# SCHEMA_VERSION (constante) égal à cette valeur.
 # Voir Compta_upgrade.md pour l'historique et les procédures de migration.
 SCHEMA_VERSION = 1
 
