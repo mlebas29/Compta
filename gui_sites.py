@@ -75,6 +75,8 @@ class SitesMixin:
         self._save_config()
         self._save_descriptions()
         self._set_status('Configuration sites enregistrée')
+        if self.xlsx_path:
+            self._refresh_status_bar()
 
     def _get_selected_site(self):
         """Retourne le site sélectionné, ou None."""
