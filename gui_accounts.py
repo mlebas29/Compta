@@ -1453,6 +1453,8 @@ class AccountsMixin:
         from inc_uno import copy_row_style
         from datetime import datetime
 
+        cr = doc.cr
+
         cursor = ws_ops.createCursor()
         cursor.gotoEndOfUsedArea(True)
         ops_last_0 = cursor.getRangeAddress().EndRow
@@ -1490,7 +1492,6 @@ class AccountsMixin:
             c_cell.CellBackColor = GRIS
             ws_ops.getCellByPosition(cr.col('OPdevise'), ops_next_0).CellBackColor = GRIS
 
-    @staticmethod
     @staticmethod
     def _sweep_compte_clos_uno(ws_ops, cr=None):
         """Supprime les paires où les deux côtés sont dans 'Compte clos'.
