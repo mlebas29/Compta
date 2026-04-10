@@ -756,6 +756,11 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
             for s in orphan_enabled:
                 if s in self.site_vars:
                     self.site_vars[s].set(False)
+                # Retirer du panneau Exécution (déjà construit)
+                if s in self._exec_site_widgets:
+                    self._exec_site_widgets[s].destroy()
+                    del self._exec_site_widgets[s]
+                    del self._exec_site_vars[s]
             self._save_config()
             auto_fixes.append(
                 f'{", ".join(orphan_enabled)} : site(s) désactivé(s) (aucun compte associé)')
