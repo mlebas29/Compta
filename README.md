@@ -188,7 +188,15 @@ Voir à ce sujet [`Compta_plus.md`](Compta_plus.md) : commandes avancées, dépa
 
 - **(1) **:  Le script `install.sh` utilise `apt` et ne supporte pas les distributions non Debian/Ubuntu (Fedora, Arch, openSUSE). Sur ces systèmes, une installation manuelle des dépendances est nécessaire (voir `requirements.txt`).
 
-## 9. Licence
+## 9. Signaler un bug
+
+- **Sur GitHub** : ouvrir une [Issue](https://github.com/mlebas29/Compta/issues) avec la description du problème et le message d'erreur éventuel
+- **En ligne de commande** (nécessite [GitHub CLI](https://cli.github.com/)) :
+  ```bash
+  gh issue create --title "Bug: description" --body "Détail du problème"
+  ```
+
+## 10. Licence
 
 Compta [EX] est distribué gratuitement sous licence GNU GPL v3.
 
