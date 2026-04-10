@@ -10,6 +10,8 @@ Compta est un projet de comptabilité familiale ; il a deux composants :
 2. Une **application d'assistance** qui
    - gère les structures du classeur (configuration)
    - collecte les données brutes, depuis des sites financiers vers le classeur
+   
+   
 
 | Mode classeur | Mode assisté |
 |:---:|:---:|
@@ -32,6 +34,8 @@ Ce mode convient pour une comptabilité diversifiée, uniquement sous Linux.
 ### Capture d'écran
 
 ![](images/Compta.png)
+
+
 
 ## 2. Fonctions
 
@@ -88,6 +92,8 @@ et aussi :
 | Télécharger  [`comptes_exemple.xlsx`](https://github.com/mlebas29/Compta/raw/main/comptes_exemple.xlsx) | `cd ~/Compta && git pull` |
 
 `git pull` met à jour l'application mais pas le classeur `comptes.xlsm` (qui contient vos données). En cas d'incompatibilité, l'application le signale au démarrage — voir [`Compta_upgrade.md`](Compta_upgrade.md).
+
+
 
 ## 5. Documentation
 
@@ -176,9 +182,11 @@ tool_*.py               # Outils de maintenance
 
 ### Modification de l'application
 
-Toute modification par l'utilisateur des fichiers versionnés sous `git` est possible mais est soumise aux règles de cet environnement, en particulier au moment de la mise à jour. 
+Toute modification par l'utilisateur des fichiers de l'application reste possible mais selon les règles de l'environnement `git` , en particulier au moment de la mise à jour (`git pull`) qui révèle les conflits.
 
 Voir à ce sujet [`Compta_plus.md`](Compta_plus.md) : commandes avancées, dépannage
+
+
 
 ## 8. Restrictions
 
@@ -186,7 +194,9 @@ Voir à ce sujet [`Compta_plus.md`](Compta_plus.md) : commandes avancées, dépa
 | ------------------------------------------------------------ | ------------------------------------------------------------ |
 | Aucune restriction; fonctionne sur tout OS avec un tableur compatible Excel. | Installation testée sur Ubuntu 22.04 et dérivés (Zorin, Mint)  **(1)** |
 
-- **(1) **:  Le script `install.sh` utilise `apt` et ne supporte pas les distributions non Debian/Ubuntu (Fedora, Arch, openSUSE). Sur ces systèmes, une installation manuelle des dépendances est nécessaire (voir `requirements.txt`).
+- **(1)** :  Le script `install.sh` utilise `apt` et ne supporte pas les distributions non Debian/Ubuntu (Fedora, Arch, openSUSE). Sur ces systèmes, une installation manuelle des dépendances est nécessaire (voir `requirements.txt`).
+
+  
 
 ## 9. Signaler un bug
 
@@ -195,6 +205,8 @@ Voir à ce sujet [`Compta_plus.md`](Compta_plus.md) : commandes avancées, dépa
   ```bash
   gh issue create --title "Bug: description" --body "Détail du problème"
   ```
+
+
 
 ## 10. Licence
 
