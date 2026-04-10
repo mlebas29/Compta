@@ -13,6 +13,11 @@ from datetime import datetime
 from typing import Optional
 
 
+# Version du schéma classeur — incrémentée à chaque changement de structure
+# (named ranges, colonnes, formules). Contrôles!K2 doit contenir cette valeur.
+# Voir Compta_upgrade.md pour l'historique et les procédures de migration.
+SCHEMA_VERSION = 1
+
 # Noms des 9 champs de base (colonnes Opérations A-I)
 _BASE_FIELD_NAMES = (
     'date', 'label', 'montant', 'devise', 'equiv',

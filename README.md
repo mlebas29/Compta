@@ -87,7 +87,7 @@ et aussi :
 | ------------------------------------------------------------ | ------------------------- |
 | Télécharger  [`comptes_exemple.xlsx`](https://github.com/mlebas29/Compta/raw/main/comptes_exemple.xlsx) | `cd ~/Compta && git pull` |
 
-
+`git pull` met à jour l'application mais pas le classeur `comptes.xlsm` (qui contient vos données). En cas d'incompatibilité, l'application le signale au démarrage — voir [`Compta_upgrade.md`](Compta_upgrade.md).
 
 ## 5. Documentation
 
@@ -96,6 +96,7 @@ La documentation concerne essentiellement le mode assisté
 -  [`Compta.md`](Compta.md)  : guide d'utilisation
 -  [`Compta_plus.md`](Compta_plus.md) : commandes avancées, dépannage
 -  [`Compta_tools.md`](Compta_tools.md) : outils de maintenance du classeur
+-  [`Compta_upgrade.md`](Compta_upgrade.md) : mise à niveau du classeur
 
 
 

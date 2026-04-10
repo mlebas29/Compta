@@ -579,9 +579,51 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
         except Exception:
             pass
 
+    def _check_schema_version(self):
+        """Vérifie la version du schéma classeur (Contrôles!K2) vs l'application.
+
+        Returns:
+            str or None: message d'erreur si incompatible, None si OK.
+        """
+        from inc_excel_schema import SCHEMA_VERSION
+        try:
+            wb = openpyxl.load_workbook(self.xlsx_path, data_only=True, read_only=True)
+            ws = wb[SHEET_CONTROLES]
+            cell_val = ws.cell(2, 11).value  # K2
+            wb.close()
+        except Exception:
+            return None  # pas bloquant si lecture impossible
+
+        if cell_val is None:
+            return (f'Classeur sans numéro de version (version {SCHEMA_VERSION} attendue).\n'
+                    f'Voir Compta_upgrade.md pour la procédure de mise à niveau.')
+        try:
+            classeur_version = int(cell_val)
+        except (ValueError, TypeError):
+            return (f'Contrôles!K2 invalide : « {cell_val} » (entier attendu).\n'
+                    f'Voir Compta_upgrade.md.')
+        if classeur_version < SCHEMA_VERSION:
+            return (f'Classeur version {classeur_version}, version {SCHEMA_VERSION} attendue.\n'
+                    f'Voir Compta_upgrade.md pour la procédure de mise à niveau.')
+        return None
+
     def _startup_check(self):
         """Check de cohérence au démarrage : charge Excel puis vérifie."""
         out = self._exec_output
+
+        # Vérification version schéma (indépendante du chargement complet)
+        version_error = self._check_schema_version()
+        if version_error:
+            self._coherence_auto_fixes = []
+            self._coherence_warnings = [version_error]
+            out.configure(state='normal')
+            out.delete('1.0', 'end')
+            out.insert('end', f'⚠ {version_error}\n')
+            out.see('end')
+            out.configure(state='disabled')
+            self._set_status('VERSION', 'error')
+            return
+
         try:
             self._ensure_excel_loaded()
             # Relire les JSON depuis le disque (ils ont pu être modifiés en externe)
