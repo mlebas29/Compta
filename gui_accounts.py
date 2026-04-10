@@ -654,8 +654,14 @@ class AccountsMixin:
                 'ctrl_row': None,
                 'avoirs_ref': new_acct,
             })
-            self._set_status(f'Bien ajouté : {intitule}')
-            self._save_and_reload()
+            dlg.destroy()
+
+            self._run_uno_operation(
+                'Enregistrement bien',
+                self._save_accounts,
+                lambda: (self._after_accounts_save(f"Bien ajouté : {intitule}"),
+                         self._select_display_in_tree(intitule))
+            )
 
         btn_frame = ttk.Frame(dlg)
         btn_frame.grid(row=row, column=0, columnspan=2, pady=10)
