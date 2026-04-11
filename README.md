@@ -194,11 +194,14 @@ Voir à ce sujet [`Compta_plus.md`](Compta_plus.md) : commandes avancées, dépa
 
 ## 8. Restrictions
 
-| Mode classeur                                                | Mode assisté                                                 |
-| ------------------------------------------------------------ | ------------------------------------------------------------ |
-| Aucune restriction; fonctionne sur tout OS avec un tableur compatible Excel. | Installation testée sur Ubuntu 22.04 et dérivés (Zorin, Mint)  **(1)** |
+|                  | Mode classeur                              | Mode assisté                                                 |
+| ---------------- | ------------------------------------------ | ------------------------------------------------------------ |
+| **Installation** | Aucune (juste un tableur compatible Excel) | `install.sh` testé sur Ubuntu 22.04 et dérivés (Zorin, Mint) — utilise `apt` **(1)** |
+| **GUI**          | N/A — utilisation directe du tableur       | Wayland pur (sans XWayland) non supporté  **(2)**            |
 
-**(1)** :  Le script `install.sh` utilise `apt` et ne fonctionne pas avec les distributions Linux non Debian/Ubuntu : Fedora, Arch, openSUSE. Sur ces systèmes, une installation manuelle des dépendances est nécessaire (voir `requirements.txt`).
+**(1)** Sur les distributions Linux non Debian/Ubuntu (Fedora, Arch, openSUSE…), une installation manuelle des dépendances est nécessaire — voir `requirements.txt`.
+
+**(2)**  Wayland pur est quasi inexistant en mainstream Linux. L'app fonctionne sous **GNOME, KDE, XFCE…** en session **X11** (ou XWayland). La session Wayland pure casse `xclip` utilisé pour 2FA Kraken/Wise.
 
 
 
