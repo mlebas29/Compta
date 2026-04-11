@@ -999,7 +999,10 @@ class DevisesMixin:
         """
         from inc_excel_schema import uno_col, uno_row, ColResolver
         cr = doc.cr
-        from inc_formats import FORMATS_DEVISE, FORMAT_EUR, FORMAT_EUR_RED, GRIS, BLANC
+        from inc_formats import (
+            FORMATS_DEVISE, FORMAT_EUR, FORMAT_EUR_RED,
+            GRIS_BLANC, GRIS_BEIGE, BLANC,
+        )
 
         fmt_date = doc.register_number_format('DD/MM/YY')
         is_portefeuille = section == 'portefeuilles'
@@ -1017,20 +1020,29 @@ class DevisesMixin:
         else:
             fmt_hi = doc.register_number_format(FORMAT_EUR)
 
-        # Colonnes D-K pour fond blanc (lignes données, pas pieds portefeuille)
-        ALL_DK = [cr.col('PVLdevise'), cr.col('PVLpvl'), cr.col('PVLpct'),
-                  cr.col('PVLdate_init'), cr.col('PVLmontant_init'), cr.col('PVLsigma'),
-                  cr.col('PVLdate'), cr.col('PVLmontant')]
-        # Colonnes qui seront grisées (non-EUR) — pas de blanc dessus
+        # count=0 → ligne donnée unique
+        # count=3 → bloc portefeuille : offset 0 = en-tête, offsets 1-3 = pieds
+        is_bloc = count > 0
+        # Lignes titres = data row dans un portefeuille (count=0 + section portefeuilles)
+        # → la zone blanche est étendue à col C (PVLtitre)
+        is_titre_row = is_portefeuille and not is_bloc
+
+        # Colonnes à fond blanc sur lignes données :
+        # base D-K, étendue à C pour les lignes titres
+        WHITE_COLS = [cr.col('PVLpvl'), cr.col('PVLpct'),
+                      cr.col('PVLdate_init'), cr.col('PVLmontant_init'),
+                      cr.col('PVLsigma'), cr.col('PVLdate'),
+                      cr.col('PVLmontant'), cr.col('PVLdevise')]
+        if is_titre_row:
+            WHITE_COLS.append(cr.col('PVLtitre'))
+        # Colonnes montant grisées (non-EUR) — pas de blanc dessus
+        # NB : PVLdevise (libellé devise) n'est plus grisée — fond blanc hérité
         if is_non_eur:
-            gris_set = {cr.col('PVLdevise'), cr.col('PVLpvl'), cr.col('PVLmontant')}
+            gris_set = {cr.col('PVLpvl'), cr.col('PVLmontant')}
             if is_portefeuille:
                 gris_set |= {cr.col('PVLmontant_init'), cr.col('PVLsigma')}
         else:
             gris_set = set()
-        # count=0 → ligne donnée unique
-        # count=3 → bloc portefeuille : offset 0 = en-tête, offsets 1-3 = pieds
-        is_bloc = count > 0
 
         for offset in range(count + 1):
             r0 = uno_row(first_row + offset)
@@ -1045,19 +1057,21 @@ class DevisesMixin:
             # H et I
             ws_pv.getCellByPosition(cr.col('PVLmontant_init'), r0).NumberFormat = fmt_hi
             ws_pv.getCellByPosition(cr.col('PVLsigma'), r0).NumberFormat = fmt_hi
-            # Fond blanc D-K pour lignes données (hors pieds et en-tête)
+            # Fond blanc sur lignes données (hors pieds et en-tête)
             if not is_pied and not is_header:
-                for c0 in ALL_DK:
+                for c0 in WHITE_COLS:
                     if c0 not in gris_set:
                         ws_pv.getCellByPosition(c0, r0).CellBackColor = BLANC
-            # Gris non-EUR (se superpose au blanc) — pas sur l'en-tête (cellules vides)
+            # Gris devise sur les montants non-EUR (libellé devise non grisé)
+            # Data row → GRIS_BLANC (sur fond blanc forcé)
+            # Pied      → GRIS_BEIGE (sur beige clair hérité du template)
             if is_non_eur and not is_header:
-                ws_pv.getCellByPosition(cr.col('PVLdevise'), r0).CellBackColor = GRIS
+                gris_color = GRIS_BEIGE if is_pied else GRIS_BLANC
                 for c0 in (cr.col('PVLpvl'), cr.col('PVLmontant')):
-                    ws_pv.getCellByPosition(c0, r0).CellBackColor = GRIS
+                    ws_pv.getCellByPosition(c0, r0).CellBackColor = gris_color
                 if is_portefeuille:
-                    ws_pv.getCellByPosition(cr.col('PVLmontant_init'), r0).CellBackColor = GRIS
-                    ws_pv.getCellByPosition(cr.col('PVLsigma'), r0).CellBackColor = GRIS
+                    ws_pv.getCellByPosition(cr.col('PVLmontant_init'), r0).CellBackColor = gris_color
+                    ws_pv.getCellByPosition(cr.col('PVLsigma'), r0).CellBackColor = gris_color
 
     def _update_pv_total_portefeuilles(self, ws_pv, total_row, retenu_row=None, devise=None, doc=None):
         """Reconstruit les SUMIFS du TOTAL portefeuilles pour toutes les devises présentes.
@@ -1694,10 +1708,10 @@ class DevisesMixin:
                     from inc_formats import FORMAT_EUR
                     l_cell = ws.getCellByPosition(cr.col('AVRmontant_solde_euro'), r0)
                     l_cell.NumberFormat = doc.register_number_format(FORMAT_EUR)
-                    # Fond gris pour non-EUR (devise E + montant K)
+                    # Fond gris devise sur le montant K seul (libellé devise non grisé)
                     if devise and devise not in ('EUR', ''):
-                        ws.getCellByPosition(cr.col('AVRdevise'), r0).CellBackColor = 0xDCDCDC
-                        ws.getCellByPosition(cr.col('AVRmontant_solde'), r0).CellBackColor = 0xDCDCDC
+                        from inc_formats import GRIS_BLANC
+                        ws.getCellByPosition(cr.col('AVRmontant_solde'), r0).CellBackColor = GRIS_BLANC
 
             # (recalibration AVR* + START/end AVR déplacée après cleanup model rows)
 
@@ -1798,10 +1812,11 @@ class DevisesMixin:
                     for c in (cr.col('CTRL1montant_ancrage'), cr.col('CTRL1solde_calc'),
                               cr.col('CTRL1montant_releve'), cr.col('CTRL1ecart')):
                         ws_ctrl.getCellByPosition(c, r0).NumberFormat = fmt_key
-                # GRIS pour non-EUR ; blanc explicite pour EUR
-                # (insertByIndex peut propager le GRIS d'une ligne voisine non-EUR ;
+                # GRIS_BLANC pour non-EUR ; blanc explicite pour EUR
+                # (insertByIndex peut propager le gris d'une ligne voisine non-EUR ;
                 # transparent -1 prendrait la couleur du thème = noir en mode sombre)
-                bg_color = 0xDCDCDC if (devise and devise not in ('EUR', '')) else 0xFFFFFF
+                from inc_formats import GRIS_BLANC
+                bg_color = GRIS_BLANC if (devise and devise not in ('EUR', '')) else 0xFFFFFF
                 for c in (cr.col('CTRL1montant_ancrage'), cr.col('CTRL1solde_calc'),
                           cr.col('CTRL1montant_releve'), cr.col('CTRL1ecart')):
                     ws_ctrl.getCellByPosition(c, r0).CellBackColor = bg_color

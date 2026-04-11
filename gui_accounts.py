@@ -1473,7 +1473,7 @@ class AccountsMixin:
         epoch = datetime(1899, 12, 30)
         if date_debut is None:
             date_debut = datetime.today()
-        from inc_formats import FORMATS_DEVISE, FORMAT_EUR, GRIS
+        from inc_formats import FORMATS_DEVISE, FORMAT_EUR, GRIS_BLANC
         is_non_eur = devise and devise != 'EUR'
         if doc is not None:
             fmt_devise = doc.register_number_format(FORMATS_DEVISE.get(devise, FORMAT_EUR)) if devise else None
@@ -1496,8 +1496,8 @@ class AccountsMixin:
         ws_ops.getCellByPosition(cr.col('OPcatégorie'), ops_next_0).setString('#Solde')
         ws_ops.getCellByPosition(cr.col('OPcompte'), ops_next_0).setString(account_name)
         if is_non_eur:
-            c_cell.CellBackColor = GRIS
-            ws_ops.getCellByPosition(cr.col('OPdevise'), ops_next_0).CellBackColor = GRIS
+            # Gris devise sur le montant seul (libellé devise non grisé)
+            c_cell.CellBackColor = GRIS_BLANC
 
     @staticmethod
     def _sweep_compte_clos_uno(ws_ops, cr=None):
