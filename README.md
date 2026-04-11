@@ -29,6 +29,8 @@ L'application graphique s'intercale entre le classeur et les sites financiers.
 
 L'utilisateur peut vouloir l'assistance de configuration seule ou l'assistance complète (configuration et collecte)
 
+Le mode assisté n'est pas incompatible avec des interventions manuelles dans le classeur. Par exemple pour ajouter, supprimer ou modifier des opérations ou des biens. L'important est de conserver les éléments structurants (tableaux, en-têtes, pieds ...)
+
 Ce mode convient pour une comptabilité diversifiée, uniquement sous Linux.
 
 ### Capture d'écran
@@ -64,11 +66,11 @@ et aussi :
 
 ## 3. Installation
 
-| Mode classeur | Mode assisté |
-|---|---|
-| Classeur avec données d'exemple | Classeur vierge + application complète |
-| Prérequis : LibreOffice ou équivalent | Prérequis : Linux, LibreOffice |
-| Télécharger [`comptes_exemple.xlsx`](https://github.com/mlebas29/Compta/raw/main/comptes_exemple.xlsx)  ; c'est tout ! | Tout télécharger et installer  (*) |
+|  | Mode classeur | Mode assisté |
+|---|:-:|:-:|
+| **Prérequis** | LibreOffice ou équivalent | Linux, LibreOffice |
+| **Livré** | Classeur avec données d'exemple | Classeur vierge + application |
+| **Action** | Télécharger [`comptes_exemple.xlsx`](https://github.com/mlebas29/Compta/raw/main/comptes_exemple.xlsx) | Tout télécharger et installer  (*) |
 
 
 
@@ -87,8 +89,8 @@ et aussi :
 
 ## 4. Mise à jour
 
-| Mode classeur                                                | Mode assisté              |
-| ------------------------------------------------------------ | ------------------------- |
+|                        Mode classeur                         |       Mode assisté        |
+| :----------------------------------------------------------: | :-----------------------: |
 | Télécharger  [`comptes_exemple.xlsx`](https://github.com/mlebas29/Compta/raw/main/comptes_exemple.xlsx) | `cd ~/Compta && git pull` |
 
 `git pull` met à jour l'application mais pas le classeur `comptes.xlsm` (qui contient vos données). En cas d'incompatibilité, l'application le signale au démarrage — voir [`Compta_upgrade.md`](Compta_upgrade.md).
@@ -136,9 +138,11 @@ rm config_credentials.md
 python3 cpt_gui.py
 ```
 
-L'application graphique guide l'utilisateur à travers les étapes : sélection des sites, collecte, import, vérification. Elle peut aussi être utilisée uniquement pour la gestion du classeur (comptes, catégories, devises, titres), sans activer la collecte.
+L'application graphique guide l'utilisateur à travers les étapes : sélection des sites, collecte, import, vérification. Elle peut aussi être utilisée uniquement pour la gestion du classeur (comptes, catégories, devises, titres) sans activer la collecte.
 
 Une fois l'application lancée, elle peut être épinglée dans la barre des tâches.
+
+
 
 ### En ligne de commande
 
@@ -194,9 +198,9 @@ Voir à ce sujet [`Compta_plus.md`](Compta_plus.md) : commandes avancées, dépa
 | ------------------------------------------------------------ | ------------------------------------------------------------ |
 | Aucune restriction; fonctionne sur tout OS avec un tableur compatible Excel. | Installation testée sur Ubuntu 22.04 et dérivés (Zorin, Mint)  **(1)** |
 
-- **(1)** :  Le script `install.sh` utilise `apt` et ne supporte pas les distributions non Debian/Ubuntu (Fedora, Arch, openSUSE). Sur ces systèmes, une installation manuelle des dépendances est nécessaire (voir `requirements.txt`).
+**(1)** :  Le script `install.sh` utilise `apt` et ne fonctionne pas avec les distributions Linux non Debian/Ubuntu : Fedora, Arch, openSUSE. Sur ces systèmes, une installation manuelle des dépendances est nécessaire (voir `requirements.txt`).
 
-  
+
 
 ## 9. Signaler un bug
 
