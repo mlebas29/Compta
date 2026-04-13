@@ -258,7 +258,8 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
         self._mode_fg = fg
         self._mode_accent = accent
         self.root = tk.Tk(className=wm_class)
-        self.root.title(f'Comptabilité [{self._mode_label}]')
+        from inc_excel_schema import APP_VERSION
+        self.root.title(f'Comptabilité v{APP_VERSION} [{self._mode_label}]')
         self.root.geometry('1100x880')
         self.root.minsize(900, 600)
         self.root.report_callback_exception = self._handle_tk_exception

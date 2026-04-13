@@ -185,7 +185,7 @@ class ComptaPairer:
             verbose=verbose,
             logger=self.logger,
         )
-        self.cr = ColResolver.from_openpyxl(self.excel.wb)
+        self.cr = None  # initialisé par run_pairing() après open_workbook()
 
         self.stats = {
             'paired': 0,
@@ -887,6 +887,8 @@ class ComptaPairer:
         """Exécute toutes les phases d'appariement"""
         if not self.excel.open_workbook():
             return False
+
+        self.cr = ColResolver.from_openpyxl(self.excel.wb)
 
         try:
             ops = self.excel.load_unpaired_operations()
