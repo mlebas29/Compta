@@ -31,7 +31,11 @@ L'utilisateur peut vouloir l'assistance de configuration seule ou l'assistance c
 
 Le mode assisté n'est pas incompatible avec des interventions manuelles dans le classeur. Par exemple pour ajouter, supprimer ou modifier des opérations ou des biens. L'important est de conserver les éléments structurants (tableaux, en-têtes, pieds ...)
 
-Ce mode convient pour une comptabilité diversifiée, uniquement sous Linux.
+Ce mode convient pour une comptabilité diversifiée, sous Linux.
+
+> NB : **WSL** (Windows Subsystem for Linux) permet de faire tourner un Linux complet dans **Windows 11**, sans machine virtuelle à gérer.
+
+
 
 ### Capture d'écran
 
