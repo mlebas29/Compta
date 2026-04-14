@@ -105,6 +105,7 @@ La documentation concerne essentiellement le mode assisté
 -  [`Compta_plus.md`](Compta_plus.md) : commandes avancées, dépannage
 -  [`Compta_tools.md`](Compta_tools.md) : outils de maintenance du classeur
 -  [`Compta_upgrade.md`](Compta_upgrade.md) : mise à niveau du classeur
+-  [`Compta_portage.md`](Compta_portage.md) : portage Windows, macOS
 
 
 
