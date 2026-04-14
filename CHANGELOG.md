@@ -1,5 +1,9 @@
 # Changelog
 
+Cet historique des versions de l'app est orienté utilisateur ; il ne mentionne pas explicitement les changements internes du code.
+
+Hors l'affichage GUI, la version installée de l'app (**APP_VERSION**) est indiquée dans **inc_excel_schema.py**, à côté de la version classeur (SCHEMA_VERSION).
+
 ## v3.5.0 (2026-04-13)
 
 - Numéro de version affiché dans le titre de la fenêtre
