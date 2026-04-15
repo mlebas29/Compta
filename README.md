@@ -31,11 +31,13 @@ L'utilisateur peut vouloir l'assistance de configuration seule ou l'assistance c
 
 Le mode assisté n'est pas incompatible avec des interventions manuelles dans le classeur. Par exemple pour ajouter, supprimer ou modifier des opérations ou des biens. L'important est de conserver les éléments structurants (tableaux, en-têtes, pieds ...)
 
-Ce mode convient pour une comptabilité diversifiée, 
+Ce mode convient pour une comptabilité diversifiée. 
 
-- sous Linux
+Les environnements supportés sont :
 
-- sous **Windows 11** avec WSL (Windows Subsystem for Linux) qui permet de faire tourner un Linux complet dans Windows 11, sans machine virtuelle à gérer (Voir [Compta_portage.md](Compta_portage.md))
+-  Linux
+
+-  **Windows 11** avec WSL (Windows Subsystem for Linux) qui permet de faire tourner un Linux complet dans Windows 11, sans machine virtuelle à gérer (Voir [Compta_portage.md](Compta_portage.md))
 
 
 
@@ -193,9 +195,7 @@ tool_*.py               # Outils de maintenance
 
 ### Modification de l'application
 
-Toute modification par l'utilisateur des fichiers de l'application reste possible mais selon les règles de l'environnement `git` , en particulier au moment de la mise à jour (`git pull`) qui révèle les conflits.
-
-Voir à ce sujet [`Compta_plus.md`](Compta_plus.md) : commandes avancées, dépannage
+Les fichiers de l'application sont modifiables, mais `git pull` signalera les conflits avec vos modifications locales. Voir [`Compta_plus.md`](Compta_plus.md) pour la résolution.
 
 
 
