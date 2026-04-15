@@ -17,7 +17,9 @@ Dans un terminal PowerShell (administrateur) :
 wsl --install -d Ubuntu-24.04
 ```
 
-Redémarrer, puis lancer Ubuntu depuis le menu Démarrer. Créer un utilisateur Linux quand demandé.
+Redémarrer Windows, puis relancer la même commande. Créer un utilisateur Linux quand demandé.
+
+> **Note :** le premier appel peut échouer avec « erreur irrémédiable » — c'est normal, il active WSL2 dans Windows. Après le redémarrage, le second appel installe Ubuntu.
 
 ### Installation de l'application
 
