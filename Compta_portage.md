@@ -19,7 +19,7 @@ wsl --install -d Ubuntu-24.04
 
 Redémarrer Windows, puis relancer la même commande. Créer un utilisateur Linux quand demandé.
 
-> **Note :** le premier appel peut échouer avec « erreur irrémédiable » — c'est normal, il active WSL2 dans Windows. Après le redémarrage, le second appel installe Ubuntu.
+> **Note :** le premier appel peut échouer avec « erreur irrémédiable ». Relancer la même commande — le second appel devrait fonctionner. Redémarrer ensuite Windows pour la prise en compte.
 
 ### Installation de l'application
 
