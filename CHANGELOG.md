@@ -4,6 +4,12 @@ Cet historique des versions de l'app est orienté utilisateur ; il ne mentionne 
 
 Hors l'affichage GUI, la version installée de l'app (**APP_VERSION**) est indiquée dans **inc_excel_schema.py**, à côté de la version classeur (SCHEMA_VERSION).
 
+## v3.5.1 (2026-04-15)
+
+- Installation compatible Ubuntu 24.04 et Windows 11 (WSL2) — correction pip PEP 668
+- Documentation portage Windows 11, raccourci bureau Windows
+- Images README corrigées pour l'export GitHub
+
 ## v3.5.0 (2026-04-13)
 
 - Numéro de version affiché dans le titre de la fenêtre
