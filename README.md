@@ -31,9 +31,11 @@ L'utilisateur peut vouloir l'assistance de configuration seule ou l'assistance c
 
 Le mode assisté n'est pas incompatible avec des interventions manuelles dans le classeur. Par exemple pour ajouter, supprimer ou modifier des opérations ou des biens. L'important est de conserver les éléments structurants (tableaux, en-têtes, pieds ...)
 
-Ce mode convient pour une comptabilité diversifiée, sous Linux.
+Ce mode convient pour une comptabilité diversifiée, 
 
-> NB : **WSL** (Windows Subsystem for Linux) permet de faire tourner un Linux complet dans **Windows 11**, sans machine virtuelle à gérer.
+- sous Linux
+
+- sous **Windows 11** avec WSL (Windows Subsystem for Linux) qui permet de faire tourner un Linux complet dans Windows 11, sans machine virtuelle à gérer (Voir [Compta_portage.md](Compta_portage.md))
 
 
 
@@ -72,7 +74,7 @@ et aussi :
 
 |  | Mode classeur | Mode assisté |
 |---|:-:|:-:|
-| **Prérequis** | LibreOffice ou équivalent | Linux, LibreOffice |
+| **Prérequis** | LibreOffice ou équivalent | Linux ou Windows 11 (WSL2), LibreOffice |
 | **Livré** | Classeur avec données d'exemple | Classeur vierge + application |
 | **Action** | Télécharger [`comptes_exemple.xlsx`](https://github.com/mlebas29/Compta/raw/main/comptes_exemple.xlsx) | Tout télécharger et installer  (*) |
 
@@ -201,7 +203,7 @@ Voir à ce sujet [`Compta_plus.md`](Compta_plus.md) : commandes avancées, dépa
 
 |                  | Mode classeur                              | Mode assisté                                                 |
 | ---------------- | ------------------------------------------ | ------------------------------------------------------------ |
-| **Installation** | Aucune (juste un tableur compatible Excel) | testé sur Linux Ubuntu 22.04 et dérivés (Zorin, Mint) — utilise `apt` **(1)** |
+| **Installation** | Aucune (juste un tableur compatible Excel) | testé sur Linux Ubuntu 22.04 / 24.04 et dérivés (Zorin, Mint), Windows 11 via WSL2 — utilise `apt` **(1)** |
 | **GUI**          | N/A — utilisation directe du tableur       | Wayland pur (sans XWayland) non supporté  **(2)**            |
 
 **(1)** Sur les distributions Linux non Debian/Ubuntu (Fedora, Arch, openSUSE…), une installation manuelle est nécessaire — voir `requirements.txt`. pour les packages et `install.sh` pour les copies

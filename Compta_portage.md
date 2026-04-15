@@ -30,7 +30,7 @@ git clone https://github.com/mlebas29/Compta.git ~/Compta
 cd ~/Compta && ./install.sh
 ```
 
-C'est la même procédure que sous Linux natif.
+C'est la même procédure que sous Linux natif. Le script `install.sh` détecte automatiquement la restriction pip PEP 668 présente sur Ubuntu 24.04 et l'active si nécessaire.
 
 ### Lancement
 
@@ -48,6 +48,19 @@ La fenêtre s'affiche sur le bureau Windows grâce à WSLg.
 | **Playwright headed** | Le mode navigateur visible (Cloudflare) fonctionne via WSLg mais peut être un peu lent graphiquement |
 | **Accès classeur depuis Windows** | Le classeur dans WSL est accessible depuis l'Explorateur Windows : `\\wsl$\Ubuntu-24.04\home\<user>\Compta\` |
 | **LibreOffice GUI** | Pour ouvrir le classeur dans LibreOffice, le lancer depuis WSL (`libreoffice ~/Compta/comptes.xlsm`), pas depuis Windows |
+
+### Raccourci Windows
+
+Pour lancer l'application depuis le bureau Windows sans ouvrir manuellement un terminal :
+
+1. Clic droit sur le bureau → **Nouveau → Raccourci**
+2. Emplacement :
+   ```
+   wsl.exe -d Ubuntu-24.04 -- bash -c "cd ~/Compta && python3 cpt_gui.py"
+   ```
+3. Nommer le raccourci **Comptabilité**
+4. Clic droit → **Épingler à la barre des tâches**
+5. Optionnel : clic droit sur le raccourci → **Propriétés** → champ "Exécuter" → **Réduite** (pour masquer le terminal)
 
 ### Limitations connues
 

@@ -135,7 +135,17 @@ fi
 # ------------------------------------------------------------------
 echo
 echo "--- Installation dépendances Python ---"
-$PIP install -r requirements.txt
+
+# PEP 668 (Ubuntu ≥ 23.04, Debian ≥ 12) : pip refuse d'installer
+# en dehors d'un venv si EXTERNALLY-MANAGED est présent
+PIP_EXTRA=""
+PY_STDLIB=$($PYTHON -c "import sysconfig; print(sysconfig.get_path('stdlib'))")
+if [[ -f "$PY_STDLIB/EXTERNALLY-MANAGED" ]]; then
+    warn "PEP 668 détecté — ajout de --break-system-packages"
+    PIP_EXTRA="--break-system-packages"
+fi
+
+$PIP install -r requirements.txt $PIP_EXTRA
 ok "requirements.txt installé"
 
 # ------------------------------------------------------------------
