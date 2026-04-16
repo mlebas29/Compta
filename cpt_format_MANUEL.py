@@ -235,8 +235,7 @@ def _parse_xlsx_positions(xlsx_file):
         date_val, ligne, montant, compte = row[0], row[1], row[2], row[3]
         # Date → dd/mm/yyyy
         date_str = date_val.strftime('%d/%m/%Y') if hasattr(date_val, 'strftime') else str(date_val)
-        # Montant → virgule décimale
-        montant_str = str(montant).replace('.', ',') if montant is not None else '0'
+        montant_str = str(montant) if montant is not None else '0'
         positions.append((date_str, str(ligne), montant_str, str(compte)))
     wb.close()
     if positions:
