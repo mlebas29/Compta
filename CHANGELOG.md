@@ -4,6 +4,12 @@ Cet historique des versions de l'app est orienté utilisateur ; il ne mentionne 
 
 Hors l'affichage GUI, la version installée de l'app (**APP_VERSION**) est indiquée dans **inc_excel_schema.py**, à côté de la version classeur (SCHEMA_VERSION).
 
+## v3.5.3 (2026-04-16)
+
+- Correction du calcul Plus-value : pour un portefeuille dans une devise non-EUR contenant un titre dans une autre devise, le Total du bloc et le TOTAL portefeuilles étaient convertis deux fois (bug latent sauf configuration spécifique)
+- Formules PVL devenues génériques : plus besoin d'être regénérées à l'ajout ou suppression d'une devise
+- Outil de migration `tool_migrate_pvl_totals.py` pour mettre à jour un classeur existant (voir `Compta_upgrade.md`)
+
 ## v3.5.2 (2026-04-16)
 
 - Correction détection d'erreur Comptes : avec plusieurs devises, les écarts non-EUR n'étaient pas détectés dans le tableau de contrôle 2
