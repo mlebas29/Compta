@@ -54,7 +54,9 @@ def copy_row_style(sheet, src_row, dst_row, col_start=0, col_end=12):
         src_cell = sheet.getCellByPosition(col, src_row)
         dst_cell = sheet.getCellByPosition(col, dst_row)
         dst_cell.CellStyle = src_cell.CellStyle
+        # Fond : CellBackColor d'abord, puis IsCellBackgroundTransparent pour écraser
         dst_cell.CellBackColor = src_cell.CellBackColor
+        dst_cell.IsCellBackgroundTransparent = src_cell.IsCellBackgroundTransparent
         dst_cell.CharHeight = src_cell.CharHeight
         dst_cell.CharWeight = src_cell.CharWeight
         dst_cell.CharColor = src_cell.CharColor
@@ -81,7 +83,9 @@ def copy_col_style(sheet, src_col, dst_col, row_start=0, row_end=100, skip_rows=
         src_cell = sheet.getCellByPosition(src_col, row)
         dst_cell = sheet.getCellByPosition(dst_col, row)
         dst_cell.CellStyle = src_cell.CellStyle
+        # Fond : CellBackColor d'abord, puis IsCellBackgroundTransparent pour écraser
         dst_cell.CellBackColor = src_cell.CellBackColor
+        dst_cell.IsCellBackgroundTransparent = src_cell.IsCellBackgroundTransparent
         dst_cell.CharHeight = src_cell.CharHeight
         dst_cell.CharWeight = src_cell.CharWeight
         dst_cell.CharColor = src_cell.CharColor

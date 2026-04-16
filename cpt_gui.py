@@ -1298,25 +1298,25 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
                     budget_devises.add(str(val).strip())
 
             # Détecter la dernière colonne devise dans Contrôles
-            # start CTRL2 pointe sur la première ligne de données (COMPTES).
-            # Le header devises est 2 lignes au-dessus (START - 2).
+            # CTRL2eur pointe sur la colonne EUR (première devise).
+            # Le header devises est 2 lignes au-dessus de CTRL2type START.
             ctrl_last_devise = None
             ctrl2_header_row = None
             if SHEET_CONTROLES in wb_values.sheetnames:
                 ws_ctrl = wb_values[SHEET_CONTROLES]
                 ctrl2_s, ctrl2_e = self.cr.rows('CTRL2type')
                 if ctrl2_s:
-                    ctrl2_col = self.cr.col('CTRL2type')  # openpyxl 1-indexed
                     ctrl2_header_row = ctrl2_s - 2
                 else:
-                    ctrl2_col = 18  # fallback
                     ctrl2_header_row = 62
-                # Scanner la ligne header pour trouver la dernière devise
-                for col_idx in range(ctrl2_col, ctrl2_col + 30):
-                    val = ws_ctrl.cell(ctrl2_header_row, col_idx).value
-                    if not val or not str(val).strip():
-                        ctrl_last_devise = col_idx - 1
-                        break
+                # Scanner depuis CTRL2eur (colonne EUR) pour la dernière devise
+                eur_col = self.cr.col('CTRL2eur') if 'CTRL2eur' in self.cr._cols else None
+                if eur_col:
+                    for col_idx in range(eur_col, eur_col + 30):
+                        val = ws_ctrl.cell(ctrl2_header_row, col_idx).value
+                        if not val or not str(val).strip():
+                            ctrl_last_devise = col_idx - 1
+                            break
                 if ctrl_last_devise is None:
                     ctrl_last_devise = 29  # fallback AC
 

@@ -467,11 +467,13 @@ class DevisesMixin:
             cc0 = uno_col(new_ctrl_col)
             ctrl_letter = ColResolver._idx_to_letter(new_ctrl_col)
 
-            # Copier le style depuis la colonne EUR CTRL2 (= première devise CTRL2)
-            # last_ctrl pointe sur la dernière colonne existante avant insertion
-            first_ctrl_devise = last_ctrl  # pour la 1ère devise = EUR, ensuite = voisin
-            copy_col_style(ws_ctrl, uno_col(first_ctrl_devise), cc0,
-                           row_start=uno_row(h), row_end=uno_row(h + 15))
+            # Copier le style depuis la colonne EUR (named range CTRL2eur)
+            # Bornes : header (START-2) → pied (END+1), row_end exclusif → END+2
+            eur_ctrl_col_0 = doc.cr.col('CTRL2eur')
+            _, ctrl2_end_1 = doc.cr.rows('CTRL2type')
+            copy_end_1 = (ctrl2_end_1 + 2) if ctrl2_end_1 else (h + 16)
+            copy_col_style(ws_ctrl, eur_ctrl_col_0, cc0,
+                           row_start=uno_row(h), row_end=uno_row(copy_end_1))
 
             # Appliquer les formats nombre spécifiques par ligne + gris
             from inc_formats import FORMATS_DEVISE, FORMAT_EUR, FORMAT_EUR_RED, GRIS, devise_format
