@@ -228,6 +228,8 @@ wallet_timeout = 300
 name = Opérations manuelles
 dossier = MANUEL
 # Pas de base_url ni credential_id (saisie manuelle)
+# Pas de filtre temporel : les opérations manuelles sont toujours intentionnelles
+max_days_back = 0
 
 # ============================================================================
 # AMAZON - Carte cadeau / compte prépayé

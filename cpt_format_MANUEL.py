@@ -214,6 +214,36 @@ def _parse_xlsx(xlsx_file):
     return operations
 
 
+def _parse_xlsx_positions(xlsx_file):
+    """Parse la feuille Positions d'un XLSX manuel → tuples 4 champs.
+
+    Format feuille Positions : Date, Ligne (titre), Montant, Compte
+    Retourne des tuples (date, ligne, montant, compte) pour alimenter PVL.
+    """
+    positions = []
+    name = Path(xlsx_file).name
+    wb = openpyxl.load_workbook(xlsx_file, read_only=True, data_only=True)
+    if 'Positions' not in wb.sheetnames:
+        wb.close()
+        return positions
+    ws = wb['Positions']
+    for i, row in enumerate(ws.iter_rows(values_only=True)):
+        if i == 0 and row[0] == 'Date':
+            continue
+        if len(row) < 4 or not row[0]:
+            continue
+        date_val, ligne, montant, compte = row[0], row[1], row[2], row[3]
+        # Date → dd/mm/yyyy
+        date_str = date_val.strftime('%d/%m/%Y') if hasattr(date_val, 'strftime') else str(date_val)
+        # Montant → virgule décimale
+        montant_str = str(montant).replace('.', ',') if montant is not None else '0'
+        positions.append((date_str, str(ligne), montant_str, str(compte)))
+    wb.close()
+    if positions:
+        print(f"  {len(positions)} position(s) PVL depuis {name}", file=sys.stderr)
+    return positions
+
+
 def format_site(site_dir, verbose=False, logger=None):
     """API pour Update."""
     if logger is None:
@@ -222,6 +252,7 @@ def format_site(site_dir, verbose=False, logger=None):
 
     handlers = [
         ('*.xlsx', _parse_xlsx, 'ops'),
+        ('*.xlsx', _parse_xlsx_positions, 'pos'),
     ]
     return process_files(site_dir, handlers, verbose, SITE, logger=logger)
 
