@@ -556,39 +556,22 @@ class DevisesMixin:
             ws_ctrl.getCellByPosition(cc0, uno_row(h + 12)).setFormula(
                 f'={ctrl_letter}{h+8}+{ctrl_letter}{h+10}+{ctrl_letter}{h+11}')
 
-            # ==== ÉTAPE F — Contrôles : étendre 4 ranges SUM ====
+            # ==== ÉTAPE F — Contrôles : étendre les formules K/L ====
             new_end = ColResolver._idx_to_letter(new_ctrl_col)
-            old_end = ColResolver._idx_to_letter(last_ctrl)
+            eur_letter = ColResolver._idx_to_letter(eur_ctrl_col_0 + 1)  # 1-indexed
 
-            # P(h+2) : IF(SUM(…)=0…) → étendre le range
-            cell_p = ws_ctrl.getCellByPosition(uno_col(16), uno_row(h + 2))  # P=16
-            old_formula = cell_p.getFormula()
-            if old_formula:
-                cell_p.setFormula(old_formula.replace(
-                    f'${old_end}{h+2}', f'${new_end}{h+2}').replace(
-                    f'${old_end}${h+2}', f'${new_end}${h+2}'))
+            # L : réécrire les SUM avec le range complet EUR → nouvelle devise
+            # L(h+2) COMPTES, L(h+3) CATÉGORIES, L(h+8) € Virements, L(h+10) € Titres
+            l_col_0 = uno_col(12)  # L = col 12 (1-indexed)
+            for offset in (2, 3, 8, 10):
+                row = h + offset
+                ws_ctrl.getCellByPosition(l_col_0, uno_row(row)).setFormula(
+                    f'=SUM({eur_letter}{row}:{new_end}{row})')
 
-            # P(h+3) : IF(SUM(…)=0…) → étendre le range
-            cell_p3 = ws_ctrl.getCellByPosition(uno_col(16), uno_row(h + 3))
-            old_formula = cell_p3.getFormula()
-            if old_formula:
-                cell_p3.setFormula(old_formula.replace(
-                    f'${old_end}{h+3}', f'${new_end}{h+3}').replace(
-                    f'${old_end}${h+3}', f'${new_end}${h+3}'))
-
-            # Q(h+8) : SUM → étendre le range
-            cell_q8 = ws_ctrl.getCellByPosition(uno_col(17), uno_row(h + 8))  # Q=17
-            old_formula = cell_q8.getFormula()
-            if old_formula:
-                cell_q8.setFormula(old_formula.replace(
-                    f'{old_end}{h+8}', f'{new_end}{h+8}'))
-
-            # Q(h+10) : SUM → étendre le range
-            cell_q10 = ws_ctrl.getCellByPosition(uno_col(17), uno_row(h + 10))
-            old_formula = cell_q10.getFormula()
-            if old_formula:
-                cell_q10.setFormula(old_formula.replace(
-                    f'{old_end}{h+10}', f'{new_end}{h+10}'))
+            # K(h+2) COMPTES : cohérent avec les autres K → IF(L=0;"✓";"✗")
+            k_col_0 = uno_col(11)  # K = col 11 (1-indexed)
+            ws_ctrl.getCellByPosition(k_col_0, uno_row(h + 2)).setFormula(
+                f'=IF(L{h+2}=0;"✓";"✗")')
 
             # ==== Finaliser ====
             if owned:
