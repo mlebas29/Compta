@@ -4,6 +4,11 @@ Cet historique des versions de l'app est orienté utilisateur ; il ne mentionne 
 
 Hors l'affichage GUI, la version installée de l'app (**APP_VERSION**) est indiquée dans **inc_excel_schema.py**, à côté de la version classeur (SCHEMA_VERSION).
 
+## v3.5.2 (2026-04-16)
+
+- Correction détection d'erreur Comptes : avec plusieurs devises, les écarts non-EUR n'étaient pas détectés dans le tableau de contrôle 2
+- Formats devise (symbole, fond gris) appliqués sur les opérations du classeur exemple
+
 ## v3.5.1 (2026-04-15)
 
 - Installation compatible Ubuntu 24.04 et Windows 11 (WSL2) — correction pip PEP 668
