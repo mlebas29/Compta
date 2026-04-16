@@ -1059,46 +1059,21 @@ class DevisesMixin:
                     ws_pv.getCellByPosition(cr.col('PVLsigma'), r0).CellBackColor = gris_color
 
     def _update_pv_total_portefeuilles(self, ws_pv, total_row, retenu_row=None, devise=None, doc=None):
-        """Reconstruit les SUMIFS du TOTAL portefeuilles pour toutes les devises présentes.
+        """Pose les formules TOTAL portefeuilles (H/I/K) en EUR, générique multi-devise.
 
-        Scanne les lignes Retenu pour trouver les devises, puis génère :
-          SUMIFS(...;"EUR") + SUMIFS(...;"USD")*cours_USD + ...
-        Appelé à chaque ajout de portefeuille.
+        SUMPRODUCT pondère chaque Retenu par cours(devise) via lookup COTcode/COTcours.
+        EUR est présent dans COTcode avec cours=1 ; IFERROR→1 couvre devise vide/inconnue.
+        Formule indépendante des devises présentes : plus de regénération nécessaire.
         """
-        from inc_excel_schema import uno_col, uno_row, ColResolver
+        from inc_excel_schema import uno_row
         cr = doc.cr
 
-        # Scanner les devises des lignes Retenu portefeuilles
-        # Utiliser total_row comme borne (pas _end_pvl qui peut être stale en batch)
-        devises = set()
-        pvl_data = (self._start_pvl or 5) + 1
-        pvl_scan_end = total_row
-        for scan in range(pvl_data, pvl_scan_end):
-            a = ws_pv.getCellByPosition(cr.col('PVLsection'), uno_row(scan)).getString().strip()
-            c = ws_pv.getCellByPosition(cr.col('PVLtitre'), uno_row(scan)).getString().strip()
-            d = ws_pv.getCellByPosition(cr.col('PVLdevise'), uno_row(scan)).getString().strip()
-            if a == 'portefeuilles' and c == 'Retenu' and d:
-                devises.add(d)
-
-        # Construire la formule pour chaque colonne (H, I, K)
-        # Pas de devises ou EUR seul → formule générique (sans filtre devise)
-        # Multi-devise ou non-EUR → formule pondérée par devise
-        needs_weighted = devises and (len(devises) > 1 or devises != {'EUR'})
-
+        cours_lookup = 'IFERROR(INDEX(COTcours;MATCH(PVLdevise;COTcode;0));1)'
         for nr_name in ('PVLmontant_init', 'PVLsigma', 'PVLmontant'):
-            cl = cr.letter(nr_name)
-            if needs_weighted:
-                terms = []
-                for dev in sorted(devises):
-                    term = f'SUMIFS({cl}:{cl};A:A;"portefeuilles";C:C;"Retenu";D:D;"{dev}")'
-                    if dev != 'EUR':
-                        cours = self.cours_name(dev)
-                        if cours:
-                            term = f'{term}*{cours}'
-                    terms.append(term)
-                formula = '=' + '+'.join(terms)
-            else:
-                formula = f'=SUMIFS({cl}:{cl};A:A;"portefeuilles";C:C;"Retenu")'
+            formula = (
+                f'=SUMPRODUCT((PVLsection="portefeuilles")*(PVLtitre="Retenu")'
+                f'*{nr_name}*{cours_lookup})'
+            )
             ws_pv.getCellByPosition(cr.col(nr_name), uno_row(total_row)).setFormula(formula)
 
     def _update_pv_bloc_total(self, ws_pv, account_name, total_row, doc=None):
@@ -1106,9 +1081,10 @@ class DevisesMixin:
 
         Scanne les titres (*...*) du bloc pour trouver les devises.
         Mono-devise : SUM(range) — pas de changement.
-        Multi-devise : SUMIFS par devise avec conversion cours.
+        Multi-devise : SUMPRODUCT pondéré cours(titre)/cours(portefeuille)
+        — Total reste exprimé dans la devise du portefeuille (D{total_row}).
         """
-        from inc_excel_schema import uno_col, uno_row
+        from inc_excel_schema import uno_row
         cr = doc.cr
 
         col_b = cr.col('PVLcompte')
@@ -1131,23 +1107,19 @@ class DevisesMixin:
         if len(devises) <= 1:
             return  # Mono-devise : SUM(range) suffit
 
-        # Multi-devise : reconstruire avec SUMIFS par devise * cours
+        # Multi-devise : Σ(K_i · cours(d_i)) / cours(P) — P = devise du portefeuille (D{total_row})
         first_titre = min(r for rows in devises.values() for r in rows)
         last_titre = max(r for rows in devises.values() for r in rows)
 
+        d_range = f'D{first_titre}:D{last_titre}'
+        pivot = f'IFERROR(INDEX(COTcours;MATCH(D{total_row};COTcode;0));1)'
+        lookup = f'IFERROR(INDEX(COTcours;MATCH({d_range};COTcode;0));1)'
         for nr_name in ('PVLmontant_init', 'PVLsigma', 'PVLmontant'):
             cl = cr.letter(nr_name)
-            terms = []
-            for dev in sorted(devises.keys()):
-                term = f'SUMIFS({cl}{first_titre}:{cl}{last_titre};D{first_titre}:D{last_titre};"{dev}")'
-                if dev != 'EUR':
-                    cours = self.cours_name(dev)
-                    if cours:
-                        term = f'{term}*{cours}'
-                    else:
-                        term = f'SUMIFS({cl}{first_titre}:{cl}{last_titre};D{first_titre}:D{last_titre};"{dev}")'
-                terms.append(term)
-            ws_pv.getCellByPosition(cr.col(nr_name), total_r0).setFormula('=' + '+'.join(terms))
+            formula = (
+                f'=SUMPRODUCT({cl}{first_titre}:{cl}{last_titre}*{lookup})/{pivot}'
+            )
+            ws_pv.getCellByPosition(cr.col(nr_name), total_r0).setFormula(formula)
 
         # DATE_INIT : MIN de toutes les dates titres
         cg = cr.letter('PVLdate_init')
