@@ -647,7 +647,9 @@ class ComptaExcelImport(ComptaExcel):
                 date_obj = parse_date(op.date)
 
                 compte_norm = str(op.compte).lower()
-                solde_key = compte_norm
+                # Identité métier d'un #Solde = (compte, date) : une observation à une date.
+                # Plusieurs #Solde même compte à dates distinctes (ancrage + relevé) = légitimes.
+                solde_key = (compte_norm, date_obj)
                 montant_norm = normalize_amount(op.montant) if op.montant else ''
 
                 if solde_key not in soldes_par_compte:
@@ -673,9 +675,9 @@ class ComptaExcelImport(ComptaExcel):
             else:
                 self.stats['duplicates_skipped'] += 1
 
-        # Dédupliquer les #Solde collectés
+        # Dédupliquer les #Solde collectés (même compte + même date)
         for solde_key, soldes_list in soldes_par_compte.items():
-            compte_norm = solde_key
+            compte_norm, _ = solde_key
 
             soldes_list.sort(key=lambda x: x[0] if x[0] else datetime.min, reverse=True)
 

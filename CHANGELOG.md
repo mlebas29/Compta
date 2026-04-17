@@ -4,6 +4,16 @@ Cet historique des versions de l'app **APP_VERSION** est orienté utilisateur ; 
 
 **APP_VERSION** est affiché dans la fenêtre graphique et indiqué dans `inc_excel_schema.py` à côté de la version classeur (SCHEMA_VERSION).
 
+## v3.5.6 (2026-04-17)
+
+- **Import** : deux relevés `#Solde` à dates différentes pour un même compte sont désormais conservés tous les deux (auparavant seul le plus récent était gardé). Le contrôle d'écart de solde peut ainsi fonctionner en mode ancrage + relevé final, sur la période entre les deux dates.
+- **Budget** : l'ajout de plusieurs postes en une fois (depuis la GUI) donnait un Total épargne sous-estimé — seul le premier poste ajouté était effectivement sommé. Tous les postes sont maintenant comptés.
+- **Classeur vierge (livré par `install.sh`)** : corrigé les formules de pied qui ne s'étendaient pas automatiquement à l'ajout de nouvelles lignes :
+  - Budget → Total hors Changes et Virements (par devise)
+  - Budget → Total épargne des postes
+  - Budget → Épargne fixe
+- **Classeur exemple (livré par `install.sh`)** : les colonnes devise du tableau CATÉGORIES avaient un fond gris uniforme (palette ancienne). Elles sont maintenant assorties au fond de ligne (gris clair sur blanc pour les données, gris beige sur beige pour les pieds).
+
 ## v3.5.5 (2026-04-17)
 
 - Correction `cpt_fetch_quotes.py` : `NameError: name 'cr' is not defined` lors de la mise à jour des cotations

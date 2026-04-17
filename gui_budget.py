@@ -110,9 +110,14 @@ class BudgetMixin:
             cr = doc.cr
             ws = doc.get_sheet(SHEET_BUDGET)
 
-            # Insérer avant END (dernière model row)
-            _, end_row = cr.rows('POSTESnom')
-            insert_row = end_row if end_row else (max(self.budget_post_rows.values()) + 1 if self.budget_post_rows else 10)
+            # Insérer après le dernier poste existant (avant END model row).
+            # En mode batch, cr.rows() retourne les bornes cachées au début du batch →
+            # s'appuyer sur l'état mémoire `budget_post_rows` qui est mis à jour à chaque ajout.
+            if self.budget_post_rows:
+                insert_row = max(self.budget_post_rows.values()) + 1
+            else:
+                _, end_row = cr.rows('POSTESnom')
+                insert_row = end_row if end_row else 10
 
             r0 = uno_row(insert_row)
             ws.Rows.insertByIndex(r0, 1)
