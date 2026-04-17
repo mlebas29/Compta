@@ -4,6 +4,10 @@ Cet historique des versions de l'app **APP_VERSION** est orienté utilisateur ; 
 
 **APP_VERSION** est affiché dans la fenêtre graphique et indiqué dans `inc_excel_schema.py` à côté de la version classeur (SCHEMA_VERSION).
 
+## v3.5.5 (2026-04-17)
+
+- Correction `cpt_fetch_quotes.py` : `NameError: name 'cr' is not defined` lors de la mise à jour des cotations
+
 ## v3.5.4 (2026-04-17)
 
 - Outil de migration `tool_migrate_ctrl2_formulas.py` pour mettre à jour les formules `Affichage` / `Général` du tableau CTRL2 sur un classeur existant multi-devise (voir `Compta_upgrade.md`)
