@@ -361,6 +361,7 @@ def update_excel(quotes, config, dry_run=False):
         return False
 
     ws = wb[SHEET_COTATIONS]
+    cr = ColResolver.from_openpyxl(wb)
     today = datetime.now().strftime('%d/%m/%Y')
     updated_count = 0
 
