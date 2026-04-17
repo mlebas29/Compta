@@ -37,7 +37,7 @@ Les environnements supportés sont :
 
 -  Linux
 
--  **Windows 11** avec WSL (Windows Subsystem for Linux) qui permet de faire tourner un Linux complet dans Windows 11, sans machine virtuelle à gérer (Voir [Compta_portage.md](Compta_portage.md))
+-  **Windows 11** avec WSL (Windows Subsystem for Linux) qui permet de faire tourner Linux dans Windows, sans machine virtuelle à gérer
 
 
 
@@ -76,7 +76,7 @@ et aussi :
 
 |  | Mode classeur | Mode assisté |
 |---|:-:|:-:|
-| **Prérequis** | LibreOffice ou équivalent | Linux ou Windows 11 (WSL2), LibreOffice |
+| **Prérequis** | LibreOffice ou équivalent | Linux ou Windows 11, LibreOffice |
 | **Livré** | Classeur avec données d'exemple | Classeur vierge + application |
 | **Action** | Télécharger [`comptes_exemple.xlsx`](https://github.com/mlebas29/Compta/raw/main/comptes_exemple.xlsx) | Tout télécharger et installer  (*) |
 
@@ -92,6 +92,8 @@ et aussi :
 > ```
 >
 > Le Shell script `install.sh` installe les dépendances Python, le navigateur Playwright/Chrome, et le raccourci bureau. En cas de prérequis manquant, il indique la commande `apt install` correspondante. Après quoi il suffira de relancer le script.
+>
+> Pour **Windows 11** c'est la même procédure, après avoir installé WSL2  (Voir [Compta_portage.md](Compta_portage.md))
 
 
 
@@ -103,7 +105,7 @@ et aussi :
 
 `git pull` met à jour l'application mais pas le classeur `comptes.xlsm` (qui contient vos données). En cas d'incompatibilité, l'application le signale au démarrage — voir [`Compta_upgrade.md`](Compta_upgrade.md).
 
-
+Voir aussi [`CHANGELOG.md`](CHANGELOG.md) : informations de mise à jour
 
 ## 5. Documentation
 
@@ -113,7 +115,6 @@ La documentation concerne essentiellement le mode assisté
 -  [`Compta_plus.md`](Compta_plus.md) : commandes avancées, dépannage
 -  [`Compta_tools.md`](Compta_tools.md) : outils de maintenance du classeur
 -  [`Compta_upgrade.md`](Compta_upgrade.md) : mise à niveau du classeur
--  [`Compta_portage.md`](Compta_portage.md) : portage Windows, macOS
 -  [`CHANGELOG.md`](CHANGELOG.md) : informations de mise à jour
 
 
@@ -204,12 +205,17 @@ Les fichiers de l'application sont modifiables, mais `git pull` signalera les co
 
 |                  | Mode classeur                              | Mode assisté                                                 |
 | ---------------- | ------------------------------------------ | ------------------------------------------------------------ |
-| **Installation** | Aucune (juste un tableur compatible Excel) | testé sur Linux Ubuntu 22.04 / 24.04 et dérivés (Zorin, Mint), Windows 11 via WSL2 — utilise `apt` **(1)** |
-| **GUI**          | N/A — utilisation directe du tableur       | Wayland pur (sans XWayland) non supporté  **(2)**            |
+| **Installation** | Aucune (juste un tableur compatible Excel) | installation manuelle pour les distributions Linux **Fedora, Arch, openSUSE**  **(1)** |
+| **GUI**          | N/A — utilisation directe du tableur       | **Wayland pur** non supporté  **(2)**                        |
 
-**(1)** Sur les distributions Linux non Debian/Ubuntu (Fedora, Arch, openSUSE…), une installation manuelle est nécessaire — voir `requirements.txt`. pour les packages et `install.sh` pour les copies
+**(1)** ainsi que toutes les distributions qui n'utilisent pas l'`apt` Debian/Ubuntu ; une installation manuelle est nécessaire — voir `requirements.txt`. 
 
-**(2)**  Mentionné pour mémoire car Wayland pur est quasi inexistant en mainstream Linux. L'app fonctionne sous **GNOME, KDE, XFCE…** en session **X11** (ou XWayland). La session Wayland pure casse `xclip` utilisé pour 2FA Kraken/Wise.
+**(2)**  mentionné pour mémoire car Wayland pur (sans XWayland) est quasi inexistant en mainstream Linux.  La session Wayland pure casse `xclip` utilisé pour 2FA Kraken/Wise.
+
+ L'app fonctionne pour :
+
+- **Linux Ubuntu 22.04 / 24.04** et dérivés (**Zorin, Mint**) - avec **GNOME, KDE, XFCE…** en session **X11** (ou XWayland).
+-  **Windows 11** via WSL2-Ubuntu
 
 
 

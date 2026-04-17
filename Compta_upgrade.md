@@ -9,49 +9,6 @@ Au démarrage (mode assisté), l'application vérifie que la version de structur
 - **Mode classeur** : seul `comptes.xlsx` est téléchargé ; la mise à niveau se fait manuellement dans le classeur, en s'appuyant sur [`comptes_exemple.xlsx`](https://github.com/mlebas29/Compta/raw/main/comptes_exemple.xlsx) comme référence.
 - **Mode assisté** : l'ensemble classeur vierge + app + outils est installé ; Récupérer d'abord la mise à jour avec `git pull`.
 
-## v3.2 - SCHEMA_VERSION 1
-
-Première version avec schéma versionné. Introduit :
-
-- Named ranges colonnes (67 noms définis pour toutes les feuilles)
-- Named range `SCHEMA_VERSION` = 1
-
-**Depuis un classeur sans version (antérieur à app v3.2) :**
-
-Le classeur ne contient pas les named ranges colonnes nécessaires à l'application.
-
-*Procédure :*
-```bash
-# Sauvegarder le classeur actuel
-cp comptes.xlsm comptes_backup.xlsm
-
-# Recréer depuis le template à jour
-cp comptes_template.xlsm comptes.xlsm
-```
-
-Relancer l'application après la copie. Le nouveau classeur est vierge. Réimporter vos données via l'application (collecte + import) ou par copier-coller depuis le backup.
-
-## v3.5.2 — détection d'erreur Comptes multi-devises (recommandé)
-
-Pas de changement de schéma (`SCHEMA_VERSION` reste à 1). Feuille Contrôles, tableau CTRL2 : les colonnes `Affichage` (✓/✗) et `Général` (somme) ne totalisaient que la colonne EUR sur les lignes `COMPTES`, `CATÉGORIES`, `€ Virements` et `€ Titres`. Un écart sur un compte en devise non-EUR n'était donc pas remonté. Le fix applicatif corrige la génération des formules à l'ajout d'une devise ; cette migration met à niveau les classeurs dont les formules ont été figées avec l'ancienne logique.
-
-Affecte les utilisateurs ayant au moins un compte dans une devise autre que l'EUR.
-
-| Mode classeur            | Mode assisté                       |
-| ------------------------ | ---------------------------------- |
-| mise à jour manuelle (1) | tool_migrate_ctrl2_formulas.py (2) |
-
- (1) Télécharger [`comptes_exemple.xlsx`](https://github.com/mlebas29/Compta/raw/main/comptes_exemple.xlsx) pour trouver le modèle des formules `Affichage` / `Général` du tableau CTRL2.
-
- (2) *Procédure (LibreOffice fermé) :*
-
-```bash
-python3 tool_migrate_ctrl2_formulas.py ~/Compta/comptes.xlsm --dry-run   # vérification
-python3 tool_migrate_ctrl2_formulas.py ~/Compta/comptes.xlsm             # migration
-```
-
-L'outil affiche les formules `Affichage` et `Général` avant et après sur les 4 lignes concernées et détaille les écarts de valeur éventuels.
-
 ## v3.5.3 — formules PVL multi-devise génériques (optionnel)
 
 Pas de changement de schéma (`SCHEMA_VERSION` reste à 1). Feuille Plus_value : réécriture des formules du pied `TOTAL portefeuilles` et du `Total` des blocs portefeuille multi-devise vers `SUMPRODUCT` générique (lookup `COTcode`/`COTcours`), pour :
@@ -76,3 +33,45 @@ python3 tool_migrate_pvl_totals.py ~/Compta/comptes.xlsm             # migration
 
 L'outil affiche les valeurs `GRAND TOTAL` / `TOTAL portefeuilles` / blocs multi-devise avant et après. Migration transparente = aucune ligne `Δ` dans la sortie.
 
+## v3.5.2 — détection d'erreur Comptes multi-devises (recommandé)
+
+Pas de changement de schéma (`SCHEMA_VERSION` reste à 1). Feuille Contrôles, tableau CTRL2 : les colonnes `Affichage` (✓/✗) et `Général` (somme) ne totalisaient que la colonne EUR sur les lignes `COMPTES`, `CATÉGORIES`, `€ Virements` et `€ Titres`. Un écart sur un compte en devise non-EUR n'était donc pas remonté. Le fix applicatif corrige la génération des formules à l'ajout d'une devise ; cette migration met à niveau les classeurs dont les formules ont été figées avec l'ancienne logique.
+
+Affecte les utilisateurs ayant au moins un compte dans une devise autre que l'EUR.
+
+| Mode classeur            | Mode assisté                       |
+| ------------------------ | ---------------------------------- |
+| mise à jour manuelle (1) | tool_migrate_ctrl2_formulas.py (2) |
+
+ (1) Télécharger [`comptes_exemple.xlsx`](https://github.com/mlebas29/Compta/raw/main/comptes_exemple.xlsx) pour trouver le modèle des formules `Affichage` / `Général` du tableau CTRL2.
+
+ (2) *Procédure (LibreOffice fermé) :*
+
+```bash
+python3 tool_migrate_ctrl2_formulas.py ~/Compta/comptes.xlsm --dry-run   # vérification
+python3 tool_migrate_ctrl2_formulas.py ~/Compta/comptes.xlsm             # migration
+```
+
+L'outil affiche les formules `Affichage` et `Général` avant et après sur les 4 lignes concernées et détaille les écarts de valeur éventuels.
+
+## v3.2 - SCHEMA_VERSION 1
+
+Première version avec schéma versionné. Introduit :
+
+- Named ranges colonnes (67 noms définis pour toutes les feuilles)
+- Named range `SCHEMA_VERSION` = 1
+
+**Depuis un classeur sans version (antérieur à app v3.2) :**
+
+Le classeur ne contient pas les named ranges colonnes nécessaires à l'application.
+
+*Procédure :*
+```bash
+# Sauvegarder le classeur actuel
+cp comptes.xlsm comptes_backup.xlsm
+
+# Recréer depuis le template à jour
+cp comptes_template.xlsm comptes.xlsm
+```
+
+Relancer l'application après la copie. Le nouveau classeur est vierge. Réimporter vos données via l'application (collecte + import) ou par copier-coller depuis le backup.
