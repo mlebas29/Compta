@@ -1,8 +1,13 @@
 # Changelog
 
-Cet historique des versions de l'app est orienté utilisateur ; il ne mentionne pas explicitement les changements internes du code.
+Cet historique des versions de l'app **APP_VERSION** est orienté utilisateur ; il ne mentionne pas explicitement les changements internes du code.
 
-Hors l'affichage GUI, la version installée de l'app (**APP_VERSION**) est indiquée dans **inc_excel_schema.py**, à côté de la version classeur (SCHEMA_VERSION).
+**APP_VERSION** est affiché dans la fenêtre graphique et indiqué dans `inc_excel_schema.py` à côté de la version classeur (SCHEMA_VERSION).
+
+## v3.5.4 (2026-04-17)
+
+- Outil de migration `tool_migrate_ctrl2_formulas.py` pour mettre à jour les formules `Affichage` / `Général` du tableau CTRL2 sur un classeur existant multi-devise (voir `Compta_upgrade.md`)
+- Documentation de mise à niveau enrichie : rappel des modes classeur / assisté, section v3.5.2 ajoutée
 
 ## v3.5.3 (2026-04-16)
 
