@@ -9,6 +9,22 @@ Au démarrage (mode assisté), l'application vérifie que la version de structur
 - **Mode classeur** : seul `comptes.xlsx` est téléchargé ; la mise à niveau se fait manuellement dans le classeur, en s'appuyant sur [`comptes_exemple.xlsx`](https://github.com/mlebas29/Compta/raw/main/comptes_exemple.xlsx) comme référence.
 - **Mode assisté** : l'ensemble classeur vierge + app + outils est installé ; Récupérer d'abord la mise à jour avec `git pull`.
 
+## v3.5.6 — formules de pied Budget range auto-extensibles (cosmétique)
+
+Pas de changement de schéma (`SCHEMA_VERSION` reste à 1). Feuille Budget : les formules de pied suivantes utilisaient une référence mono-cellule au lieu d'une plage, ce qui empêchait leur extension automatique à l'insertion d'une nouvelle catégorie ou d'un nouveau poste :
+
+- `Total = épargne` (pied du tableau Postes)
+- `Épargne fixe`
+- `Total hors Changes et Virements` (par colonne devise du tableau Catégories)
+
+Aucun effet sur les valeurs dans la plupart des cas : l'application réécrit ces formules au premier ajout de devise / poste / catégorie via la GUI. La mise à niveau n'est nécessaire que si votre classeur a été initialisé à partir d'un modèle livré antérieurement (jusqu'à v3.5.5) **et** que vous avez ajouté des catégories / postes **directement dans le tableur** sans passer par la GUI.
+
+| Mode classeur            | Mode assisté                 |
+| ------------------------ | ---------------------------- |
+| mise à jour manuelle (1) | mise à jour de l'app suffit  |
+
+ (1) Télécharger [`comptes_exemple.xlsx`](https://github.com/mlebas29/Compta/raw/main/comptes_exemple.xlsx) pour trouver les formules range.
+
 ## v3.5.3 — formules PVL multi-devise génériques (optionnel)
 
 Pas de changement de schéma (`SCHEMA_VERSION` reste à 1). Feuille Plus_value : réécriture des formules du pied `TOTAL portefeuilles` et du `Total` des blocs portefeuille multi-devise vers `SUMPRODUCT` générique (lookup `COTcode`/`COTcours`), pour :
