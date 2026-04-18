@@ -1,13 +1,16 @@
 # Mise à niveau du classeur
 
-Ce document décrit les mises à niveau à appliquer au classeur `comptes.xlsm` entre versions d'app. Selon le cas, la mise à niveau porte sur la structure, sur des formules, ou sur des formats.
+Ce document décrit les mises à niveau à appliquer au classeur `comptes.xlsm` entre les versions d'app. Selon le cas, la mise à niveau porte sur la structure, sur des formules, ou sur des formats.
+
+**Rappel** — [modes d'utilisation](README.md#1-points-de-départ)
+
+| Mode classeur                                                | Mode assisté                                                 |
+| ------------------------------------------------------------ | ------------------------------------------------------------ |
+| seul `comptes.xlsm` est utilisé ; la mise à niveau se fait manuellement dans le classeur, en s'appuyant sur [`comptes_exemple.xlsx`](https://github.com/mlebas29/Compta/raw/main/comptes_exemple.xlsx) comme référence | l'ensemble classeur vierge + app + outils est installé avec `git clone` et mis à jour avec `git pull` - la mise à niveau du classeur est soit manuelle soit réalisée par l'app soit par un outil tool_migrate_*.py |
 
 Au démarrage (mode assisté), l'application vérifie que la version de structure `SCHEMA_VERSION` du classeur est compatible ; une incompatibilité de structure est bloquante et signalée par un message. Les autres mises à niveau (formules, formats) sont optionnelles ou recommandées selon le cas — elles n'empêchent pas l'exécution mais peuvent masquer des erreurs ou fausser des calculs.
 
-**Rappel** — [modes d'utilisation](README.md#1-points-de-départ) :
 
-- **Mode classeur** : seul `comptes.xlsx` est téléchargé ; la mise à niveau se fait manuellement dans le classeur, en s'appuyant sur [`comptes_exemple.xlsx`](https://github.com/mlebas29/Compta/raw/main/comptes_exemple.xlsx) comme référence.
-- **Mode assisté** : l'ensemble classeur vierge + app + outils est installé ; Récupérer d'abord la mise à jour avec `git pull`.
 
 ## v3.5.6 — formules de pied Budget range auto-extensibles (cosmétique)
 
@@ -19,9 +22,9 @@ Pas de changement de schéma (`SCHEMA_VERSION` reste à 1). Feuille Budget : les
 
 Aucun effet sur les valeurs dans la plupart des cas : l'application réécrit ces formules au premier ajout de devise / poste / catégorie via la GUI. La mise à niveau n'est nécessaire que si votre classeur a été initialisé à partir d'un modèle livré antérieurement (jusqu'à v3.5.5) **et** que vous avez ajouté des catégories / postes **directement dans le tableur** sans passer par la GUI.
 
-| Mode classeur            | Mode assisté                 |
-| ------------------------ | ---------------------------- |
-| mise à jour manuelle (1) | mise à jour de l'app suffit  |
+| Mode classeur            | Mode assisté                    |
+| ------------------------ | ------------------------------- |
+| mise à jour manuelle (1) | une mise à jour de l'app suffit |
 
  (1) Télécharger [`comptes_exemple.xlsx`](https://github.com/mlebas29/Compta/raw/main/comptes_exemple.xlsx) pour trouver les formules range.
 

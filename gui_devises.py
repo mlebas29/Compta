@@ -993,16 +993,17 @@ class DevisesMixin:
         is_portefeuille = section == 'portefeuilles'
         is_non_eur = devise != 'EUR'
 
-        # E/K : format devise de la ligne (rouge négatif)
-        devise_fmt_str = FORMATS_DEVISE.get(devise, FORMAT_EUR)
-        fmt_ek = doc.register_number_format(
-            f'{devise_fmt_str};[RED]\\-{devise_fmt_str}' if devise != 'EUR'
-            else FORMAT_EUR_RED)
-
-        # H/I : devise native pour portefeuilles, EUR pour les autres
+        # E/K : devise native pour portefeuilles, EUR pour les autres
+        # (les sections métaux/crypto/devises ont SIGMA en equiv_euro et
+        # SOLDE en AVRmontant_solde_euro → valeurs déjà en EUR)
         if is_portefeuille:
+            devise_fmt_str = FORMATS_DEVISE.get(devise, FORMAT_EUR)
+            fmt_ek = doc.register_number_format(
+                f'{devise_fmt_str};[RED]\\-{devise_fmt_str}' if devise != 'EUR'
+                else FORMAT_EUR_RED)
             fmt_hi = doc.register_number_format(FORMATS_DEVISE.get(devise, FORMAT_EUR))
         else:
+            fmt_ek = doc.register_number_format(FORMAT_EUR_RED)
             fmt_hi = doc.register_number_format(FORMAT_EUR)
 
         # count=0 → ligne donnée unique
@@ -1021,11 +1022,12 @@ class DevisesMixin:
         if is_titre_row:
             WHITE_COLS.append(cr.col('PVLtitre'))
         # Colonnes montant grisées (non-EUR) — pas de blanc dessus
+        # Seuls les portefeuilles non-EUR grisent des cellules (devise native) ;
+        # sections métaux/crypto/devises ont tout en EUR → pas de gris.
         # NB : PVLdevise (libellé devise) n'est plus grisée — fond blanc hérité
-        if is_non_eur:
-            gris_set = {cr.col('PVLpvl'), cr.col('PVLmontant')}
-            if is_portefeuille:
-                gris_set |= {cr.col('PVLmontant_init'), cr.col('PVLsigma')}
+        if is_non_eur and is_portefeuille:
+            gris_set = {cr.col('PVLpvl'), cr.col('PVLmontant'),
+                        cr.col('PVLmontant_init'), cr.col('PVLsigma')}
         else:
             gris_set = set()
 
@@ -1048,15 +1050,14 @@ class DevisesMixin:
                     if c0 not in gris_set:
                         ws_pv.getCellByPosition(c0, r0).CellBackColor = BLANC
             # Gris devise sur les montants non-EUR (libellé devise non grisé)
+            # Uniquement pour les blocs portefeuille — les autres sections sont en EUR
             # Data row → GRIS_BLANC (sur fond blanc forcé)
             # Pied      → GRIS_BEIGE (sur beige clair hérité du template)
-            if is_non_eur and not is_header:
+            if is_non_eur and is_portefeuille and not is_header:
                 gris_color = GRIS_BEIGE if is_pied else GRIS_BLANC
-                for c0 in (cr.col('PVLpvl'), cr.col('PVLmontant')):
+                for c0 in (cr.col('PVLpvl'), cr.col('PVLmontant'),
+                           cr.col('PVLmontant_init'), cr.col('PVLsigma')):
                     ws_pv.getCellByPosition(c0, r0).CellBackColor = gris_color
-                if is_portefeuille:
-                    ws_pv.getCellByPosition(cr.col('PVLmontant_init'), r0).CellBackColor = gris_color
-                    ws_pv.getCellByPosition(cr.col('PVLsigma'), r0).CellBackColor = gris_color
 
     def _update_pv_total_portefeuilles(self, ws_pv, total_row, retenu_row=None, devise=None, doc=None):
         """Pose les formules TOTAL portefeuilles (H/I/K) en EUR, générique multi-devise.
