@@ -11,7 +11,6 @@ Cet historique des versions de l'app **APP_VERSION** est orienté utilisateur ; 
   - **Ancrage PVL dynamique** : le montant initial ne se résume plus à `0` — il se calcule à partir de la date et de l'équivalent EUR d'un `#Solde` auquel vous renseignez l'équivalent EUR. Ajouter l'équivalent EUR sur la ligne `#Solde` initiale permet d'obtenir la véritable plus-value (depuis l'acquisition). L'ancrage prend le `#Solde` le plus récent renseigné → permet la *purge* d'opérations anciennes en posant un nouveau point d'ancrage.
   - **GUI — ajout d'un compte** : nouveau champ *Équiv. EUR* obligatoire si la devise n'est pas EUR et le solde initial non nul. L'équivalent EUR saisi est posé en équivalent sur la ligne `#Solde` créée par la GUI (cours d'époque).
 - **Outil de migration** `tool_migrate_pvl_ancrage.py` : met à jour les formules *Plus-value* et *Avoirs* d'un classeur existant (voir `Compta_upgrade.md`). Les valeurs saisies manuellement (ex : *Montant initial* différent de 0) sont préservées.
-- **Fiabilité** : l'alerte `CTRL2 : header 'EUR' introuvable` qui pouvait apparaître faussement au démarrage a été corrigée.
 
 ## v3.5.6 (2026-04-17)
 
