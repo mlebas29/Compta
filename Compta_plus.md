@@ -43,8 +43,12 @@ Cette colonne du tableau Opérations indique l'équivalence en Euro d'une transa
 Le champ est renseigné automatiquement à l'import pour toute opération en devise non-EUR (sauf virements). Le taux de change est obtenu via l'API ECB (Banque Centrale Européenne).
 
 Cette colonne sert à :
+
 - Calculer les plus-values quand des devises non-EUR sont impliquées
-- Contrôler la cohérence : la somme des montants de la colonne doit être nulle
+- Contrôler la cohérence : la somme des montants de la colonne **hors catégories `#…`** doit être nulle (les catégories `#Solde`, `#Info`, `#Balance` sont exclues car ce sont des marqueurs statiques sans contrepartie)
+- **Ancrer le calcul de plus-value** pour les comptes en devise non-EUR : si la colonne est renseignée sur une ligne `#Solde`, cette ligne devient le point d'ancrage (date et montant initial) du calcul PVL du compte concerné. Si plusieurs `#Solde` du même compte ont leur équivalent EUR renseigné, c'est le plus récent qui fait foi — ce qui permet de "purger" les opérations anciennes en posant un nouveau point d'ancrage. L'équivalent EUR d'un `#Solde` doit être saisi au cours d'époque du relevé.
+
+Pour les comptes en EUR, l'équivalent EUR est trivialement égal au montant et la GUI le pose automatiquement à la création d'un compte avec solde initial. Pour les comptes non-EUR, la GUI demande l'équivalent EUR à la saisie du solde initial (cours d'époque, obligatoire).
 
 ### Réf.
 Le champ Réf. du tableau Opérations est un identifiant, par ex V32, qui sert à relier plusieurs opérations des catégories Virement, Change ou Titres (Achat, Vente ...)
