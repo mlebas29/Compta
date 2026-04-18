@@ -12,6 +12,32 @@ Au démarrage (mode assisté), l'application vérifie que la version de structur
 
 
 
+## v3.5.7 — Plus-value : ancrage dynamique via équivalent EUR sur `#Solde` (recommandé)
+
+Pas de changement de schéma (`SCHEMA_VERSION` reste à 1). Feuilles `Plus_value` et `Avoirs` : les formules de *date* et *montant initial* (antériorité) pour les sections **métaux / crypto / devises** et les colonnes *AVRdate_anter* / *AVRmontant_anter* des comptes (hors biens matériels) sont remplacées par des formules dynamiques qui s'ancrent sur le `#Solde` **le plus récent dont l'équivalent EUR est renseigné** (et non plus un `#Solde` par défaut + montant `0` codé en dur).
+
+**Effet utilisateur** :
+- Tant qu'aucun `#Solde` n'a d'équivalent EUR renseigné, la PVL est calculée **depuis l'origine** du compte (toutes les opérations comptent). C'est utile pour voir la plus-value "depuis l'acquisition".
+- En renseignant l'équivalent EUR sur un `#Solde` (au cours d'époque de ce relevé), vous fixez un **point d'ancrage** : la PVL est alors calculée depuis ce point. Utile pour *purger* les vieilles opérations et repartir d'un solde connu.
+- Les **valeurs `Montant initial` saisies manuellement** (différentes de 0) dans Plus_value sont **préservées** par l'outil de migration.
+- La **GUI d'ajout d'un compte** demande désormais l'équivalent EUR si la devise n'est pas EUR et le solde initial non nul (champ *Équiv. EUR*).
+
+| Mode classeur            | Mode assisté                    |
+| ------------------------ | ------------------------------- |
+| mise à jour manuelle (1) | tool_migrate_pvl_ancrage.py (2) |
+
+ (1) Télécharger [`comptes_exemple.xlsx`](https://github.com/mlebas29/Compta/raw/main/comptes_exemple.xlsx) pour trouver le modèle des formules des sections non-portefeuille de Plus_value et des colonnes H/I d'Avoirs.
+
+ (2) *Procédure (LibreOffice fermé) :*
+
+```bash
+cd ~/Compta
+git pull
+python3 Claude/tool_migrate_pvl_ancrage.py comptes.xlsm
+```
+
+L'outil affiche les lignes migrées, les lignes skippées (saisie manuelle préservée), et les éventuels écarts de valeur. L'option `--dry-run` simule sans sauvegarder.
+
 ## v3.5.6 — formules de pied Budget range auto-extensibles (cosmétique)
 
 Pas de changement de schéma (`SCHEMA_VERSION` reste à 1). Feuille Budget : les formules de pied suivantes utilisaient une référence mono-cellule au lieu d'une plage, ce qui empêchait leur extension automatique à l'insertion d'une nouvelle catégorie ou d'un nouveau poste :

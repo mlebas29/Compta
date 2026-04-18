@@ -1210,9 +1210,13 @@ class DevisesMixin:
         ws_pv.getCellByPosition(cr.col('PVLdevise'), r0).setString(devise)
         ws_pv.getCellByPosition(cr.col('PVLpvl'), r0).setFormula(
             f'={cK}{r}-({cH}{r}+{cI}{r})')
+        # Ancrage PVL = MAX(date #Solde avec OPequiv_euro renseigné).
+        # Permet la purge : un nouveau #Solde valorisé déplace l'ancrage.
+        # Cas dégradé (aucun #Solde valorisé) : MAXIFS → 0 (epoch), H → 0, PVL = SOLDE - SIGMA.
         ws_pv.getCellByPosition(cr.col('PVLdate_init'), r0).setFormula(
-            f'=MINIFS(OPdate;OPcompte;{cB}{r};OPdevise;{cD}{r};OPcatégorie;Solde)')
-        ws_pv.getCellByPosition(cr.col('PVLmontant_init'), r0).setValue(0)
+            f'=MAXIFS(OPdate;OPcompte;{cB}{r};OPdevise;{cD}{r};OPcatégorie;Solde;OPequiv_euro;"<>")')
+        ws_pv.getCellByPosition(cr.col('PVLmontant_init'), r0).setFormula(
+            f'=SUMIFS(OPequiv_euro;OPcompte;{cB}{r};OPdevise;{cD}{r};OPcatégorie;Solde;OPdate;{cG}{r})')
         ws_pv.getCellByPosition(cr.col('PVLsigma'), r0).setFormula(
             f'=SUMIFS(OPequiv_euro;OPcompte;{cB}{r};OPdevise;{cD}{r};OPcatégorie;"<>"&Spéciale;OPdate;">="&{cG}{r})')
         ws_pv.getCellByPosition(cr.col('PVLdate'), r0).setFormula(
@@ -1612,6 +1616,8 @@ class DevisesMixin:
                     ws.getCellByPosition(cr.col('AVRtitulaire'), r0).setString(acct.get('titulaire') or '')
                     ws.getCellByPosition(cr.col('AVRpropriete'), r0).setString(acct.get('propriete') or '')
                     # DATE_ANTER et MONTANT_ANTER
+                    # Biens matériels : valeurs statiques (date/val acquisition)
+                    # Autres comptes : formules dynamiques — ancrage PVL = MAX(#Solde avec Equiv)
                     if acct.get('date_anter'):
                         from datetime import datetime
                         epoch = datetime(1899, 12, 30)
@@ -1619,11 +1625,26 @@ class DevisesMixin:
                         cell_h = ws.getCellByPosition(cr.col('AVRdate_anter'), r0)
                         cell_h.setValue(serial)
                         cell_h.NumberFormat = doc.register_number_format('DD/MM/YYYY')
+                    elif acct.get('devise'):
+                        cell_h = ws.getCellByPosition(cr.col('AVRdate_anter'), r0)
+                        cell_h.setFormula(
+                            f'=MAXIFS(OPdate;OPcompte;$A{r};OPdevise;$E{r};'
+                            f'OPcatégorie;Solde;OPequiv_euro;"<>")')
+                        cell_h.NumberFormat = doc.register_number_format('DD/MM/YY')
+
                     if acct.get('montant_anter') is not None:
                         from inc_formats import FORMAT_EUR
                         cell_i = ws.getCellByPosition(cr.col('AVRmontant_anter'), r0)
                         cell_i.setValue(acct['montant_anter'])
                         cell_i.NumberFormat = doc.register_number_format(FORMAT_EUR)
+                    elif acct.get('devise'):
+                        from inc_formats import FORMATS_DEVISE, FORMAT_EUR
+                        cell_i = ws.getCellByPosition(cr.col('AVRmontant_anter'), r0)
+                        cell_i.setFormula(
+                            f'=SUMIFS(OPmontant;OPcompte;$A{r};OPdevise;$E{r};'
+                            f'OPcatégorie;Solde;OPdate;$H{r})')
+                        fmt_str = FORMATS_DEVISE.get(acct['devise'], FORMAT_EUR)
+                        cell_i.NumberFormat = doc.register_number_format(fmt_str)
 
                     # Formules J/K/L (UNO : pas de préfixe _xlfn.)
                     devise = acct['devise']
@@ -1853,6 +1874,7 @@ class DevisesMixin:
                     date_debut=avoirs_ref.get('date_debut'),
                     date_solde=avoirs_ref.get('date_solde'),
                     montant_debut=avoirs_ref.get('montant_debut'),
+                    equiv_euro_debut=avoirs_ref.get('equiv_euro_debut'),
                     doc=doc)
 
             # --- Opérations : supprimer / reloger les lignes des comptes supprimés ---

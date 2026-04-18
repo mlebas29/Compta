@@ -455,6 +455,17 @@ class AccountsMixin:
             row=row, column=1, padx=10, pady=3, sticky='w')
         row += 1
 
+        # Équivalent EUR (cours d'époque, obligatoire si devise ≠ EUR et solde ≠ 0)
+        ttk.Label(dlg, text='Équiv. EUR :').grid(row=row, column=0,
+                                                   sticky='w', padx=10, pady=3)
+        equiv_var = tk.StringVar()
+        ttk.Entry(dlg, textvariable=equiv_var, width=28).grid(
+            row=row, column=1, padx=10, pady=3, sticky='w')
+        ttk.Label(dlg, text='(si devise ≠ EUR et solde ≠ 0)',
+                  style='Hint.TLabel').grid(
+            row=row, column=2, sticky='w', padx=2, pady=3)
+        row += 1
+
         row += 1
 
         def on_ok():
@@ -508,6 +519,28 @@ class AccountsMixin:
                                            parent=dlg)
                     return
 
+            # Parser l'équiv EUR (ancrage PVL cours d'époque)
+            equiv_init = None
+            equiv_str = equiv_var.get().strip()
+            if equiv_str:
+                try:
+                    equiv_init = float(equiv_str.replace(' ', '').replace(',', '.'))
+                except ValueError:
+                    messagebox.showwarning('Équivalent invalide',
+                                           f"'{equiv_str}' n'est pas un nombre valide.",
+                                           parent=dlg)
+                    return
+            # Validation : devise ≠ EUR et solde ≠ 0 ⇒ Equiv requis
+            if (solde_init is not None and solde_init != 0
+                    and devise and devise != 'EUR'
+                    and equiv_init is None):
+                messagebox.showwarning(
+                    'Équivalent EUR requis',
+                    f"Devise {devise} ≠ EUR : saisir l'équivalent EUR au cours "
+                    f"d'époque (ancrage PVL).",
+                    parent=dlg)
+                return
+
             acct_type = fields['type'].get().strip() or 'Euros'
             new_acct = {
                 'row': None,
@@ -522,6 +555,7 @@ class AccountsMixin:
                 'date_anter': None,
                 'montant_anter': None,
                 'montant_debut': solde_init,
+                'equiv_euro_debut': equiv_init,
                 'site': site,
             }
             self.accounts_data.append(new_acct)
@@ -1445,13 +1479,21 @@ class AccountsMixin:
     @staticmethod
     def _append_solde_lines(ws_ops, account_name, devise,
                             date_debut=None, date_solde=None,
-                            montant_debut=None, doc=None, **_kwargs):
+                            montant_debut=None, equiv_euro_debut=None,
+                            doc=None, **_kwargs):
         """Ajoute 0 ou 1 ligne #Solde initial après la dernière opération.
 
         Refonte 0..N #Solde : si aucune valeur n'est fournie en GUI
         (montant_debut=None), aucune ligne n'est créée. Si une valeur est
         donnée, une seule ligne #Solde est ajoutée à date_debut (par défaut
         aujourd'hui) avec ce montant.
+
+        Si `equiv_euro_debut` est fourni, il est posé en OPequiv_euro (sert
+        d'ancrage PVL au cours d'époque). Pour les comptes EUR, Equiv est
+        posé automatiquement = montant_debut (convention d'uniformisation).
+        Pour les comptes non-EUR, c'est à l'appelant de fournir l'Equiv
+        (cours d'époque, saisie utilisateur) — requis pour que la PVL soit
+        correctement ancrée.
         """
         if montant_debut is None:
             return  # Pas de valeur initiale → aucun #Solde
@@ -1490,8 +1532,17 @@ class AccountsMixin:
         c_cell.setValue(montant_debut)
         if fmt_devise is not None:
             c_cell.NumberFormat = fmt_devise
+        # OPequiv_euro : obligatoire pour servir d'ancrage PVL
+        # EUR → montant (trivial) ; non-EUR → valeur fournie par l'appelant
+        equiv_cell = ws_ops.getCellByPosition(cr.col('OPequiv_euro'), ops_next_0)
         if fmt_eur is not None:
-            ws_ops.getCellByPosition(cr.col('OPequiv_euro'), ops_next_0).NumberFormat = fmt_eur
+            equiv_cell.NumberFormat = fmt_eur
+        if is_non_eur:
+            if equiv_euro_debut is not None:
+                equiv_cell.setValue(float(equiv_euro_debut))
+        else:
+            # Compte EUR (ou sans devise) : Equiv = montant
+            equiv_cell.setValue(float(montant_debut))
         ws_ops.getCellByPosition(cr.col('OPdevise'), ops_next_0).setString(devise or '')
         ws_ops.getCellByPosition(cr.col('OPcatégorie'), ops_next_0).setString('#Solde')
         ws_ops.getCellByPosition(cr.col('OPcompte'), ops_next_0).setString(account_name)
