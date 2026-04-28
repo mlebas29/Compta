@@ -17,8 +17,8 @@ Polissage v4 : ergonomie GUI, robustesse 1re install, doc.
 - Barre d'état détaillée en pied de fenêtre : 6 contrôles individuels
   (comptes, catégories, dates, appariement, balance, change) en plus de
   la synthèse globale.
-- Menu **Outils ▾** : refonte (Charger/Publier Wiki, Réinitialiser,
-  Annuler import, Vérifier cohérence, Contrôles classeur, Formats).
+- Menu **Outils ▾** : refonte (Réinitialiser, Annuler import,
+  Vérifier cohérence, Contrôles classeur, Formats).
 - Bouton **📖 Doc ▴** dédié (cadre Fichiers, à droite) : raccourcis vers
   Guide d'utilisation, Guide étendu, Référentiel outils, Mises à niveau,
   Notes de version, Charte graphique. Fermeture sur clic externe corrigée.
