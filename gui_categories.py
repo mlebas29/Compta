@@ -26,18 +26,7 @@ class CategoriesMixin:
         top.pack(fill='x', padx=5, pady=5)
         ttk.Label(top, text='Site :').pack(side='left')
 
-        groups = list(self.mappings.keys())
-        # Noms lisibles : GENERIC → Tous, sites → nom config.ini
-        display_groups = []
-        for g in groups:
-            if g == 'GENERIC':
-                display_groups.append('Tous')
-            else:
-                display_groups.append(self.config.get(g, 'name', fallback=g))
-        self.cat_group_map = dict(zip(display_groups, groups))
-
-        self.cat_combo = ttk.Combobox(top, values=display_groups,
-                                      state='readonly', width=25)
+        self.cat_combo = ttk.Combobox(top, state='readonly', width=25)
         self.cat_combo.pack(side='left', padx=5)
         self.cat_combo.bind('<<ComboboxSelected>>', self._on_cat_group_selected)
 
@@ -145,9 +134,40 @@ class CategoriesMixin:
         self.cat_tree.bind('<Button-3>', self._cat_show_context_menu)
         self.cat_tree.bind('<Double-1>', lambda e: self._cat_edit())
 
-        if display_groups:
+        # Initialise la liste — sera rafraîchie à chaque sélection de l'onglet
+        # (cf. _refresh_cat_groups) pour suivre la création de comptes.
+        self._refresh_cat_groups()
+
+    def _refresh_cat_groups(self):
+        """(Re)construit la liste des groupes de la combobox Catégories.
+
+        GENERIC + sites ayant au moins un compte (hors N/A) + clés mappings
+        existantes (sites historiques). Préserve la sélection courante si
+        possible, sinon sélectionne le premier item ('Tous').
+        Appelé à l'init et à chaque sélection de l'onglet Catégories.
+        """
+        sites_with_accounts = sorted(
+            {s for s in getattr(self, 'account_site_map', {}).values()
+             if s and s != 'N/A'})
+        groups = ['GENERIC'] + sites_with_accounts
+        for g in self.mappings.keys():
+            if g not in groups:
+                groups.append(g)
+        display_groups = []
+        for g in groups:
+            if g == 'GENERIC':
+                display_groups.append('Tous')
+            else:
+                display_groups.append(self.config.get(g, 'name', fallback=g))
+        self.cat_group_map = dict(zip(display_groups, groups))
+
+        current = self.cat_combo.get() if hasattr(self, 'cat_combo') else ''
+        self.cat_combo['values'] = display_groups
+        if current in display_groups:
+            self.cat_combo.set(current)
+        elif display_groups:
             self.cat_combo.set(display_groups[0])
-            self._on_cat_group_selected(None)
+        self._on_cat_group_selected(None)
 
     def _current_group_key(self):
         display = self.cat_combo.get()
@@ -253,33 +273,44 @@ class CategoriesMixin:
                     edit_item=None):
         dlg = tk.Toplevel(self.root)
         dlg.title(title)
-        dlg.geometry('500x200')
+        dlg.geometry('500x230')
         dlg.transient(self.root)
         dlg.wait_visibility()
         dlg.grab_set()
 
-        ttk.Label(dlg, text='Pattern (regex) :').grid(
+        # Site : pré-rempli avec le groupe courant, modifiable
+        ttk.Label(dlg, text='Site :').grid(
             row=0, column=0, sticky='w', padx=10, pady=5)
+        site_displays = list(self.cat_group_map.keys())
+        current_display = self.cat_combo.get() if site_displays else ''
+        site_var = tk.StringVar(value=current_display)
+        site_combo = ttk.Combobox(dlg, textvariable=site_var,
+                                  values=site_displays, width=28,
+                                  state='readonly')
+        site_combo.grid(row=0, column=1, sticky='w', padx=10, pady=5)
+
+        ttk.Label(dlg, text='Pattern (regex) :').grid(
+            row=1, column=0, sticky='w', padx=10, pady=5)
         pat_var = tk.StringVar(value=pattern)
         pat_entry = ttk.Entry(dlg, textvariable=pat_var, width=50)
-        pat_entry.grid(row=0, column=1, padx=10, pady=5)
+        pat_entry.grid(row=1, column=1, padx=10, pady=5)
 
         ttk.Label(dlg, text='Catégorie :').grid(
-            row=1, column=0, sticky='w', padx=10, pady=5)
+            row=2, column=0, sticky='w', padx=10, pady=5)
         cat_var = tk.StringVar(value=category)
         cat_combo = ttk.Combobox(dlg, textvariable=cat_var,
                                  values=self.budget_categories, width=28,
                                  state='readonly')
-        cat_combo.grid(row=1, column=1, sticky='w', padx=10, pady=5)
+        cat_combo.grid(row=2, column=1, sticky='w', padx=10, pady=5)
 
         appariement_var = tk.BooleanVar(value=(ref == '-'))
         ttk.Checkbutton(dlg, text='Appariement',
                         variable=appariement_var).grid(
-            row=2, column=0, columnspan=2, sticky='w', padx=10, pady=5)
+            row=3, column=0, columnspan=2, sticky='w', padx=10, pady=5)
 
         # Validation regex en temps réel
         regex_status = ttk.Label(dlg, text='', foreground='green')
-        regex_status.grid(row=3, column=0, columnspan=2, padx=10)
+        regex_status.grid(row=4, column=0, columnspan=2, padx=10)
 
         def validate_regex(*args):
             try:
@@ -311,19 +342,38 @@ class CategoriesMixin:
             if appariement_var.get():
                 entry['ref'] = '-'
 
-            group = self._current_group_key()
+            target_group = self.cat_group_map.get(site_var.get(), '')
+            if not target_group:
+                messagebox.showwarning('Aucun site sélectionné',
+                                       'Sélectionne un site avant d\'ajouter un pattern.',
+                                       parent=dlg)
+                return
+            # Cible auto-créée si absente (1re install, site jamais utilisé)
+            if target_group not in self.mappings:
+                self.mappings[target_group] = []
+
             if edit_item is not None:
+                # Édition : groupe peut changer (déplacement de l'entry)
+                source_group = self._current_group_key()
                 idx = self.cat_tree.index(edit_item)
-                self.mappings[group][idx] = entry
+                if target_group == source_group:
+                    self.mappings[source_group][idx] = entry
+                else:
+                    del self.mappings[source_group][idx]
+                    self.mappings[target_group].append(entry)
             else:
-                self.mappings[group].append(entry)
+                self.mappings[target_group].append(entry)
             self._save_mappings()
 
+            # Bascule sur le site cible si différent du courant pour rendre
+            # le pattern visible dans la liste après ajout.
+            if target_group != self._current_group_key():
+                self.cat_combo.set(site_var.get())
             self._on_cat_group_selected(None)
             dlg.destroy()
 
         btn_frame = ttk.Frame(dlg)
-        btn_frame.grid(row=4, column=0, columnspan=2, pady=10)
+        btn_frame.grid(row=5, column=0, columnspan=2, pady=10)
         ttk.Button(btn_frame, text='OK', command=on_ok).pack(
             side='left', padx=5)
         ttk.Button(btn_frame, text='Annuler',

@@ -430,6 +430,34 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
         # Construction des onglets en arrière-plan (après affichage initial)
         self.root.after(100, self._build_deferred_tabs)
 
+        # Workaround Tk Linux X11 : tk_popup ne libère pas le grab quand
+        # l'utilisateur clique sur une autre app. Polling focus_displayof()
+        # → quand le focus système quitte notre app, fermer les menus posted.
+        # Limitation connue (cf. CLAUDE_todo) : ne couvre PAS les combobox
+        # ttk dont le popdown garde le focus interne — GNOME/Mutter n'émet
+        # aucun signal exploitable dans ce cas.
+        self._popup_menus = getattr(self, '_popup_menus', [])
+        self.root.after(500, self._global_focus_watch)
+
+    def _global_focus_watch(self):
+        # Eval Tcl direct au lieu de focus_displayof() : ce dernier lève
+        # KeyError 'popdown' si le focus est sur le popdown listbox d'un
+        # combobox (wrapper Python incapable de résoudre ce widget interne).
+        try:
+            focus_path = self.root.tk.eval('focus -displayof .')
+            if not focus_path:
+                for m in self._popup_menus:
+                    try:
+                        m.unpost()
+                    except tk.TclError:
+                        pass
+        except Exception:
+            pass
+        try:
+            self.root.after(150, self._global_focus_watch)
+        except Exception:
+            pass
+
     # ----------------------------------------------------------------
     # FILE WATCHER — rafraîchit la barre d'état sur modification externe
     # ----------------------------------------------------------------
@@ -769,6 +797,10 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
             auto_fixes.append(
                 f'config_accounts.json : {len(orphan_sites)} compte(s) orphelin(s) supprimé(s)')
 
+        def _site_label(s):
+            """Nom utilisateur du site (config.ini section name) avec fallback clé."""
+            return self.config.get(s, 'name', fallback=s)
+
         # --- Sites activés sans comptes (MANUEL exclu — pas de comptes associés) ---
         enabled_str = self.config.get('sites', 'enabled', fallback='')
         enabled_sites = {s.strip() for s in enabled_str.split(',') if s.strip()}
@@ -785,13 +817,14 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
                     del self._exec_site_widgets[s]
                     del self._exec_site_vars[s]
             self._save_config()
+            labels = ', '.join(_site_label(s) for s in orphan_enabled)
             auto_fixes.append(
-                f'{", ".join(orphan_enabled)} : site(s) désactivé(s) (aucun compte associé)')
+                f'{labels} : site(s) désactivé(s) (aucun compte associé)')
 
         # --- Sites avec comptes mais désactivés ---
         for s in sorted(sites_with_accounts - enabled_sites):
             if s in set(self.all_sites):
-                warnings.append(f'Site « {s} » a des comptes mais est désactivé')
+                warnings.append(f'Site « {_site_label(s)} » a des comptes mais est désactivé')
 
         # --- Devises Avoirs sans cotation (hors EUR) ---
         devises_avoirs = {a['devise'] for a in self.accounts_data if a['devise']}
@@ -829,10 +862,11 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
         # Sites référencés dans config_accounts.json (hors N/A)
         map_sites = set(v for v in self.account_site_map.values() if v != 'N/A')
         for s in map_sites - ini_sites:
+            # Site absent de config.ini : pas de nom convivial, on garde la clé
             warnings.append(f'Site « {s} » dans config_accounts.json mais absent de config.ini')
         # Sites sans description par défaut
         for s in ini_sites - set(self.site_descriptions_default.keys()):
-            warnings.append(f'Site « {s} » absent de config_descriptions_default.json')
+            warnings.append(f'Site « {_site_label(s)} » absent de config_descriptions_default.json')
 
         return auto_fixes, warnings
 
@@ -962,6 +996,14 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
             tab_frame = self.notebook.nametowidget(tab_id)
             builder(tab=tab_frame)
             self._install_help_buttons()
+        # Rafraîchir la combobox Catégories à chaque sélection de cet onglet :
+        # account_site_map peut avoir évolué via l'onglet Comptes.
+        try:
+            tab_text = self.notebook.tab(tab_id, 'text')
+        except tk.TclError:
+            tab_text = ''
+        if tab_text == 'Catégories' and hasattr(self, '_refresh_cat_groups'):
+            self._refresh_cat_groups()
 
     def _ensure_excel_loaded(self):
         """Charge les données Excel une seule fois, au premier besoin."""

@@ -151,7 +151,6 @@ class ExecMixin:
             y = outils_btn.winfo_rooty() + outils_btn.winfo_height()
             outils_menu.tk_popup(x, y)
             outils_menu.grab_release()
-            self._watch_popup_focus(outils_menu)
 
         outils_btn.configure(command=_popup_outils)
         outils_btn.pack(side='left')
@@ -229,7 +228,6 @@ class ExecMixin:
             y = doc_btn.winfo_rooty() - doc_menu.winfo_reqheight()
             doc_menu.tk_popup(x, y)
             doc_menu.grab_release()
-            self._watch_popup_focus(doc_menu)
 
         doc_btn.configure(command=_popup_doc)
         doc_btn.pack(side='right', padx=(8, 0))
@@ -464,23 +462,6 @@ class ExecMixin:
         verb = 'Corriger' if apply_changes else 'Vérifier'
         scope = 'complet' if with_apparence else 'numériques'
         self._exec_run(cmd, f'{verb} formats ({scope})')
-
-    def _watch_popup_focus(self, menu, _delay=200):
-        """Workaround bug Tk/Linux : ferme le menu posté si la fenêtre principale
-        perd le focus système (clic sur une autre application).
-        Polling périodique tant que le menu est mappé."""
-        def _check():
-            try:
-                if not menu.winfo_ismapped():
-                    return
-                # focus_displayof() == None quand le focus système quitte notre app
-                if self.root.focus_displayof() is None:
-                    menu.unpost()
-                    return
-            except tk.TclError:
-                return
-            self.root.after(150, _check)
-        self.root.after(_delay, _check)
 
     def _exec_open_doc(self, filename):
         """Ouvre une doc Markdown du repo via xdg-open."""
