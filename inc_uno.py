@@ -49,6 +49,11 @@ def copy_row_style(sheet, src_row, dst_row, col_start=0, col_end=12):
     """Copie style (fond, police, bordures, format nombre) d'une ligne à une autre.
 
     Indices UNO 0-indexed. col_end est exclusif.
+    Le template (src_row) doit être une model row conforme charte (typiquement
+    une row adjacente à la sentinelle ⚓ top du NR), pour que la propagation
+    de fond (col_ref beige + data blanc) se fasse correctement de proche en
+    proche. Les exceptions (sub-pied PVL beige, grisage devise) sont posées
+    explicitement par les fonctions GUI métier en 2ème couche.
     """
     for col in range(col_start, col_end):
         src_cell = sheet.getCellByPosition(col, src_row)
@@ -178,28 +183,48 @@ def letter_of(xdoc, name):
     return result
 
 
-def get_named_range_pos(xdoc, name):
-    """Retourne (sheet_name, col_0indexed, row_0indexed) pour un nom défini UNO.
+def _cleanup_drill_dxf_borders(xlsm_path, logger=None):
+    """Retire les <border> vides des dxfs (xl/styles.xml).
 
-    Retourne None si le nom n'existe pas.
+    Effet de bord LO : à la sérialisation des cell styles Drill_* utilisés par
+    les CF devise, LO ajoute systématiquement un bloc <border><left/>... vide.
+    Appliqué via CF, ce bloc efface les bordures de la cellule sous-jacente —
+    notamment la BORDURE_PIED thick top de la 1re ligne pied (ex. F26 Total).
+
+    Idempotent : ne fait rien si aucun dxf concerné. Scope strict au bloc
+    <dxfs>...</dxfs> (sinon casse border 0 du bloc <borders> — toutes les
+    cellules glissent d'un cran dans l'index).
     """
-    nr = xdoc.NamedRanges
-    if not nr.hasByName(name):
-        return None
-    content = nr.getByName(name).Content  # e.g. "$Contrôles.$A$3"
-    # Pour un range (A$4:A$80), prendre le début
-    if ':' in content:
-        content = content.split(':')[0]
-    content = content.lstrip('$')
-    parts = content.split('.$')
-    sheet_name = parts[0]
-    cell_ref = parts[1] if len(parts) > 1 else parts[0]
-    result = _parse_cell_ref(cell_ref)
-    if not result:
-        return None
-    return sheet_name, result[0], result[1]
+    import zipfile
+    import shutil
+    import re
 
+    TARGET = ('<border diagonalUp="false" diagonalDown="false">'
+              '<left/><right/><top/><bottom/><diagonal/></border>')
 
+    xlsm_path = Path(xlsm_path)
+    tmp = xlsm_path.with_suffix(xlsm_path.suffix + '.tmp')
+
+    n = 0
+    with zipfile.ZipFile(xlsm_path, 'r') as zin:
+        with zipfile.ZipFile(tmp, 'w', zipfile.ZIP_DEFLATED) as zout:
+            for item in zin.infolist():
+                data = zin.read(item.filename)
+                if item.filename == 'xl/styles.xml':
+                    xml = data.decode('utf-8')
+                    m = re.search(r'<dxfs[^>]*>.*?</dxfs>', xml, re.DOTALL)
+                    if m:
+                        block = m.group(0)
+                        n = block.count(TARGET)
+                        if n:
+                            new_block = block.replace(TARGET, '')
+                            xml = xml[:m.start()] + new_block + xml[m.end():]
+                            data = xml.encode('utf-8')
+                zout.writestr(item, data)
+
+    shutil.move(str(tmp), str(xlsm_path))
+    if n and logger:
+        logger.info(f'  XML post-cleanup : {n} bordure(s) vide(s) retirée(s) des dxfs drill')
 
 
 class UnoDocument:
@@ -220,6 +245,7 @@ class UnoDocument:
         self._document = None
         self._desktop = None
         self._cr = None
+        self._was_saved = False
 
     @property
     def cr(self):
@@ -303,6 +329,14 @@ class UnoDocument:
             except subprocess.TimeoutExpired:
                 self._process.kill()
                 self._process.wait()
+        # Post-process xlsm si sauvegardé : retire les <border> vides des dxfs
+        # (effet de bord LO sur cell styles Drill_*, écrase BORDURE_PIED top).
+        if self._was_saved and exc_type is None:
+            try:
+                _cleanup_drill_dxf_borders(self._file_path, self._logger)
+            except Exception as e:
+                if self._logger:
+                    self._logger.warning(f"cleanup dxf borders failed: {e}")
         return False
 
     def get_sheet(self, name):
@@ -321,6 +355,7 @@ class UnoDocument:
         if self._read_only:
             raise RuntimeError("Document ouvert en lecture seule, save() interdit")
         self._document.store()
+        self._was_saved = True
 
     def calculate_all(self):
         """Force le recalcul de toutes les formules."""

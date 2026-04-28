@@ -42,22 +42,20 @@ class BudgetMixin:
             # Nom catégorie
             ws.getCellByPosition(uno_col(self.budget_cat_col), r0).setString(name)
 
-            # Devises : SUMIFS par devise
+            # Modèle drill devise (SCHEMA_VERSION ≥ 2) :
+            # - Col F CATmontant = SUMIFS filtré par drill cell F$header
+            # - Col G CATtotal_euro = SUMPRODUCT cours du jour × COTcode
             hr = self.budget_header_row
             cat_letter = ColResolver._idx_to_letter(self.budget_cat_col)
-            last = self.budget_last_devise_col
-            for col in range(self.budget_first_devise_col, last + 1):
-                cl = ColResolver._idx_to_letter(col)
-                ws.getCellByPosition(uno_col(col), r0).setFormula(
-                    f'=SUMIFS(OPmontant;OPdevise;{cl}${hr};OPcatégorie;${cat_letter}{r};OPdate;">"&$C$2-365)')
-
-            # Equiv EUR : SUMPRODUCT
-            equiv_col = cr.col('CATtotal_euro') + 1  # openpyxl 1-indexed
-            first_dev_letter = ColResolver._idx_to_letter(self.budget_first_devise_col)
-            last_letter = ColResolver._idx_to_letter(last)
-            sr = self.budget_start_row
-            ws.getCellByPosition(uno_col(equiv_col), r0).setFormula(
-                f'=SUMPRODUCT({first_dev_letter}{r}:{last_letter}{r};{first_dev_letter}${sr}:{last_letter}${sr})')
+            drill_col = cr.col('CATmontant')  # 0-idx
+            total_col = cr.col('CATtotal_euro')  # 0-idx
+            drill_letter = cr.letter('CATmontant')
+            ws.getCellByPosition(uno_col(drill_col + 1), r0).setFormula(
+                f'=SUMIFS(OPmontant;OPdevise;{drill_letter}${hr};'
+                f'OPcatégorie;${cat_letter}{r};OPdate;">"&$C$2-365)')
+            ws.getCellByPosition(uno_col(total_col + 1), r0).setFormula(
+                f'=SUMPRODUCT(SUMIFS(OPmontant;OPcatégorie;${cat_letter}{r};'
+                f'OPdate;">"&$C$2-365;OPdevise;COTcode)*COTcours)')
 
             # Allocation 100%
             alloc_pct_col = cr.col('CATaffectation_pct') + 1
@@ -67,9 +65,9 @@ class BudgetMixin:
             cell_pct.setValue(alloc_pct)
             # Format % (la model row a General → patcher la 1ère ligne, les suivantes propagent)
             cell_pct.NumberFormat = doc.register_number_format('0%')
-            equiv_letter = ColResolver._idx_to_letter(equiv_col)
+            total_letter = cr.letter('CATtotal_euro')
             ws.getCellByPosition(uno_col(alloc_montant_col), r0).setFormula(
-                f'={equiv_letter}{r}*{ColResolver._idx_to_letter(alloc_pct_col)}{r}')
+                f'={total_letter}{r}*{ColResolver._idx_to_letter(alloc_pct_col)}{r}')
 
             # Poste budgétaire
             ws.getCellByPosition(uno_col(poste_col), r0).setString(poste)
@@ -146,26 +144,17 @@ class BudgetMixin:
                 if insert_row <= self.budget_cat_rows[cat_name]:
                     self.budget_cat_rows[cat_name] += 1
 
-            # Formule SUMIF (col C) : =SUMIF(poste_range, A{row}, alloc_range)
-            poste_col = cr.col('CATposte') + 1  # openpyxl 1-indexed
-            alloc_col = cr.col('CATaffectation') + 1
-            pl = ColResolver._idx_to_letter(poste_col)
-            al = ColResolver._idx_to_letter(alloc_col)
-            first_cat = min(self.budget_cat_rows.values()) if self.budget_cat_rows else (self.budget_start_row or 14) + 2
-            sep = self.budget_insert_row or first_cat
+            # Formule SUMIF (col C) : =SUMIF(CATposte, A{row}, CATaffectation)
             ws.getCellByPosition(2, r0).setFormula(
-                f'=SUMIF({pl}{first_cat}:{pl}{sep};A{insert_row};{al}{first_cat}:{al}{sep})')
+                f'=SUMIF(CATposte;A{insert_row};CATaffectation)')
 
-            # Réécrire les pieds POSTES (Total, Epargne fixe) avec le range complet
-            # Les formules template sont en single-cell et ne s'étendent pas
-            first_data = min(self.budget_post_rows.values())
-            last_data = max(self.budget_post_rows.values())
+            # Réécrire les pieds POSTES (Total, Epargne fixe) en named ranges
             tr = getattr(self, 'budget_posts_total_row', None)
             if tr:
                 ws.getCellByPosition(2, uno_row(tr)).setFormula(
-                    f'=SUM(C{first_data}:C{last_data})')
+                    '=SUM(POSTESmontant)')
                 ws.getCellByPosition(2, uno_row(tr + 1)).setFormula(
-                    f'=SUMIF($B{first_data}:$B{last_data};"Fixe";C{first_data}:C{last_data})')
+                    '=SUMIF(POSTEStype;"Fixe";POSTESmontant)')
 
             if owned:
                 doc.save()

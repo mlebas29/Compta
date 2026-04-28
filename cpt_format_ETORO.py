@@ -599,7 +599,7 @@ def process_reserve_operations(input_file):
         # IMPORTANT: Pour les achats de titres (Position ouverte), inverser le signe
         # Le XLSX affiche la valeur de l'achat (+999.98), mais la Réserve est débitée (-999.98)
         montant_value = op['montant_value']
-        if category == 'Achat titres' and montant_value > 0:
+        if category == '@Achat titres' and montant_value > 0:
             montant_value = -montant_value
 
         amount = format_amount(str(montant_value), 'USD')

@@ -64,15 +64,41 @@ la casse et la classification.
 ./tool_refs.py --fix                # applique
 ```
 
+### tool_audit_formats.py — Audit charte graphique
+
+Vérifie en lecture seule la conformité du classeur à la charte graphique
+(palette de fonds, grille beige, bordures de pied). Ne modifie rien. Mode
+synthèse par pattern par défaut, `--verbose` pour détailler chaque écart.
+
+```
+python3 tool_audit_formats.py comptes.xlsm
+python3 tool_audit_formats.py comptes.xlsm --verbose
+```
+
 ### tool_fix_formats.py — Correction des formats de cellules
 
 Remet en ordre les formats d'affichage dans le classeur : montants au format
 français (virgule décimale, espace milliers), dates en DD/MM/YY, devises
 étrangères avec fond gris. Dry-run par défaut.
 
+L'option `--charter` étend la correction à la charte graphique (palette
+beige, quadrillage, traits de pied) et au gras des cellules contrôlées.
+
 ```
-python3 tool_fix_formats.py comptes.xlsm           # prévisualise
-python3 tool_fix_formats.py comptes.xlsm --apply   # applique
+python3 tool_fix_formats.py comptes.xlsm                     # prévisualise (formats numériques)
+python3 tool_fix_formats.py comptes.xlsm --apply             # applique
+python3 tool_fix_formats.py comptes.xlsm --charter --apply   # + charte graphique
+```
+
+### tool_migrate_schema_v2.py — Mise à niveau du classeur
+
+Migre un classeur d'une version structurelle antérieure (v3.4 et plus
+récents) vers la version courante : drill devise, ancres ⚓, charte v4.
+Voir `Compta_upgrade.md` §v4.0.0 pour la procédure complète et les
+versions sources couvertes.
+
+```
+python3 tool_migrate_schema_v2.py comptes.xlsm
 ```
 
 ### tool_purge.py — Purge de l'historique

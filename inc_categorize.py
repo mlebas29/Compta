@@ -69,13 +69,13 @@ def categorize_operation(libelle, site=None):
 
     Returns:
         tuple: (catégorie, options)
-               catégorie = str ('Virement', 'Frais bancaires', etc., ou '-' si non trouvée)
+               catégorie = str ('@Virement', 'Frais bancaires', etc., ou '-' si non trouvée)
                options = dict ({'ref': '-'}, {'equiv': 'amount'}, etc.)
 
     Example:
         >>> cat, opts = categorize_operation("VIR Virement Marc", "SG")
         >>> cat
-        'Virement'
+        '@Virement'
         >>> opts
         {'ref': '-'}
         >>> cat, opts = categorize_operation("Opération inconnue", "SG")

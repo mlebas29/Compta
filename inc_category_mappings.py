@@ -31,8 +31,10 @@ def _load_patterns():
         return _patterns_by_group
 
     if not _JSON_PATH.exists():
-        print(f"❌ {_JSON_PATH} introuvable", file=sys.stderr)
-        sys.exit(1)
+        # Pas de JSON → aucun pattern, toutes opérations en catégorie '-'.
+        # La GUI auto-crée un fichier vide au 1er lancement.
+        _patterns_by_group = {}
+        return _patterns_by_group
 
     try:
         with open(_JSON_PATH, 'r', encoding='utf-8') as f:

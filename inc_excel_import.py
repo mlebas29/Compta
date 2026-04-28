@@ -505,7 +505,7 @@ class ComptaExcelImport(ComptaExcel):
 
                 if op.ref in ('', '-'):
                     op.ref = '-'
-                op.categorie = 'Virement'
+                op.categorie = '@Virement'
 
                 montant_original = normalize_amount(op.montant)
                 montant_cible = -montant_original
@@ -518,7 +518,7 @@ class ComptaExcelImport(ComptaExcel):
                     montant=str(montant_cible).replace('.', ','),
                     devise=op.devise,
                     ref='-',
-                    categorie='Virement',
+                    categorie='@Virement',
                     compte=compte_cible,
                 )
 
@@ -544,7 +544,7 @@ class ComptaExcelImport(ComptaExcel):
                 ref = op.ref
 
                 if ('Réserve' in compte and
-                    categorie in ['Achat titres', 'Vente titres'] and
+                    categorie in ['@Achat titres', '@Vente titres'] and
                     ref in ['', '-']):
 
                     op.ref = '-'

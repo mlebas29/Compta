@@ -207,7 +207,7 @@ class ComptaPairer:
         - Montants opposés (même valeur absolue, signes opposés)
         - Comptes correspondant aux patterns LINKED_OPERATIONS
           (ou sous-comptes Réserve↔Titres)
-        - cat='Virement' ou cat='Achat titres'/'Vente titres'
+        - cat='@Virement' ou cat='@Achat titres'/'@Vente titres'
         """
         matched = set()
 
@@ -223,7 +223,7 @@ class ComptaPairer:
             for i, op in enumerate(operations):
                 if i in matched:
                     continue
-                if op.categorie != 'Virement':
+                if op.categorie != '@Virement':
                     continue
 
                 label = str(op.label).upper()
@@ -251,9 +251,9 @@ class ComptaPairer:
                         continue
 
                     # Match !
-                    pairing_ref = self.excel.get_next_pairing_ref('Virement')
-                    self.excel.write_ref_to_excel(src.row, pairing_ref, 'Virement')
-                    self.excel.write_ref_to_excel(cbl.row, pairing_ref, 'Virement')
+                    pairing_ref = self.excel.get_next_pairing_ref('@Virement')
+                    self.excel.write_ref_to_excel(src.row, pairing_ref, '@Virement')
+                    self.excel.write_ref_to_excel(cbl.row, pairing_ref, '@Virement')
                     src.ref = pairing_ref
                     cbl.ref = pairing_ref
                     matched.add(src_idx)
@@ -273,7 +273,7 @@ class ComptaPairer:
             if i in matched:
                 continue
             cat = op.categorie
-            if cat not in ('Achat titres', 'Vente titres'):
+            if cat not in ('@Achat titres', '@Vente titres'):
                 continue
             if 'Réserve' in op.compte:
                 reserve_ops.append(i)
@@ -385,13 +385,13 @@ class ComptaPairer:
                     if abs((src.date_parsed - dst.date_parsed).days) > max_jours:
                         continue
 
-                    pairing_ref = self.excel.get_next_pairing_ref('Virement')
-                    self.excel.write_ref_to_excel(src.row, pairing_ref, 'Virement')
-                    self.excel.write_ref_to_excel(dst.row, pairing_ref, 'Virement')
+                    pairing_ref = self.excel.get_next_pairing_ref('@Virement')
+                    self.excel.write_ref_to_excel(src.row, pairing_ref, '@Virement')
+                    self.excel.write_ref_to_excel(dst.row, pairing_ref, '@Virement')
                     src.ref = pairing_ref
                     dst.ref = pairing_ref
-                    src.categorie = 'Virement'
-                    dst.categorie = 'Virement'
+                    src.categorie = '@Virement'
+                    dst.categorie = '@Virement'
                     matched.add(src_idx)
                     matched.add(dst_idx)
                     matched_sources.add(src_idx)
@@ -476,13 +476,13 @@ class ComptaPairer:
                     if abs((h_op.date_parsed - s_op.date_parsed).days) > max_jours:
                         continue
 
-                    pairing_ref = self.excel.get_next_pairing_ref('Virement')
-                    self.excel.write_ref_to_excel(h_op.row, pairing_ref, 'Virement')
-                    self.excel.write_ref_to_excel(s_op.row, pairing_ref, 'Virement')
+                    pairing_ref = self.excel.get_next_pairing_ref('@Virement')
+                    self.excel.write_ref_to_excel(h_op.row, pairing_ref, '@Virement')
+                    self.excel.write_ref_to_excel(s_op.row, pairing_ref, '@Virement')
                     h_op.ref = pairing_ref
                     s_op.ref = pairing_ref
-                    h_op.categorie = 'Virement'
-                    s_op.categorie = 'Virement'
+                    h_op.categorie = '@Virement'
+                    s_op.categorie = '@Virement'
                     matched_hub.add(h_idx)
                     matched_spoke.add(s_idx)
                     total_matched.add(h_idx)
@@ -508,10 +508,10 @@ class ComptaPairer:
     def _deduce_transfer_category(self, devise1, devise2):
         """Déduit la catégorie de transfert à partir des devises des deux côtés."""
         if devise1 == devise2:
-            return 'Virement'
+            return '@Virement'
         if devise1.endswith('Jo') or devise2.endswith('Jo'):
-            return 'Achat métaux'
-        return 'Change'
+            return '@Achat métaux'
+        return '@Change'
 
     def _match_equiv(self, op1, m1, equiv1, d1, op2, m2, equiv2, d2):
         """Vérifie et complète la correspondance Equiv entre deux opérations cross-currency.
@@ -600,7 +600,7 @@ class ComptaPairer:
             self.logger.warning("Aucun compte trouvé dans Avoirs — appariement mesh désactivé")
             return operations
 
-        cross_only_cats = {'Change', 'Achat métaux'}
+        cross_only_cats = {'@Change', '@Achat métaux'}
         titres_cats = set(CLASSE_TITRES)
 
         # Collecter les opérations éligibles
@@ -653,9 +653,9 @@ class ComptaPairer:
                     portfolio_op = op2
 
                 if portfolio_op:
-                    category = 'Achat titres' if portfolio_op.montant_parsed > 0 else 'Vente titres'
+                    category = '@Achat titres' if portfolio_op.montant_parsed > 0 else '@Vente titres'
                 else:
-                    category = 'Virement'
+                    category = '@Virement'
 
                 pairing_ref = self.excel.get_next_pairing_ref(category)
                 self.excel.write_ref_to_excel(op1.row, pairing_ref, category)
@@ -705,7 +705,7 @@ class ComptaPairer:
             if idx1 in matched:
                 continue
             cat1 = op1.categorie
-            if cat1 == 'Virement':
+            if cat1 == '@Virement':
                 continue
 
             candidates = []  # (idx2, op2, result, proximity_score)
@@ -715,7 +715,7 @@ class ComptaPairer:
                 if idx2 in matched:
                     continue
                 cat2 = op2.categorie
-                if cat2 == 'Virement':
+                if cat2 == '@Virement':
                     continue
                 if cat1 in cross_only_cats or cat2 in cross_only_cats:
                     if cat1 != cat2:
@@ -816,7 +816,7 @@ class ComptaPairer:
         def normalize_label(label):
             return ' '.join(str(label).upper().split())
 
-        categories_eligibles = ['Achat titres', 'Vente titres']
+        categories_eligibles = ['@Achat titres', '@Vente titres']
 
         negatifs = []
         positifs = []
@@ -853,7 +853,7 @@ class ComptaPairer:
                 if n_label != p_label:
                     continue
 
-                is_change = n_op.categorie == 'Change'
+                is_change = n_op.categorie == '@Change'
                 if not is_change and abs(n_montant - p_montant) > 0.01:
                     continue
 

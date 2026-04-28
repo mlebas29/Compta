@@ -127,7 +127,9 @@ def write_config_section_key(raw_text, section, key, new_value):
 # ============================================================================
 
 def read_mappings_json(path):
-    """Lit config_category_mappings.json."""
+    """Lit config_category_mappings.json. Retourne {} si absent."""
+    if not Path(path).exists():
+        return {}
     with open(path, 'r', encoding='utf-8') as f:
         return json.load(f)
 
@@ -457,11 +459,16 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
         if hasattr(self, '_inotify_stop'):
             self._inotify_stop.set()
 
+    # Cellules des 6 contrôles individuels dans Contrôles (col K, dans l'ordre _CTRL_LABELS)
+    _CTRL_CELLS = ('K63', 'K64', 'K65', 'K66', 'K67', 'K72')
+
     def _read_status_cells_zip(self):
-        """Lecture rapide Contrôles A1 + Avoirs L2 via ZIP (~9ms vs ~70ms openpyxl).
+        """Lecture rapide Contrôles A1 + K63..K72 + Avoirs L2 via ZIP (~9ms vs ~70ms openpyxl).
 
         Returns:
-            tuple: (ctrl_text, total_value) — ctrl_text str, total_value float|None
+            tuple: (ctrl_text, total_value, tokens) — ctrl_text str (synthèse mono-char A1),
+                tokens list[str] de longueur 6 (✓/✗/⚠ par contrôle, ✓ par défaut),
+                total_value float|None
         """
         import zipfile
         import xml.etree.ElementTree as ET
@@ -494,14 +501,19 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
                 if name in (SHEET_CONTROLES, SHEET_AVOIRS):
                     sheet_targets[name] = 'xl/' + rel_map[rid]
 
-            # Contrôles A1 = formule synthèse, sa valeur cached est mise à
-            # jour par LO à chaque save (manuel ou via UNO). ~0ms supplémentaire
-            # vs C1 puisque le tree XML est déjà parsé.
+            # Contrôles A1 = synthèse mono-char (=$K$74), valeur cached MAJ par LO à chaque save.
+            # K63..K72 = 6 contrôles individuels (✓/✗/⚠) lus pour le détail au clic.
+            # Le tree XML est parsé une seule fois.
             ctrl = ''
+            tokens = ['✓'] * 6
             if SHEET_CONTROLES in sheet_targets:
                 with z.open(sheet_targets[SHEET_CONTROLES]) as f:
                     tree = ET.parse(f)
                 ctrl = (_read_cell(tree, 'A1') or '').strip()
+                for i, ref in enumerate(self._CTRL_CELLS):
+                    val = _read_cell(tree, ref)
+                    if val:
+                        tokens[i] = val.strip()
 
             # Avoirs L2 = formule Total (=L81 ou similaire), cached value
             # mise à jour par LO à chaque save. Pas besoin de miroir L1.
@@ -516,21 +528,26 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
                     except (ValueError, TypeError):
                         pass
 
-        return ctrl, total
+        return ctrl, total, tokens
 
     def _refresh_status_bar(self):
         """Lecture Contrôles A1 + Avoirs L2 + cohérence JSON au démarrage."""
         try:
             # Lecture rapide ZIP, fallback openpyxl si erreur
             try:
-                ctrl, total = self._read_status_cells_zip()
+                ctrl, total, tokens = self._read_status_cells_zip()
             except Exception:
                 from openpyxl import load_workbook
                 wb = load_workbook(self.xlsx_path, read_only=True, data_only=True)
                 ctrl, total = '', None
+                tokens = ['✓'] * 6
                 if SHEET_CONTROLES in wb.sheetnames:
                     ws = wb[SHEET_CONTROLES]
                     ctrl = str(ws['A1'].value or '').strip()
+                    for i, ref in enumerate(self._CTRL_CELLS):
+                        v = ws[ref].value
+                        if v:
+                            tokens[i] = str(v).strip()
                 if SHEET_AVOIRS in wb.sheetnames:
                     ws = wb[SHEET_AVOIRS]
                     val = ws['L2'].value
@@ -557,6 +574,7 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
 
             # Stocker pour le clic
             self._status_ctrl = ctrl if ctrl and ctrl != '.' else ''
+            self._status_tokens = tokens
             self._status_details = details
 
             # Synthèse zone 1 : A1 brut + indicateur alertes config
@@ -694,12 +712,16 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
             auto_fixes.append('config_accounts.json reconstruit depuis le classeur')
 
         mappings_path = self.config_path.parent / 'config_category_mappings.json'
-        if mappings_path.exists():
+        if not mappings_path.exists():
+            # Auto-création d'un JSON vide (l'utilisateur enrichit via l'onglet Catégories)
+            write_mappings_json(mappings_path, {})
+            self.mappings = {}
+            auto_fixes.append('config_category_mappings.json absent — créé vide')
+            mappings = {}
+        else:
             mappings = read_mappings_json(mappings_path)
             if not mappings:
                 warnings.append('config_category_mappings.json est vide — configurer via l\'onglet Catégories')
-        else:
-            warnings.append('config_category_mappings.json introuvable — configurer via l\'onglet Catégories')
 
         if not self.cotations_meta:
             devises_non_eur = [d for d in getattr(self, 'ACCOUNT_DEVISES', []) if d != 'EUR']
@@ -725,7 +747,7 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
                     if not acct:
                         warnings.append(
                             f'Contrôles ligne {row_idx}: référence Avoirs.A{ref_row} invalide')
-                elif cell_str and cell_str != '✓' and cell_str not in avoirs_names:
+                elif cell_str and cell_str not in ('✓', '⚓') and cell_str not in avoirs_names:
                     warnings.append(
                         f'Contrôles ligne {row_idx}: compte « {cell_str} » absent d\'Avoirs')
             wb_check.close()
@@ -780,25 +802,27 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
             for d in sorted(devises_sans_cotation):
                 warnings.append(f'Devise « {d} » utilisée dans Avoirs mais absente des cotations')
 
-        # --- Catégories Budget ↔ règles de catégorisation : nettoyage auto ---
+        # --- Catégories Budget ↔ règles de catégorisation : warning si orphelins ---
+        # Pas de purge silencieuse (la perte de patterns serait invisible) :
+        # on prévient, l'utilisateur arbitre via l'onglet Catégories ou le Budget.
         if hasattr(self, 'budget_categories') and self.budget_categories:
             budget_cats = set(self.budget_categories)
             if mappings_path.exists():
                 mappings = read_mappings_json(mappings_path)
-                json_cats = set()
+                json_cats_count = {}
                 for rules in mappings.values():
                     for rule in rules:
                         cat = rule.get('category', '')
                         if cat and cat != '-' and not cat.startswith('#'):
-                            json_cats.add(cat)
-                orphan_cats = json_cats - budget_cats
-                if orphan_cats:
-                    # Auto-nettoyage des patterns orphelins
-                    for rules in mappings.values():
-                        rules[:] = [r for r in rules if r.get('category', '') not in orphan_cats]
-                    write_mappings_json(mappings_path, mappings)
-                    for cat in sorted(orphan_cats):
-                        auto_fixes.append(f'Catégorie « {cat} » absente du Budget — patterns purgés')
+                            json_cats_count[cat] = json_cats_count.get(cat, 0) + 1
+                orphan_cats = {c: n for c, n in json_cats_count.items()
+                               if c not in budget_cats}
+                for cat in sorted(orphan_cats):
+                    n = orphan_cats[cat]
+                    warnings.append(
+                        f'Catégorie « {cat} » utilisée par {n} pattern(s) '
+                        f'mais absente du Budget — ajouter au Budget ou '
+                        f'modifier les patterns via l\'onglet Catégories')
 
         # --- Sites config.ini ↔ JSONs : cohérence ---
         ini_sites = set(self.all_sites)
@@ -812,8 +836,8 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
 
         return auto_fixes, warnings
 
-    # Décodage de la synthèse Contrôles N76 (6 positions)
-    # Formule : N63 & N64 & N65 & N66 & N67 & N75 (6 symboles ✓/✗/⚠)
+    # 6 contrôles individuels lus dans Contrôles!K63..K67 + K72 (cf. _CTRL_CELLS).
+    # A1 = =$K$74 = synthèse mono-char globale ; le détail vient de la lecture directe.
     _CTRL_LABELS = [
         'Comptes (soldes)',
         'Catégories',
@@ -831,36 +855,10 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
         'Compte(s) absent(s) de la feuille Avoirs',
     ]
 
-    @staticmethod
-    def _parse_ctrl(ctrl):
-        """Parse la synthèse N76 en liste de tokens individuels.
-
-        Nouveau format (v2.7) : 6 symboles collés ✓/✗/⚠
-        Ex: "✓✓✓⚠⚠✓" → ['✓', '✓', '✓', '⚠', '⚠', '✓']
-
-        Ancien format (rétrocompat) : ". . .-!." avec espaces et mots-clés
-        """
-        # Nouveau format : 6 symboles unicode
-        if ctrl and ctrl[0] in ('✓', '✗', '⚠'):
-            return list(ctrl[:6])
-
-        # Ancien format : "N63 N64 N65N66N67N75" avec espaces
-        parts = ctrl.split(' ', 2)
-        tokens = parts[:2]
-        if len(parts) == 3:
-            tail = parts[2]
-            suffix = ''
-            if tail.endswith('INCONNUS'):
-                suffix = 'INCONNUS'
-                tail = tail[:-len('INCONNUS')]
-            tokens.extend(list(tail))
-            if suffix:
-                tokens.append(suffix)
-        return tokens
-
     def _on_status_click(self, event):
         """Affiche le détail des alertes dans la zone Résultat."""
         ctrl = getattr(self, '_status_ctrl', '')
+        tokens = getattr(self, '_status_tokens', ['✓'] * 6)
         coherence = getattr(self, '_coherence_warnings', [])
         auto_fixes = getattr(self, '_coherence_auto_fixes', [])
         if not ctrl and not coherence and not auto_fixes:
@@ -870,21 +868,20 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
         out.configure(state='normal')
         out.delete('1.0', 'end')
 
-        # Section classeur — toutes les positions, colonnes alignées
+        # Section classeur — 6 contrôles, colonnes alignées
         if ctrl:
             out.insert('end', '=== Contrôles classeur ===\n\n')
-            tokens = self._parse_ctrl(ctrl)
             for i, label in enumerate(self._CTRL_LABELS):
                 token = tokens[i] if i < len(tokens) else '✓'
-                if token in ('.', '✓'):
-                    icon = '✓'
-                    detail = 'OK'
-                elif token == '✗':
+                if token == '✗':
                     icon = '✗'
                     detail = self._CTRL_EXPLANATIONS[i]
-                else:
+                elif token == '⚠':
                     icon = '⚠'
                     detail = self._CTRL_EXPLANATIONS[i]
+                else:
+                    icon = '✓'
+                    detail = 'OK'
                 out.insert('end', f'  {icon}  {label:<22} {detail}\n')
             out.insert('end', '\n')
 
@@ -1092,7 +1089,7 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
         self._accounts_total_row = (self._end_avr + 1) if self._end_avr else None
         for row_idx in range(avr_data_start, self._end_avr or avr_data_start + 200):
             cell_a = ws_formula.cell(row_idx, self.cr.col('AVRintitulé')).value
-            if not cell_a or str(cell_a).strip() == '✓':
+            if not cell_a or str(cell_a).strip() in ('✓', '⚓'):
                 continue
 
             orig_name = str(cell_a).strip()
@@ -1141,7 +1138,7 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
         ctrl_data_start = self._start_ctrl1 + 1
         for row_idx in range(ctrl_data_start, self._end_ctrl1 + 1):
             cell_a = ws_ctrl.cell(row_idx, self.cr.col('CTRL1compte')).value
-            if not cell_a or str(cell_a).strip() == '✓':
+            if not cell_a or str(cell_a).strip() in ('✓', '⚓'):
                 continue
 
             name = str(cell_a).strip()
@@ -1242,7 +1239,7 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
                 if not val:
                     continue
                 name = str(val).strip()
-                if name == '✓':
+                if name in ('✓', '⚓'):
                     continue
                 if name == '-':
                     separator_row = row_idx
@@ -1265,7 +1262,7 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
                 if not val:
                     continue
                 name_a = str(val).strip()
-                if name_a == '✓':
+                if name_a in ('✓', '⚓'):
                     continue
                 if name_a:
                     posts.append(name_a)
@@ -1298,7 +1295,7 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
                     budget_devises.add(str(val).strip())
 
             # Détecter la dernière colonne devise dans Contrôles
-            # CTRL2eur pointe sur la colonne EUR (première devise).
+            # CTRL2drill pointe sur la colonne EUR (première devise).
             # Le header devises est 2 lignes au-dessus de CTRL2type START.
             ctrl_last_devise = None
             ctrl2_header_row = None
@@ -1306,11 +1303,12 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
                 ws_ctrl = wb_values[SHEET_CONTROLES]
                 ctrl2_s, ctrl2_e = self.cr.rows('CTRL2type')
                 if ctrl2_s:
-                    ctrl2_header_row = ctrl2_s - 2
+                    # v3.6 : drill CTRL2 en r1-1 (sentinelle ⚓ incluse dans NR).
+                    ctrl2_header_row = ctrl2_s - 1
                 else:
-                    ctrl2_header_row = 62
-                # Scanner depuis CTRL2eur (colonne EUR) pour la dernière devise
-                eur_col = self.cr.col('CTRL2eur') if 'CTRL2eur' in self.cr._cols else None
+                    ctrl2_header_row = 61
+                # Scanner depuis CTRL2drill (colonne EUR) pour la dernière devise
+                eur_col = self.cr.col('CTRL2drill') if 'CTRL2drill' in self.cr._cols else None
                 if eur_col:
                     for col_idx in range(eur_col, eur_col + 30):
                         val = ws_ctrl.cell(ctrl2_header_row, col_idx).value
@@ -1405,9 +1403,8 @@ def main():
     if not config_path.exists():
         print(f"Erreur: {config_path} introuvable", file=sys.stderr)
         sys.exit(1)
-    if not json_path.exists():
-        print(f"Erreur: {json_path} introuvable", file=sys.stderr)
-        sys.exit(1)
+    # json_path (config_category_mappings.json) : pas d'exit si absent —
+    # le check de cohérence créera un fichier vide au démarrage.
 
     # Résoudre le chemin xlsx
     xlsx_path = None

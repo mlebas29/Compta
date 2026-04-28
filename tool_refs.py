@@ -829,12 +829,12 @@ class ComptaRefsTool:
         WINDOW_DAYS = 14
 
         TRANSACTION_KEYWORDS = {
-            'achat': ['Achat titres'],
-            'vente': ['Vente titres', 'Vente Or'],
-            'change': ['Change'],
-            'achat_metaux': ['Achat métaux'],
+            'achat': ['@Achat titres'],
+            'vente': ['@Vente titres', 'Vente Or'],
+            'change': ['@Change'],
+            'achat_metaux': ['@Achat métaux'],
             'frais': ['Frais bancaires'],
-            'arbitrage': ['Arbitrage titres']
+            'arbitrage': ['@Arbitrage titres']
         }
 
         def parse_date_str(date_str):

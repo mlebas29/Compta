@@ -32,10 +32,10 @@ from inc_excel_schema import (
 # ============================================================================
 # CLASSES DE RÉFÉRENCES (déterminent le préfixe des Réf)
 # ============================================================================
-CLASSE_VIREMENT = ['Virement']
-CLASSE_TITRES = ['Achat titres', 'Vente titres', 'Arbitrage titres']
-CLASSE_CHANGE = ['Change']
-CLASSE_METAUX = ['Achat métaux']
+CLASSE_VIREMENT = ['@Virement']
+CLASSE_TITRES = ['@Achat titres', '@Vente titres', '@Arbitrage titres']
+CLASSE_CHANGE = ['@Change']
+CLASSE_METAUX = ['@Achat métaux']
 
 # ============================================================================
 # CONFIGURATION DES OPÉRATIONS LIÉES ET SOLDE AUTO (chargées depuis config_pipeline.json)
@@ -301,8 +301,8 @@ class ComptaExcel:
 
         for row in range(self.ws_operations.max_row, self.OP_MODEL_ROW, -1):
             date = self.ws_operations.cell(row, self.cr.col('OPdate')).value
-            if date and str(date).strip() == '✓':
-                continue  # model row — ignorer
+            if date and str(date).strip() in ('✓', '⚓'):
+                continue  # model row / ancre — ignorer
             label = self.ws_operations.cell(row, self.cr.col('OPlibellé')).value
             montant = self.ws_operations.cell(row, self.cr.col('OPmontant')).value
 
@@ -407,7 +407,7 @@ class ComptaExcel:
         self._pairing_counter = (max_num + 1) % 1000
         self.logger.verbose(f"Compteur appariement initialisé à {self._pairing_counter} (max existant: {max_num})")
 
-    def get_next_pairing_ref(self, categorie='Virement', devise_credit=None):
+    def get_next_pairing_ref(self, categorie='@Virement', devise_credit=None):
         """Génère la prochaine référence d'appariement selon la classe et la devise.
 
         Le préfixe dépend de la classe (dérivée de la catégorie) et de la devise crédit:

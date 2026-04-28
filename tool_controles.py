@@ -38,13 +38,14 @@ from inc_uno import UnoDocument
 
 
 def read_a1_status(sheet):
-    """Lit la valeur de Contrôles!A1"""
+    """Lit la valeur de Contrôles!A1 (synthèse mono-char globale ✓/✗/⚠)."""
     cell_a1 = sheet.getCellByPosition(0, 0)
     return cell_a1.String
 
 
-# Décodage de la synthèse Contrôles N76 (6 positions)
-# Formule : N63 & N64 & N65 & N66 & N67 & N75 (6 symboles ✓/✗/⚠)
+# 6 contrôles individuels dans Contrôles : K63..K67 + K72 (col K, row indices 0-based)
+# A1 = =$K$74 ne fournit qu'un symbole global ; le détail se lit directement ici.
+_CTRL_CELLS = [(10, 62), (10, 63), (10, 64), (10, 65), (10, 66), (10, 71)]
 _CTRL_LABELS = [
     'Comptes (soldes)',
     'Catégories',
@@ -63,47 +64,29 @@ _CTRL_EXPLANATIONS = [
 ]
 
 
-def parse_ctrl(ctrl):
-    """Parse la synthèse N76 en liste de 6 tokens.
-
-    Nouveau format (v2.7) : 6 symboles collés ✓/✗/⚠
-    Ex: "✓✓✓⚠⚠✓" → ['✓', '✓', '✓', '⚠', '⚠', '✓']
-
-    Ancien format (rétrocompat) : ". . .-!." avec espaces et mots-clés
-    """
-    # Nouveau format : 6 symboles unicode
-    if ctrl and ctrl[0] in ('✓', '✗', '⚠'):
-        return list(ctrl[:6])
-
-    # Ancien format : "N63 N64 N65N66N67N75" avec espaces
-    parts = ctrl.split(' ', 2)
-    tokens = parts[:2]
-    if len(parts) == 3:
-        tail = parts[2]
-        suffix = ''
-        if tail.endswith('INCONNUS'):
-            suffix = 'INCONNUS'
-            tail = tail[:-len('INCONNUS')]
-        tokens.extend(list(tail))
-        if suffix:
-            tokens.append(suffix)
+def read_ctrl_tokens(sheet):
+    """Lit les 6 contrôles individuels K63..K72 → liste de 6 tokens ✓/✗/⚠."""
+    tokens = []
+    for col, row in _CTRL_CELLS:
+        v = sheet.getCellByPosition(col, row).String.strip()
+        tokens.append(v if v else '✓')
     return tokens
 
 
 def print_ctrl_summary(tokens):
-    """Affiche le décodage des 6 positions de la synthèse Contrôles."""
+    """Affiche le décodage des 6 contrôles individuels."""
     print("\n📊 Synthèse Contrôles (6 positions) :")
     for i, label in enumerate(_CTRL_LABELS):
         token = tokens[i] if i < len(tokens) else '✓'
-        if token in ('.', '✓'):
-            status = '✅'
-            detail = 'OK'
-        elif token in ('✗', 'COMPTES', 'CATÉGORIES', 'INCONNUS'):
+        if token == '✗':
             status = '❌'
             detail = _CTRL_EXPLANATIONS[i]
-        else:
+        elif token == '⚠':
             status = '⚠️ '
             detail = _CTRL_EXPLANATIONS[i]
+        else:
+            status = '✅'
+            detail = 'OK'
         print(f"  {status} {label:<22} {detail}")
 
 
@@ -117,7 +100,7 @@ def get_rows_with_discrepancies(sheet, cr, verbose=False):
 
     for row_idx in range(2, 60):  # Lignes 3 à 60
         compte = sheet.getCellByPosition(cr.col('CTRL1compte'), row_idx).String
-        if compte and compte.strip() == '✓':
+        if compte and compte.strip() in ('✓', '⚓'):
             continue
         devise = sheet.getCellByPosition(cr.col('CTRL1devise'), row_idx).String
         solde_calc = sheet.getCellByPosition(cr.col('CTRL1solde_calc'), row_idx).Value
@@ -176,7 +159,7 @@ def get_unknown_accounts(operations_sheet, avoirs_sheet, cr, verbose=False):
     valid_accounts = set()
     for row_idx in range(3, 100):  # Lignes 4 à 100
         compte = avoirs_sheet.getCellByPosition(cr.col('AVRintitulé'), row_idx).String
-        if compte and compte.strip() and compte not in ('Total', '✓'):
+        if compte and compte.strip() and compte not in ('Total', '✓', '⚓'):
             valid_accounts.add(compte.strip())
 
     if verbose:
@@ -250,10 +233,10 @@ def get_valid_categories(budget_sheet, cr, verbose=False):
     # On n'a pas xdoc ici, mais cr a déjà résolu les colonnes
     # Scan depuis le début de la zone Budget
     start_from = 0
-    # Chercher le marqueur '✓' ou 'START' à partir de row 0
+    # Chercher le marqueur sentinel (⚓ ou ✓ legacy) à partir de row 0
     for probe in range(0, 100):
         v = budget_sheet.getCellByPosition(cat_col_0, probe).String.strip()
-        if v == '✓':
+        if v in ('✓', '⚓'):
             start_from = probe
             break
 
@@ -454,25 +437,23 @@ Codes de sortie:
             operations_sheet = doc.get_sheet(SHEET_OPERATIONS)
             avoirs_sheet = doc.get_sheet(SHEET_AVOIRS)
 
-            # Lire A1
+            # Lire A1 (synthèse mono-char) + 6 contrôles individuels K63..K72
             a1_value = read_a1_status(controles_sheet)
+            tokens = read_ctrl_tokens(controles_sheet)
             print(f"\nContrôles!A1 = '{a1_value}'")
 
             # Analyser le statut
-            if a1_value == '.':
+            if a1_value in ('.', '✓') and all(t == '✓' for t in tokens):
                 print("\n✅ CONTRÔLES OK - Aucune erreur détectée")
                 exit_code = 0
             else:
-                # Décodage des 6 positions (formule N76)
-                tokens = parse_ctrl(a1_value)
                 print_ctrl_summary(tokens)
 
-                # Analyser les positions pour identifier les types d'erreurs
                 # Position 0=Comptes, 1=Catégories, 2=Dates, 3=Appariements, 4=Balances, 5=Inconnus
-                has_comptes = len(tokens) > 0 and tokens[0] in ('✗', 'COMPTES')
-                has_categories = len(tokens) > 1 and tokens[1] in ('✗', 'CATÉGORIES')
-                has_comptes_inconnus = len(tokens) > 5 and tokens[5] in ('✗', 'INCONNUS')
-                has_warnings = any(t in ('-', '!', '⚠') for t in tokens)
+                has_comptes = tokens[0] == '✗'
+                has_categories = tokens[1] == '✗'
+                has_comptes_inconnus = tokens[5] == '✗'
+                has_warnings = any(t == '⚠' for t in tokens)
 
                 if has_comptes:
                     errors = get_rows_with_discrepancies(controles_sheet, cr, args.verbose)

@@ -258,15 +258,8 @@ else
     warn "config.ini.default absent — créer config.ini manuellement"
 fi
 
-# config_category_mappings.json : copié depuis le .default si absent
-if [[ ! -f "config_category_mappings.json" && -f "config_category_mappings.json.default" ]]; then
-    cp config_category_mappings.json.default config_category_mappings.json
-    ok "config_category_mappings.json créé depuis le .default"
-elif [[ -f "config_category_mappings.json" ]]; then
-    ok "config_category_mappings.json déjà présent"
-else
-    warn "config_category_mappings.json.default absent — configurer via l'onglet Catégories"
-fi
+# config_category_mappings.json : pas de .default — l'app crée un JSON vide
+# automatiquement à la 1re exécution si le fichier est absent.
 
 # ------------------------------------------------------------------
 # Résumé

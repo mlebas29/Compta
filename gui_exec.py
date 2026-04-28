@@ -21,6 +21,14 @@ class ExecMixin:
         self._tab_execution = tab
         self.notebook.add(tab, text='Exécution')
 
+        # Flags partagés (cases à cocher de l'onglet Paramètres) — init précoce
+        # car référencés par le menu Outils construit ci-dessous.
+        self._exec_all_soldes_var = tk.BooleanVar(value=False)
+        self._exec_verbose_var = tk.BooleanVar(value=False)
+
+        # Menus tk_popup à refermer si la fenêtre perd le focus système
+        self._popup_menus = []
+
         # ── Section Collecte ──
         collect_frame = ttk.LabelFrame(tab, text='Collecte', padding=8)
         collect_frame.pack(fill='x', padx=8, pady=(8, 4))
@@ -89,9 +97,9 @@ class ExecMixin:
         launch_frame = ttk.LabelFrame(tab, text='Lancement', padding=8)
         launch_frame.pack(fill='x', padx=8, pady=4)
 
-        # Boutons action
+        # Boutons action (Arrêter rangé à droite de la même rangée)
         btn_frame = ttk.Frame(launch_frame)
-        btn_frame.pack(fill='x', pady=(0, 6))
+        btn_frame.pack(fill='x')
 
         self._exec_buttons = []
 
@@ -107,47 +115,51 @@ class ExecMixin:
 
         btn = ttk.Button(btn_frame, text='Cotations',
                          command=self._exec_cotations)
-        btn.pack(side='left')
+        btn.pack(side='left', padx=(0, 8))
         self._exec_buttons.append(btn)
 
-        # Outils (sous-cadre dans Lancement)
-        tools_frame = ttk.LabelFrame(launch_frame, text='Outils', padding=6)
-        tools_frame.pack(fill='x', pady=(0, 6))
-
-        tools_btn_frame = ttk.Frame(tools_frame)
-        tools_btn_frame.pack(fill='x')
-
+        # Bouton Outils — Button + tk_popup (gère bien le grab Linux, contrairement
+        # à Menubutton dont le menu reste posté quand la fenêtre perd le focus).
+        outils_menu = tk.Menu(self.root, tearoff=0)
         if self.mode != 'export':
-            btn = ttk.Button(tools_btn_frame, text='Charger Wiki',
-                             command=self._exec_pull)
-            btn.pack(side='left', padx=(0, 8))
-            self._exec_buttons.append(btn)
-
+            outils_menu.add_command(label='Charger Wiki', command=self._exec_pull)
         if self.mode == 'prod':
-            btn = ttk.Button(tools_btn_frame, text='Publier Wiki',
-                             command=self._exec_push)
-            btn.pack(side='left', padx=(0, 8))
-            self._exec_buttons.append(btn)
+            outils_menu.add_command(label='Publier Wiki', command=self._exec_push)
+        outils_menu.add_command(label='Réinitialiser...', command=self._exec_reset)
+        outils_menu.add_command(label='Annuler import', command=self._exec_fallback)
+        outils_menu.add_separator()
+        outils_menu.add_command(label='Vérifier cohérence',
+                                command=self._startup_check)
+        outils_menu.add_command(label='Contrôles classeur',
+                                command=self._exec_controles)
 
-        btn = ttk.Button(tools_btn_frame, text='Réinitialiser...',
-                         command=self._exec_reset)
-        btn.pack(side='left', padx=(0, 8))
-        self._exec_buttons.append(btn)
+        fix_menu = tk.Menu(outils_menu, tearoff=0)
+        fix_menu.add_command(label='Vérifier (numériques)',
+                             command=lambda: self._exec_fix_formats(False, False))
+        fix_menu.add_command(label='Vérifier (complet)',
+                             command=lambda: self._exec_fix_formats(False, True))
+        fix_menu.add_command(label='Corriger (numériques)...',
+                             command=lambda: self._exec_fix_formats(True, False))
+        fix_menu.add_command(label='Corriger (complet)...',
+                             command=lambda: self._exec_fix_formats(True, True))
+        outils_menu.add_cascade(label='Formats', menu=fix_menu)
 
-        btn = ttk.Button(tools_btn_frame, text='Annuler import',
-                         command=self._exec_fallback)
-        btn.pack(side='left', padx=(0, 8))
-        self._exec_buttons.append(btn)
+        outils_btn = ttk.Button(btn_frame, text='Outils ▾')
 
-        btn = ttk.Button(tools_btn_frame, text='Vérifier',
-                         command=self._startup_check)
-        btn.pack(side='left', padx=(0, 8))
+        def _popup_outils():
+            x = outils_btn.winfo_rootx()
+            y = outils_btn.winfo_rooty() + outils_btn.winfo_height()
+            outils_menu.tk_popup(x, y)
+            outils_menu.grab_release()
+            self._watch_popup_focus(outils_menu)
 
-        # Bouton Arrêter (en bas du cadre Lancement, s'applique à tout)
-        stop_frame = ttk.Frame(launch_frame)
-        stop_frame.pack(fill='x')
+        outils_btn.configure(command=_popup_outils)
+        outils_btn.pack(side='left')
+        self._exec_buttons.append(outils_btn)
+        self._popup_menus.extend([outils_menu, fix_menu])
 
-        self._exec_stop_btn = ttk.Button(stop_frame, text='Arrêter',
+        # Bouton Arrêter sur la même rangée, à droite (s'applique à tout)
+        self._exec_stop_btn = ttk.Button(btn_frame, text='Arrêter',
                                          command=self._exec_stop,
                                          state='disabled')
         self._exec_stop_btn.pack(side='right')
@@ -194,6 +206,35 @@ class ExecMixin:
         self._xlsx_btn_default_abg = self._xlsx_btn.cget('activebackground')
         self._xlsx_btn_default_fg = self._xlsx_btn.cget('fg')
         self._xlsx_btn_default_afg = self._xlsx_btn.cget('activeforeground')
+        # Bouton Doc dédié — Button + tk_popup, extrême droite
+        doc_menu = tk.Menu(self.root, tearoff=0)
+        doc_menu.add_command(label="Guide d'utilisation",
+                             command=lambda: self._exec_open_doc('Compta.md'))
+        doc_menu.add_command(label='Guide étendu',
+                             command=lambda: self._exec_open_doc('Compta_plus.md'))
+        doc_menu.add_command(label='Référentiel outils',
+                             command=lambda: self._exec_open_doc('Compta_tools.md'))
+        doc_menu.add_command(label='Mises à niveau',
+                             command=lambda: self._exec_open_doc('Compta_upgrade.md'))
+        doc_menu.add_command(label='Notes de version',
+                             command=lambda: self._exec_open_doc('CHANGELOG.md'))
+        doc_menu.add_separator()
+        doc_menu.add_command(label='Charte graphique',
+                             command=lambda: self._exec_open_doc('Compta_charte.md'))
+
+        doc_btn = ttk.Button(files_btn_frame, text='\U0001f4d6 Doc ▴')
+
+        def _popup_doc():
+            x = doc_btn.winfo_rootx()
+            y = doc_btn.winfo_rooty() - doc_menu.winfo_reqheight()
+            doc_menu.tk_popup(x, y)
+            doc_menu.grab_release()
+            self._watch_popup_focus(doc_menu)
+
+        doc_btn.configure(command=_popup_doc)
+        doc_btn.pack(side='right', padx=(8, 0))
+        self._popup_menus.append(doc_menu)
+
         ttk.Button(files_btn_frame, text='Archives',
                    command=self._exec_open_archives).pack(side='right', padx=(8, 0))
         ttk.Button(files_btn_frame, text='Dropbox',
@@ -398,6 +439,58 @@ class ExecMixin:
         cmd = [sys.executable, str(self.config_path.parent / 'cpt.py'),
                '--fallback']
         self._exec_run(cmd, 'Annulation import')
+
+    def _exec_controles(self):
+        cmd = [sys.executable, str(self.config_path.parent / 'tool_controles.py')]
+        if self._exec_verbose_var.get():
+            cmd.append('-v')
+        self._exec_run(cmd, 'Contrôles classeur')
+
+    def _exec_fix_formats(self, apply_changes, with_apparence):
+        if apply_changes:
+            extra = ' + apparence' if with_apparence else ''
+            if not messagebox.askyesno(
+                    'Confirmation',
+                    f'Appliquer les corrections de format{extra} à comptes.xlsm ?\n\n'
+                    'Le fichier sera modifié (sauvegarde .bak créée).',
+                    parent=self.root):
+                return
+        cmd = [sys.executable, str(self.config_path.parent / 'tool_fix_formats.py'),
+               str(self.xlsx_path)]
+        if apply_changes:
+            cmd.append('--apply')
+        if with_apparence:
+            cmd.append('--charter')
+        verb = 'Corriger' if apply_changes else 'Vérifier'
+        scope = 'complet' if with_apparence else 'numériques'
+        self._exec_run(cmd, f'{verb} formats ({scope})')
+
+    def _watch_popup_focus(self, menu, _delay=200):
+        """Workaround bug Tk/Linux : ferme le menu posté si la fenêtre principale
+        perd le focus système (clic sur une autre application).
+        Polling périodique tant que le menu est mappé."""
+        def _check():
+            try:
+                if not menu.winfo_ismapped():
+                    return
+                # focus_displayof() == None quand le focus système quitte notre app
+                if self.root.focus_displayof() is None:
+                    menu.unpost()
+                    return
+            except tk.TclError:
+                return
+            self.root.after(150, _check)
+        self.root.after(_delay, _check)
+
+    def _exec_open_doc(self, filename):
+        """Ouvre une doc Markdown du repo via xdg-open."""
+        path = (self.config_path.parent / filename).resolve()
+        if path.exists():
+            subprocess.Popen(['xdg-open', str(path)])
+        else:
+            messagebox.showinfo(filename,
+                                f'Fichier introuvable :\n{path}',
+                                parent=self.root)
 
     def _exec_open_journal(self):
         logs_dir = self.config.get('paths', 'logs', fallback='./logs')

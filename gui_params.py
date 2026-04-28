@@ -80,7 +80,8 @@ class ParamsMixin:
         ef.pack(fill='x', padx=10, pady=5)
         self._make_help_button(ef)
 
-        self._exec_all_soldes_var = tk.BooleanVar(value=False)
+        # _exec_all_soldes_var et _exec_verbose_var sont initialisés dans _build_tab_execution
+        # (partagés avec le menu Outils, qui en a besoin avant la construction de cet onglet).
         frame = ttk.Frame(ef)
         frame.pack(fill='x', pady=2)
         ttk.Checkbutton(frame, text='Import soldes',
@@ -88,7 +89,6 @@ class ParamsMixin:
         ttk.Label(frame, text='Importer tous les soldes (--all-soldes)',
                   style='Hint.TLabel').pack(side='left', padx=10)
 
-        self._exec_verbose_var = tk.BooleanVar(value=False)
         frame2 = ttk.Frame(ef)
         frame2.pack(fill='x', pady=2)
         ttk.Checkbutton(frame2, text='Verbeux',

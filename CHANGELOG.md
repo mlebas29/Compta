@@ -1,10 +1,49 @@
 # Changelog
 
-Cet historique des versions de l'app est orienté utilisateur ; il ne mentionne pas explicitement les changements internes du code.
+Chronique des versions de l'app, orientée utilisateur (les changements
+internes du code ne sont pas listés).
 
-**Pour le détail des mises à niveau classeur : voir `Compta_upgrade.md`**
+**Pour la procédure de mise à niveau d'un classeur existant : voir
+`Compta_upgrade.md`.**
 
 
+
+## v4.0.0 (2026-04-27)
+*Mise à jour — app : 🔴 critique · classeur : 🔴 critique (migration obligatoire)*
+
+Refonte structurelle majeure du classeur.
+
+**Une seule colonne devise par tableau** — Budget *CATÉGORIES* et Contrôles
+*CTRL2* passent de plusieurs colonnes (une par devise) à une colonne unique
+où la devise se choisit dans une liste déroulante en en-tête, plus une
+colonne Total EUR. Cours inversés (1/cours) conservés dans une nouvelle
+colonne *COTcours2* (Cotations), utile aux formules de conversion EUR →
+devise.
+
+**Ancres ⚓** — Chaque tableau porte deux ancres ⚓ (début et fin) dans sa
+1ʳᵉ colonne. Elles fiabilisent les insertions/suppressions de lignes
+(Avoirs, Opérations, Plus_value, Catégories, Postes, Cotations, Patrimoine,
+CTRL2).
+
+**Charte graphique v4** — Palette harmonisée (tête beige foncé, pied beige
+clair, data blanc, gris pour devise étrangère), quadrillage fin beige sur
+tous les tableaux, trait épais brun en haut des pieds. Patrimoine étendu
+(4 colonnes d'annotation libre) et nouveau bloc *Conventions*.
+
+**Alarmes uniformisées** — Cellules contrôlées en gras ; fond rouge clair
+pour ✗, jaune-orange pour ⚠. La synthèse Contrôles s'affiche en un seul
+symbole global. Alarme CATÉGORIES affinée (3 conditions distinctes).
+
+**Outils nouveaux** :
+- 🔧 `tool_migrate_schema_v2.py` — migration v3.4 et plus récents
+- 🔧 `tool_audit_formats.py` — audit charte en lecture seule
+- 🔧 `tool_fix_formats.py --charter` — application charte + alarmes en gras
+
+## v3.5.8 (2026-04-19)
+*Mise à jour — app : 🟠 recommandée · classeur : 🟠 recommandée (utilisateurs multi-devise)*
+
+- Contrôle balances non-EUR : correction formule de calcul — maintenant basée sur cours d'époque au lieu de cours du jour.
+- 🔧 **`tool_migrate_ctrl2_balances.py`** pour mettre à niveau un classeur existant.
 
 ## v3.5.7 (2026-04-18)
 *Mise à jour — app : 🟠 recommandée · classeur : 🟠 recommandée*
@@ -92,4 +131,5 @@ Cet historique des versions de l'app est orienté utilisateur ; il ne mentionne 
 - v3.1.0 (2026-03-29) — 14 sites intégrés, GUI complète et publication Export avec exemple et template.
 - v2.2.0-gui (2026-02-17) — 8 sites intégrés ; premier GUI.
 - v1.0.0-BB (2025-12-09) — premier site intégré (BOURSOBANK).
+- 2025-11-11 : première pierre app
 - préexistant au projet : classeur familial, non versionné.

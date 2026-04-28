@@ -14,13 +14,13 @@ from typing import Optional
 
 
 # Version de l'application — incrémentée à chaque livraison
-APP_VERSION = "3.5.7"
+APP_VERSION = "4.0.1-wip"
 
 # Version du schéma classeur — incrémentée à chaque changement de structure
 # (named ranges, colonnes, formules). Le classeur doit avoir un named range
 # SCHEMA_VERSION (constante) égal à cette valeur.
 # Voir Compta_upgrade.md pour l'historique et les procédures de migration.
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 # Noms des 9 champs de base (colonnes Opérations A-I)
 _BASE_FIELD_NAMES = (
@@ -155,6 +155,39 @@ PAIRING_COUNTER_CELL = (2, 6)
 #   row 3 : lectures excluant l'en-tête 2 lignes (load_unpaired_operations, analyze)
 #   row 4 : lectures excluant les lignes spéciales (load_all_references)
 # Pas de constante unique — chaque usage garde sa valeur explicite.
+
+
+# ============================================================================
+# ANCRES TABLEAUX (sentinelles ⚓ + règle NR ↔ sentinelles)
+# ============================================================================
+# Règle : chaque NR colonne de référence couvre exactement [row(⚓_top), row(⚓_bot)].
+# La col porteuse des sentinelles = col du ref_nr (déduite dynamiquement).
+# La famille de NRs = tous ceux dont le nom commence par le préfixe alpha du ref_nr.
+# Les bornes row de tous les NRs de la famille sont identiques.
+#
+# Champs : (sheet, ref_nr, target_end_row_or_None, only_start)
+# target_end = None : r2+1 pour introduire une nouvelle ancre de fin
+#                     (cas PAT/CTRL2 pré-migration, tables à ancrer ex-nihilo).
+# target_end = int  : row cible fixe pour l'ancre de fin (non utilisé en v3.6).
+# only_start = True : table à ancrage top uniquement (OP — NR volontairement
+#                     large sans ancre bot pour éviter d'impacter la zone
+#                     utilisée UNO / les cursor.gotoEndOfUsedArea()).
+
+ANCHOR_TABLES = [
+    (SHEET_AVOIRS,     'AVRintitulé',  None,  False),
+    (SHEET_BUDGET,     'CATnom',       None,  False),
+    (SHEET_BUDGET,     'POSTESnom',    None,  False),
+    (SHEET_COTATIONS,  'COTlabel',     None,  False),
+    (SHEET_CONTROLES,  'CTRL1compte',  None,  False),
+    (SHEET_CONTROLES,  'CTRL2type',    None,  False),
+    (SHEET_OPERATIONS, 'OPdate',       None,  True),   # only_start
+    ('Patrimoine',     'PATlabel',     None,  False),
+    # CONV absent volontairement : c'est un tableau statique créé par
+    # ensure_conventions_table (tool_migrate), invariant entre classeurs et
+    # propagé tel quel par tool_sync_from_witness. Pas de bornes dynamiques
+    # à valider/ajuster.
+    (SHEET_PLUS_VALUE, 'PVLsection',   None,  False),
+]
 
 
 # ============================================================================

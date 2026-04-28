@@ -169,6 +169,25 @@ class DevisesMixin:
             on_success
         )
 
+    def _refresh_drill_styles_and_cf(self, doc, log=None):
+        """Rafraîchit les cell styles Drill_{CODE}_{body,pied} + les CF rules Budget
+        d'après la liste actuelle des devises dans Cotations.
+
+        Appelé depuis _save_devise / _delete_devise : la liste COTcode a changé,
+        donc les styles (créés si absents) et surtout les CF Budget (une règle par
+        devise) doivent être rafraîchis. Les styles existants ne sont pas supprimés
+        (inoffensifs si une devise disparaît).
+
+        Délègue à tool_migrate_schema_v2 pour une seule source de vérité.
+        """
+        from tool_migrate_schema_v2 import setup_drill_formats
+        if log is None:
+            log = []
+        ws_bud = doc.get_sheet(SHEET_BUDGET)
+        ws_ctrl = doc.get_sheet(SHEET_CONTROLES)
+        nr = doc._document.NamedRanges
+        setup_drill_formats(doc, ws_bud, ws_ctrl, nr, log)
+
     def _save_devise(self, code, famille, nom=None,
                       derived_from=None, formula=None, doc=None):
         """Insère une nouvelle devise dans Cotations, Budget et Contrôles via UNO.
@@ -221,8 +240,8 @@ class DevisesMixin:
                 row_label = cell_label.getString().strip()
                 if not row_code and not row_label:
                     continue
-                if row_label == '✓' or row_code == '✓':
-                    continue  # model row — ne pas inclure dans la zone de données
+                if row_label in ('✓', '⚓') or row_code in ('✓', '⚓'):
+                    continue  # model row / ancre — ne pas inclure dans la zone de données
                 cot_last_data = row_idx
                 # Lookup famille via JSON meta (par code ou par label)
                 row_famille = self.cotations_meta.get(row_code, {}).get('famille', '')
@@ -313,273 +332,45 @@ class DevisesMixin:
                 else:
                     break
 
-            # ==== ÉTAPE B — Budget : insérer 1 colonne avant Equiv EUR ====
-            has_budget = self.budget_start_row is not None
-            ws_bud = doc.get_sheet(SHEET_BUDGET)
-            equiv_col = last_bud + 1  # position actuelle Equiv EUR (1-indexed)
-            # Insérer avant Equiv EUR → la nouvelle colonne prend sa place
-            ws_bud.Columns.insertByIndex(uno_col(equiv_col), 1)
-            # Maintenant : new_col = equiv_col, Equiv EUR décalé à equiv_col+1
+            # ==== ÉTAPES B-F : supprimées en modèle drill ====
+            # Avant : insertion col devise dans Budget + Contrôles + extension
+            # formules + pieds. Dans le modèle drill (SCHEMA_VERSION=2), Budget et
+            # Contrôles ont UNE SEULE col agrégée filtrée par cellule drill, et le
+            # Total € est un SUMPRODUCT cours du jour via COTcode/COTcours.
 
-            new_col = equiv_col           # la nouvelle colonne devise
-            new_col_letter = ColResolver._idx_to_letter(new_col)
-            new_equiv_col = equiv_col + 1
-            new_equiv_letter = ColResolver._idx_to_letter(new_equiv_col)
-            new_alloc_pct_col = new_equiv_col + 1
-            new_alloc_montant_col = new_equiv_col + 2
-            new_poste_col = new_equiv_col + 3
-
-            # Copier le style : EUR (col M) pour fiat, voisin pour les autres
-            style_src_bud = self.budget_first_devise_col if famille == 'fiat' else last_bud
-            bud_end = (self.budget_total_row or self.budget_header_row + 20) + 5
-            # Identifier les model rows à ne pas toucher
-            from inc_excel_schema import uno_row as _ur
-            _model_rows_0 = set()
-            for _ref in ('CATnom', 'POSTESnom'):
-                _s, _e = cr.rows(_ref)
-                if _s: _model_rows_0.add(_ur(_s))
-                if _e: _model_rows_0.add(_ur(_e))
-            copy_col_style(ws_bud, uno_col(style_src_bud), uno_col(new_col),
-                           row_start=uno_row(self.budget_header_row), row_end=uno_row(bud_end),
-                           skip_rows=_model_rows_0)
-
-            # Appliquer le format devise + gris sur la nouvelle colonne Budget
-            # Exclure "Montant Euros" (total_row+4) qui est en EUR
-            from inc_formats import FORMATS_DEVISE, FORMAT_EUR, GRIS, devise_format
-            fmt_devise = FORMATS_DEVISE.get(code, devise_format(code))
-            montant_eur_row = (self.budget_total_row + 4) if self.budget_total_row else None
-            if fmt_devise:
-                fmt_id = doc.register_number_format(fmt_devise)
-                fmt_eur_id = doc.register_number_format(FORMAT_EUR)
-                for r in range(self.budget_header_row + 1, bud_end):
-                    if uno_row(r) in _model_rows_0:
-                        continue
-                    cell = ws_bud.getCellByPosition(uno_col(new_col), uno_row(r))
-                    if montant_eur_row and r == montant_eur_row:
-                        cell.NumberFormat = fmt_eur_id
-                    else:
-                        cell.NumberFormat = fmt_id
-                        cell.CellBackColor = GRIS
-
-            # ==== ÉTAPE C — Budget : remplir la nouvelle colonne ====
-            hr = self.budget_header_row
-            nc0 = uno_col(new_col)
-            nec0 = uno_col(new_equiv_col)  # colonne Equiv EUR (décalée)
-
-            # Row header : code devise
-            ws_bud.getCellByPosition(nc0, uno_row(hr)).setString(code)
-
-            # Row START : taux = SUMIF(Cotations)
+            # Étendre la validation LIST des cellules drill pour inclure la nouvelle devise.
+            # Source = $Cotations.$E$<first_data>:$E$<last_data>
+            # Drill cell position : header row de CAT (Budget) et CTRL2 (Contrôles).
             cot_code_letter = cr.letter('COTcode')
-            cot_cours_letter = cr.letter('COTcours')
-            if has_budget:
-                ws_bud.getCellByPosition(nc0, uno_row(self.budget_start_row)).setFormula(
-                    f'=SUMIF(Cotations.${cot_code_letter}${cot_data_start}:${cot_code_letter}${cot_last_row};{new_col_letter}${hr};'
-                    f'Cotations.${cot_cours_letter}${cot_data_start}:${cot_cours_letter}${cot_last_row})')
+            first_data = cot_data_start  # 1-indexed, 1ère row après model row top
+            src = f'$Cotations.${cot_code_letter}${first_data}:${cot_code_letter}${cot_last_row}'
+            ws_bud2 = doc.get_sheet(SHEET_BUDGET)
+            ws_ctrl2 = doc.get_sheet(SHEET_CONTROLES)
+            bud_drill_col = cr.col('CATmontant') if 'CATmontant' in cr._cols else 5  # col F 0-idx
+            ctrl_drill_col = cr.col('CTRL2drill') if 'CTRL2drill' in cr._cols else 12  # col M 0-idx
+            bud_drill_row_1 = self.budget_header_row or 13
+            ctrl_drill_row_1 = self.ctrl2_header_row or 8
+            for ws, col_0, row_1 in [(ws_bud2, bud_drill_col, bud_drill_row_1),
+                                      (ws_ctrl2, ctrl_drill_col, ctrl_drill_row_1)]:
+                cell = ws.getCellByPosition(col_0, uno_row(row_1))
+                v = cell.Validation
+                v.Type = 6  # LIST
+                v.setFormula1(src)
+                v.ShowList = 1
+                v.IgnoreBlankCells = True
+                v.ErrorAlertStyle = 0  # STOP
+                v.ShowErrorMessage = True
+                cell.Validation = v
 
-            # Rows catégories : SUMIFS par devise
-            first_cat_row = min(self.budget_cat_rows.values()) if self.budget_cat_rows else (self.budget_start_row or hr) + 1
-            sep_row = self.budget_insert_row or first_cat_row
-            for r in range(first_cat_row, sep_row + 1):  # inclut le séparateur "-"
-                cell_l = ws_bud.getCellByPosition(uno_col(self.budget_cat_col), uno_row(r))
-                val_l = cell_l.getString().strip()
-                if val_l and val_l != '✓':
-                    cat_letter = ColResolver._idx_to_letter(self.budget_cat_col)
-                    ws_bud.getCellByPosition(nc0, uno_row(r)).setFormula(
-                        f'=SUMIFS(OPmontant;OPdevise;{new_col_letter}${hr};OPcatégorie;${cat_letter}{r};OPdate;">"&$C$2-365)')
-
-            # Row Total et formules résumé (skip si pas de catégories Budget)
-            total_row = self.budget_total_row
-            if total_row:
-                ws_bud.getCellByPosition(nc0, uno_row(total_row)).setFormula(
-                    f'=SUM({new_col_letter}{first_cat_row}:{new_col_letter}{sep_row})')
-
-                # Row Total+1 : SUMIFS hors Spéciale
-                ws_bud.getCellByPosition(nc0, uno_row(total_row + 1)).setFormula(
-                    f'=SUMIFS(OPmontant;OPdevise;{new_col_letter}${hr};OPdate;">"&$C$2-365;OPcatégorie;"<>"&Spéciale)')
-
-                # Row Total+2 (95) : Écart = Total - Somme opérations
-                ws_bud.getCellByPosition(nc0, uno_row(total_row + 2)).setFormula(
-                    f'={new_col_letter}${total_row}-{new_col_letter}${total_row + 1}')
-
-                # Row Total+3 (96) : Total hors Changes = SUM(col{hc_start}:col{sep})
-                # Trouver la première catégorie avec Equiv EUR (= première catégorie budgétaire réelle)
-                # Les catégories spéciales (Change, Virement, Achat...) n'ont pas de formule Equiv EUR
-                hc_start = first_cat_row + 6  # fallback
-                for r in range(first_cat_row, sep_row):
-                    cell_eq = ws_bud.getCellByPosition(nec0, uno_row(r))
-                    if cell_eq.getFormula():
-                        hc_start = r
-                        break
-                changes_row = hc_start
-                # Réécrire Total+3 pour TOUTES les colonnes devise (y compris EUR)
-                # Les formules template single-cell ne s'étendent pas avec les inserts
-                for dc in range(self.budget_first_devise_col, new_col + 1):
-                    dcl = ColResolver._idx_to_letter(dc)
-                    ws_bud.getCellByPosition(uno_col(dc), uno_row(total_row + 3)).setFormula(
-                        f'=SUM({dcl}{changes_row}:{dcl}{sep_row})')
-
-                # Row Total+4 : Montant Euros = col*taux
-                sr = self.budget_start_row  # ligne des cours
-                ws_bud.getCellByPosition(nc0, uno_row(total_row + 4)).setFormula(
-                    f'={new_col_letter}${total_row + 3}*{new_col_letter}${sr}')
-
-            # ==== ÉTAPE D — Budget : mettre à jour Equiv EUR ====
-            # Après insertion, Equiv EUR est à new_equiv_col
-            # Réécrire les formules en SUMPRODUCT première_devise → nouvelle devise incluse
-            # Ne toucher que les lignes qui ont déjà une formule Equiv EUR
-            sumproduct_last = new_col_letter  # ex: Y si PLN=col25 → inclut PLN
-            fdl = ColResolver._idx_to_letter(self.budget_first_devise_col)
-
-            for r in range(first_cat_row, sep_row + 1):  # inclut le séparateur
-                cell_equiv = ws_bud.getCellByPosition(nec0, uno_row(r))
-                existing = cell_equiv.getFormula()
-                if existing:  # ne réécrire que si une formule existait
-                    ws_bud.getCellByPosition(nec0, uno_row(r)).setFormula(
-                        f'=SUMPRODUCT({fdl}{r}:{sumproduct_last}{r};{fdl}${sr}:{sumproduct_last}${sr})')
-
-            # Pieds Equiv EUR : réécrire Total et Total+3 avec les bons ranges
-            # (le template a des refs single-cell qui ne s'étendent pas)
-            if total_row:
-                # Total Equiv EUR : =SUM(equiv_col first_cat : equiv_col sep)
-                ws_bud.getCellByPosition(nec0, uno_row(total_row)).setFormula(
-                    f'=SUM({new_equiv_letter}{first_cat_row}:{new_equiv_letter}{sep_row})')
-                # Total+3 Equiv EUR : =SUM(equiv_col changes : equiv_col sep)
-                ws_bud.getCellByPosition(nec0, uno_row(total_row + 3)).setFormula(
-                    f'=SUM({new_equiv_letter}{changes_row}:{new_equiv_letter}{sep_row})')
-
-                # Total+3 Alloc montant
-                alloc_m_col = new_equiv_col + 2
-                alloc_m_letter = ColResolver._idx_to_letter(alloc_m_col)
-                ws_bud.getCellByPosition(uno_col(alloc_m_col), uno_row(total_row + 3)).setFormula(
-                    f'=SUM({alloc_m_letter}{changes_row}:{alloc_m_letter}{sep_row})')
-
-            # Row Total+4 Equiv EUR : =SUM(first_dev:new_col)
-            if total_row:
-                ws_bud.getCellByPosition(nec0, uno_row(total_row + 4)).setFormula(
-                    f'=SUM({fdl}${total_row + 4}:{new_col_letter}${total_row + 4})')
-
-            # ==== ÉTAPE E — Contrôles tableau 2 : écrire la nouvelle colonne ====
-            # Lignes relatives à ctrl2_header_row (header devises)
-            ws_ctrl = doc.get_sheet(SHEET_CONTROLES)
-            h = self.ctrl2_header_row  # row des codes devises (1-indexed)
-            new_ctrl_col = last_ctrl + 1
-            cc0 = uno_col(new_ctrl_col)
-            ctrl_letter = ColResolver._idx_to_letter(new_ctrl_col)
-
-            # Copier le style depuis la colonne EUR (named range CTRL2eur)
-            # Bornes : header (START-2) → pied (END+1), row_end exclusif → END+2
-            eur_ctrl_col_0 = doc.cr.col('CTRL2eur')
-            _, ctrl2_end_1 = doc.cr.rows('CTRL2type')
-            copy_end_1 = (ctrl2_end_1 + 2) if ctrl2_end_1 else (h + 16)
-            copy_col_style(ws_ctrl, eur_ctrl_col_0, cc0,
-                           row_start=uno_row(h), row_end=uno_row(copy_end_1))
-
-            # Appliquer les formats nombre spécifiques par ligne + gris
-            from inc_formats import FORMATS_DEVISE, FORMAT_EUR, FORMAT_EUR_RED, GRIS, devise_format
-            fmt_devise = FORMATS_DEVISE.get(code, devise_format(code))
-            fmt_devise_id = doc.register_number_format(fmt_devise)
-            fmt_eur_id = doc.register_number_format(FORMAT_EUR)
-            fmt_eur_red_id = doc.register_number_format(FORMAT_EUR_RED)
-            fmt_int_id = doc.register_number_format('#\xa0##0')
-            # Rouge négatif pour Virements
-            fmt_red_id = doc.register_number_format(f'{fmt_devise};[RED]\\-{fmt_devise}')
-
-            # h+1: taux EUR, h+2/4/5/6: entier, h+3/9: devise+gris,
-            # h+7: devise+gris+rouge, h+8/10/11/12: EUR
-            for offset, fmt_id in ((1, fmt_eur_id), (2, fmt_int_id), (4, fmt_int_id),
-                                    (5, fmt_int_id), (6, fmt_int_id),
-                                    (8, fmt_eur_id), (10, fmt_eur_id),
-                                    (11, fmt_eur_id), (12, fmt_eur_id)):
-                ws_ctrl.getCellByPosition(cc0, uno_row(h + offset)).NumberFormat = fmt_id
-            # Lignes devise + gris
-            for offset in (3, 9):
-                cell = ws_ctrl.getCellByPosition(cc0, uno_row(h + offset))
-                cell.NumberFormat = fmt_devise_id
-                cell.CellBackColor = GRIS
-            # Virements : devise rouge + gris
-            cell = ws_ctrl.getCellByPosition(cc0, uno_row(h + 7))
-            cell.NumberFormat = fmt_red_id
-            cell.CellBackColor = GRIS
-
-            # Budget col correspondant à cette devise = new_col
-            bud_letter = new_col_letter
-
-            # h+0 : header devise
-            ws_ctrl.getCellByPosition(cc0, uno_row(h)).setString(code)
-
-            # h+1 : taux = Cotations.$C${cot_new_row}
-            ws_ctrl.getCellByPosition(cc0, uno_row(h + 1)).setFormula(
-                f'=Cotations.${cot_cours_letter}${cot_new_row}')
-
-            # h+2 : COMPTES — COUNTIFS écarts par devise (CTRL1 ranges)
-            # B=devise, K="Oui"(écart détecté), J=valeur écart (0=OK)
-            ws_ctrl.getCellByPosition(cc0, uno_row(h + 2)).setFormula(
-                f'=COUNTIFS($B4:$B58;{ctrl_letter}${h};$I4:$I58;"Oui")'
-                f'-COUNTIFS($B4:$B58;{ctrl_letter}${h};$I4:$I58;"Oui";$H4:$H58;0)')
-
-            # h+3 : CATÉGORIES = Budget.{bud_letter}${total_row+2}
-            if total_row:
-                ws_ctrl.getCellByPosition(cc0, uno_row(h + 3)).setFormula(
-                    f'=Budget.{bud_letter}${total_row + 2}')
-
-            # h+5 : Appariements
-            ws_ctrl.getCellByPosition(cc0, uno_row(h + 5)).setFormula(
-                f'=COUNTIFS(OPréf;"-";OPdevise;{ctrl_letter}${h})')
-
-            # h+6 : Balances = COUNTA labels - COUNTIFS zéros
-            ws_ctrl.getCellByPosition(cc0, uno_row(h + 6)).setFormula(
-                f'=COUNTA($M{h+7}:$M{h+9})-COUNTIFS({ctrl_letter}{h+7}:{ctrl_letter}{h+9};0)')
-
-            # h+7 : Virements = ROUND(SUMIFS par catégorie "Virement*")
-            ws_ctrl.getCellByPosition(cc0, uno_row(h + 7)).setFormula(
-                f'=ROUND(SUMIFS(OPmontant;OPdevise;{ctrl_letter}${h};OPcatégorie;"Virement*");0)')
-
-            # h+8 : Virements € = h+7 * taux
-            ws_ctrl.getCellByPosition(cc0, uno_row(h + 8)).setFormula(
-                f'=ROUND(SUMIFS(OPmontant;OPdevise;{ctrl_letter}${h};OPcatégorie;"Virement*");0)*{ctrl_letter}${h+1}')
-
-            # h+9 : Titres = ROUND(SUMIFS par catégorie "*titres")
-            ws_ctrl.getCellByPosition(cc0, uno_row(h + 9)).setFormula(
-                f'=ROUND(SUMIFS(OPmontant;OPdevise;{ctrl_letter}${h};OPcatégorie;"*titres");0)')
-
-            # h+10 : Titres € = h+9 * taux
-            ws_ctrl.getCellByPosition(cc0, uno_row(h + 10)).setFormula(
-                f'=ROUND(SUMIFS(OPmontant;OPdevise;{ctrl_letter}${h};OPcatégorie;"*titres");0)*{ctrl_letter}${h+1}')
-
-            # h+11 : Changes Eq € = SUMIFS equiv_euro par devise (Change + Achat métaux)
-            ws_ctrl.getCellByPosition(cc0, uno_row(h + 11)).setFormula(
-                f'=SUMIFS(OPequiv_euro;OPdevise;{ctrl_letter}${h};OPcatégorie;"Change")'
-                f'+SUMIFS(OPequiv_euro;OPdevise;{ctrl_letter}${h};OPcatégorie;"Achat métaux")')
-
-            # h+12 : Total € = Virements€ + Titres€ + Changes€
-            ws_ctrl.getCellByPosition(cc0, uno_row(h + 12)).setFormula(
-                f'={ctrl_letter}{h+8}+{ctrl_letter}{h+10}+{ctrl_letter}{h+11}')
-
-            # ==== ÉTAPE F — Contrôles : étendre les formules K/L ====
-            new_end = ColResolver._idx_to_letter(new_ctrl_col)
-            eur_letter = ColResolver._idx_to_letter(eur_ctrl_col_0 + 1)  # 1-indexed
-
-            # L : réécrire les SUM avec le range complet EUR → nouvelle devise
-            # L(h+2) COMPTES, L(h+3) CATÉGORIES, L(h+8) € Virements, L(h+10) € Titres
-            l_col_0 = uno_col(12)  # L = col 12 (1-indexed)
-            for offset in (2, 3, 8, 10):
-                row = h + offset
-                ws_ctrl.getCellByPosition(l_col_0, uno_row(row)).setFormula(
-                    f'=SUM({eur_letter}{row}:{new_end}{row})')
-
-            # K(h+2) COMPTES : cohérent avec les autres K → IF(L=0;"✓";"✗")
-            k_col_0 = uno_col(11)  # K = col 11 (1-indexed)
-            ws_ctrl.getCellByPosition(k_col_0, uno_row(h + 2)).setFormula(
-                f'=IF(L{h+2}=0;"✓";"✗")')
+            # Drill styles (Drill_{CODE}_body/pied) + CF refresh pour la nouvelle devise.
+            # Approche B (un style par devise) : ajouter/rafraîchir les CF rules Budget.
+            self._refresh_drill_styles_and_cf(doc, log=[])
 
             # ==== Finaliser ====
             if owned:
                 self._uno_finalize(doc)
 
-        # ==== ÉTAPE G — Mise à jour état mémoire + JSON ====
-        self.budget_last_devise_col = new_col       # ex: 24→25
-        self.ctrl_last_devise_col = new_ctrl_col    # ex: 29→30
+        # ==== ÉTAPE G — Persist metadata devise (JSON) ====
 
         # Persister les métadonnées dans config_cotations.json
         self.cotations_meta[code] = {
@@ -760,46 +551,18 @@ class DevisesMixin:
             if cot_row is not None:
                 ws_cot.Rows.removeByIndex(uno_row(cot_row), 1)
 
-            # ==== Budget : supprimer la colonne de la devise ====
-            ws_bud = doc.get_sheet(SHEET_BUDGET)
-            bud_col = None
-            bud_header_row = self.budget_header_row
-            for col_idx in range(self.budget_first_devise_col, self.budget_first_devise_col + 30):
-                val = ws_bud.getCellByPosition(
-                    uno_col(col_idx), uno_row(bud_header_row)).getString().strip()
-                if not val:
-                    break
-                if val == code:
-                    bud_col = col_idx
-                    break
-            if bud_col is not None:
-                ws_bud.Columns.removeByIndex(uno_col(bud_col), 1)
+            # ==== Named range cours_XXX : supprimer ====
+            # En drill model, c'est le seul ménage à faire en plus de Cotations.
+            # Plus de cols Budget/Contrôles à enlever (drill single-col).
+            nr = doc._document.NamedRanges
+            cours_name = self.cours_name(code) if hasattr(self, 'cours_name') else f'cours_{code}'
+            if cours_name and nr.hasByName(cours_name):
+                nr.removeByName(cours_name)
 
-            # ==== Contrôles : supprimer la colonne de la devise ====
-            ws_ctrl = doc.get_sheet(SHEET_CONTROLES)
-            # Coche start CTRL2 = première ligne data (h+2) et première col devise.
-            # Header devises = 2 lignes au-dessus.
-            _ctrl2_s, _ = cr.rows('CTRL2type')
-            first_devise_col_0 = cr.col('CTRL2eur')
-            header_row_0 = uno_row(_ctrl2_s) - 2      # 0-indexed row du header devises
-            ctrl_col_0 = None
-            for col_0 in range(first_devise_col_0, first_devise_col_0 + 32):
-                val = ws_ctrl.getCellByPosition(col_0, header_row_0).getString().strip()
-                if not val:
-                    break
-                if val == code:
-                    ctrl_col_0 = col_0
-                    break
-            if ctrl_col_0 is not None:
-                ws_ctrl.Columns.removeByIndex(ctrl_col_0, 1)
+            # Refresh Drill styles + CF (retire la devise supprimée des CF Budget)
+            self._refresh_drill_styles_and_cf(doc, log=[])
 
             self._uno_finalize(doc)
-
-        # ==== Mise à jour état mémoire ====
-        if bud_col is not None:
-            self.budget_last_devise_col -= 1
-        if ctrl_col_0 is not None:
-            self.ctrl_last_devise_col -= 1
 
         # ==== JSON : supprimer l'entrée ====
         self.cotations_meta.pop(code, None)
@@ -894,15 +657,11 @@ class DevisesMixin:
         r = insert_row   # 1-indexed, première ligne insérée
         r0 = uno_row(r)
 
-        # Template de style : la dernière ligne Retenu avant notre insertion
-        template_row = None
-        for scan in range(r - 1, 0, -1):
-            val_c = ws_pv.getCellByPosition(cr.col('PVLtitre'), uno_row(scan)).getString().strip()
-            if val_c == 'Retenu':
-                template_row = uno_row(scan)
-                break
-        if template_row is None:
-            template_row = uno_row(r - 2)  # fallback
+        # Template de style : model row PVL (row juste après ⚓ top du NR),
+        # conforme charte (col A beige + data blanc). Évite l'héritage parasite
+        # qui résulterait d'une copie depuis un sub-pied beige (Retenu).
+        # Le sub-pied portefeuille est posé en 2ème couche par _apply_pv_formats.
+        template_row = uno_row((self._start_pvl or 5) + 1)
 
         # Copier le style pour les 4 lignes de données (pas la ligne vide)
         for offset in range(4):
@@ -974,90 +733,87 @@ class DevisesMixin:
         self._apply_pv_formats(ws_pv, doc, r, devise, section='portefeuilles', count=3)
 
     def _apply_pv_formats(self, ws_pv, doc, first_row, devise, section, count):
-        """Applique les formats nombre sur les lignes PVL insérées.
+        """Applique formats nombre + convention de fond charte v3.6 sur les lignes PVL.
+
+        Convention de fond (col A col_ref relève d'apply_charter, pas touchée ici) :
+          - Header bloc + lignes titres + data section : fond hérité (blanc).
+            Pour portefeuille non-EUR, montants E/H/I/K en GRIS_BLANC.
+          - Sub-pied portefeuille (3 lignes Total/#Solde/Retenu) : PIED_FILL
+            sur B+C+D+F+G+J ; E/H/I/K en GRIS_BEIGE si non-EUR sinon PIED_FILL.
 
         Args:
             first_row: première ligne (1-indexed), Total ou ligne unique
             devise: code devise du compte
-            section: 'portefeuilles' ou autre
+            section: 'portefeuilles' ou autre (métaux/crypto/devises)
             count: nombre de lignes à formater (3 pour bloc, 0 pour simple)
         """
-        from inc_excel_schema import uno_col, uno_row, ColResolver
+        from inc_excel_schema import uno_row
         cr = doc.cr
         from inc_formats import (
             FORMATS_DEVISE, FORMAT_EUR, FORMAT_EUR_RED,
-            GRIS_BLANC, GRIS_BEIGE, BLANC,
+            GRIS_BLANC, GRIS_BEIGE, PIED_FILL,
         )
 
         fmt_date = doc.register_number_format('DD/MM/YY')
         is_portefeuille = section == 'portefeuilles'
         is_non_eur = devise != 'EUR'
+        is_bloc = count > 0
 
         # E/K : devise native pour portefeuilles, EUR pour les autres
-        # (les sections métaux/crypto/devises ont SIGMA en equiv_euro et
-        # SOLDE en AVRmontant_solde_euro → valeurs déjà en EUR)
+        # (sections métaux/crypto/devises ont SIGMA en equiv_euro et
+        # SOLDE en AVRmontant_solde_euro → valeurs déjà en EUR).
         if is_portefeuille:
             devise_fmt_str = FORMATS_DEVISE.get(devise, FORMAT_EUR)
             fmt_ek = doc.register_number_format(
-                f'{devise_fmt_str};[RED]\\-{devise_fmt_str}' if devise != 'EUR'
+                f'{devise_fmt_str};[RED]\\-{devise_fmt_str}' if is_non_eur
                 else FORMAT_EUR_RED)
-            fmt_hi = doc.register_number_format(FORMATS_DEVISE.get(devise, FORMAT_EUR))
+            fmt_hi = doc.register_number_format(devise_fmt_str)
         else:
             fmt_ek = doc.register_number_format(FORMAT_EUR_RED)
             fmt_hi = doc.register_number_format(FORMAT_EUR)
 
-        # count=0 → ligne donnée unique
-        # count=3 → bloc portefeuille : offset 0 = en-tête, offsets 1-3 = pieds
-        is_bloc = count > 0
-        # Lignes titres = data row dans un portefeuille (count=0 + section portefeuilles)
-        # → la zone blanche est étendue à col C (PVLtitre)
-        is_titre_row = is_portefeuille and not is_bloc
-
-        # Colonnes à fond blanc sur lignes données :
-        # base D-K, étendue à C pour les lignes titres
-        WHITE_COLS = [cr.col('PVLpvl'), cr.col('PVLpct'),
-                      cr.col('PVLdate_init'), cr.col('PVLmontant_init'),
-                      cr.col('PVLsigma'), cr.col('PVLdate'),
-                      cr.col('PVLmontant'), cr.col('PVLdevise')]
-        if is_titre_row:
-            WHITE_COLS.append(cr.col('PVLtitre'))
-        # Colonnes montant grisées (non-EUR) — pas de blanc dessus
-        # Seuls les portefeuilles non-EUR grisent des cellules (devise native) ;
-        # sections métaux/crypto/devises ont tout en EUR → pas de gris.
-        # NB : PVLdevise (libellé devise) n'est plus grisée — fond blanc hérité
-        if is_non_eur and is_portefeuille:
-            gris_set = {cr.col('PVLpvl'), cr.col('PVLmontant'),
-                        cr.col('PVLmontant_init'), cr.col('PVLsigma')}
-        else:
-            gris_set = set()
+        # Cols montants grisées sur portefeuille non-EUR (E/H/I/K)
+        gris_cols = (
+            {cr.col('PVLpvl'), cr.col('PVLmontant'),
+             cr.col('PVLmontant_init'), cr.col('PVLsigma')}
+            if (is_non_eur and is_portefeuille) else set()
+        )
+        # Cols sub-pied à peindre en PIED_FILL : tout sauf col A (col_ref) et
+        # sauf les cols grisées (qui recevront GRIS_BEIGE).
+        # = B, C, D, F, G, J (+ E, H, I, K si EUR car gris_cols vide)
+        pied_beige_cols = [
+            c for c in (
+                cr.col('PVLcompte'), cr.col('PVLtitre'), cr.col('PVLdevise'),
+                cr.col('PVLpvl'), cr.col('PVLpct'),
+                cr.col('PVLdate_init'), cr.col('PVLmontant_init'),
+                cr.col('PVLsigma'), cr.col('PVLdate'), cr.col('PVLmontant'),
+            ) if c not in gris_cols
+        ]
 
         for offset in range(count + 1):
             r0 = uno_row(first_row + offset)
             is_header = is_bloc and offset == 0
             is_pied = is_bloc and offset > 0
-            # Dates G et J
+
+            # Formats nombre (toutes rows)
             ws_pv.getCellByPosition(cr.col('PVLdate_init'), r0).NumberFormat = fmt_date
             ws_pv.getCellByPosition(cr.col('PVLdate'), r0).NumberFormat = fmt_date
-            # PVL E et Solde K : devise de la ligne (rouge négatif)
             ws_pv.getCellByPosition(cr.col('PVLpvl'), r0).NumberFormat = fmt_ek
             ws_pv.getCellByPosition(cr.col('PVLmontant'), r0).NumberFormat = fmt_ek
-            # H et I
             ws_pv.getCellByPosition(cr.col('PVLmontant_init'), r0).NumberFormat = fmt_hi
             ws_pv.getCellByPosition(cr.col('PVLsigma'), r0).NumberFormat = fmt_hi
-            # Fond blanc sur lignes données (hors pieds et en-tête)
-            if not is_pied and not is_header:
-                for c0 in WHITE_COLS:
-                    if c0 not in gris_set:
-                        ws_pv.getCellByPosition(c0, r0).CellBackColor = BLANC
-            # Gris devise sur les montants non-EUR (libellé devise non grisé)
-            # Uniquement pour les blocs portefeuille — les autres sections sont en EUR
-            # Data row → GRIS_BLANC (sur fond blanc forcé)
-            # Pied      → GRIS_BEIGE (sur beige clair hérité du template)
-            if is_non_eur and is_portefeuille and not is_header:
-                gris_color = GRIS_BEIGE if is_pied else GRIS_BLANC
-                for c0 in (cr.col('PVLpvl'), cr.col('PVLmontant'),
-                           cr.col('PVLmontant_init'), cr.col('PVLsigma')):
-                    ws_pv.getCellByPosition(c0, r0).CellBackColor = gris_color
+
+            # Fonds : 2 cas distincts (data/header = héritage blanc + grisage non-EUR ;
+            # sub-pied = PIED_FILL + grisage GRIS_BEIGE non-EUR).
+            if is_pied:
+                for c0 in pied_beige_cols:
+                    ws_pv.getCellByPosition(c0, r0).CellBackColor = PIED_FILL
+                for c0 in gris_cols:
+                    ws_pv.getCellByPosition(c0, r0).CellBackColor = GRIS_BEIGE
+            elif not is_header and gris_cols:
+                # Data row non-EUR portefeuille : gris sur les montants
+                for c0 in gris_cols:
+                    ws_pv.getCellByPosition(c0, r0).CellBackColor = GRIS_BLANC
 
     def _update_pv_total_portefeuilles(self, ws_pv, total_row, retenu_row=None, devise=None, doc=None):
         """Pose les formules TOTAL portefeuilles (H/I/K) en EUR, générique multi-devise.
@@ -1293,26 +1049,14 @@ class DevisesMixin:
             r0 = uno_row(r)
 
             # --- Copier le style ---
+            # Si titre existant dans le bloc : template = titre précédent (conforme par
+            # propagation). Sinon : model row PVL (row juste après ⚓ top du NR),
+            # conforme charte. On évite l'héritage parasite qui résulterait d'une
+            # copie depuis un sub-pied beige (#Solde Opérations).
             if has_existing:
                 template_0 = uno_row(r - 1)
             else:
-                template_0 = None
-                for scan in range(new_total_row + 1, new_total_row + 4):
-                    val_c = ws_pv.getCellByPosition(col_c, uno_row(scan)).getString().strip()
-                    if val_c == '#Solde Opérations':
-                        template_0 = uno_row(scan)
-                        break
-                if template_0 is None:
-                    pvl_data2 = (self._start_pvl or 5) + 1
-                    col_d = cr.col('PVLdevise')
-                    for scan in range(pvl_data2, self._end_pvl + 1):
-                        val_c = ws_pv.getCellByPosition(col_c, uno_row(scan)).getString().strip()
-                        val_d = ws_pv.getCellByPosition(col_d, uno_row(scan)).getString().strip()
-                        if val_c.startswith('*') and val_c.endswith('*') and val_d == devise:
-                            template_0 = uno_row(scan)
-                            break
-                if template_0 is None:
-                    template_0 = uno_row(header_row) if header_row else r0 - 1
+                template_0 = uno_row((self._start_pvl or 5) + 1)
             copy_row_style(ws_pv, template_0, r0, col_start=0, col_end=12)
 
             # --- Remplir la ligne titre ---
@@ -1439,8 +1183,8 @@ class DevisesMixin:
                     next_b = ws_pv.getCellByPosition(
                         col_b, uno_row(scan + 1)).getString().strip()
                     if (next_a.startswith('Les ') or 'TOTAL' in next_b.upper()
-                            or next_a == '✓'):
-                        break  # Spacer structurel → préserver
+                            or next_a in ('✓', '⚓')):
+                        break  # Spacer structurel / ancre → préserver
                     # Ligne vide après le bloc → inclure puis stop
                     block_rows.append(scan)
                     break
@@ -1699,6 +1443,11 @@ class DevisesMixin:
             # Supprimer en ordre inverse (préserve le pied de page)
             for row_idx in reversed(ctrl_rows_to_delete):
                 ws_ctrl.Rows.removeByIndex(uno_row(row_idx), 1)
+            # Refresh cr après removeByIndex : les NRs ont décalé, le cache doit suivre
+            # pour que cr.rows('CTRL2type') retourne les nouvelles bornes (utilisé plus
+            # bas pour la formule drill COMPTES).
+            if ctrl_rows_to_delete and hasattr(cr, 'refresh'):
+                cr.refresh(xdoc=doc._document)
             # Ajuster ctrl_row pour les display_accounts restants
             for entry in self.display_accounts:
                 crow = entry.get('ctrl_row')
@@ -1817,24 +1566,30 @@ class DevisesMixin:
             f = ctrl_start_now or self._start_ctrl1
             l = ctrl_end_now
 
-            # -- CTRL2 h+2 COMPTES : COUNTIFS par devise --
-            _ctrl2_s2, _ = cr.rows('CTRL2type')
-            if _ctrl2_s2:
-                h2_row_0 = uno_row(_ctrl2_s2)  # 0-indexed row of h+2
-                h0_row_0 = h2_row_0 - 2       # 0-indexed row of h+0 (header devises)
-                first_col_0 = cr.col('CTRL2eur')
-                h1 = h0_row_0 + 1              # 1-indexed header row
-                for col_0 in range(first_col_0, first_col_0 + 30):
-                    code = ws_ctrl.getCellByPosition(col_0, h0_row_0).getString().strip()
-                    if not code:
-                        break
-                    cl = ColResolver._idx_to_letter(col_0 + 1)  # 1-indexed → lettre
-                    # h+2 : COMPTES
-                    ws_ctrl.getCellByPosition(col_0, h2_row_0).setFormula(
-                        f'=COUNTIFS($B{f}:$B{l};{cl}${h1};$I{f}:$I{l};"Oui")'
-                        f'-COUNTIFS($B{f}:$B{l};{cl}${h1};$I{f}:$I{l};"Oui";$H{f}:$H{l};0)')
-                    # h+4 : Dates — vider (seul O général est pertinent)
-                    ws_ctrl.getCellByPosition(col_0, h2_row_0 + 2).setString('')
+            # -- CTRL2 M col COMPTES drill : COUNTIFS filtré par cellule drill --
+            # Modèle drill : une seule colonne M pointant vers M${drill_row}.
+            # Formule via NR auto-extend (CTRL1devise/controle/ecart) — plus de
+            # références hardcodées $B{f}:$B{l}.
+            # Détection par label 'COMPTES' + row drill = NR CTRL2type.start - 2
+            # (invariant à la présence d'une row ⚓ entre header et COMPTES).
+            comptes_row_1 = None
+            for rr in range(1, 60):
+                lbl = ws_ctrl.getCellByPosition(
+                    uno_col(10), uno_row(rr)).getString().strip()
+                if lbl.startswith('COMPTES'):
+                    comptes_row_1 = rr
+                    break
+            if comptes_row_1:
+                ctrl2_start, _ = cr.rows('CTRL2type')
+                # v3.6 : drill CTRL2 en r1-1 (sentinelle ⚓ incluse dans NR).
+                drill_row_1 = (ctrl2_start - 1) if ctrl2_start else (comptes_row_1 - 2)
+                drill_col_0 = cr.col('CTRL2drill')
+                drill_letter = ColResolver._idx_to_letter(drill_col_0 + 1)
+                ws_ctrl.getCellByPosition(drill_col_0, uno_row(comptes_row_1)).setFormula(
+                    f'=COUNTIFS(CTRL1devise;{drill_letter}${drill_row_1};'
+                    f'CTRL1controle;"Oui")'
+                    f'-COUNTIFS(CTRL1devise;{drill_letter}${drill_row_1};'
+                    f'CTRL1controle;"Oui";CTRL1ecart;0)')
 
             # --- Plus_value : supprimer / créer ---
             new_pv_accounts = [a for a in self.accounts_data if a.get('_is_new')]

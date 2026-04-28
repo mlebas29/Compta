@@ -101,7 +101,7 @@ def _find_avr_rows(ws, cr):
     for r in range(avr_s, (avr_e or avr_s + 30) + 1):
         r0 = uno_row(r)
         intitule = ws.getCellByPosition(cr.col('AVRintitulé'), r0).getString().strip()
-        if not intitule or intitule in ('Total', 'Compte clos', '✓'):
+        if not intitule or intitule in ('Total', 'Compte clos', '✓', '⚓'):
             continue
         devise = ws.getCellByPosition(cr.col('AVRdevise'), r0).getString().strip()
         type_ = ws.getCellByPosition(cr.col('AVRtype'), r0).getString().strip()
