@@ -753,6 +753,8 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
             tuple(list[str], list[str]): (auto_fixes effectués, warnings à traiter)
         """
         if not self._excel_loaded:
+            if not self.xlsx_path:
+                return [], ['Classeur comptes.xlsm introuvable — copier comptes_template.xlsm ou un classeur existant']
             return [], []
         auto_fixes = []
         warnings = []
@@ -1008,8 +1010,9 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
         # Planifier le suivant au prochain tick (laisse le GUI respirer)
         if self._deferred_tabs:
             self.root.after_idle(self._build_deferred_tabs)
-        elif self.xlsx_path:
+        else:
             # Tous les onglets construits → lancer le check de cohérence
+            # (appelé aussi sans xlsx pour signaler l'absence du classeur).
             self.root.after_idle(self._startup_check)
 
     def _on_tab_changed(self, event):
