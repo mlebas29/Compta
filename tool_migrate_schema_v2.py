@@ -1902,14 +1902,15 @@ def rewrite_ctrl2_general_col(ws_ctrl, nr, log):
         #   A = écart drill EUR (Budget G{bud_ecart_row})
         #   B = écart Affectation totale (Budget I{...} - G{...} sur ligne Total hors @)
         #   C = écart Affectation par poste (Budget C{posts_ecart_row})
-        # K_cat ✓/⚠ avec tolérance 1 EUR sur le cumul.
+        # K_cat ✓/✗ avec tolérance 1 EUR sur le cumul (doctrine Compta.md
+        # Annexe A : CATÉGORIES = erreur, pas warning).
         L(cat_r).setFormula(
             f'=ABS($Budget.G${bud_ecart_row})'
             f'+ABS($Budget.I${cat_total_hors_row}-$Budget.G${cat_total_hors_row})'
             f'+ABS($Budget.C${posts_ecart_row})')
-        # K{cat_r} : tolérance 1 EUR (comme avant : alarme si > 1 EUR cumulé)
+        # K{cat_r} : tolérance 1 EUR (erreur si > 1 EUR cumulé)
         ws_ctrl.getCellByPosition(uno_col(11), uno_row(cat_r)).setFormula(
-            f'=IF(ABS(L{cat_r})<1;"✓";"⚠")')
+            f'=IF(ABS(L{cat_r})<1;"✓";"✗")')
         # Drill M : devise native M$header_row. Convention sign = Budget F$écart
         # (cats - non-spécial = -uncategorized), cohérent avec L pointeur Budget.
         header_row = drill_header_row
