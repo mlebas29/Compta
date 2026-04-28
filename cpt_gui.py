@@ -335,7 +335,7 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
         self.budget_categories = []  # catégories depuis Budget col L
         self.budget_cat_rows = {}    # nom → ligne Excel (1-indexed)
         self.budget_total_row = None # ligne "Total" (1-indexed)
-        self.budget_insert_row = None # ligne d'insertion (séparateur "-")
+        self.budget_insert_row = None # ligne d'insertion (devant ⚓ bot)
         self.budget_posts = []       # postes budgétaires depuis Budget col A
         self.budget_post_rows = {}   # nom → ligne Excel (1-indexed)
         self.budget_post_types = {}  # nom → "Fixe"|"Variable"
@@ -1301,8 +1301,7 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
             cat_rows = {}
             start_row = cat_start_row
             total_row = None
-            separator_row = None
-            # Scanner les catégories entre start CAT et end CAT (exclus)
+            # Scanner les catégories entre ⚓ top et ⚓ bot (sentinelles dans le NR)
             scan_start = (start_row or 0) + 1
             scan_end = cat_end_row if cat_end_row else scan_start + 200
             for row_idx in range(scan_start, scan_end):
@@ -1311,9 +1310,6 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
                     continue
                 name = str(val).strip()
                 if name in ('✓', '⚓'):
-                    continue
-                if name == '-':
-                    separator_row = row_idx
                     continue
                 if name:
                     cats.append(name)
@@ -1399,7 +1395,8 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
             self.budget_start_row = (start_row - 1) if start_row else None  # ligne taux (START)
             self.budget_header_row = (start_row - 2) if start_row else 27   # ligne headers devises
             self.budget_total_row = total_row
-            self.budget_insert_row = separator_row or total_row
+            # Insertion devant ⚓ bot (dernière ligne du NR CATnom)
+            self.budget_insert_row = cat_end_row
             self.budget_posts = posts
             self.budget_post_rows = post_rows
             self.budget_post_types = post_types

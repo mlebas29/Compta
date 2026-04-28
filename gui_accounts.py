@@ -201,6 +201,33 @@ class AccountsMixin:
         'BOURSOBANK': 4, 'NATIXIS': 1, 'PAYPAL': 1, 'AMAZON': 1, 'ORCHESTRA': 1,
     }
 
+    # ----------------------------------------------------------------
+    # Helpers nom convivial du site (config.ini [SITE] name = ...) ↔ clé
+    # ----------------------------------------------------------------
+
+    def _site_display_values(self):
+        """Liste « N/A » + noms conviviaux des sites pour combobox compte."""
+        return ['N/A'] + [self.config.get(s, 'name', fallback=s)
+                          for s in self.all_sites if s != 'MANUEL']
+
+    def _site_key_from_display(self, display):
+        """Convertit nom convivial → clé interne. Tolère N/A, vide, fallback
+        sur la valeur si déjà une clé interne."""
+        display = (display or '').strip()
+        if display in ('N/A', ''):
+            return 'N/A' if display == 'N/A' else ''
+        for s in self.all_sites:
+            if self.config.get(s, 'name', fallback=s) == display:
+                return s
+        return display  # fallback : peut-être déjà la clé
+
+    def _site_display_from_key(self, key):
+        """Inverse : clé interne → nom convivial."""
+        key = (key or '').strip()
+        if key in ('N/A', ''):
+            return key
+        return self.config.get(key, 'name', fallback=key)
+
     # Champs conditionnels par site : (label, key, widget, values)
     @staticmethod
     def _site_account_fields(site, type_sg=None):
@@ -353,7 +380,7 @@ class AccountsMixin:
         dlg.transient(self.root)
         dlg.grab_set()
 
-        site_values = ['N/A'] + [s for s in self.all_sites if s != 'MANUEL']
+        site_values = self._site_display_values()
 
         fields = {}
         row = 0
@@ -409,7 +436,7 @@ class AccountsMixin:
             extra_widgets.clear()
             extra_fields.clear()
 
-            site = fields['site'].get().strip()
+            site = self._site_key_from_display(fields['site'].get())
             type_sg = _current_type_sg.get() or None
             field_defs = self._site_account_fields(site, type_sg)
 
@@ -486,7 +513,7 @@ class AccountsMixin:
                                            parent=dlg)
                     return
 
-            site = fields['site'].get().strip()
+            site = self._site_key_from_display(fields['site'].get())
             if not site or site == 'N/A':
                 site = 'N/A'
 
@@ -722,7 +749,7 @@ class AccountsMixin:
         dlg.transient(self.root)
         dlg.grab_set()
 
-        site_values = ['N/A'] + [s for s in self.all_sites if s != 'MANUEL']
+        site_values = self._site_display_values()
 
         fields = {}
         row = 0
@@ -740,7 +767,7 @@ class AccountsMixin:
                                              sticky='w', padx=10, pady=3)
             # Pré-remplir avec la valeur existante
             if key == 'site':
-                current_val = old_site
+                current_val = self._site_display_from_key(old_site)
             else:
                 current_val = avoirs_acct.get(key, '')
             var = tk.StringVar(value=current_val)
@@ -786,7 +813,7 @@ class AccountsMixin:
             extra_widgets.clear()
             extra_fields.clear()
 
-            site = fields['site'].get().strip()
+            site = self._site_key_from_display(fields['site'].get())
             type_sg = _current_type_sg.get() or None
             field_defs = self._site_account_fields(site, type_sg)
 
@@ -848,7 +875,7 @@ class AccountsMixin:
                         parent=dlg)
                     return
 
-            site = fields['site'].get().strip()
+            site = self._site_key_from_display(fields['site'].get())
             if not site or site == 'N/A':
                 site = 'N/A'
 
