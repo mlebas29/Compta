@@ -115,6 +115,7 @@ La documentation concerne essentiellement le mode assisté
 -  [`Compta_plus.md`](Compta_plus.md) : commandes avancées, dépannage
 -  [`Compta_tools.md`](Compta_tools.md) : outils de maintenance du classeur
 -  [`Compta_upgrade.md`](Compta_upgrade.md) : mise à niveau du classeur
+-  [`Compta_charte.md`](Compta_charte.md) : charte graphique du classeur
 -  [`CHANGELOG.md`](CHANGELOG.md) : informations de mise à jour
 
 
@@ -205,10 +206,10 @@ Les fichiers de l'application sont modifiables, mais `git pull` signalera les co
 
 |                  | Mode classeur                              | Mode assisté                                                 |
 | ---------------- | ------------------------------------------ | ------------------------------------------------------------ |
-| **Installation** | Aucune (juste un tableur compatible Excel) | installation manuelle pour les distributions Linux **Fedora, Arch, openSUSE**  **(1)** |
+| **Installation** | Aucune (juste un tableur compatible Excel) | installation manuelle pour certaines distributions Linux  **(1)** |
 | **GUI**          | N/A — utilisation directe du tableur       | **Wayland pur** non supporté  **(2)**                        |
 
-**(1)** ainsi que toutes les distributions qui n'utilisent pas l'`apt` Debian/Ubuntu ; une installation manuelle est nécessaire — voir `requirements.txt`. 
+**(1)** **Fedora, Arch, openSUSE** et toutes les distributions qui n'utilisent pas l'`apt` Debian/Ubuntu  — voir `requirements.txt`. 
 
 **(2)**  mentionné pour mémoire car Wayland pur (sans XWayland) est quasi inexistant en mainstream Linux.  La session Wayland pure casse `xclip` utilisé pour 2FA Kraken/Wise.
 
