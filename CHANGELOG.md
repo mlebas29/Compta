@@ -8,6 +8,46 @@ internes du code ne sont pas listés).
 
 
 
+## v4.0.1 (2026-04-28)
+*Mise à jour — app : 🟢 conseillée · classeur : 🟢 aucune action*
+
+Polissage v4 : ergonomie GUI, robustesse 1re install, doc.
+
+**GUI — barre d'état et menus**
+- Barre d'état détaillée en pied de fenêtre : 6 contrôles individuels
+  (comptes, catégories, dates, appariement, balance, change) en plus de
+  la synthèse globale.
+- Menu **Outils ▾** : refonte (Charger/Publier Wiki, Réinitialiser,
+  Annuler import, Vérifier cohérence, Contrôles classeur, Formats).
+- Bouton **📖 Doc ▴** dédié (cadre Fichiers, à droite) : raccourcis vers
+  Guide d'utilisation, Guide étendu, Référentiel outils, Mises à niveau,
+  Notes de version, Charte graphique. Fermeture sur clic externe corrigée.
+
+**Catégories — onglet et 1re install**
+- Pas de configuration préalable requise : le fichier de patterns est
+  créé vide à la 1re exécution si absent.
+- Combobox *Site* du dialog d'ajout de pattern (en plus de la sélection
+  par site dans la liste haute).
+- Catégorie orpheline (pattern référencé absent du Budget) → **warning
+  détaillé** au lieu de purge silencieuse, avec les 2 voies de résolution
+  proposées (ajouter au Budget, ou modifier les patterns).
+- Warnings de cohérence affichent le **nom convivial du site**
+  (« Société Générale ») au lieu de la clé interne (« SOCGEN »).
+
+**Outils**
+- `tool_fix_formats` : résumé final distinguant audit / corrections,
+  fix Plus-value cols E/K en devise du portefeuille, fix CTRL2
+  détection via NR `CTRL2drill` (suffix ▼ ignoré).
+- `tool_deploy.py` : la conf utilisateur (comptes, catégories,
+  cotations, descriptions, pipeline, credentials) n'est plus écrasée
+  lors d'un déploiement — copie seulement si absente côté cible.
+
+**Doc**
+- Nouveau **`Compta_charte.md`** — référentiel charte graphique v4.
+- `CHANGELOG.md` et `Compta_upgrade.md` allégés (jargon de chantier
+  retiré).
+
+
 ## v4.0.0 (2026-04-27)
 *Mise à jour — app : 🔴 critique · classeur : 🔴 critique (migration obligatoire)*
 
