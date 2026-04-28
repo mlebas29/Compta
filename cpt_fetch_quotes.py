@@ -98,11 +98,13 @@ def load_cotations_config():
                   if v.get('source1') and v['source1'] != 'formule'
                   and v.get('famille') != 'immobilier'}
     in_json_not_excel = json_codes - excel_codes
-    in_excel_not_json = excel_codes - set(meta.keys())
+    # EUR exclu : devise pivot, jamais à coter (présente comme ligne d'amorce
+    # dans la feuille Cotations sans source de fetch).
+    in_excel_not_json = (excel_codes - set(meta.keys())) - {'EUR'}
     if in_excel_not_json and logger:
-        logger.warning(f"Codes dans Excel sans métadonnées JSON (pas de fetch) : {', '.join(sorted(in_excel_not_json))}")
+        logger.warning(f"Source de cotation non configurée pour : {', '.join(sorted(in_excel_not_json))} — voir onglet Cotations")
     if in_json_not_excel and logger:
-        logger.warning(f"Codes dans JSON sans ligne Excel (orphelins) : {', '.join(sorted(in_json_not_excel))}")
+        logger.warning(f"Devise(s) configurée(s) hors feuille Cotations : {', '.join(sorted(in_json_not_excel))}")
 
     wb.close()
     return config
@@ -434,7 +436,7 @@ Sources (lues depuis la feuille Cotations) :
     # Charger la config depuis Excel
     config = load_cotations_config()
     if not config:
-        logger.error("Aucun asset configuré dans la feuille Cotations")
+        logger.error("Aucune devise à coter — ajoute une devise non-EUR dans la feuille Cotations")
         sys.exit(1)
 
     logger.verbose(f"{len(config)} asset(s) configuré(s): {', '.join(it['code'] for it in config)}")

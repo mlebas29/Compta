@@ -430,14 +430,42 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
         # Construction des onglets en arrière-plan (après affichage initial)
         self.root.after(100, self._build_deferred_tabs)
 
-        # Workaround Tk Linux X11 : tk_popup ne libère pas le grab quand
-        # l'utilisateur clique sur une autre app. Polling focus_displayof()
-        # → quand le focus système quitte notre app, fermer les menus posted.
-        # Limitation connue (cf. CLAUDE_todo) : ne couvre PAS les combobox
-        # ttk dont le popdown garde le focus interne — GNOME/Mutter n'émet
-        # aucun signal exploitable dans ce cas.
+        # Workarounds bug Tk Linux X11 :
+        # (1) clic externe (autre app) → polling focus_displayof() ferme menus
+        # (2) clic interne dans la GUI hors menu → bind <Button-1> global
+        # Limitation connue (cf. CLAUDE_todo #41) : ne couvre PAS les combobox
+        # ttk dont le popdown garde le focus interne.
         self._popup_menus = getattr(self, '_popup_menus', [])
         self.root.after(500, self._global_focus_watch)
+
+        def _on_internal_click(event):
+            # Si le clic est sur un Menu ou un Combobox lui-même, Tk gère
+            # (sélection d'item ou ouverture du dropdown).
+            if isinstance(event.widget, (tk.Menu, ttk.Combobox)):
+                return
+            # Sinon : fermer les menus posted et les dropdowns combobox.
+            for m in self._popup_menus:
+                try:
+                    if m.winfo_ismapped():
+                        m.unpost()
+                except tk.TclError:
+                    pass
+            self._unpost_comboboxes(self.root)
+        self.root.bind('<Button-1>', _on_internal_click, add='+')
+
+    def _unpost_comboboxes(self, widget):
+        """Ferme tous les dropdowns combobox ttk encore mappés."""
+        for child in widget.winfo_children():
+            if isinstance(child, ttk.Combobox):
+                try:
+                    popdown = child.tk.call(
+                        'ttk::combobox::PopdownWindow', str(child))
+                    if popdown and child.tk.call(
+                            'winfo', 'ismapped', popdown):
+                        child.tk.call('ttk::combobox::Unpost', str(child))
+                except tk.TclError:
+                    pass
+            self._unpost_comboboxes(child)
 
     def _global_focus_watch(self):
         # Eval Tcl direct au lieu de focus_displayof() : ce dernier lève
@@ -748,8 +776,14 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
             mappings = {}
         else:
             mappings = read_mappings_json(mappings_path)
-            if not mappings:
-                warnings.append('config_category_mappings.json est vide — configurer via l\'onglet Catégories')
+            # Warning seulement si l'utilisateur a des comptes (sinon rien à
+            # catégoriser — JSON vide est un état neutre, pas une incohérence).
+            sites_with_accounts = {s for s in self.account_site_map.values()
+                                   if s and s != 'N/A'}
+            if not mappings and sites_with_accounts:
+                warnings.append(
+                    'Aucun pattern de catégorisation — toutes les opérations '
+                    'importées seront affectées à « - ». Configure via l\'onglet Catégories.')
 
         if not self.cotations_meta:
             devises_non_eur = [d for d in getattr(self, 'ACCOUNT_DEVISES', []) if d != 'EUR']
@@ -801,30 +835,22 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
             """Nom utilisateur du site (config.ini section name) avec fallback clé."""
             return self.config.get(s, 'name', fallback=s)
 
-        # --- Sites activés sans comptes (MANUEL exclu — pas de comptes associés) ---
+        # --- Sites activés vs comptes (warnings informatifs, sans auto-fix) ---
+        # Ne PAS désactiver automatiquement : l'utilisateur peut activer un
+        # site avant de créer ses comptes (préparation de la config). On
+        # signale simplement les deux cas d'incohérence.
         enabled_str = self.config.get('sites', 'enabled', fallback='')
         enabled_sites = {s.strip() for s in enabled_str.split(',') if s.strip()}
         enabled_sites.discard('MANUEL')
         sites_with_accounts = set(self.account_site_map.values()) - {'N/A'}
-        orphan_enabled = sorted(enabled_sites - sites_with_accounts)
-        if orphan_enabled:
-            for s in orphan_enabled:
-                if s in self.site_vars:
-                    self.site_vars[s].set(False)
-                # Retirer du panneau Exécution (déjà construit)
-                if s in self._exec_site_widgets:
-                    self._exec_site_widgets[s].destroy()
-                    del self._exec_site_widgets[s]
-                    del self._exec_site_vars[s]
-            self._save_config()
-            labels = ', '.join(_site_label(s) for s in orphan_enabled)
-            auto_fixes.append(
-                f'{labels} : site(s) désactivé(s) (aucun compte associé)')
-
-        # --- Sites avec comptes mais désactivés ---
+        for s in sorted(enabled_sites - sites_with_accounts):
+            warnings.append(
+                f'Site « {_site_label(s)} » activé mais aucun compte associé '
+                f'— pas d\'import possible')
         for s in sorted(sites_with_accounts - enabled_sites):
             if s in set(self.all_sites):
-                warnings.append(f'Site « {_site_label(s)} » a des comptes mais est désactivé')
+                warnings.append(
+                    f'Site « {_site_label(s)} » a des comptes mais est désactivé')
 
         # --- Devises Avoirs sans cotation (hors EUR) ---
         devises_avoirs = {a['devise'] for a in self.accounts_data if a['devise']}
@@ -1412,6 +1438,11 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
             out.insert('end', f'\n❌ Erreur inattendue :\n\n{msg}')
             out.see('end')
             out.configure(state='disabled')
+            # Auto-bascule sur l'onglet Exécution pour rendre l'erreur visible
+            try:
+                self.notebook.select(self._tab_execution)
+            except Exception:
+                pass
         except Exception:
             pass  # zone Résultat pas encore construite
         try:
