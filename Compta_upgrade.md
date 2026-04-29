@@ -17,13 +17,7 @@ n'empêchent pas l'app de tourner mais peuvent fausser des calculs.
 
 
 
-## v4.0.1 — Polissage v4 (optionnel)
-
-Pas de migration classeur. Mettre l'app à jour seulement.
-
-| Mode classeur | Mode assisté |
-| --- | --- |
-| Aucune action. | `git pull && ./install.sh` |
+## v4.0.1 — Pas de migration classeur
 
 
 ## v4.0.0 — Refonte drill devise + charte v4 (requis)
