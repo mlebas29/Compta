@@ -1,17 +1,12 @@
 # Changelog
 
-Chronique des versions de l'app, orientée utilisateur (les changements
-internes du code ne sont pas listés).
+Chronique des versions de l'app, orientée utilisateur. Les changements internes du code ne sont généralement pas listés.
 
-**Pour la procédure de mise à niveau d'un classeur existant : voir
-`Compta_upgrade.md`.**
-
-
-
-## v4.0.1 (2026-04-28)
-Polissage v4 — ergonomie GUI, robustesse 1re install, documentation.
-
-*Mise à jour — app : 🟢 conseillée · classeur : 🟢 aucune action*
+## v4.0.1
+| 2026-04-28           |                                                              |
+| -------------------- | ------------------------------------------------------------ |
+| Description          | **Polissage v4** — ergonomie GUI, robustesse 1re install, documentation. |
+| Mise à jour classeur | non (app + docs uniquement)                                  |
 
 - **Barre d'état** détaillée : 6 contrôles individuels en plus de la synthèse.
 - **Menu Outils ▾** refondu, bouton **📖 Doc ▴** dédié. Menus et combobox ferment proprement.
@@ -22,31 +17,21 @@ Polissage v4 — ergonomie GUI, robustesse 1re install, documentation.
 - Nouveau **`Compta_charte.md`** ; `CHANGELOG.md` et `Compta_upgrade.md` allégés.
 
 
-## v4.0.0 (2026-04-27)
-Refonte structurelle majeure du classeur.
+## v4.0.0
+| 2026-04-27           |                                                              |
+| -------------------- | ------------------------------------------------------------ |
+| Description          | **Refonte v4** — refonte structurelle du classeur, correctifs (app + classeur). |
+| Mise à jour classeur | oui (toutes les feuilles) — voir Compta_upgrade.md           |
 
-*Mise à jour — app : 🔴 critique · classeur : 🔴 critique (migration obligatoire)*
+**Une seule colonne devise par tableau** — Budget *CATÉGORIES* et Contrôles *CTRL2* passent de plusieurs colonnes (une par devise) à une colonne unique où la devise se choisit dans une liste déroulante en en-tête, plus une colonne Total EUR. Cours inversés (1/cours) conservés dans une nouvelle colonne *COTcours2* (Cotations), utile aux formules de conversion EUR → devise.
 
-**Une seule colonne devise par tableau** — Budget *CATÉGORIES* et Contrôles
-*CTRL2* passent de plusieurs colonnes (une par devise) à une colonne unique
-où la devise se choisit dans une liste déroulante en en-tête, plus une
-colonne Total EUR. Cours inversés (1/cours) conservés dans une nouvelle
-colonne *COTcours2* (Cotations), utile aux formules de conversion EUR →
-devise.
+**Ancres ⚓** — Chaque tableau porte deux ancres ⚓ (début et fin) dans sa 1ʳᵉ colonne. Elles fiabilisent les insertions/suppressions de lignes et les contrôles.
 
-**Ancres ⚓** — Chaque tableau porte deux ancres ⚓ (début et fin) dans sa
-1ʳᵉ colonne. Elles fiabilisent les insertions/suppressions de lignes et les contrôles.
+**Charte graphique** — Palette harmonisée (tête beige foncé, pied beige clair, data blanc, gris pour devise étrangère), quadrillage fin beige sur tous les tableaux, trait épais brun en haut des pieds. Patrimoine étendu (4 colonnes d'annotation libre) et nouveau tableau *Conventions*.
 
-**Charte graphique** — Palette harmonisée (tête beige foncé, pied beige
-clair, data blanc, gris pour devise étrangère), quadrillage fin beige sur
-tous les tableaux, trait épais brun en haut des pieds. Patrimoine étendu
-(4 colonnes d'annotation libre) et nouveau tableau *Conventions*.
+**Alarmes uniformisées** — Cellules contrôlées en gras ; fond rouge clair pour ✗, jaune-orange pour ⚠. La synthèse Contrôles s'affiche en un seul symbole global.
 
-**Alarmes uniformisées** — Cellules contrôlées en gras ; fond rouge clair
-pour ✗, jaune-orange pour ⚠. La synthèse Contrôles s'affiche en un seul
-symbole global.
-
-**Synthèse alarmes** — 2 contrôles Budget existants (CATÉGORIES) désormais remontés dans la synthèse globale.
+**Synthèse alarmes** — 2 contrôles Budget existants désormais remontés dans la synthèse globale (CATÉGORIES) .
 
 **Outils nouveaux** :
 
@@ -56,62 +41,89 @@ symbole global.
 
 
 
-## v3.5.8 (2026-04-19)
-*Mise à jour — app : 🟠 recommandée · classeur : 🟠 recommandée (utilisateurs multi-devise)*
+## v3.5.8
+| 2026-04-19           |                                                              |
+| -------------------- | ------------------------------------------------------------ |
+| Description          | **Balance non-EUR** — correction formule basée sur cours d'époque. |
+| Mise à jour classeur | oui (utilisateurs multi-devise)                              |
 
 - Contrôle balances non-EUR : correction formule de calcul — maintenant basée sur cours d'époque au lieu de cours du jour.
 - 🔧 **`tool_migrate_ctrl2_balances.py`** pour mettre à niveau un classeur existant.
 
-## v3.5.7 (2026-04-18)
-*Mise à jour — app : 🟠 recommandée · classeur : 🟠 recommandée*
+## v3.5.7
+| 2026-04-18           |                                                              |
+| -------------------- | ------------------------------------------------------------ |
+| Description          | **Plus-value en EUR** — affichage cohérent et ancrage PVL dynamique. |
+| Mise à jour classeur | oui (comptes métaux / crypto / devises)                      |
 
 - Plus-value métaux / crypto / devises : colonnes *PVL* et *Solde* affichées en EUR (cohérent avec les formules, auparavant symbole de la devise du compte).
 - Ancrage PVL dynamique — usage détaillé dans `Compta_plus.md` §*Eq. EUR*.
 - GUI ajout de compte : champ *Équiv. EUR* obligatoire si devise ≠ EUR et solde initial ≠ 0.
 - 🔧 **`tool_migrate_pvl_ancrage.py`** pour mettre à niveau un classeur existant (valeurs manuelles préservées).
 
-## v3.5.6 (2026-04-17)
-*Mise à jour — app : 🟠 recommandée · classeur : 🟢 optionnelle*
+## v3.5.6
+| 2026-04-17           |                                                              |
+| -------------------- | ------------------------------------------------------------ |
+| Description          | **Import & Budget** — fixes divers (#Solde double, Total épargne, formules pied). |
+| Mise à jour classeur | non (changements limités au classeur vierge et à l'exemple)  |
 
 - Import : deux `#Solde` à dates différentes pour un même compte sont désormais conservés tous les deux (ancrage + relevé final).
 - Budget : ajout de plusieurs postes en une fois — Total épargne désormais correct (auparavant seul le premier poste était sommé).
 - Classeur vierge : formules de pied Budget (Total hors Changes/Virements, Total épargne, Épargne fixe) désormais en plage auto-extensible.
 - Classeur exemple : fond des colonnes devise du tableau CATÉGORIES assorti aux lignes.
 
-## v3.5.5 (2026-04-17)
-*Mise à jour — app : 🔴 critique (module cotations) · classeur : ⚪ aucune*
+## v3.5.5
+| 2026-04-17           |                                                              |
+| -------------------- | ------------------------------------------------------------ |
+| Description          | **Fix cotations** — `NameError` lors de la mise à jour des cours. |
+| Mise à jour classeur | non (fix app uniquement)                                     |
 
 - Correction `cpt_fetch_quotes.py` : `NameError: name 'cr' is not defined` lors de la mise à jour des cotations.
 
-## v3.5.4 (2026-04-17)
-*Mise à jour — app : 🟢 optionnelle · classeur : 🟠 recommandée (utilisateurs multi-devise)*
+## v3.5.4
+| 2026-04-17           |                                                              |
+| -------------------- | ------------------------------------------------------------ |
+| Description          | **Outil migration CTRL2 multi-devise** — rattrapage v3.5.2.  |
+| Mise à jour classeur | oui (utilisateurs multi-devise)                              |
 
 - 🔧 **`tool_migrate_ctrl2_formulas.py`** pour mettre à niveau les formules CTRL2 sur un classeur existant multi-devise (outil v3.5.2 livré en v3.5.4).
 - Documentation de mise à niveau enrichie (rappel modes classeur / assisté, section v3.5.2).
 
-## v3.5.3 (2026-04-16)
-*Mise à jour — app : 🟠 recommandée · classeur : 🟢 optionnelle*
+## v3.5.3
+| 2026-04-16           |                                                              |
+| -------------------- | ------------------------------------------------------------ |
+| Description          | **PVL multi-devise** — formules génériques, fix double comptage. |
+| Mise à jour classeur | oui (portefeuille non-EUR avec titres autre devise)          |
 
 - Plus-value : correction du double comptage de cours sur portefeuille non-EUR pivot contenant un titre dans une autre devise.
 - Formules PVL génériques : plus de regénération à l'ajout/suppression d'une devise.
 - 🔧 **`tool_migrate_pvl_totals.py`** pour mettre à niveau un classeur existant.
 
-## v3.5.2 (2026-04-16)
-*Mise à jour — app : 🟠 recommandée · classeur : ⚪ aucune (migration livrée en v3.5.4)*
+## v3.5.2
+| 2026-04-16           |                                                              |
+| -------------------- | ------------------------------------------------------------ |
+| Description          | **Détection erreur Comptes multi-devises** — CTRL2 K/L, formats Opérations exemple. |
+| Mise à jour classeur | non (migration livrée en v3.5.4)                             |
 
 - Détection d'erreur Comptes : les écarts non-EUR sont désormais remontés dans le tableau de contrôle 2.
 - Formats devise (symbole, fond gris) appliqués aux opérations du classeur exemple.
 - 🔧 **`tool_migrate_ctrl2_formulas.py`** pour mettre à niveau un classeur existant (outil livré en v3.5.4).
 
-## v3.5.1 (2026-04-15)
-*Mise à jour — app : 🟠 recommandée (Ubuntu 24.04 / WSL2) · classeur : ⚪ aucune*
+## v3.5.1
+| 2026-04-15           |                                                              |
+| -------------------- | ------------------------------------------------------------ |
+| Description          | **Compatibilité Ubuntu 24.04 / WSL2** — install.sh PEP 668, portage Windows 11. |
+| Mise à jour classeur | non (installation / docs)                                    |
 
 - Installation compatible Ubuntu 24.04 et Windows 11 (WSL2) — correction pip PEP 668.
 - Documentation portage Windows 11, raccourci bureau Windows.
 - Images README corrigées pour l'export GitHub.
 
-## v3.5.0 (2026-04-13)
-*Mise à jour — app : 🟠 recommandée · classeur : ⚪ aucune*
+## v3.5.0
+| 2026-04-13           |                                                              |
+| -------------------- | ------------------------------------------------------------ |
+| Description          | **Versionnage** — numéro de version, historique, robustesse GUI. |
+| Mise à jour classeur | non (app uniquement)                                         |
 
 - Numéro de version affiché dans le titre de la fenêtre.
 - Historique des versions (ce fichier).
@@ -120,11 +132,19 @@ symbole global.
 - Meilleure robustesse de la GUI au démarrage (sites, comptes, exceptions).
 - Documentation alignée entre les installations (README, Changelog, guides).
 
-## v3.4.0 (2026-04-10)
+## v3.4.0
+| 2026-04-10           |                                                              |
+| -------------------- | ------------------------------------------------------------ |
+| Description          | **Documentation** — mise à jour.                             |
+| Mise à jour classeur | non (documentation uniquement)                               |
 
 - Documentation mise à jour
 
-## v3.3.0 (2026-04-08)
+## v3.3.0
+| 2026-04-08           |                                                              |
+| -------------------- | ------------------------------------------------------------ |
+| Description          | **Refonte CTRL1** — multi-soldes par compte, cohérence GUI, corrections collecte/import. |
+| Mise à jour classeur | oui (passage v3.2 → v3.3, tableau CTRL1)                     |
 
 - Refonte des contrôles de solde (CTRL1) : gestion de plusieurs soldes par compte
 - Colonnes Famille et Décimales ajoutées aux Cotations
@@ -133,7 +153,11 @@ symbole global.
 - Corrections import : dates, dédoublonnage Wise, appariement multi-devises
 - 🔧 **`tool_migrate_ctrl1.py`** pour porter le tableau CTRL1 d'un classeur v3.2 vers la nouvelle structure.
 
-## v3.2.0 (2026-04-01)
+## v3.2.0
+| 2026-04-01           |                                                              |
+| -------------------- | ------------------------------------------------------------ |
+| Description          | **Colonnes dynamiques + Module Budget GUI** — installateur Linux, doc complète. |
+| Mise à jour classeur | non (module Budget greffé via la GUI sur classeur existant)  |
 
 - Colonnes du classeur résolues dynamiquement (insertion/suppression de colonnes sans casser les scripts).
 - Configuration centralisée dans config.ini.
@@ -145,8 +169,6 @@ symbole global.
 
 ## Jalons antérieurs
 
-- v3.1.0 (2026-03-29) — 14 sites intégrés, GUI complète et publication Export avec exemple et template.
-- v2.2.0-gui (2026-02-17) — 8 sites intégrés ; premier GUI.
-- v1.0.0-BB (2025-12-09) — premier site intégré (BOURSOBANK).
-- 2025-11-11 : première pierre app
-- préexistant au projet : classeur familial, non versionné.
+- v3 : **14 sites intégrés**, **GUI complète** et publication Export avec exemple et template.
+- v2 : **sites intégrés**  (2025-11-11 première pierre app)
+- v1 : classeur familial 

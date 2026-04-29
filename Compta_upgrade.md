@@ -1,8 +1,6 @@
 # Mise à niveau du classeur
 
-Ce document décrit la **procédure** à suivre pour mettre à niveau le
-classeur `comptes.xlsm` entre versions d'app. Pour la **liste des
-changements** apportés par chaque version, voir `CHANGELOG.md`.
+Ce document décrit la **procédure** à suivre pour mettre à niveau le classeur `comptes.xlsm` entre versions d'app. Pour la **liste des changements** apportés par chaque version, voir `CHANGELOG.md`.
 
 **Rappel** — [modes d'utilisation](README.md#1-points-de-départ)
 
@@ -10,9 +8,7 @@ changements** apportés par chaque version, voir `CHANGELOG.md`.
 | --- | --- |
 | Seul `comptes.xlsm` est utilisé ; mise à niveau manuelle dans le tableur en s'appuyant sur [`comptes_exemple.xlsx`](https://github.com/mlebas29/Compta/raw/main/comptes_exemple.xlsx) comme référence. | Classeur + app + outils installés via `git clone` ; mise à niveau par l'app, par un outil `tool_migrate_*.py`, ou manuelle. |
 
-Au démarrage (mode assisté), l'app vérifie la `SCHEMA_VERSION` du
-classeur ; une incompatibilité bloque l'exécution. Les autres mises à
-niveau (formules, formats) sont optionnelles à recommandées — elles
+Au démarrage (mode assisté), l'app vérifie la `SCHEMA_VERSION` du classeur ; une incompatibilité bloque l'exécution. Les autres mises à niveau (formules, formats) sont optionnelles à recommandées — elles
 n'empêchent pas l'app de tourner mais peuvent fausser des calculs.
 
 
