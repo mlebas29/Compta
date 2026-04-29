@@ -9,24 +9,23 @@ internes du code ne sont pas listés).
 
 
 ## v4.0.1 (2026-04-28)
-*Mise à jour — app : 🟢 conseillée · classeur : 🟢 aucune action*
+Polissage v4 — ergonomie GUI, robustesse 1re install, documentation.
 
-Polissage v4 — ergonomie GUI, robustesse 1re install, doc.
+*Mise à jour — app : 🟢 conseillée · classeur : 🟢 aucune action*
 
 - **Barre d'état** détaillée : 6 contrôles individuels en plus de la synthèse.
 - **Menu Outils ▾** refondu, bouton **📖 Doc ▴** dédié. Menus et combobox ferment proprement.
-- **Crash** → bascule auto sur l'onglet Exécution.
+- **Crash** → bascule auto sur l'onglet Exécution pour lecture de l'erreur.
 - **Catégories** : config patterns créée vide à la 1re exécution si absente. Combobox *Site* dans le dialog d'ajout. Catégorie orpheline → warning détaillé (au lieu de purge silencieuse).
-- **Cohérence** : warnings sans jargon, nom convivial du site, plus d'auto-désactivation (warnings symétriques). Classeur ou JSON catégories absents → warnings explicites.
+- **Cohérence** : warnings sans jargon, nom convivial du site, plus d'auto-désactivation (warnings symétriques). Classeur ou fichiers de configuration absents → warnings explicites.
 - 🔧 `tool_fix_formats` : résumé audit / corrections distinct, fixes Plus-value (E/K en devise du portefeuille) et CTRL2 (suffix ▼ ignoré).
-- 🔧 `tool_deploy.py` : conf utilisateur jamais écrasée (copie seulement si absente côté cible).
 - Nouveau **`Compta_charte.md`** ; `CHANGELOG.md` et `Compta_upgrade.md` allégés.
 
 
 ## v4.0.0 (2026-04-27)
-*Mise à jour — app : 🔴 critique · classeur : 🔴 critique (migration obligatoire)*
-
 Refonte structurelle majeure du classeur.
+
+*Mise à jour — app : 🔴 critique · classeur : 🔴 critique (migration obligatoire)*
 
 **Une seule colonne devise par tableau** — Budget *CATÉGORIES* et Contrôles
 *CTRL2* passent de plusieurs colonnes (une par devise) à une colonne unique
@@ -36,23 +35,26 @@ colonne *COTcours2* (Cotations), utile aux formules de conversion EUR →
 devise.
 
 **Ancres ⚓** — Chaque tableau porte deux ancres ⚓ (début et fin) dans sa
-1ʳᵉ colonne. Elles fiabilisent les insertions/suppressions de lignes
-(Avoirs, Opérations, Plus_value, Catégories, Postes, Cotations, Patrimoine,
-CTRL2).
+1ʳᵉ colonne. Elles fiabilisent les insertions/suppressions de lignes et les contrôles.
 
-**Charte graphique v4** — Palette harmonisée (tête beige foncé, pied beige
+**Charte graphique** — Palette harmonisée (tête beige foncé, pied beige
 clair, data blanc, gris pour devise étrangère), quadrillage fin beige sur
 tous les tableaux, trait épais brun en haut des pieds. Patrimoine étendu
-(4 colonnes d'annotation libre) et nouveau bloc *Conventions*.
+(4 colonnes d'annotation libre) et nouveau tableau *Conventions*.
 
 **Alarmes uniformisées** — Cellules contrôlées en gras ; fond rouge clair
 pour ✗, jaune-orange pour ⚠. La synthèse Contrôles s'affiche en un seul
-symbole global. Alarme CATÉGORIES affinée (3 conditions distinctes).
+symbole global.
+
+**Synthèse alarmes** — 2 contrôles Budget existants (CATÉGORIES) désormais remontés dans la synthèse globale.
 
 **Outils nouveaux** :
+
 - 🔧 `tool_migrate_schema_v2.py` — migration v3.4 et plus récents
-- 🔧 `tool_audit_formats.py` — audit charte en lecture seule
+- 🔧 `tool_audit_formats.py` — audit charte
 - 🔧 `tool_fix_formats.py --charter` — application charte + alarmes en gras
+
+
 
 ## v3.5.8 (2026-04-19)
 *Mise à jour — app : 🟠 recommandée · classeur : 🟠 recommandée (utilisateurs multi-devise)*
