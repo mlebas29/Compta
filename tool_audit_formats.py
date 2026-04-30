@@ -469,18 +469,21 @@ def audit_alarm_coverage(wb, path):
         if ca:
             _check(sheet, ca[1], r_end_cat + 4, 'CAT total CATaffectation')
 
-    # Patrimoine : col D des lignes TOTAL (sections internes uniquement).
-    # Le TOTAL global (D4 = Avoirs!L2) pointe vers une cell déjà couverte
-    # côté Avoirs : on l'exclut via le filtre "formule contenant '!'".
+    # Patrimoine : col D des lignes TOTAL (sections internes) + ligne 'Erreurs' (D33).
+    # Le TOTAL global (D4 = Avoirs!L2) pointe vers une cell déjà couverte côté
+    # Avoirs : on l'exclut via le filtre "formule contenant '!'".
     if 'Patrimoine' in wb.sheetnames:
         ws_pat = wb['Patrimoine']
         max_row_scan = min(ws_pat.max_row or 0, 100)
         for r in range(1, max_row_scan + 1):
-            if ws_pat.cell(r, 2).value == 'TOTAL':
+            b_val = ws_pat.cell(r, 2).value
+            if b_val == 'TOTAL':
                 d_val = ws_pat.cell(r, 4).value
                 if isinstance(d_val, str) and '!' in d_val:
                     continue
                 _check('Patrimoine', 'D', r, 'PAT TOTAL')
+            elif b_val == 'Erreurs':
+                _check('Patrimoine', 'D', r, 'PAT Erreurs')
 
     # Contrôles CTRL2 : cols K (Affichage) et L (Général) sur lignes avec formule
     for nr_name, label in [('CTRL2affichage', 'CTRL2 Affichage'),
