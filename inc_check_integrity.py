@@ -264,11 +264,9 @@ def validate_structure(xdoc, cr=None):
                 break
         if header_row_1 is None:
             header_row_1 = ctrl2_s - 2  # fallback
-        val = ws_ctrl.getCellByPosition(drill_col, uno_row(header_row_1)).getString().strip()
-        # Le format `@" ▼"` posé sur la drill cell suffixe l'affichage : getString
-        # renvoie 'EUR ▼' alors que la valeur brute est 'EUR'. On strip avant compare.
-        if val.endswith('▼'):
-            val = val[:-1].rstrip()
+        from inc_drill import strip_drill_suffix
+        val = strip_drill_suffix(
+            ws_ctrl.getCellByPosition(drill_col, uno_row(header_row_1)).getString().strip())
         if val != 'EUR':
             warnings.append(
                 f"CTRL2 header col {cr.letter('CTRL2drill')} (row {header_row_1}): "

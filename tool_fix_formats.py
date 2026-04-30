@@ -557,12 +557,11 @@ def fix_ctrl2(doc, apply):
 
     ws = doc.get_sheet(SHEET_CONTROLES)
 
+    from inc_drill import strip_drill_suffix
+
     def _read_devise(cell):
-        """Lit la valeur de cellule en strippant le suffixe ' ▼' du format `@" ▼"`."""
-        val = cell.getString().strip()
-        if val.endswith('▼'):
-            val = val[:-1].rstrip()
-        return val
+        """Lit la valeur de cellule en strippant le suffixe ▼ du format `@" ▼"`."""
+        return strip_drill_suffix(cell.getString().strip())
 
     # Trouver le header CTRL2 via CTRL2drill (named range qui pointe sur la
     # 1re col du header devises, ex: M62:M73 → EUR en M61).
