@@ -220,6 +220,8 @@ class ExecMixin:
         doc_menu.add_separator()
         doc_menu.add_command(label='Charte graphique',
                              command=lambda: self._exec_open_doc('Compta_charte.md'))
+        doc_menu.add_command(label='Plus-value latente',
+                             command=lambda: self._exec_open_doc('Compta_pvl.md'))
 
         doc_btn = ttk.Button(files_btn_frame, text='\U0001f4d6 Doc ▴')
 
