@@ -8,15 +8,20 @@ Ce document décrit la **procédure** à suivre pour mettre à niveau le classeu
 | --- | --- |
 | Seul `comptes.xlsm` est utilisé ; mise à niveau manuelle dans le tableur en s'appuyant sur [`comptes_exemple.xlsx`](https://github.com/mlebas29/Compta/raw/main/comptes_exemple.xlsx) comme référence. | Classeur + app + outils installés via `git clone` ; mise à niveau par l'app, par un outil `tool_migrate_*.py`, ou manuelle. |
 
-Au démarrage (mode assisté), l'app vérifie la `SCHEMA_VERSION` du classeur ; une incompatibilité bloque l'exécution. Les autres mises à niveau (formules, formats) sont optionnelles à recommandées — elles
-n'empêchent pas l'app de tourner mais peuvent fausser des calculs.
+Au démarrage (mode assisté), l'app vérifie la `SCHEMA_VERSION` du classeur ; une incompatibilité bloque l'exécution. Les autres mises à niveau (formules, formats) sont optionnelles à recommandées — elles n'empêchent pas l'app de tourner mais peuvent fausser des calculs.
 
+**Lecture du CHANGELOG** — chaque version peut porter deux badges :
+
+- 📘 = nouveau classeur exemple livré → mode classeur : comparer son `comptes.xlsm` à `comptes_exemple.xlsx` sur la zone indiquée ci-dessous.
+- 🔧 = outil de migration livré → mode assisté : exécuter le `tool_migrate_*.py` correspondant.
+
+Une version peut porter l'un, l'autre, ou les deux. Les sections ci-dessous suivent le même découpage.
 
 
 ## v4.0.1 — Pas de migration classeur
 
 
-## v4.0.0 — Refonte drill devise + charte v4 (requis)
+## v4.0.0 📘 🔧 — Refonte drill devise + charte v4 (requis)
 
 Schéma `SCHEMA_VERSION 1 → 2`.
 
@@ -43,11 +48,9 @@ python3 tool_audit_formats.py ~/Compta/comptes.xlsm    # 0 violation attendu
 ```
 
 
-## v3.5.8 — Contrôle 2 balances *(intégré dans v4)*
+## v3.5.8 🔧 — Contrôle 2 balances *(intégré dans v4)*
 
-Pour un classeur passant directement à v4, ce fix est inclus dans
-`tool_migrate_schema_v2.py`. L'outil `tool_migrate_ctrl2_balances.py`
-n'est plus livré en v4. Section conservée pour mémoire.
+Pour un classeur passant directement à v4, ce fix est inclus dans `tool_migrate_schema_v2.py`. L'outil `tool_migrate_ctrl2_balances.py` n'est plus livré en v4. Section conservée pour mémoire.
 
 Pour un classeur restant en v3.5.x :
 
@@ -61,10 +64,9 @@ python3 tool_migrate_ctrl2_balances.py ~/Compta/comptes.xlsm
 ```
 
 
-## v3.5.7 — Plus-value : ancrage dynamique sur `#Solde` (recommandé)
+## v3.5.7 📘 🔧 — Plus-value : ancrage dynamique sur `#Solde` (recommandé)
 
-Concerne les sections **métaux / crypto / devises** de `Plus_value` et les
-colonnes *AVRdate_anter* / *AVRmontant_anter* d'`Avoirs`.
+Concerne les sections **métaux / crypto / devises** de `Plus_value` et les colonnes *AVRdate_anter* / *AVRmontant_anter* d'`Avoirs`.
 
 | Mode classeur | Mode assisté |
 | --- | --- |
@@ -79,25 +81,27 @@ python3 Claude/tool_migrate_pvl_ancrage.py comptes.xlsm
 L'option `--dry-run` simule sans sauvegarder.
 
 
-## v3.5.6 — Pieds Budget en plage auto-extensible (cosmétique)
+## v3.5.6 📘 — Pieds Budget en plage auto-extensible (cosmétique)
 
-Nécessaire uniquement si le classeur a été initialisé avec un modèle ≤
-v3.5.5 **et** que des catégories / postes ont été ajoutés directement dans
-le tableur sans passer par la GUI.
+Nécessaire uniquement si le classeur a été initialisé avec un modèle ≤ v3.5.5 **et** que des catégories / postes ont été ajoutés directement dans le tableur sans passer par la GUI.
 
 | Mode classeur | Mode assisté |
 | --- | --- |
-| Comparer les formules de pied Budget à `comptes_exemple.xlsx`. | Une mise à jour de l'app suffit (réécriture au prochain ajout via GUI). |
+| Comparer les formules du pied Budget à `comptes_exemple.xlsx` (feuille `Budget` : *Total hors Changes/Virements*, *Total épargne*, *Épargne fixe*). | Rien à faire — réécriture au prochain ajout via GUI. |
 
 
-## v3.5.3 — Formules PVL multi-devise génériques (optionnel)
+## v3.5.4 🔧 — Outil de migration CTRL2 multi-devise
 
-Concerne le pied `TOTAL portefeuilles` et le `Total` des blocs portefeuille
-multi-devise de `Plus_value`.
+Cet outil applique le fix annoncé en v3.5.2 — voir §v3.5.2 pour la procédure (`tool_migrate_ctrl2_formulas.py`).
+
+
+## v3.5.3 📘 🔧 — Formules PVL multi-devise génériques (optionnel)
+
+Concerne le pied `TOTAL portefeuilles` et le `Total` des blocs portefeuille multi-devise de `Plus_value`.
 
 | Mode classeur | Mode assisté |
 | --- | --- |
-| Comparer les formules à `comptes_exemple.xlsx`. | `tool_migrate_pvl_totals.py`. |
+| Comparer les formules à `comptes_exemple.xlsx` (feuille `Plus_value` : pied *TOTAL portefeuilles* et ligne *Total* des blocs portefeuille multi-devise). | `tool_migrate_pvl_totals.py`. |
 
 ```bash
 python3 tool_migrate_pvl_totals.py ~/Compta/comptes.xlsm --dry-run
@@ -107,11 +111,9 @@ python3 tool_migrate_pvl_totals.py ~/Compta/comptes.xlsm
 Sortie sans ligne `Δ` = migration transparente (aucun écart de valeur).
 
 
-## v3.5.2 — Détection d'erreur Comptes multi-devises *(intégré dans v4)*
+## v3.5.2 📘 — Détection d'erreur Comptes multi-devises *(intégré dans v4)*
 
-Pour un classeur passant directement à v4, ce fix est inclus dans
-`tool_migrate_schema_v2.py`. L'outil `tool_migrate_ctrl2_formulas.py`
-n'est plus livré en v4. Section conservée pour mémoire.
+Pour un classeur passant directement à v4, ce fix est inclus dans `tool_migrate_schema_v2.py`. L'outil `tool_migrate_ctrl2_formulas.py` n'est plus livré en v4. Section conservée pour mémoire.
 
 Pour un classeur restant en v3.5.x avec au moins un compte non-EUR :
 
@@ -125,10 +127,9 @@ python3 tool_migrate_ctrl2_formulas.py ~/Compta/comptes.xlsm
 ```
 
 
-## v3.2 — `SCHEMA_VERSION 1`
+## v3.2.0 — `SCHEMA_VERSION 1`
 
-Première version avec schéma versionné (named ranges colonnes + named range
-`SCHEMA_VERSION` = 1).
+Première version avec schéma versionné (named ranges colonnes + named range `SCHEMA_VERSION` = 1).
 
 **Depuis un classeur sans version (antérieur à app v3.2) :**
 
@@ -142,6 +143,4 @@ cp comptes.xlsm comptes_backup.xlsm
 cp comptes_template.xlsm comptes.xlsm
 ```
 
-Relancer l'app après la copie. Le nouveau classeur est vierge ; réimporter
-les données via l'application (collecte + import) ou par copier-coller
-depuis le backup.
+Relancer l'app après la copie. Le nouveau classeur est vierge ; réimporter les données via l'application (collecte + import) ou par copier-coller depuis le backup.
