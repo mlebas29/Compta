@@ -9,34 +9,14 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 ## v4.0.4
 | 2026-04-30           |                                                              |
 | -------------------- | ------------------------------------------------------------ |
-| Description          | **Robustesse pipe CLI** — `cpt_update` ne crashe plus sur dropbox vide ou site mal configuré. |
+| Description          | **Robustesse pipe pour clones frais** — `git pull` + `cpt_update` fonctionnent sans configuration préalable. |
 | Migration assistée   | non                                                          |
 
-- `cpt_update.py` : check dropbox vide en début de `main()` → exit propre avec message « Dropbox vide — rien à importer », au lieu de charger les modules format pour rien.
-- Chargement des modules format **différé** dans `main()` (au lieu du module-level), pour pouvoir court-circuiter quand il n'y a rien à faire.
-- `_load_format_modules` : catch des `ValueError` / `KeyError` au chargement → site désactivé avec un warning, au lieu de faire crasher tout le programme. Cas typique : `cpt_format_SOCGEN.py` qui résout un compte « chèque » au module-level mais le classeur n'a pas de compte SG.
+Trois axes pour qu'un nouvel utilisateur (ou un clone frais de Export) puisse démarrer sans crash :
 
-
-## v4.0.3
-| 2026-04-30           |                                                              |
-| -------------------- | ------------------------------------------------------------ |
-| Description          | **Fix import bloquant (suite)** — `config_accounts.json` et `config_cotations.json` auto-créés vides à la 1ʳᵉ exécution. |
-| Migration assistée   | non                                                          |
-
-- Nouveau module **`inc_config_init.py`** : centralise l'auto-création des 4 fichiers config user (`config_accounts`, `config_cotations`, `config_pipeline`, `config_category_mappings`) avec template vide si absents. Importé par `inc_excel_compta.py`, `inc_format.py`, `inc_fetch.py`, `cpt_fetch_quotes.py` — couvre tous les chemins d'entrée.
-- v4.0.2 ne fixait que `config_pipeline.json` : les utilisateurs en mode assisté qui pullaient depuis Export crashaient toujours sur `config_accounts.json` (lu au module-level par tous les `cpt_format_*.py` et `cpt_fetch_*.py`).
-
-
-## v4.0.2
-| 2026-04-30           |                                                              |
-| -------------------- | ------------------------------------------------------------ |
-| Description          | **Fix import bloquant** — `config_pipeline.json` créé vide à la 1ʳᵉ exécution si absent. |
-| Migration assistée   | non                                                          |
-
-- Correction `inc_excel_compta.py` : `_load_pipeline_config()` crashait (`FileNotFoundError`) si `config_pipeline.json` était absent — bloquait tout `git pull` frais (fichier passé en config utilisateur hors git, mais sans fallback). Désormais créé vide (`{linked_operations:{}, solde_auto:{}}`), à la manière de `config_category_mappings.json`.
-
-
-## v4.0.1
+- **Auto-création des configs user** — nouveau module `inc_config_init.py` qui crée vides à la 1ʳᵉ exécution les 4 fichiers `config_accounts.json`, `config_cotations.json`, `config_pipeline.json`, `config_category_mappings.json` s'ils sont absents. Importé par `inc_excel_compta`, `inc_format`, `inc_fetch`, `cpt_fetch_quotes` — couvre tous les chemins d'entrée. Bug d'origine : depuis le passage de ces fichiers en gitignore (commit `6e00076`, 10/04/2026), un clone frais crashait à l'import sur `FileNotFoundError`.
+- **Tolérance aux sites mal configurés** — `_load_format_modules` (cpt_update.py) catche désormais `ValueError` / `KeyError` au chargement d'un module : site désactivé avec un warning au lieu de faire crasher tout le programme. Cas typique : `cpt_format_SOCGEN` qui résout un compte « chèque » au module-level alors que le classeur n'a pas de compte SG.
+- **Court-circuit dropbox vide** — `cpt_update.py` vérifie la dropbox en début de `main()` et exit proprement (« Dropbox vide — rien à importer ») avant de charger les modules format. Chargement déplacé du module-level vers `main()`.
 | 2026-04-28           |                                                              |
 | -------------------- | ------------------------------------------------------------ |
 | Description          | **Polissage v4** — ergonomie GUI, robustesse 1re install, documentation. |

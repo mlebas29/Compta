@@ -18,6 +18,9 @@ Au démarrage (mode assisté), l'app vérifie la `SCHEMA_VERSION` du classeur ; 
 Une version peut porter l'un, l'autre, ou les deux. Les sections ci-dessous suivent le même découpage.
 
 
+## v4.0.4 — Pas de migration classeur
+
+
 ## v4.0.1 — Pas de migration classeur
 
 
