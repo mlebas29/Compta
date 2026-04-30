@@ -6,6 +6,16 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 - 🔧 = outil de migration du classeur de travail (mode assisté)
 - Détails dans Compta_upgrade.md
 
+## v4.0.3
+| 2026-04-30           |                                                              |
+| -------------------- | ------------------------------------------------------------ |
+| Description          | **Fix import bloquant (suite)** — `config_accounts.json` et `config_cotations.json` auto-créés vides à la 1ʳᵉ exécution. |
+| Migration assistée   | non                                                          |
+
+- Nouveau module **`inc_config_init.py`** : centralise l'auto-création des 4 fichiers config user (`config_accounts`, `config_cotations`, `config_pipeline`, `config_category_mappings`) avec template vide si absents. Importé par `inc_excel_compta.py`, `inc_format.py`, `inc_fetch.py`, `cpt_fetch_quotes.py` — couvre tous les chemins d'entrée.
+- v4.0.2 ne fixait que `config_pipeline.json` : les utilisateurs en mode assisté qui pullaient depuis Export crashaient toujours sur `config_accounts.json` (lu au module-level par tous les `cpt_format_*.py` et `cpt_fetch_*.py`).
+
+
 ## v4.0.2
 | 2026-04-30           |                                                              |
 | -------------------- | ------------------------------------------------------------ |

@@ -11,6 +11,7 @@ import sys
 import zipfile
 from pathlib import Path
 from datetime import datetime, timedelta
+import inc_config_init  # noqa: F401  — auto-création des fichiers config user manquants
 import inc_categorize
 
 # Flag TNR — positionné par cpt_update.py --TNR, jamais par variable d'environnement

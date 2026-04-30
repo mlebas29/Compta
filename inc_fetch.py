@@ -27,6 +27,7 @@ import base64
 import configparser
 from pathlib import Path
 
+import inc_config_init  # noqa: F401  — auto-création des fichiers config user manquants
 import inc_mode
 from inc_logging import Logger
 

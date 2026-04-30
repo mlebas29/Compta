@@ -17,6 +17,7 @@ import sys
 import requests
 from datetime import datetime
 import openpyxl
+import inc_config_init  # noqa: F401  — auto-création des fichiers config user manquants
 import inc_mode
 import inc_exchange_rates
 from inc_logging import Logger

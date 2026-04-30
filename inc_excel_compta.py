@@ -23,6 +23,7 @@ except ImportError:
     print("Installation: pip3 install openpyxl")
     sys.exit(1)
 
+import inc_config_init  # noqa: F401  — auto-création des fichiers config user manquants
 from inc_excel_schema import (
     SHEET_OPERATIONS, SHEET_CONTROLES, SHEET_CONTROLES_LEGACY,
     PAIRING_COUNTER_CELL, Operation,
@@ -49,13 +50,7 @@ def _load_pipeline_config():
     import json
     from inc_mode import get_base_dir
     config_path = get_base_dir() / 'config_pipeline.json'
-    if not config_path.exists():
-        # Auto-création d'un template vide (l'utilisateur enrichit via la GUI).
-        template = {'linked_operations': {}, 'solde_auto': {}}
-        config_path.write_text(
-            json.dumps(template, indent=2, ensure_ascii=False) + '\n',
-            encoding='utf-8',
-        )
+    # Le fichier est auto-créé vide par inc_config_init si absent.
 
     with open(config_path, 'r', encoding='utf-8') as f:
         data = json.load(f)
