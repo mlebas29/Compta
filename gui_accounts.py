@@ -384,21 +384,25 @@ class AccountsMixin:
 
         fields = {}
         row = 0
+        types_with_dash = ['-'] + [t for t in self.ACCOUNT_TYPES if t != '-']
+        sous_types_with_dash = ['-'] + [t for t in self.ACCOUNT_SOUS_TYPES if t != '-']
         for label, key, widget_type, values, default in [
             ('Site :', 'site', 'combo', site_values, 'N/A'),
             ('Intitulé :', 'intitule', 'entry', None, ''),
             ('Devise :', 'devise', 'combo', self.ACCOUNT_DEVISES, 'EUR'),
-            ('Type :', 'type', 'combo', self.ACCOUNT_TYPES, 'Euros'),
-            ('Sous-type :', 'sous_type', 'combo', self.ACCOUNT_SOUS_TYPES, 'Euro'),
-            ('Domiciliation :', 'domiciliation', 'entry', None, ''),
-            ('Titulaire :', 'titulaire', 'entry', None, ''),
-            ('Propriété :', 'propriete', 'entry', None, ''),
+            ('Type :', 'type', 'combo', types_with_dash, 'Euros'),
+            ('Sous-type :', 'sous_type', 'combo', sous_types_with_dash, 'Euro'),
+            ('Domiciliation :', 'domiciliation', 'entry', None, '-'),
+            ('Titulaire :', 'titulaire', 'entry', None, '-'),
+            ('Propriété :', 'propriete', 'combo', ['oui', 'non'], 'oui'),
         ]:
             ttk.Label(dlg, text=label).grid(row=row, column=0,
                                              sticky='w', padx=10, pady=3)
             var = tk.StringVar(value=default)
             if widget_type == 'combo':
-                w = ttk.Combobox(dlg, textvariable=var, values=values, width=25)
+                state = 'readonly' if key in ('devise', 'propriete') else 'normal'
+                w = ttk.Combobox(dlg, textvariable=var, values=values,
+                                 width=25, state=state)
             else:
                 w = ttk.Entry(dlg, textvariable=var, width=28)
             w.grid(row=row, column=1, padx=10, pady=3, sticky='w')
@@ -628,22 +632,27 @@ class AccountsMixin:
         # Domiciliations suggérées (liste ouverte)
         doms = ['Maison', 'Voiture']
 
+        # Devises avec "-" en tête (cas bien matériel non monétisable, ex: immobilier)
+        devises_with_dash = ['-'] + [d for d in self.ACCOUNT_DEVISES if d != '-']
+
         fields = {}
         row = 0
         for label, key, widget_type, values, default in [
             ('Intitulé :', 'intitule', 'entry', None, ''),
             ('Nature :', 'sous_type', 'combo', ['Foncier', 'Mobilier'], 'Foncier'),
-            ('Devise :', 'devise', 'combo', self.ACCOUNT_DEVISES, ''),
-            ('Domiciliation :', 'domiciliation', 'combo', doms, ''),
-            ('Titulaire :', 'titulaire', 'entry', None, ''),
-            ('Propriété :', 'propriete', 'entry', None, ''),
+            ('Devise :', 'devise', 'combo', devises_with_dash, '-'),
+            ('Domiciliation :', 'domiciliation', 'combo', doms, '-'),
+            ('Titulaire :', 'titulaire', 'entry', None, '-'),
+            ('Propriété :', 'propriete', 'combo', ['oui', 'non'], 'oui'),
             ('Montant :', 'montant', 'entry', None, ''),
         ]:
             ttk.Label(dlg, text=label).grid(row=row, column=0,
                                              sticky='w', padx=10, pady=3)
             var = tk.StringVar(value=default)
             if widget_type == 'combo':
-                w = ttk.Combobox(dlg, textvariable=var, values=values, width=25)
+                state = 'readonly' if key in ('devise', 'propriete') else 'normal'
+                w = ttk.Combobox(dlg, textvariable=var, values=values,
+                                 width=25, state=state)
             else:
                 w = ttk.Entry(dlg, textvariable=var, width=28)
             w.grid(row=row, column=1, padx=10, pady=3, sticky='w')

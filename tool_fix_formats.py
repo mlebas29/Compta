@@ -467,10 +467,10 @@ def fix_plus_value(doc, apply, cr=None):
 
 
 def fix_ctrl1(doc, apply, cr=None):
-    """Nettoie les fonds gris du tableau CTRL1 dans Contrôles.
+    """Corrige les formats du tableau CTRL1 dans Contrôles.
 
     - Col B (devise) : libellé, jamais grisé → restore BLANC
-    - Cols E/F/G/H (montants) : GRIS_BLANC pour non-EUR, BLANC pour EUR
+    - Cols E/F/G/H (montants) : format devise selon CTRL1devise + GRIS_BLANC pour non-EUR, BLANC pour EUR
     """
     from inc_excel_schema import SHEET_CONTROLES
 
@@ -487,6 +487,12 @@ def fix_ctrl1(doc, apply, cr=None):
                      'CTRL1montant_releve', 'CTRL1ecart')]
     devise_col = cr.col('CTRL1devise')
 
+    formats = doc.document.getNumberFormats()
+    fmt_eur = doc.register_number_format(FORMAT_EUR)
+    fmt_cache = {}
+    for d, fmt_str in FORMATS_DEVISE.items():
+        fmt_cache[d] = doc.register_number_format(fmt_str)
+
     for r in range(ctrl_s, ctrl_e + 1):
         r0 = uno_row(r)
         intitule = ws.getCellByPosition(cr.col('CTRL1compte'), r0).getString().strip()
@@ -495,6 +501,7 @@ def fix_ctrl1(doc, apply, cr=None):
 
         devise = ws.getCellByPosition(devise_col, r0).getString().strip()
         is_non_eur = devise and devise != 'EUR'
+        expected_fmt = fmt_cache.get(devise, fmt_eur)
         row_fixes = []
 
         # Col B (devise) — jamais grisée
@@ -504,9 +511,15 @@ def fix_ctrl1(doc, apply, cr=None):
             if apply:
                 b_cell.CellBackColor = BLANC
 
-        # Cols E/F/G/H (montants)
+        # Cols E/F/G/H (montants) — format devise + bg
         for c0 in MONTANT_COLS:
             cell = ws.getCellByPosition(c0, r0)
+            # Format devise
+            if not _fmt_eq(formats, cell.NumberFormat, expected_fmt):
+                row_fixes.append(f'{chr(65+c0)}:fmt({devise or "EUR"})')
+                if apply:
+                    cell.NumberFormat = expected_fmt
+            # Background
             target = GRIS_BLANC if is_non_eur else BLANC
             if cell.CellBackColor != target and (
                 cell.CellBackColor in (GRIS, GRIS_BLANC, GRIS_BEIGE, BLANC)
@@ -1497,8 +1510,44 @@ def apply_alarm_bold(doc, alarm_sqrefs, apply, sheets=None):
             n = n * 26 + (ord(c) - 64)
         return n - 1
 
+    def _idx_to_col(col_0):
+        col_1 = col_0 + 1
+        letters = ''
+        while col_1:
+            col_1, rem = divmod(col_1 - 1, 26)
+            letters = chr(65 + rem) + letters
+        return letters
+
+    # Cells de gras-alarme additionnelles non couvertes par les CF du classeur
+    # (cf. inventaire témoin) — ciblées via NR pour rester layout-agnostic.
+    additional = {}
+    cr_doc = doc.cr if hasattr(doc, 'cr') else None
+
+    def _add(sheet_name, col_0, row_1):
+        additional.setdefault(sheet_name, set()).add((_idx_to_col(col_0), row_1))
+
+    # POSTES ligne écart (Budget) : col POSTESmontant, row pos_end + 4
+    pos_s, pos_e = doc.cr.rows('POSTESnom') if cr_doc else (None, None)
+    if pos_s and pos_e:
+        col0 = doc.cr.col('POSTESmontant')
+        if col0 is not None and col0 >= 0:
+            _add('Budget', col0, pos_e + 4)
+
+    # CAT ligne écart Total euro (Budget) : col CATtotal_euro, row cat_end + 3
+    # (pied CAT : +1 Total, +2 Somme opérations, +3 Écart, +4 Total hors C&V)
+    cat_s, cat_e = doc.cr.rows('CATnom') if cr_doc else (None, None)
+    if cat_s and cat_e:
+        col0 = doc.cr.col('CATtotal_euro')
+        if col0 is not None and col0 >= 0:
+            _add('Budget', col0, cat_e + 3)
+
+    # Fusionner avec alarm_sqrefs avant la boucle principale
+    merged_sqrefs = {s: set(cells) for s, cells in alarm_sqrefs.items()}
+    for s, extra in additional.items():
+        merged_sqrefs.setdefault(s, set()).update(extra)
+
     total = 0
-    for sheet_name, cells in alarm_sqrefs.items():
+    for sheet_name, cells in merged_sqrefs.items():
         if wanted_sheets and sheet_name.lower() not in wanted_sheets:
             continue
         try:

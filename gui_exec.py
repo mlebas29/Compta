@@ -67,7 +67,7 @@ class ExecMixin:
 
         col = 0
         row = 0
-        max_cols = 4
+        max_cols = 7
         for site in exec_sites:
             site_name = self.config.get(site, 'name', fallback=site)
             self._exec_site_names[site] = site_name

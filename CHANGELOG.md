@@ -6,6 +6,24 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 - 🔧 = outil de migration du classeur de travail (mode assisté)
 - Détails dans Compta_upgrade.md
 
+## v4.0.5
+| 2026-04-30           |                                                              |
+| -------------------- | ------------------------------------------------------------ |
+| Description          | **Polissage GUI + fix_formats** — verrouillages, défauts cohérents avec Patrimoine, format devise CTRL1, pied POSTES multi-devise. |
+| Migration assistée   | non                                                          |
+
+GUI
+
+- Création de compte : champ *Devise* verrouillé à la liste existante. Champ *Propriété* en menu *oui / non* verrouillé. Défauts `-` pour *Domiciliation* et *Titulaire* (cohérence avec le tableau Patrimoine). Listes *Type* et *Sous-type* enrichies de l'option `-`.
+- Création de bien matériel : mêmes verrouillages et défauts ; option `-` ajoutée à la *Devise* pour les biens non monétisables (immobilier).
+- Onglet *Exécution* : grille des sites passe de 4 à 7 colonnes pour gagner de la place verticalement.
+
+`tool_fix_formats`
+
+- Format devise étrangère désormais appliqué aux colonnes montants du tableau de contrôles *CTRL1* (oubli antérieur).
+- Gras d'alarme : étendu à 2 cellules d'écart non couvertes par les formats conditionnels (ligne *Écart* du pied POSTES, ligne *Écart* du pied CATÉGORIES colonne *Total euro*).
+
+
 ## v4.0.4
 | 2026-04-30           |                                                              |
 | -------------------- | ------------------------------------------------------------ |
