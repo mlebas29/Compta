@@ -27,7 +27,12 @@ _CONFIG_META_SECTIONS = {'general', 'pairing', 'comparison', 'paths', 'sites'}
 
 
 def _load_format_modules(config):
-    """Découvre les sites depuis config.ini et charge dynamiquement les modules cpt_format_SITE."""
+    """Découvre les sites depuis config.ini et charge dynamiquement les modules cpt_format_SITE.
+
+    Tolérant : si un module échoue à se charger (compte non configuré dans le
+    classeur, JSON vide, etc.), le site est désactivé avec un warning au lieu
+    de faire crasher tout l'import.
+    """
     modules = {}
     for section in config.sections():
         if section in _CONFIG_META_SECTIONS:
@@ -37,7 +42,24 @@ def _load_format_modules(config):
             modules[section] = importlib.import_module(module_name)
         except ModuleNotFoundError:
             pass  # Site sans formatteur (ne devrait pas arriver)
+        except (ValueError, KeyError) as e:
+            print(f"⚠ Site {section} désactivé : {e}", file=sys.stderr)
     return modules
+
+
+def _dropbox_has_files():
+    """Vérifie s'il y a au moins un fichier PDF ou CSV à traiter dans la dropbox."""
+    if not DROPBOX_DIR.exists():
+        return False
+    for ext in ('*.pdf', '*.PDF', '*.csv', '*.CSV'):
+        if list(DROPBOX_DIR.glob(ext)):
+            return True
+    for subdir in DROPBOX_DIR.iterdir():
+        if subdir.is_dir():
+            for ext in ('*.pdf', '*.PDF', '*.csv', '*.CSV'):
+                if list(subdir.glob(ext)):
+                    return True
+    return False
 
 # Supprimer les warnings pdfminer (FontBBox, gray color) non pertinents
 import logging
@@ -81,7 +103,7 @@ else:
     MAX_SESSIONS = config.getint('general', 'max_sessions', fallback=10)
 
 # Charger les modules formatteurs dynamiquement depuis config.ini
-SITE_FORMAT_MODULES = _load_format_modules(config)
+SITE_FORMAT_MODULES = {}  # rempli par main() après le check dropbox
 
 
 def get_site_dropbox_dir(site):
@@ -1142,7 +1164,7 @@ Cas d'usage --archive-only:
     timestamp = datetime.now().strftime('%H:%M:%S')
     print(f"{timestamp} Update")
 
-    # Mode fallback
+    # Mode fallback : pas besoin de charger les modules format
     if args.fallback:
         if updater.restore_fallback():
             updater.logger.info("Restauration effectuée avec succès")
@@ -1150,6 +1172,15 @@ Cas d'usage --archive-only:
         else:
             updater.logger.error("Échec de la restauration")
             sys.exit(1)
+
+    # Check dropbox vide → exit propre avant de charger les modules format
+    if not _dropbox_has_files():
+        print("✓ Dropbox vide — rien à importer")
+        sys.exit(0)
+
+    # Chargement différé des modules format (avec tolérance aux erreurs de config)
+    global SITE_FORMAT_MODULES
+    SITE_FORMAT_MODULES = _load_format_modules(config)
 
     # Mode archive-only (archiver sans importer)
     if args.archive_only:

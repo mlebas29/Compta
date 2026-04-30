@@ -6,6 +6,17 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 - 🔧 = outil de migration du classeur de travail (mode assisté)
 - Détails dans Compta_upgrade.md
 
+## v4.0.4
+| 2026-04-30           |                                                              |
+| -------------------- | ------------------------------------------------------------ |
+| Description          | **Robustesse pipe CLI** — `cpt_update` ne crashe plus sur dropbox vide ou site mal configuré. |
+| Migration assistée   | non                                                          |
+
+- `cpt_update.py` : check dropbox vide en début de `main()` → exit propre avec message « Dropbox vide — rien à importer », au lieu de charger les modules format pour rien.
+- Chargement des modules format **différé** dans `main()` (au lieu du module-level), pour pouvoir court-circuiter quand il n'y a rien à faire.
+- `_load_format_modules` : catch des `ValueError` / `KeyError` au chargement → site désactivé avec un warning, au lieu de faire crasher tout le programme. Cas typique : `cpt_format_SOCGEN.py` qui résout un compte « chèque » au module-level mais le classeur n'a pas de compte SG.
+
+
 ## v4.0.3
 | 2026-04-30           |                                                              |
 | -------------------- | ------------------------------------------------------------ |
