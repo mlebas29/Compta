@@ -373,6 +373,130 @@ def _parse_sqref(s):
     return cells
 
 
+def _parse_nr_range(wb, name):
+    """Parse un NR : retourne (sheet, col_letter, row_start, row_end) ou None."""
+    if name not in wb.defined_names:
+        return None
+    import re as _re
+    val = wb.defined_names[name].value
+    m = _re.match(r"^([^!]+)!\$([A-Z]+)\$(\d+)(?::\$([A-Z]+)\$(\d+))?$", val)
+    if not m:
+        return None
+    sheet = m.group(1).strip("'")
+    col = m.group(2)
+    r1 = int(m.group(3))
+    r2 = int(m.group(5) or m.group(3))
+    return sheet, col, r1, r2
+
+
+def _cf_alarm_coverage(wb, path):
+    """Retourne {sheet: set((col_letter, row))} des cells couvertes par une CF d'alarme.
+
+    CF reconnue comme alarme si :
+      - dxfId pointe sur un dxf à fond rouge clair (FFC7CE) ou jaune-orange (FFEB9C)
+      - OU formule contient FIND("✗") / FIND("⚠")
+      - OU type cellIs operator notEqual (col L Général)
+    """
+    alarm_dxf_set = _read_alarm_sqrefs(path)
+    coverage = {}
+    for sheet_name in wb.sheetnames:
+        ws = wb[sheet_name]
+        covered = set()
+        for cfr in ws.conditional_formatting:
+            for rule in ws.conditional_formatting[cfr]:
+                is_alarm = (rule.dxfId is not None and rule.dxfId in alarm_dxf_set)
+                if not is_alarm and rule.formula:
+                    f = rule.formula[0] if rule.formula else ''
+                    if 'FIND("✗"' in f or 'FIND("⚠"' in f:
+                        is_alarm = True
+                if not is_alarm and rule.type == 'cellIs' and rule.operator == 'notEqual':
+                    is_alarm = True
+                if is_alarm:
+                    for cl, r in _parse_sqref(cfr.sqref):
+                        covered.add((cl, r))
+        coverage[sheet_name] = covered
+    return coverage
+
+
+def audit_alarm_coverage(wb, path):
+    """Vérifie que les cells de contrôle attendues (par position) ont bold + CF d'alarme.
+
+    Cells auditées :
+      - Budget : POSTES écart (pos_end+4), CAT écart Total euro (cat_end+3),
+        CAT total CATaffectation (cat_end+4) — via NR + offset.
+      - Patrimoine : col D des lignes TOTAL (détection col B == 'TOTAL').
+      - Contrôles : CTRL2 cols K (Affichage) et L (Général) sur lignes avec formule
+        (skip lignes modèles ⚓ et lignes sans contrôle actif).
+
+    Retourne {sheet: [(cell_addr, label, missing), ...]} où missing ∈ {'bold', 'cf', 'bold+cf'}.
+    """
+    coverage = _cf_alarm_coverage(wb, path)
+    violations = {}
+
+    def _check(sheet, col_letter, row, label):
+        if sheet not in wb.sheetnames:
+            return
+        ws = wb[sheet]
+        cell = ws[f"{col_letter}{row}"]
+        if cell.value is None:
+            return
+        is_bold = bool(cell.font and cell.font.b)
+        has_cf = (col_letter, row) in coverage.get(sheet, set())
+        missing = []
+        if not is_bold:
+            missing.append('bold')
+        if not has_cf:
+            missing.append('cf')
+        if missing:
+            violations.setdefault(sheet, []).append(
+                (f"{col_letter}{row}", label, '+'.join(missing)))
+
+    # Budget : pieds POSTES + CAT
+    pos = _parse_nr_range(wb, 'POSTESnom')
+    pm = _parse_nr_range(wb, 'POSTESmontant')
+    if pos and pm:
+        sheet, _, _, r_end_pos = pos
+        _, col_pm, _, _ = pm
+        _check(sheet, col_pm, r_end_pos + 4, 'POSTES écart')
+
+    cat = _parse_nr_range(wb, 'CATnom')
+    if cat:
+        sheet, _, _, r_end_cat = cat
+        ct = _parse_nr_range(wb, 'CATtotal_euro')
+        if ct:
+            _check(sheet, ct[1], r_end_cat + 3, 'CAT écart Total euro')
+        ca = _parse_nr_range(wb, 'CATaffectation')
+        if ca:
+            _check(sheet, ca[1], r_end_cat + 4, 'CAT total CATaffectation')
+
+    # Patrimoine : col D des lignes TOTAL (sections internes uniquement).
+    # Le TOTAL global (D4 = Avoirs!L2) pointe vers une cell déjà couverte
+    # côté Avoirs : on l'exclut via le filtre "formule contenant '!'".
+    if 'Patrimoine' in wb.sheetnames:
+        ws_pat = wb['Patrimoine']
+        max_row_scan = min(ws_pat.max_row or 0, 100)
+        for r in range(1, max_row_scan + 1):
+            if ws_pat.cell(r, 2).value == 'TOTAL':
+                d_val = ws_pat.cell(r, 4).value
+                if isinstance(d_val, str) and '!' in d_val:
+                    continue
+                _check('Patrimoine', 'D', r, 'PAT TOTAL')
+
+    # Contrôles CTRL2 : cols K (Affichage) et L (Général) sur lignes avec formule
+    for nr_name, label in [('CTRL2affichage', 'CTRL2 Affichage'),
+                           ('CTRL2general', 'CTRL2 Général')]:
+        rg = _parse_nr_range(wb, nr_name)
+        if rg:
+            sheet, col, r_start, r_end = rg
+            ws_c = wb[sheet]
+            for r in range(r_start, r_end + 1):
+                v = ws_c[f"{col}{r}"].value
+                if isinstance(v, str) and v.startswith('='):
+                    _check(sheet, col, r, label)
+
+    return violations
+
+
 def audit_alarm_bold(wb, path):
     """Vérifie que les cells de contrôle (sqref CF alarme) non-vides hors col
     drill sont en bold direct.
@@ -591,6 +715,22 @@ def main():
         if n_bold:
             print(f"\n  ✗ {n_bold} violation(s) bold")
             total_v += n_bold
+
+    # === Audit couverture alarme (par position : pieds, PAT, CTRL2) ===
+    cov_viol = audit_alarm_coverage(wb, path)
+    if cov_viol:
+        print(f"\n━━━ Couverture alarme (cells attendues bold + CF) ━━━")
+        n_cov = 0
+        for sheet_name, items in cov_viol.items():
+            if args.sheet and sheet_name != args.sheet:
+                continue
+            print(f"\n  {sheet_name} : {len(items)} cell(s) avec couverture incomplète :")
+            for addr, label, missing in items:
+                print(f"      {addr:<6} {label:<28} manquant : {missing}")
+            n_cov += len(items)
+        if n_cov:
+            print(f"\n  ✗ {n_cov} violation(s) couverture alarme")
+            total_v += n_cov
 
     print(f"\n━━━ Total ━━━")
     print(f"  Violations totales : {total_v}")
