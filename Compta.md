@@ -12,7 +12,7 @@ La gestion comptable a pour but de centraliser dans un tableur :
 
 * les autres **valeurs de biens matériels** (immobilier ...)
 
-Le tableur **comptes.xlsm** présente ces données et les synthétise selon différentes vues : postes budgétaires, plus values latentes, répartitions patrimoniales. Il détecte aussi des incohérences telles que des écarts entre  soldes calculés et soldes relevés.
+Le tableur **comptes.xlsm** présente ces données et les synthétise selon différentes vues : postes budgétaires, [plus values latentes](Compta_pvl.md), répartitions patrimoniales. Il détecte aussi des incohérences telles que des écarts entre  soldes calculés et soldes relevés.
 
 Les tâches de la gestion comptable :
 
