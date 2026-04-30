@@ -88,6 +88,7 @@ FORMAT_EUR = FORMATS_DEVISE['EUR']
 FORMAT_EUR_RED = devise_format('EUR', _DEFAULT_DECIMALS).replace(';\\-', ';[RED]\\-')
 FORMAT_DATE = 'DD/MM/YY'
 GRIS = 0xDCDCDC
+GRIS_LEGACY_D5 = 0xD5D5D5  # ancien gris hérité — reconnu pour nettoyage uniquement
 GRIS_BLANC = 0xEAEAEA  # gris devise sur fond blanc (lignes données PVL)
 GRIS_BEIGE = 0xDED9C0  # gris devise sur fond beige clair (pieds PVL)
 BLANC = 0xFFFFFF

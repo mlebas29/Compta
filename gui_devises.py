@@ -1543,8 +1543,8 @@ class DevisesMixin:
                 # GRIS_BLANC pour non-EUR ; blanc explicite pour EUR
                 # (insertByIndex peut propager le gris d'une ligne voisine non-EUR ;
                 # transparent -1 prendrait la couleur du thème = noir en mode sombre)
-                from inc_formats import GRIS_BLANC
-                bg_color = GRIS_BLANC if (devise and devise not in ('EUR', '')) else 0xFFFFFF
+                from inc_formats import GRIS_BLANC, BLANC
+                bg_color = GRIS_BLANC if (devise and devise not in ('EUR', '')) else BLANC
                 for c in (cr.col('CTRL1montant_ancrage'), cr.col('CTRL1solde_calc'),
                           cr.col('CTRL1montant_releve'), cr.col('CTRL1ecart')):
                     ws_ctrl.getCellByPosition(c, r0).CellBackColor = bg_color
@@ -1676,10 +1676,10 @@ class DevisesMixin:
                         copy_row_style(ws_ops, header_0, r0, col_start=1, col_end=9)
                         for c0 in range(1, 9):
                             cell = ws_ops.getCellByPosition(c0, r0)
-                            cell.CellBackColor = 0xFFFFFF
+                            cell.CellBackColor = BLANC
                         # Col A : fond blanc, sans bordures, police 10
                         cell_a = ws_ops.getCellByPosition(0, r0)
-                        cell_a.CellBackColor = 0xFFFFFF
+                        cell_a.CellBackColor = BLANC
                         cell_a.CharHeight = 10
                         cell_a.TopBorder = empty_border
                         cell_a.BottomBorder = empty_border

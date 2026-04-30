@@ -26,7 +26,7 @@ from inc_check_integrity import validate_structure
 from inc_formats import (
     devise_format, _load_decimals, _DEFAULT_DECIMALS,
     FORMATS_DEVISE, FORMAT_EUR, FORMAT_EUR_RED, FORMAT_DATE,
-    GRIS, GRIS_BLANC, GRIS_BEIGE, BLANC, BEIGE_CLAIR,
+    GRIS, GRIS_LEGACY_D5, GRIS_BLANC, GRIS_BEIGE, BLANC, BEIGE_CLAIR,
     TETE_FILL, PIED_FILL, COL_REF_FILL, DATA_FILL, JAUNE,
     HAIR_COLOR, PIED_BORDER_COLOR,
     EXC_DATA, EXC_HEAD, EXC_FOOT,
@@ -213,7 +213,7 @@ def fix_budget(doc, apply):
     data_rows = list(range(cat_start + 1, cat_end))
 
     # Couleurs nettoyables (legacy à écraser sans toucher d'autres fonds custom)
-    CLEANABLE_BG = {GRIS, GRIS_BLANC, GRIS_BEIGE, BLANC, BEIGE_CLAIR, 0xD5D5D5}
+    CLEANABLE_BG = {GRIS, GRIS_LEGACY_D5, GRIS_BLANC, GRIS_BEIGE, BLANC, BEIGE_CLAIR}
 
     fixes = 0
     for col_0, devise in devises:
