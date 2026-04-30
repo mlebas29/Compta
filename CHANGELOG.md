@@ -9,14 +9,15 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 ## v4.0.4
 | 2026-04-30           |                                                              |
 | -------------------- | ------------------------------------------------------------ |
-| Description          | **Robustesse pipe pour clones frais** — `git pull` + `cpt_update` fonctionnent sans configuration préalable. |
+| Description          | **Robustesse à la 1re utilisation** — démarrage propre même sans configuration préalable. |
 | Migration assistée   | non                                                          |
 
-Trois axes pour qu'un nouvel utilisateur (ou un clone frais de Export) puisse démarrer sans crash :
+- Fichiers de configuration manquants (`config_accounts`, `config_cotations`, `config_pipeline`, `config_category_mappings`) : créés vides au premier lancement au lieu de faire échouer l'app.
+- Site mal configuré (compte attendu absent du classeur) : site désactivé avec un message d'avertissement, au lieu d'un arrêt brutal.
+- Dropbox vide : message *« rien à importer »* et arrêt propre, sans charger inutilement les modules d'import.
 
-- **Auto-création des configs user** — nouveau module `inc_config_init.py` qui crée vides à la 1ʳᵉ exécution les 4 fichiers `config_accounts.json`, `config_cotations.json`, `config_pipeline.json`, `config_category_mappings.json` s'ils sont absents. Importé par `inc_excel_compta`, `inc_format`, `inc_fetch`, `cpt_fetch_quotes` — couvre tous les chemins d'entrée. Bug d'origine : depuis le passage de ces fichiers en gitignore (commit `6e00076`, 10/04/2026), un clone frais crashait à l'import sur `FileNotFoundError`.
-- **Tolérance aux sites mal configurés** — `_load_format_modules` (cpt_update.py) catche désormais `ValueError` / `KeyError` au chargement d'un module : site désactivé avec un warning au lieu de faire crasher tout le programme. Cas typique : `cpt_format_SOCGEN` qui résout un compte « chèque » au module-level alors que le classeur n'a pas de compte SG.
-- **Court-circuit dropbox vide** — `cpt_update.py` vérifie la dropbox en début de `main()` et exit proprement (« Dropbox vide — rien à importer ») avant de charger les modules format. Chargement déplacé du module-level vers `main()`.
+
+## v4.0.1
 | 2026-04-28           |                                                              |
 | -------------------- | ------------------------------------------------------------ |
 | Description          | **Polissage v4** — ergonomie GUI, robustesse 1re install, documentation. |
