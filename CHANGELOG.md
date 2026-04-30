@@ -6,6 +6,15 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 - 🔧 = outil de migration du classeur de travail (mode assisté)
 - Détails dans Compta_upgrade.md
 
+## v4.0.2
+| 2026-04-30           |                                                              |
+| -------------------- | ------------------------------------------------------------ |
+| Description          | **Fix import bloquant** — `config_pipeline.json` créé vide à la 1ʳᵉ exécution si absent. |
+| Migration assistée   | non                                                          |
+
+- Correction `inc_excel_compta.py` : `_load_pipeline_config()` crashait (`FileNotFoundError`) si `config_pipeline.json` était absent — bloquait tout `git pull` frais (fichier passé en config utilisateur hors git, mais sans fallback). Désormais créé vide (`{linked_operations:{}, solde_auto:{}}`), à la manière de `config_category_mappings.json`.
+
+
 ## v4.0.1
 | 2026-04-28           |                                                              |
 | -------------------- | ------------------------------------------------------------ |

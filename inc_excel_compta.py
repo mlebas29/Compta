@@ -50,7 +50,12 @@ def _load_pipeline_config():
     from inc_mode import get_base_dir
     config_path = get_base_dir() / 'config_pipeline.json'
     if not config_path.exists():
-        raise FileNotFoundError(f'config_pipeline.json introuvable : {config_path}')
+        # Auto-création d'un template vide (l'utilisateur enrichit via la GUI).
+        template = {'linked_operations': {}, 'solde_auto': {}}
+        config_path.write_text(
+            json.dumps(template, indent=2, ensure_ascii=False) + '\n',
+            encoding='utf-8',
+        )
 
     with open(config_path, 'r', encoding='utf-8') as f:
         data = json.load(f)
