@@ -543,7 +543,7 @@ def fix_ctrl2(doc, apply):
       h+1  : taux
       h+2  : COMPTES (entier)
       h+3  : CATÉGORIES — montant devise, gris non-EUR
-      h+4  : Date (vide — seul O général est pertinent)
+      h+4  : Cohérence (col devise vide — seul L général est pertinent, format entier)
       h+5  : Appariements (entier)
       h+6  : Balances (entier)
       h+7  : Virements — montant devise, gris non-EUR
@@ -631,7 +631,7 @@ def fix_ctrl2(doc, apply):
     DEVISE_ROWS = {3, 9}        # CATÉGORIES, Titres
     DEVISE_ROWS_RED = {7}       # Virements (rouge négatif)
     # Lignes en entier
-    INTEGER_ROWS = {2, 5, 6}  # COMPTES, Appariements, Balances (h+4 Dates = vide)
+    INTEGER_ROWS = {2, 5, 6}  # COMPTES, Appariements, Balances (h+4 Cohérence : col devise vide)
     # Lignes en montant EUR
     EUR_ROWS = {1, 8, 10, 11, 12}  # Taux, € equiv ×2, Changes, Total
     # Lignes pied de tableau — style seul, pas de format nombre

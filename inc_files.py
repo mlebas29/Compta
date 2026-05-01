@@ -6,6 +6,20 @@ Utilitaires pour la gestion des fichiers (nommage, doublons)
 from pathlib import Path
 
 
+# Extensions de fichiers de données acceptés dans dropbox/ (formats traités
+# par les modules cpt_format_*). Source de vérité unique pour les scans de
+# dropbox (cpt_update._dropbox_has_files, data_files par site, cpt.py status).
+# Globs casse-sensible Linux : on liste les deux casses explicitement.
+DROPBOX_DATA_GLOBS = (
+    '*.pdf', '*.PDF',
+    '*.csv', '*.CSV',
+    '*.xlsx', '*.XLSX',
+    '*.txt', '*.TXT',
+    '*.tsv', '*.TSV',
+    '*.zip', '*.ZIP',
+)
+
+
 def get_unique_path(target_path):
     """
     Retourne un chemin unique en ajoutant #N si le fichier existe déjà.

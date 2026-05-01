@@ -49,7 +49,7 @@ _CTRL_CELLS = [(10, 62), (10, 63), (10, 64), (10, 65), (10, 66), (10, 71)]
 _CTRL_LABELS = [
     'Comptes (soldes)',
     'Catégories',
-    'Dates',
+    'Cohérence',
     'Appariements',
     'Balances',
     'Inconnus (comptes)',
@@ -57,7 +57,7 @@ _CTRL_LABELS = [
 _CTRL_EXPLANATIONS = [
     'Écarts entre soldes calculés et soldes relevés',
     'Opération(s) sans catégorie connue',
-    'Date hors période attendue',
+    'Date hors période attendue ou écart de ventilation Patrimoine',
     'Appariements incomplets',
     'Déséquilibre balances',
     'Compte(s) absent(s) de la feuille Avoirs',
@@ -449,7 +449,7 @@ Codes de sortie:
             else:
                 print_ctrl_summary(tokens)
 
-                # Position 0=Comptes, 1=Catégories, 2=Dates, 3=Appariements, 4=Balances, 5=Inconnus
+                # Position 0=Comptes, 1=Catégories, 2=Cohérence, 3=Appariements, 4=Balances, 5=Inconnus
                 has_comptes = tokens[0] == '✗'
                 has_categories = tokens[1] == '✗'
                 has_comptes_inconnus = tokens[5] == '✗'

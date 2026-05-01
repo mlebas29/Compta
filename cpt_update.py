@@ -48,15 +48,16 @@ def _load_format_modules(config):
 
 
 def _dropbox_has_files():
-    """Vérifie s'il y a au moins un fichier PDF ou CSV à traiter dans la dropbox."""
+    """Vérifie s'il y a au moins un fichier exploitable dans la dropbox."""
+    from inc_files import DROPBOX_DATA_GLOBS
     if not DROPBOX_DIR.exists():
         return False
-    for ext in ('*.pdf', '*.PDF', '*.csv', '*.CSV'):
+    for ext in DROPBOX_DATA_GLOBS:
         if list(DROPBOX_DIR.glob(ext)):
             return True
     for subdir in DROPBOX_DIR.iterdir():
         if subdir.is_dir():
-            for ext in ('*.pdf', '*.PDF', '*.csv', '*.CSV'):
+            for ext in DROPBOX_DATA_GLOBS:
                 if list(subdir.glob(ext)):
                     return True
     return False

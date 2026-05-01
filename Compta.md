@@ -157,7 +157,7 @@ La cellule A1 est une synthèse de 6 positions (concaténation de 6 symboles) :
 |----------|-------|----|---------|--------|---------------|
 | 1 | Comptes (soldes) | `✓` | | `✗` | Écarts entre soldes calculés et soldes relevés |
 | 2 | Catégories | `✓` | | `✗` | Opération(s) sans catégorie connue |
-| 3 | Dates | `✓` | `⚠` | | Date hors période attendue |
+| 3 | Cohérence | `✓` | `⚠` | | Date hors période attendue ou écart de ventilation Patrimoine |
 | 4 | Appariements | `✓` | `⚠` | | Appariements incomplets |
 | 5 | Balances | `✓` | `⚠` | | Problème de balances |
 | 6 | Inconnus (comptes) | `✓` | | `✗` | Compte(s) absent(s) de la feuille Avoirs |
