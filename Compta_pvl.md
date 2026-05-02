@@ -18,7 +18,7 @@ Sémantique des colonnes principales :
 | PVL % | F | PVL relative — calculée au TOTAL section uniquement : `E / (I + K)` |
 | Date initiale | G | date du dernier `#Solde` retenu |
 | Montant initial | H | capital à la date initiale |
-| SIGMA | I | cumul des **flux saisis** depuis l'ancrage (hors marqueurs `#*`) |
+| SIGMA | I | cumul des **opérations saisies** depuis l'ancrage (hors marqueurs `#*`) |
 | Date SOLDE | J | date du solde courant |
 | SOLDE | K | solde courant |
 
@@ -32,20 +32,20 @@ PVL = SOLDE − (Montant initial + SIGMA)
 Lecture : *effet de cours pur sur les positions résiduelles entre l'ancrage et aujourd'hui*.
 
 - Le **Montant initial** ancre la valeur à un instant donné (date initiale).
-- Le **SIGMA** cumule l'ensemble des flux saisis depuis l'ancrage — pour les neutraliser du calcul de PVL : sinon une entrée d'argent serait comptée comme une appréciation, et une sortie comme une dépréciation.
+- Le **SIGMA** cumule l'ensemble des opérations saisies depuis l'ancrage 
 - Le **SOLDE** est la valeur courante.
-- La PVL est donc l'écart entre SOLDE et (Montant initial + SIGMA) — la part **non expliquée par les flux**, attribuable à la valorisation des cours sur ce qui est détenu.
+- La PVL est donc la part **non expliquée par les opérations**, attribuable à la valorisation des cours sur ce qui est détenu.
 
 
-## Convention : SIGMA = flux brut saisi
+## Convention : SIGMA = cumul brut des opérations saisies
 
-Le SIGMA cumule **tous les flux saisis depuis l'ancrage**, quelle que soit leur catégorie — apports, retraits, changes, mais aussi coupons, intérêts, frais bancaires, paiements carte, ajustements. Seuls sont exclus les **marqueurs `#*`** (`#Solde`, `#Info`, …) qui ne sont pas des opérations réelles.
+Le SIGMA cumule **tous les opérations saisies depuis l'ancrage**, quelle que soit leur catégorie — paiements (carte, espèces), prélèvements, apports, retraits, changes, coupons, intérêts, ajustements. Seuls sont exclus les **marqueurs `#*`** (`#Solde`, `#Info`, …) qui ne sont pas des opérations réelles.
 
-Cette convention reflète une nécessité pratique : sur un compte où les flux sont **fongibles** (coupon, frais, paiement, virement passent par le même solde), il est par construction impossible d'attribuer une sortie à un flux entrant particulier. Quand on retire 50 EUR au resto avec une carte adossée à un stock fongible, on ne peut pas dire si on consomme « le coupon de mai » ou « le montant initial ». La distinction *flux interne / flux externe* n'est donc pas opérationnelle dans le cas général ; le SIGMA l'acte en traitant tous les flux uniformément.
+Cette convention reflète une nécessité pratique : sur un compte où les opérations sont **fongibles** (coupon, frais, paiement, virement passent par le même solde), il est par construction impossible d'attribuer une sortie à une opération entrante particulière. Quand on retire 50 EUR au resto avec une carte adossée à un stock fongible, on ne peut pas dire si on consomme « le coupon de mai » ou « le montant initial ». La distinction *opération interne / opération externe* n'est donc pas opérationnelle dans le cas général ; le SIGMA l'acte en traitant toutes les opérations uniformément.
 
-**Ce que mesure la PVL.** Avec cette convention, la PVL n'est pas une « performance globale du compte » (qui supposerait l'isolation des flux internes), mais l'**effet de cours pur sur les positions résiduelles**. Un coupon, des frais bancaires, un paiement carte ne font pas bouger la PVL — ils sont neutralisés via SIGMA. Seul le **mouvement des cours sur ce qui reste détenu** la fait bouger.
+**Ce que mesure la PVL.** Avec cette convention, la PVL n'est pas une « performance globale du compte » (qui supposerait l'isolation des opérations internes), mais l'**effet de cours pur sur les positions résiduelles**. Un paiement carte, un prélèvement, un coupon ne font pas bouger la PVL — leur effet sur le SOLDE est exactement compensé par leur cumul dans SIGMA. Seul le **mouvement des cours sur ce qui reste détenu** la fait bouger.
 
-**Cas où la séparation préexiste.** Pour les portefeuilles équipés d'un sous-compte cash dédié (Portefeuille BB Titres, DEGIRO, eToro), les dividendes ne sont pas attribués aux lignes titres — ils alimentent le sous-compte cash, hors du périmètre PVL du titre. Sur la ligne d'un titre individuel, le SIGMA brut = exactement les flux externes au titre (achats/ventes), et la PVL mesure bien la valorisation pure du titre. La fongibilité ne pose alors pas de problème, parce que la séparation est faite en amont par la structure du compte.
+**Cas où la séparation préexiste.** Pour les portefeuilles équipés d'un sous-compte cash dédié (Portefeuille BB Titres, DEGIRO, eToro), les dividendes peuvent être versés sur ce sous-compte cash, hors du périmètre PVL du titre. Lorsque c'est le cas (cela dépend de la politique de la banque), il s'agit alors d'une plus-value **réalisée** dans une catégorie ad-hoc (Intérêts ou autres). Sur la ligne d'un titre individuel, le SIGMA brut = exactement les opérations externes au titre (achats/ventes), et la PVL mesure bien la valorisation pure du titre. La fongibilité ne pose alors pas de problème, parce que la séparation est faite en amont par la structure du compte.
 
 
 ## Deux modèles selon la section
@@ -56,7 +56,7 @@ Le tableau utilise **deux modèles distincts** de calcul, selon la nature de la 
 | --- | --- | --- |
 | Devise de calcul | devise du compte (USD, EUR, …) | EUR |
 | Montant initial | **en devise** | equiv EUR au **cours d'époque** |
-| SIGMA | flux saisis en **devise** | flux saisis en equiv EUR **cours d'époque** |
+| SIGMA | opérations saisies en **devise** | opérations saisies en equiv EUR **cours d'époque** |
 | SOLDE | solde courant en **devise** | solde courant en EUR **cours du jour** |
 | Conversion EUR | uniquement au TOTAL section (× **cours du jour**) | déjà faite ligne par ligne |
 | PVL mesurée | **performance native** dans la devise du compte | **performance EUR** (cost basis EUR consolidé) |
