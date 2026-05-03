@@ -1,6 +1,6 @@
 # Compta [EX]
 
-**Comptabilité familiale — classeur Excel + application d'assistance Linux**
+**Comptabilité familiale — classeur Excel + application d'assistance**
 
 ## 1. Présentation
 
@@ -29,13 +29,13 @@ L'application graphique s'intercale entre le classeur et les sites financiers.
 
 L'utilisateur peut vouloir l'assistance de configuration seule ou l'assistance complète (configuration et collecte)
 
-Le mode assisté n'est pas incompatible avec des interventions manuelles dans le classeur. Par exemple pour ajouter, supprimer ou modifier des opérations ou des biens. L'important est de conserver les éléments structurants (tableaux, en-têtes, pieds ...)
+Le mode assisté reste compatible avec des interventions manuelles dans le classeur. Par exemple pour ajouter, supprimer ou modifier des opérations ou des biens. L'important est de conserver les éléments structurants (tableaux, en-têtes, pieds ...)
 
 Ce mode convient pour une comptabilité diversifiée. 
 
 Les environnements supportés sont :
 
--  Linux
+-  **Linux**
 
 -  **Windows 11** avec WSL (Windows Subsystem for Linux) qui permet de faire tourner Linux dans Windows, sans machine virtuelle à gérer
 
@@ -99,19 +99,22 @@ et aussi :
 
 ## 4. Mise à jour
 
-|                        Mode classeur                         |       Mode assisté        |
-| :----------------------------------------------------------: | :-----------------------: |
-| Télécharger  [`comptes_exemple.xlsx`](https://github.com/mlebas29/Compta/raw/main/comptes_exemple.xlsx) | `cd ~/Compta && git pull` |
+Les évolutions sont recensées dans [`CHANGELOG.md`](CHANGELOG.md) 
 
-`git pull` met à jour l'application mais pas le classeur `comptes.xlsm` (qui contient vos données). En cas d'incompatibilité, l'application le signale au démarrage — voir [`Compta_upgrade.md`](Compta_upgrade.md).
+|                        Mode classeur                         | Mode assisté |
+| :----------------------------------------------------------: | :-----------: |
+| Télécharger  [`comptes_exemple.xlsx`](https://github.com/mlebas29/Compta/raw/main/comptes_exemple.xlsx) | `git pull` (*) |
 
-Voir aussi [`CHANGELOG.md`](CHANGELOG.md) : informations de mise à jour
+> **(*)** `git pull` 
+>
+>  à exécuter depuis le répertoire d'installation, met à jour l'application mais pas le classeur `comptes.xlsm` (qui contient vos données). En cas d'évolution du classeur, l'application le signale au démarrage — voir [`Compta_upgrade.md`](Compta_upgrade.md).
 
 ## 5. Documentation
 
 La documentation concerne essentiellement le mode assisté
 
 -  [`Compta.md`](Compta.md)  : guide d'utilisation
+-  [`Compta_pvl.md`](Compta_pvl.md)  : modèles utilisés pour les calculs des plus-values
 -  [`Compta_plus.md`](Compta_plus.md) : commandes avancées, dépannage
 -  [`Compta_tools.md`](Compta_tools.md) : outils de maintenance du classeur
 -  [`Compta_upgrade.md`](Compta_upgrade.md) : mise à niveau du classeur
