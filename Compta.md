@@ -120,7 +120,7 @@ Le fichier  **comptes.xlsm** peut alors être ouvert sous LibreOffice, pour une 
 
 #### Étape 3 - finalisation
 
-La dernière étape consiste à sauvegarder le fichier validé.
+La dernière étape consiste à publier le classeur via le bouton "Publier Classeur".
 
 # 4. Dépendances
 
@@ -132,6 +132,8 @@ L'app dépend de :
 - LibreOffice pour le tableur
 
 Les collectes Bitcoin sont effectuées directement depuis la blockchain à partir des adresses publiques des portefeuilles
+
+La collecte Monero Wallets exige un nœud local
 
 Les cotations sont effectuées depuis 3 sites publics :
 
@@ -186,7 +188,7 @@ Tous les scripts démarrent en **headless** (fenêtre du navigateur invisible). 
 | **eToro** | Login requis (session expirée) | CAPTCHA et/ou code 2FA dans Chrome |
 | **Wise** | Login requis (session expirée) | Mobile 2FA + email 2FA (clipboard) |
 | **Kraken** | Cloudflare Turnstile (CAPTCHA) | Cocher "humain", puis 2FA email (clipboard) |
-| **Autres** | Selon script (2FA, OCR...) | Variable |
+| **BB/SG/PEE/DEGIRO** | Selon script (2FA, OCR...) | Variable |
 
 - Si session active (profil persistant) : reste headless, pas d'interaction
 - Wise : clipboard surveille liens wise.com, ouvre dans nouvel onglet
