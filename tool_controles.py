@@ -43,29 +43,35 @@ def read_a1_status(sheet):
     return cell_a1.String
 
 
-# 6 contrôles individuels dans Contrôles : K63..K67 + K72 (col K, row indices 0-based)
-# A1 = =$K$74 ne fournit qu'un symbole global ; le détail se lit directement ici.
-_CTRL_CELLS = [(10, 62), (10, 63), (10, 64), (10, 65), (10, 66), (10, 71)]
+# 7 contrôles individuels dans Contrôles : K63..K65 + K69..K70 + K75..K76
+# (col K = 10 0-based, rows 0-based ci-dessous).
+# A1 = =$K$80 ne fournit qu'un symbole global ; le détail se lit directement ici.
+_CTRL_CELLS = [(10, 62), (10, 63), (10, 64), (10, 68), (10, 69), (10, 74), (10, 75)]
 _CTRL_LABELS = [
     'Comptes (soldes)',
     'Catégories',
-    'Cohérence',
+    'Divers',
     'Appariements',
     'Balances',
     'Inconnus (comptes)',
+    'Formules',
 ]
 _CTRL_EXPLANATIONS = [
     'Écarts entre soldes calculés et soldes relevés',
     'Opération(s) sans catégorie connue',
-    'Date hors période attendue ou écart de ventilation Patrimoine',
+    'Date hors période / Ventilation Patrimoine / Cotations incomplètes',
     'Appariements incomplets',
     'Déséquilibre balances',
     'Compte(s) absent(s) de la feuille Avoirs',
+    'Synthèse PVL ou Avoirs en erreur (#N/A, #REF!, …)',
 ]
 
 
 def read_ctrl_tokens(sheet):
-    """Lit les 6 contrôles individuels K63..K72 → liste de 6 tokens ✓/✗/⚠."""
+    """Lit les 7 contrôles individuels (K63..K76 selon _CTRL_CELLS).
+
+    Retourne liste de 7 tokens ✓/✗/⚠.
+    """
     tokens = []
     for col, row in _CTRL_CELLS:
         v = sheet.getCellByPosition(col, row).String.strip()
@@ -74,8 +80,8 @@ def read_ctrl_tokens(sheet):
 
 
 def print_ctrl_summary(tokens):
-    """Affiche le décodage des 6 contrôles individuels."""
-    print("\n📊 Synthèse Contrôles (6 positions) :")
+    """Affiche le décodage des 7 contrôles individuels."""
+    print("\n📊 Synthèse Contrôles (7 positions) :")
     for i, label in enumerate(_CTRL_LABELS):
         token = tokens[i] if i < len(tokens) else '✓'
         if token == '✗':

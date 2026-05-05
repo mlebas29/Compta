@@ -515,15 +515,15 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
         if hasattr(self, '_inotify_stop'):
             self._inotify_stop.set()
 
-    # Cellules des 6 contrôles individuels dans Contrôles (col K, dans l'ordre _CTRL_LABELS)
-    _CTRL_CELLS = ('K63', 'K64', 'K65', 'K66', 'K67', 'K72')
+    # Cellules des 7 contrôles individuels dans Contrôles (col K, dans l'ordre _CTRL_LABELS)
+    _CTRL_CELLS = ('K63', 'K64', 'K65', 'K69', 'K70', 'K75', 'K76')
 
     def _read_status_cells_zip(self):
-        """Lecture rapide Contrôles A1 + K63..K72 + Avoirs L2 via ZIP (~9ms vs ~70ms openpyxl).
+        """Lecture rapide Contrôles A1 + 7 contrôles + Avoirs L2 via ZIP (~9ms vs ~70ms openpyxl).
 
         Returns:
             tuple: (ctrl_text, total_value, tokens) — ctrl_text str (synthèse mono-char A1),
-                tokens list[str] de longueur 6 (✓/✗/⚠ par contrôle, ✓ par défaut),
+                tokens list[str] de longueur 7 (✓/✗/⚠ par contrôle, ✓ par défaut),
                 total_value float|None
         """
         import zipfile
@@ -557,11 +557,11 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
                 if name in (SHEET_CONTROLES, SHEET_AVOIRS):
                     sheet_targets[name] = 'xl/' + rel_map[rid]
 
-            # Contrôles A1 = synthèse mono-char (=$K$74), valeur cached MAJ par LO à chaque save.
-            # K63..K72 = 6 contrôles individuels (✓/✗/⚠) lus pour le détail au clic.
+            # Contrôles A1 = synthèse mono-char (=$K$80), valeur cached MAJ par LO à chaque save.
+            # _CTRL_CELLS = 7 contrôles individuels (✓/✗/⚠) lus pour le détail au clic.
             # Le tree XML est parsé une seule fois.
             ctrl = ''
-            tokens = ['✓'] * 6
+            tokens = ['✓'] * 7
             if SHEET_CONTROLES in sheet_targets:
                 with z.open(sheet_targets[SHEET_CONTROLES]) as f:
                     tree = ET.parse(f)
@@ -596,7 +596,7 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
                 from openpyxl import load_workbook
                 wb = load_workbook(self.xlsx_path, read_only=True, data_only=True)
                 ctrl, total = '', None
-                tokens = ['✓'] * 6
+                tokens = ['✓'] * 7
                 if SHEET_CONTROLES in wb.sheetnames:
                     ws = wb[SHEET_CONTROLES]
                     ctrl = str(ws['A1'].value or '').strip()
@@ -898,29 +898,31 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
 
         return auto_fixes, warnings
 
-    # 6 contrôles individuels lus dans Contrôles!K63..K67 + K72 (cf. _CTRL_CELLS).
-    # A1 = =$K$74 = synthèse mono-char globale ; le détail vient de la lecture directe.
+    # 7 contrôles individuels lus dans Contrôles (cf. _CTRL_CELLS).
+    # A1 = =$K$80 = synthèse mono-char globale ; le détail vient de la lecture directe.
     _CTRL_LABELS = [
         'Comptes (soldes)',
         'Catégories',
-        'Cohérence',
+        'Divers',
         'Appariements',
         'Balances',
         'Inconnus (comptes)',
+        'Formules',
     ]
     _CTRL_EXPLANATIONS = [
         'Écarts entre soldes calculés et soldes relevés',
         'Opération(s) sans catégorie connue',
-        'Date hors période attendue ou écart de ventilation Patrimoine',
+        'Date hors période / Ventilation Patrimoine / Cotations incomplètes',
         'Appariements incomplets',
         'Déséquilibre balances',
         'Compte(s) absent(s) de la feuille Avoirs',
+        'Synthèse PVL ou Avoirs en erreur (#N/A, #REF!, …)',
     ]
 
     def _on_status_click(self, event):
         """Affiche le détail des alertes dans la zone Résultat."""
         ctrl = getattr(self, '_status_ctrl', '')
-        tokens = getattr(self, '_status_tokens', ['✓'] * 6)
+        tokens = getattr(self, '_status_tokens', ['✓'] * 7)
         coherence = getattr(self, '_coherence_warnings', [])
         auto_fixes = getattr(self, '_coherence_auto_fixes', [])
         if not ctrl and not coherence and not auto_fixes:

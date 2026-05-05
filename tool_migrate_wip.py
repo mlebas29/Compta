@@ -28,6 +28,47 @@ Sections actuellement intégrées :
    sync_from_witness propage ensuite le contenu statique sur dimensions
    alignées.
 
+3. Alarmes formules sur synthèses + alarme métier Cotations
+   Pose des cellules d'alarme :
+   - Plus_value!B3   = ✗/✓ via ISERROR sur GRAND TOTAL pied (E + K).
+                       Détecte une rupture de calcul (#N/A, #REF!, …) sur
+                       la synthèse PVL.
+   - Avoirs!L1       = ✗/✓ via ISERROR sur Total pied (L{Total}).
+                       Détecte une rupture de calcul sur synthèse Avoirs.
+   - Cotations!B20   = ⚠/✓ alarme métier "completeness" :
+                       (a) devises utilisées (PVL/AVR) absentes de COTcode
+                       (b) codes COTcode présents mais cours vide
+   Note : pas de patch NA() sur les SUMPRODUCT PVL (essai initial → revert).
+   IFERROR(...; 1) reste : NA() polluerait cross-section dans SUMPRODUCT.
+
+4. Refonte Contrôles K65 'Cohérence' → 'Divers' + sous-lignes
+   Bascule du check monolithique date+Patrimoine vers pattern Balances :
+   - J{r65} renommé : 'Cohérence' → 'Divers'
+   - Insertion 3 sous-lignes (Date hors période / Ventilation Patrimoine
+     / Cotations) — chacune token ⚠/✓
+   - K{r65} (Affichage) en agrégateur : priorité ✗ > ⚠ > ✓ sur sous-lignes
+   - L{r65} (Général) = compteur sous-lignes alarme
+   La sous-ligne 'Cotations' pointe sur l'alarme métier Cotations!B20
+   (Section 3). UNO étend automatiquement les NRs CTRL2*.
+
+5. Insertion ligne 'Formules' + sous-lignes Avoirs / Plus_value
+   Nouveau header juste avant ⚓ basse :
+   - J{rN} = 'Formules' (header)
+   - 2 sous-lignes indentées : 'Avoirs' (count si L1=✗), 'Plus_value' (count si B3=✗)
+   - K{rN} en agrégateur SUM (niveau ✗ direct)
+   Mise à jour formule Synthèse (K{rSynth}) pour 7 tokens (au lieu de 6).
+
+6. Indentation des sous-lignes Balances existantes
+   Préfixe 4 espaces sur 'Virements €' / 'Titres €' / 'Changes Eq €' /
+   'Total €' pour cohérence visuelle avec les sous-lignes Divers et
+   Formules (pattern uniforme : sous-ligne = J indenté, K vide, L = valeur).
+
+7. Bump SCHEMA_VERSION 2 → 3
+   Le named range constante SCHEMA_VERSION du classeur passe de '2' à '3'
+   pour refléter la refonte CTRL2 (insertions rows + nouvelles cellules).
+   Sans ce bump, l'app détecte un mismatch au démarrage et bloque
+   (cf. inc_excel_schema.SCHEMA_VERSION = 3 et cpt_gui._check_schema_version).
+
 Idempotent : si déjà migré, ne fait rien.
 
 Usage:
@@ -54,6 +95,425 @@ CTRL2_NEW_LABEL = 'Cohérence'
 # Référence Patrimoine.D{target_row} construite dynamiquement (syntaxe UNO : point)
 
 BOLD = 150
+
+
+# ━━━ Section 3 helpers ━━━
+
+def _find_row_by_label(ws, label, col_0=0, max_row=300):
+    """Trouve la 1ère row 1-indexed dont la cellule en col_0 == label."""
+    for r in range(1, max_row + 1):
+        v = ws.getCellByPosition(col_0, uno_row(r)).getString().strip()
+        if v == label:
+            return r
+    return None
+
+
+def _section3_plus_value(ws_pvl, dry_run, changes):
+    """Pose Plus_value!B3 = alarme formule sur la synthèse GRAND TOTAL.
+
+    Surveille E (PVL) et K (PVLmontant) du GRAND TOTAL — si l'une des deux
+    est en erreur (#N/A, #REF!, #DIV/0!, #VALUE!…), c'est qu'une formule
+    en amont a planté. Référence le pied (cellule réelle de calcul), pas
+    la recopie tête. ISERROR = catch-all (vs ISNA seulement #N/A).
+    """
+    gt_row = _find_row_by_label(ws_pvl, 'GRAND TOTAL', col_0=0)
+    if gt_row is None:
+        return  # Pas de GRAND TOTAL : feuille vide, pas d'alarme à poser
+    b3_formula = f'=IF(OR(ISERROR(E{gt_row});ISERROR(K{gt_row}));"✗";"✓")'
+    b3 = ws_pvl.getCellByPosition(1, uno_row(3))  # B3
+    if b3.getFormula() != b3_formula:
+        if not dry_run:
+            b3.setFormula(b3_formula)
+        changes.append(
+            f"+ Plus_value!B3 = alarme formule (ISERROR E{gt_row}/K{gt_row} GRAND TOTAL)")
+
+
+def _section3_avoirs(ws_avr, dry_run, changes):
+    """Pose Avoirs!L1 = alarme formule sur la synthèse Total Avoirs.
+
+    Surveille L{Total} (= ROUND(SUM(AVRmontant_solde_euro),2)) — pied réel.
+    Référence le pied, pas la recopie L2.
+    Posé en L1 (col du montant, dans le tableau) plutôt que M2 (hors tableau).
+    ISERROR = catch-all (#N/A, #REF!, #DIV/0!, #VALUE!…).
+    """
+    total_row = _find_row_by_label(ws_avr, 'Total', col_0=0)
+    if total_row is None:
+        return
+    l1_formula = f'=IF(ISERROR(L{total_row});"✗";"✓")'
+    l1 = ws_avr.getCellByPosition(11, uno_row(1))  # L1 (col 11 0-based)
+    if l1.getFormula() != l1_formula:
+        if not dry_run:
+            l1.setFormula(l1_formula)
+        changes.append(
+            f"+ Avoirs!L1 = alarme formule (ISERROR L{total_row} Total pied)")
+    # Nettoyer M2 si héritage migration précédente (cell hors tableau)
+    m2 = ws_avr.getCellByPosition(12, uno_row(2))  # M2
+    f_m2 = m2.getFormula()
+    if f_m2.startswith('=IF(ISNA(L') or f_m2.startswith('=IF(ISERROR(L'):
+        if not dry_run:
+            m2.setString('')  # vide
+        changes.append("~ Avoirs!M2 nettoyée (héritage migration précédente)")
+
+
+# ━━━ Sections 4 & 5 helpers ━━━
+
+CTRL2_TYPE_COL = 9     # J
+CTRL2_DISPL_COL = 10   # K (Affichage — header uniquement, vide pour sous-lignes)
+CTRL2_GEN_COL = 11     # L (Général — valeur numérique des sous-lignes)
+CTRL2_EUR_COL = 12     # M (EUR)
+CTRL2_INDENT = '    '  # 4 espaces : indentation des sous-lignes (pattern Balances)
+
+
+def _ctrl2_find_row(ws_ctrl, cr, label):
+    """Trouve la 1ère row du bloc CTRL2 dont J == label (ou commence par label).
+
+    Bornes lues dynamiquement via NR CTRL2type (layout-agnostic) ; fallback
+    sur scan large (1..200) si NR absent.
+    """
+    try:
+        s, e = cr.rows('CTRL2type')
+    except Exception:
+        s, e = 1, 200
+    # Étendre légèrement pour capter les rows juste avant/après le NR
+    # (header CONTRÔLES, sentinelles ⚓, ligne Synthèse).
+    for r in range(max(1, s - 2), e + 5):
+        v = ws_ctrl.getCellByPosition(CTRL2_TYPE_COL, uno_row(r)).getString().strip()
+        if v == label or v.startswith(label):
+            return r
+    return None
+
+
+def _section4_divers(ws_ctrl, ws_pat, cr, dry_run, changes):
+    """Refonte K65 : renommage Cohérence→Divers + 3 sous-lignes en pattern Balances.
+
+    Idempotent : si une sous-ligne 'Date hors période' existe déjà juste
+    après K65, on ne refait rien.
+    """
+    # Localiser le header (Cohérence ou Divers ou Date selon état migration)
+    target_row = None
+    for label in ('Cohérence', 'Divers', 'Date'):
+        target_row = _ctrl2_find_row(ws_ctrl, cr, label)
+        if target_row is not None:
+            break
+    if target_row is None:
+        print("⚠ Section 4 : ligne Cohérence/Divers/Date introuvable — skip")
+        return
+
+    # Idempotence
+    next_label = ws_ctrl.getCellByPosition(
+        CTRL2_TYPE_COL, uno_row(target_row + 1)).getString().strip()
+    if next_label == 'Date hors période':
+        return  # Déjà migré
+
+    # Localiser Patrimoine D{r} (compteur écarts ventilation)
+    pat_d_row = None
+    for r in range(2, 200):
+        v = ws_pat.getCellByPosition(1, uno_row(r)).getString().strip()  # col B
+        if v == 'Erreurs':
+            pat_d_row = r
+            break
+
+    # Renommer J{target_row} en 'Divers'
+    j_cell = ws_ctrl.getCellByPosition(CTRL2_TYPE_COL, uno_row(target_row))
+    if j_cell.getString().strip() != 'Divers':
+        old = j_cell.getString().strip()
+        if not dry_run:
+            j_cell.setString('Divers')
+        changes.append(f"~ Contrôles!J{target_row} : '{old}' → 'Divers'")
+
+    # Insertion 3 rows juste après target_row
+    if not dry_run:
+        ws_ctrl.Rows.insertByIndex(uno_row(target_row + 1), 3)
+
+    r_date = target_row + 1
+    r_pat = target_row + 2
+    r_cot = target_row + 3
+
+    # Sous-lignes : J indenté, K vide, L = count numérique (agrégeable par SUM).
+
+    # Date hors période — count direct.
+    # Borne haute via NR `année_courante` (dynamique, suit l'année en cours)
+    # plutôt qu'un DATE hardcodé.
+    date_l = (
+        '=COUNTIF(OPdate;"<"&DATE(2020;1;1))'
+        '+COUNTIF(OPdate;">"&DATE(année_courante;12;31))'
+    )
+    if not dry_run:
+        ws_ctrl.getCellByPosition(CTRL2_TYPE_COL, uno_row(r_date)).setString(
+            CTRL2_INDENT + 'Date hors période')
+        ws_ctrl.getCellByPosition(CTRL2_DISPL_COL, uno_row(r_date)).setString('')
+        ws_ctrl.getCellByPosition(CTRL2_GEN_COL, uno_row(r_date)).setFormula(date_l)
+    changes.append(f"+ Contrôles row {r_date} : sous-ligne 'Date hors période'")
+
+    # Ventilation Patrimoine — pointeur Patrimoine.D{r} (déjà numérique)
+    if pat_d_row:
+        pat_l = f'=Patrimoine.D{pat_d_row}'
+    else:
+        pat_l = '0'
+        print("⚠ Section 4 : Patrimoine 'Erreurs' D{r} introuvable, sous-ligne posée à 0")
+    if not dry_run:
+        ws_ctrl.getCellByPosition(CTRL2_TYPE_COL, uno_row(r_pat)).setString(
+            CTRL2_INDENT + 'Ventilation Patrimoine')
+        ws_ctrl.getCellByPosition(CTRL2_DISPL_COL, uno_row(r_pat)).setString('')
+        ws_ctrl.getCellByPosition(CTRL2_GEN_COL, uno_row(r_pat)).setFormula(pat_l)
+    changes.append(f"+ Contrôles row {r_pat} : sous-ligne 'Ventilation Patrimoine'")
+
+    # Cotations — Cotations.B20 retourne token, transformer en count (1 si ⚠)
+    cot_l = '=IF(Cotations.B20="⚠";1;0)'
+    if not dry_run:
+        ws_ctrl.getCellByPosition(CTRL2_TYPE_COL, uno_row(r_cot)).setString(
+            CTRL2_INDENT + 'Cotations')
+        ws_ctrl.getCellByPosition(CTRL2_DISPL_COL, uno_row(r_cot)).setString('')
+        ws_ctrl.getCellByPosition(CTRL2_GEN_COL, uno_row(r_cot)).setFormula(cot_l)
+    changes.append(f"+ Contrôles row {r_cot} : sous-ligne 'Cotations'")
+
+    # Header K{target_row} (Divers) — pattern Balances : K dépend de L (qui agrège).
+    # Niveau ⚠ uniquement (pas de ✗ : aucune sous-ligne Divers ne propage ✗).
+    divers_k = f'=IF(L{target_row}>0;"⚠";"✓")'
+    divers_l = f'=SUM(L{r_date}:L{r_cot})'
+    if not dry_run:
+        ws_ctrl.getCellByPosition(CTRL2_DISPL_COL, uno_row(target_row)).setFormula(divers_k)
+        ws_ctrl.getCellByPosition(CTRL2_GEN_COL, uno_row(target_row)).setFormula(divers_l)
+    changes.append(f"~ Contrôles K{target_row}/L{target_row} : Divers en agrégateur pattern Balances")
+
+
+def _section5_formules(ws_ctrl, cr, dry_run, changes):
+    """Insère ligne 'Formules' juste après INCONNUS + 2 sous-lignes (PVL/AVR).
+
+    Idempotent : si 'Formules' existe déjà juste après INCONNUS, skip.
+    """
+    inconnus_row = _ctrl2_find_row(ws_ctrl, cr, 'INCONNUS')
+    if inconnus_row is None:
+        print("⚠ Section 5 : ligne INCONNUS introuvable — skip")
+        return
+
+    # Idempotence
+    next_label = ws_ctrl.getCellByPosition(
+        CTRL2_TYPE_COL, uno_row(inconnus_row + 1)).getString().strip()
+    if next_label == 'Formules':
+        return
+
+    # Vérification layout : ⚓ attendu juste après INCONNUS
+    if next_label != '⚓':
+        print(f"⚠ Section 5 : layout inattendu après INCONNUS row {inconnus_row} "
+              f"(trouvé '{next_label}', attendu '⚓') — skip")
+        return
+
+    # Insertion 3 rows juste après INCONNUS (avant ⚓)
+    if not dry_run:
+        ws_ctrl.Rows.insertByIndex(uno_row(inconnus_row + 1), 3)
+
+    r_form = inconnus_row + 1
+    r_avr = inconnus_row + 2   # Avoirs en premier (ordre alphabétique)
+    r_pvl = inconnus_row + 3   # Plus_value en second
+
+    # Sous-lignes : J indenté + nom complet feuille, K vide, L = count (1 si ✗)
+
+    # Avoirs (alphabétique en premier)
+    if not dry_run:
+        ws_ctrl.getCellByPosition(CTRL2_TYPE_COL, uno_row(r_avr)).setString(
+            CTRL2_INDENT + 'Avoirs')
+        ws_ctrl.getCellByPosition(CTRL2_DISPL_COL, uno_row(r_avr)).setString('')
+        ws_ctrl.getCellByPosition(CTRL2_GEN_COL, uno_row(r_avr)).setFormula(
+            '=IF(Avoirs.L1="✗";1;0)')
+    changes.append(f"+ Contrôles row {r_avr} : sous-ligne 'Avoirs'")
+
+    # Plus_value
+    if not dry_run:
+        ws_ctrl.getCellByPosition(CTRL2_TYPE_COL, uno_row(r_pvl)).setString(
+            CTRL2_INDENT + 'Plus_value')
+        ws_ctrl.getCellByPosition(CTRL2_DISPL_COL, uno_row(r_pvl)).setString('')
+        ws_ctrl.getCellByPosition(CTRL2_GEN_COL, uno_row(r_pvl)).setFormula(
+            '=IF(Plus_value.B3="✗";1;0)')
+    changes.append(f"+ Contrôles row {r_pvl} : sous-ligne 'Plus_value'")
+
+    # Header Formules — K dépend de L (qui agrège). Niveau ✗ (B3/L1 retournent ✗).
+    formules_k = f'=IF(L{r_form}>0;"✗";"✓")'
+    formules_l = f'=SUM(L{r_avr}:L{r_pvl})'
+    if not dry_run:
+        ws_ctrl.getCellByPosition(CTRL2_TYPE_COL, uno_row(r_form)).setString('Formules')
+        ws_ctrl.getCellByPosition(CTRL2_DISPL_COL, uno_row(r_form)).setFormula(formules_k)
+        ws_ctrl.getCellByPosition(CTRL2_GEN_COL, uno_row(r_form)).setFormula(formules_l)
+    changes.append(f"+ Contrôles row {r_form} : header 'Formules' (agrégateur Avoirs+Plus_value)")
+
+
+def _section_bump_schema_version(doc, dry_run, changes, target_version='3'):
+    """Bump le named range SCHEMA_VERSION du classeur (constante).
+
+    Idempotent : skip si déjà à la version cible.
+    """
+    import uno
+    nr = doc.document.NamedRanges
+    if not nr.hasByName('SCHEMA_VERSION'):
+        print("⚠ SCHEMA_VERSION absent — skip bump (classeur trop ancien ?)")
+        return
+    cur = nr.getByName('SCHEMA_VERSION').Content
+    if cur == target_version:
+        return
+    if not dry_run:
+        nr.removeByName('SCHEMA_VERSION')
+        pos = uno.createUnoStruct('com.sun.star.table.CellAddress')
+        pos.Sheet = 0
+        pos.Column = 0
+        pos.Row = 0
+        nr.addNewByName('SCHEMA_VERSION', target_version, pos, 0)
+    changes.append(f"~ SCHEMA_VERSION : {cur} → {target_version}")
+
+
+def _section_fix_headers_k_simple_ref(ws_ctrl, cr, dry_run, changes):
+    """Corrige les K headers Divers/Formules pour référencer L au lieu de SUM(L:L).
+
+    Idempotent. Si la formule contient SUM(...), la remplace par IF(L{r}>0,...).
+    Bug : SUM(L:L) dans IF empêche LO de propager le recalcul correctement —
+    K reste à "✓" alors que L bascule à >0.
+    """
+    for header_label, alarm_token in (('Divers', '⚠'), ('Formules', '✗')):
+        target_row = _ctrl2_find_row(ws_ctrl, cr, header_label)
+        if target_row is None:
+            continue
+        cell = ws_ctrl.getCellByPosition(CTRL2_DISPL_COL, uno_row(target_row))
+        f = cell.getFormula()
+        if 'SUM(L' not in f or 'IF(SUM' not in f:
+            continue
+        new_f = f'=IF(L{target_row}>0;"{alarm_token}";"✓")'
+        if not dry_run:
+            cell.setFormula(new_f)
+        changes.append(
+            f"~ Contrôles!K{target_row} ({header_label}) : SUM en double → IF(L{target_row}>0…)")
+
+
+def _section_fix_date_formula(ws_ctrl, cr, dry_run, changes):
+    """Corrige la formule L de la sous-ligne Date hors période existante.
+
+    Idempotent. Si la formule contient DATE(2030,1,1) (premier jet hardcodé),
+    la remplace par DATE(année_courante,12,31) pour suivre dynamiquement
+    l'année courante. Aucune action sinon.
+    """
+    target_row = _ctrl2_find_row(ws_ctrl, cr, 'Date hors période')
+    if target_row is None:
+        return
+    cell = ws_ctrl.getCellByPosition(CTRL2_GEN_COL, uno_row(target_row))
+    f = cell.getFormula()
+    if 'DATE(2030' not in f and 'DATE(2030,1,1)' not in f and 'DATE(2030;1;1)' not in f:
+        return
+    new_f = (
+        '=COUNTIF(OPdate;"<"&DATE(2020;1;1))'
+        '+COUNTIF(OPdate;">"&DATE(année_courante;12;31))'
+    )
+    if not dry_run:
+        cell.setFormula(new_f)
+    changes.append(
+        f"~ Contrôles!L{target_row} : DATE(2030,…) → DATE(année_courante,12,31)")
+
+
+def _section6_indent_balances(ws_ctrl, cr, dry_run, changes):
+    """Indenter les libellés des 4 sous-lignes Balances existantes.
+
+    Cohérence visuelle avec les nouvelles sous-lignes Divers et Formules.
+    """
+    for label in ('Virements €', 'Titres €', 'Changes Eq €', 'Total €'):
+        r = _ctrl2_find_row(ws_ctrl, cr, label)
+        if r is None:
+            continue
+        cell = ws_ctrl.getCellByPosition(CTRL2_TYPE_COL, uno_row(r))
+        cur = cell.getString()
+        if cur.startswith(CTRL2_INDENT):
+            continue  # déjà indenté
+        new = CTRL2_INDENT + cur.lstrip()
+        if not dry_run:
+            cell.setString(new)
+        changes.append(f"~ Contrôles!J{r} : '{cur.strip()}' indenté")
+
+
+def _section_synthese(ws_ctrl, cr, doc, dry_run, changes):
+    """Réécrit la formule Synthèse (K{rSynth}) pour 7 tokens.
+
+    Scanne les rows headers post-migration (positions actualisées par les
+    insertions des sections 4-5) et construit la concat dynamiquement.
+    Bornes via NR CTRL2type (layout-agnostic). Refresh cr préalable car les
+    insertions ont étendu les NRs côté UNO mais pas côté ColResolver cache.
+    """
+    cr.refresh(xdoc=doc.document)
+    headers = ['COMPTES', 'CATÉGORIES', 'Divers', 'Appariements',
+               'Balances', 'INCONNUS', 'Formules']
+    rows = {}
+    try:
+        s, e = cr.rows('CTRL2type')
+        scan_range = range(max(1, s - 2), e + 5)
+    except Exception:
+        scan_range = range(1, 200)
+    for r in scan_range:
+        v = ws_ctrl.getCellByPosition(CTRL2_TYPE_COL, uno_row(r)).getString().strip()
+        for lbl in headers:
+            if v == lbl or v.startswith(lbl):
+                rows[lbl] = r
+
+    missing = [h for h in headers if h not in rows]
+    if missing:
+        print(f"⚠ Synthèse : headers manquants {missing} — formule non mise à jour")
+        return
+
+    synth_row = _ctrl2_find_row(ws_ctrl, cr, 'Synthèse des contrôles')
+    if synth_row is None:
+        synth_row = _ctrl2_find_row(ws_ctrl, cr, 'Synthèse')
+    if synth_row is None:
+        return
+
+    k_concat = '&'.join(f'K{rows[h]}' for h in headers)
+    synth_k = (
+        f'=IF(ISNUMBER(FIND("✗";{k_concat}));"✗";'
+        f'IF(ISNUMBER(FIND("⚠";{k_concat}));"⚠";"✓"))'
+    )
+    cell = ws_ctrl.getCellByPosition(CTRL2_DISPL_COL, uno_row(synth_row))
+    if cell.getFormula() != synth_k:
+        if not dry_run:
+            cell.setFormula(synth_k)
+        changes.append(f"~ Contrôles K{synth_row} : Synthèse étendue à 7 tokens")
+
+
+def _section3_cotations(ws_cot, dry_run, changes):
+    """Pose Cotations!B20 = alarme métier 'completeness'.
+
+    Compte les devises utilisées (PVLdevise + AVRdevise) absentes de COTcode.
+    Si > 0, lacune de configuration → ⚠.
+    Pas de propagation #N/A toxique : COUNTIF ne plante pas sur lookup raté.
+    """
+    # Scanner pour ⚓ basse de la table cotations (pied)
+    anchor_row = None
+    for r in range(2, 100):
+        v = ws_cot.getCellByPosition(0, uno_row(r)).getString().strip()
+        if v == '⚓':
+            # 2 ⚓ : la 1re est tête (r3), la 2e est pied
+            if anchor_row is None:
+                anchor_row = r  # 1re trouvée
+            else:
+                anchor_row = r  # remplacée par la 2e (qui est le pied)
+                break
+    target_row = (anchor_row + 1) if anchor_row else 20  # par défaut B20
+    # Détecte 2 cas de lacune :
+    #  (a) devise utilisée (PVLdevise/AVRdevise) absente de COTcode
+    #  (b) devise présente dans COTcode mais sans cours (COTcours vide)
+    formula = (
+        '=IF('
+        # (a) Devises utilisées non listées
+        'SUMPRODUCT((COUNTIF(COTcode;PVLdevise)=0)*(PVLdevise<>""))'
+        '+SUMPRODUCT((COUNTIF(COTcode;AVRdevise)=0)*(AVRdevise<>""))'
+        # (b) Codes listés mais cours vide
+        '+SUMPRODUCT((COTcode<>"")*(COTcours=""))'
+        '>0;"⚠";"✓")'
+    )
+    cell = ws_cot.getCellByPosition(1, uno_row(target_row))  # col B (1)
+    if cell.getFormula() != formula:
+        if not dry_run:
+            cell.setFormula(formula)
+        changes.append(
+            f"+ Cotations!B{target_row} = alarme métier (devises non cotées)")
+    # Label en A pour lisibilité
+    label_cell = ws_cot.getCellByPosition(0, uno_row(target_row))
+    if label_cell.getString().strip() != 'Alarme cotations':
+        if not dry_run:
+            label_cell.setString('Alarme cotations')
+        changes.append(f"+ Cotations!A{target_row} = 'Alarme cotations'")
 
 
 def migrate(xlsm_path, dry_run=False):
@@ -217,6 +677,63 @@ def migrate(xlsm_path, dry_run=False):
                         ws_pat.getCellByPosition(leg_col_0, uno_row(insert_row)).setString('Tableau 2 feuille Contrôles')
                     changes.append(
                         f"+ Patrimoine!K{insert_row} = '{CTRL2_NEW_LABEL}' (insertion row CONV)")
+
+        # ━━━ Section 3 : alarmes formules sur synthèses + alarme métier Cotations ━━━
+        try:
+            _section3_plus_value(doc.get_sheet('Plus_value'), dry_run, changes)
+        except Exception as e:
+            print(f"⚠ Section 3 Plus_value : {e}")
+        try:
+            _section3_avoirs(doc.get_sheet('Avoirs'), dry_run, changes)
+        except Exception as e:
+            print(f"⚠ Section 3 Avoirs : {e}")
+        try:
+            _section3_cotations(doc.get_sheet('Cotations'), dry_run, changes)
+        except Exception as e:
+            print(f"⚠ Section 3 Cotations : {e}")
+
+        # ━━━ Section 5 : ligne Formules + sous-lignes (insertion bas) ━━━
+        # Faite AVANT Section 4 pour que les insertions ne se mêlent pas.
+        try:
+            _section5_formules(ws_ctrl, cr, dry_run, changes)
+        except Exception as e:
+            print(f"⚠ Section 5 : {e}")
+
+        # ━━━ Section 4 : refonte K65 Cohérence → Divers + sous-lignes ━━━
+        try:
+            _section4_divers(ws_ctrl, ws_pat, cr, dry_run, changes)
+        except Exception as e:
+            print(f"⚠ Section 4 : {e}")
+
+        # ━━━ Section 6 : indenter sous-lignes Balances existantes ━━━
+        try:
+            _section6_indent_balances(ws_ctrl, cr, dry_run, changes)
+        except Exception as e:
+            print(f"⚠ Section 6 : {e}")
+
+        # ━━━ Fix headers K Divers/Formules : SUM en double → IF(L>0,…) ━━━
+        try:
+            _section_fix_headers_k_simple_ref(ws_ctrl, cr, dry_run, changes)
+        except Exception as e:
+            print(f"⚠ Fix K headers : {e}")
+
+        # ━━━ Fix formule Date hors période (DATE(2030,…) → année_courante) ━━━
+        try:
+            _section_fix_date_formula(ws_ctrl, cr, dry_run, changes)
+        except Exception as e:
+            print(f"⚠ Fix Date : {e}")
+
+        # ━━━ Synthèse : recalibrage K{rSynth} pour 7 tokens ━━━
+        try:
+            _section_synthese(ws_ctrl, cr, doc, dry_run, changes)
+        except Exception as e:
+            print(f"⚠ Synthèse : {e}")
+
+        # ━━━ Bump SCHEMA_VERSION 2 → 3 (refonte CTRL2 + alarmes) ━━━
+        try:
+            _section_bump_schema_version(doc, dry_run, changes, target_version='3')
+        except Exception as e:
+            print(f"⚠ Bump SCHEMA_VERSION : {e}")
 
         if not changes:
             print(f"✓ {p.name} : déjà migré, rien à faire.")

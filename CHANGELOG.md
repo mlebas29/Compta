@@ -6,6 +6,23 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 - 🔧 = outil de migration du classeur de travail (mode assisté)
 - Détails dans Compta_upgrade.md
 
+## v4.0.6 📘 🔧
+| 2026-05-05         |                                                              |
+| ------------------ | ------------------------------------------------------------ |
+| Description        | Refonte **Alarmes** (ajouts, clarification, ré-org). Nouveau **doc PVL** |
+| Migration assistée | oui (`tool_migrate_wip.py` —  SCHEMA_VERSION 2 → 3)          |
+
+**Synthèse Contrôles complète après refonte :**
+
+- **Divers** — anciennement *Cohérence / Date*. Agrège  3 sous-lignes : *Date hors période*, *Ventilation Patrimoine*, *Cotations*.
+- **Formules** (nouveau) — Agrège 2 sous-lignes : *Avoirs*, *Plus_value*.
+
+`tool_controles.py` et la barre d'état GUI (cpt_gui) adaptés pour 7 tokens alarme.
+
+**Doctrine plus-value latente** — nouvelle documentation `Compta_pvl.md`
+
+
+
 ## v4.0.5
 | 2026-04-30           |                                                              |
 | -------------------- | ------------------------------------------------------------ |

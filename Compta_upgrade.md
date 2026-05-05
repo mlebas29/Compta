@@ -18,6 +18,27 @@ Au démarrage (mode assisté), l'app vérifie la `SCHEMA_VERSION` du classeur ; 
 Une version peut porter l'un, l'autre, ou les deux. Les sections ci-dessous suivent le même découpage.
 
 
+## v4.0.6 📘🔧 — Refonte alarmes Contrôles (requis)
+
+Schéma `SCHEMA_VERSION 2 → 3`.
+
+| Mode classeur | Mode assisté |
+| --- | --- |
+| Ajout 3 cellules d'alarmes + refonte tableau 2 feuille Contrôles | `tool_migrate_wip.py` (procédure ci-dessous). |
+
+*Procédure (LibreOffice fermé) :*
+
+```bash
+python3 tool_migrate_wip.py ~/Compta/comptes.xlsm
+```
+
+**Migration** :
+
+- Ajout 3 cellules d'alarme : `Plus_value!B3`, `Avoirs!L1`, `Cotations` en pied de tableau (`B20` dans `comptes_exemple.xlsx`).
+- Refonte du bloc *Contrôles* : renommage `Cohérence` → `Divers` + sous-lignes `Date hors période` / `Ventilation Patrimoine` / `Cotations` ; insertion ligne `Formules` + sous-lignes `Avoirs` / `Plus_value` ; indentation des sous-lignes existantes Balances ; recalibrage formule *Synthèse* (de 6 à 7 tokens).
+-  `SCHEMA_VERSION` 2 → 3.
+
+
 ## v4.0.4 — Pas de migration classeur
 
 

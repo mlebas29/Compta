@@ -153,25 +153,38 @@ Contenu = "✓" : rien à signaler
 
 Tous les autres cas sont signalés par un changement de couleur (format conditionnel : vert=OK, orange=warning, rouge=erreur) et sont à investiguer.
 
-La cellule A1 est une synthèse de 6 positions (concaténation de 6 symboles) :
+La cellule A1 est une synthèse de 7 positions (concaténation de 7 symboles) :
 
 | Position | Label | OK | Warning | Erreur | Signification |
 |----------|-------|----|---------|--------|---------------|
 | 1 | Comptes (soldes) | `✓` | | `✗` | Écarts entre soldes calculés et soldes relevés |
 | 2 | Catégories | `✓` | | `✗` | Opération(s) sans catégorie connue |
-| 3 | Cohérence | `✓` | `⚠` | | Date hors période attendue ou écart de ventilation Patrimoine |
+| 3 | Divers | `✓` | `⚠` | | Date hors période / Ventilation Patrimoine / Cotations incomplètes |
 | 4 | Appariements | `✓` | `⚠` | | Appariements incomplets |
 | 5 | Balances | `✓` | `⚠` | | Problème de balances |
 | 6 | Inconnus (comptes) | `✓` | | `✗` | Compte(s) absent(s) de la feuille Avoirs |
+| 7 | Formules | `✓` | | `✗` | Synthèse PVL ou Avoirs en erreur (#N/A, #REF!, …) |
 
-Exemples : `✓✓✓⚠⚠✓` = seuls appariements et balances à vérifier. `✗✓✓⚠✓✓` = erreur soldes + appariements incomplets.
+Exemples : `✓✓✓⚠⚠✓✓` = seuls appariements et balances à vérifier. `✗✓✓⚠✓✓✓` = erreur soldes + appariements incomplets. `✓✓✓✓✓✓✗` = la synthèse Avoirs ou Plus_value plante.
+
+Les contrôles **Divers** et **Balances** sont des agrégateurs : ils consolident plusieurs sous-contrôles détaillés (visibles dans le bloc *CTRL2* de la feuille Contrôles, en sous-lignes indentées) :
+
+- **Divers** : *Date hors période* (dates anormales en Opérations) + *Ventilation Patrimoine* (cumul des sections vs total global) + *Cotations* (devises utilisées en PVL/AVR mais absentes ou sans cours dans Cotations).
+- **Balances** : *Virements €* + *Titres €* + *Changes Eq €*.
+
+Le contrôle **Formules** est aussi un agrégateur : il pointe sur des cellules d'alarme locales posées dans les feuilles concernées :
+
+- `Plus_value!B3` — surveille la synthèse GRAND TOTAL (E + K). Bascule en `✗` si une formule en amont propage `#N/A`, `#REF!`, etc.
+- `Avoirs!L1` — surveille la synthèse Total Avoirs (`L{Total}`). Idem.
+
+Et le contrôle **Divers / Cotations** s'appuie sur l'alarme métier `Cotations!B20` (au pied de la table Cotations) qui détecte les lacunes de configuration : devise utilisée mais non listée dans COTcode, ou code listé sans cours associé.
 
 Diagnostic détaillé : `./tool_controles.py` (ou `-v` pour le mode verbeux).
 
 **Barre de statut GUI :**
 
 L'App affiche en permanence une barre de statut en bas de fenêtre avec deux zones :
-- **Statut** (gauche) : état des Contrôles, coloré selon 3 niveaux — vert (OK), orange (appariements/incohérence), rouge (COMPTES/CATÉGORIES/INCONNUS). Cliquable pour afficher le détail.
+- **Statut** (gauche) : état des Contrôles, coloré selon 3 niveaux — vert (OK), orange (Divers/Appariements/Balances), rouge (Comptes/Catégories/Inconnus/Formules). Cliquable pour afficher le détail des 7 contrôles.
 - **Total Avoirs** (droite) : total EUR lu depuis Avoirs L2 (cached value de la formule Total, mise à jour à chaque sauvegarde).
 
 **Checks de cohérence au démarrage GUI :**
