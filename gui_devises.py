@@ -822,7 +822,7 @@ class DevisesMixin:
         EUR est présent dans COTcode avec cours=1 ; IFERROR→1 couvre devise vide/inconnue.
         Note : la complétude de COTcode (toutes les devises utilisées sont cotées)
         est surveillée par l'alarme métier "Cotations" sur la feuille Cotations,
-        agrégée dans Contrôles!K65 'Divers'. NA() ici polluerait cross-section
+        agrégée dans Contrôles!K65 'DIVERS'. NA() ici polluerait cross-section
         (SUMPRODUCT itère sur toute la plage PVLdevise).
         Formule indépendante des devises présentes : plus de regénération nécessaire.
         """

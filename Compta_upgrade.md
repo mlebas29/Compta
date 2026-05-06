@@ -18,7 +18,7 @@ Au démarrage (mode assisté), l'app vérifie la `SCHEMA_VERSION` du classeur ; 
 Une version peut porter l'un, l'autre, ou les deux. Les sections ci-dessous suivent le même découpage.
 
 
-## v4.0.6 📘🔧 — Refonte alarmes Contrôles (requis)
+## v4.0.6 📘🔧 — Refonte alarmes classeur
 
 Schéma `SCHEMA_VERSION 2 → 3`.
 
@@ -39,13 +39,7 @@ python3 tool_migrate_wip.py ~/Compta/comptes.xlsm
 -  `SCHEMA_VERSION` 2 → 3.
 
 
-## v4.0.4 — Pas de migration classeur
-
-
-## v4.0.1 — Pas de migration classeur
-
-
-## v4.0.0 📘 🔧 — Refonte drill devise + charte v4 (requis)
+## v4.0.0 📘 🔧 — Devises N-->1 colonne + charte graphique 
 
 Schéma `SCHEMA_VERSION 1 → 2`.
 
@@ -72,7 +66,7 @@ python3 tool_audit_formats.py ~/Compta/comptes.xlsm    # 0 violation attendu
 ```
 
 
-## v3.5.8 🔧 — Contrôle 2 balances *(intégré dans v4)*
+## v3.5.8 🔧 — Alarmes balances 
 
 Pour un classeur passant directement à v4, ce fix est inclus dans `tool_migrate_schema_v2.py`. L'outil `tool_migrate_ctrl2_balances.py` n'est plus livré en v4. Section conservée pour mémoire.
 
@@ -88,7 +82,7 @@ python3 tool_migrate_ctrl2_balances.py ~/Compta/comptes.xlsm
 ```
 
 
-## v3.5.7 📘 🔧 — Plus-value : ancrage dynamique sur `#Solde` (recommandé)
+## v3.5.7 📘 🔧 — Plus-value : ancrage dynamique sur `#Solde`
 
 Concerne les sections **métaux / crypto / devises** de `Plus_value` et les colonnes *AVRdate_anter* / *AVRmontant_anter* d'`Avoirs`.
 
@@ -105,7 +99,7 @@ python3 Claude/tool_migrate_pvl_ancrage.py comptes.xlsm
 L'option `--dry-run` simule sans sauvegarder.
 
 
-## v3.5.6 📘 — Pieds Budget en plage auto-extensible (cosmétique)
+## v3.5.6 📘 — Pieds Budget en plage auto-extensible 
 
 Nécessaire uniquement si le classeur a été initialisé avec un modèle ≤ v3.5.5 **et** que des catégories / postes ont été ajoutés directement dans le tableur sans passer par la GUI.
 
@@ -119,7 +113,7 @@ Nécessaire uniquement si le classeur a été initialisé avec un modèle ≤ v3
 Cet outil applique le fix annoncé en v3.5.2 — voir §v3.5.2 pour la procédure (`tool_migrate_ctrl2_formulas.py`).
 
 
-## v3.5.3 📘 🔧 — Formules PVL multi-devise génériques (optionnel)
+## v3.5.3 📘 🔧 — Formules PVL multi-devise génériques 
 
 Concerne le pied `TOTAL portefeuilles` et le `Total` des blocs portefeuille multi-devise de `Plus_value`.
 
@@ -135,7 +129,7 @@ python3 tool_migrate_pvl_totals.py ~/Compta/comptes.xlsm
 Sortie sans ligne `Δ` = migration transparente (aucun écart de valeur).
 
 
-## v3.5.2 📘 — Détection d'erreur Comptes multi-devises *(intégré dans v4)*
+## v3.5.2 📘 — Détection d'erreur Comptes multi-devises
 
 Pour un classeur passant directement à v4, ce fix est inclus dans `tool_migrate_schema_v2.py`. L'outil `tool_migrate_ctrl2_formulas.py` n'est plus livré en v4. Section conservée pour mémoire.
 
@@ -153,7 +147,7 @@ python3 tool_migrate_ctrl2_formulas.py ~/Compta/comptes.xlsm
 
 ## v3.2.0 — `SCHEMA_VERSION 1`
 
-Première version avec schéma versionné (named ranges colonnes + named range `SCHEMA_VERSION` = 1).
+Première version avec schéma classeur versionné (named ranges colonnes + named range `SCHEMA_VERSION` = 1).
 
 **Depuis un classeur sans version (antérieur à app v3.2) :**
 

@@ -9,24 +9,27 @@ version »).
 
 Sections actuellement intégrées :
 
-1. Alarme Patrimoine + CTRL2 'Cohérence'
+1. Alarme Patrimoine + CTRL2 'DIVERS'
    Pose dans le classeur cible (positions identifiées dynamiquement) :
    - Patrimoine!B{r}  = "Erreurs"   où r = dernier TOTAL + 2 (ligne pied)
    - Patrimoine!D{r}  = compteur de ventilations en écart > 0.5 EUR
                        (entier 0..5, en gras)
-   - Contrôles : ligne 'Date' renommée 'Cohérence' (identifiée via NR
-     CTRL2type), formule de la colonne 'Général' (CTRL2general) étendue
-     avec +Patrimoine.D{r}.
+   - Contrôles : ligne 'Date' renommée 'DIVERS' (identifiée via NR
+     CTRL2type ; variantes legacy 'Cohérence'/'Divers' reconnues),
+     formule de la colonne 'Général' (CTRL2general) étendue avec
+     +Patrimoine.D{r}.
    CF rouge sur D{r} (warning si ≠ 0) : à poser à la main dans LibreOffice.
 
-2. Ligne CONV 'Cohérence' (label réservé)
+2. Ligne CONV 'DIVERS' (label réservé)
    Insertion d'une row dans le tableau CONV (Patrimoine, NRs CONVnom/cell/
-   légende) juste après la ligne K=='COMPTES', avec K=Cohérence /
+   légende) juste après la ligne K=='COMPTES', avec K=DIVERS /
    L='Tableau 2 feuille Contrôles'. UNO étend automatiquement les 3 NRs
-   couvrant la zone. Convention : la chirurgie structurelle (insertion
-   row + redim NR) reste de la responsabilité de cette migration ; tool_
-   sync_from_witness propage ensuite le contenu statique sur dimensions
-   alignées.
+   couvrant la zone. Idempotence étendue : si une variante legacy
+   ('Cohérence'/'Divers') existe déjà, on la renomme en 'DIVERS' (au lieu
+   de re-insérer), corrigeant l'écart entre CONV et le label tab2.
+   Convention : la chirurgie structurelle (insertion row + redim NR) reste
+   de la responsabilité de cette migration ; tool_sync_from_witness
+   propage ensuite le contenu statique sur dimensions alignées.
 
 3. Alarmes formules sur synthèses + alarme métier Cotations
    Pose des cellules d'alarme :
@@ -41,9 +44,9 @@ Sections actuellement intégrées :
    Note : pas de patch NA() sur les SUMPRODUCT PVL (essai initial → revert).
    IFERROR(...; 1) reste : NA() polluerait cross-section dans SUMPRODUCT.
 
-4. Refonte Contrôles K65 'Cohérence' → 'Divers' + sous-lignes
+4. Refonte Contrôles K65 → 'DIVERS' + sous-lignes
    Bascule du check monolithique date+Patrimoine vers pattern Balances :
-   - J{r65} renommé : 'Cohérence' → 'Divers'
+   - J{r65} renommé : ('Date' | 'Cohérence' | 'Divers') → 'DIVERS'
    - Insertion 3 sous-lignes (Date hors période / Ventilation Patrimoine
      / Cotations) — chacune token ⚠/✓
    - K{r65} (Affichage) en agrégateur : priorité ✗ > ⚠ > ✓ sur sous-lignes
@@ -51,9 +54,9 @@ Sections actuellement intégrées :
    La sous-ligne 'Cotations' pointe sur l'alarme métier Cotations!B20
    (Section 3). UNO étend automatiquement les NRs CTRL2*.
 
-5. Insertion ligne 'Formules' + sous-lignes Avoirs / Plus_value
+5. Insertion ligne 'FORMULES' + sous-lignes Avoirs / Plus_value
    Nouveau header juste avant ⚓ basse :
-   - J{rN} = 'Formules' (header)
+   - J{rN} = 'FORMULES' (header ; variante legacy 'Formules' reconnue)
    - 2 sous-lignes indentées : 'Avoirs' (count si L1=✗), 'Plus_value' (count si B3=✗)
    - K{rN} en agrégateur SUM (niveau ✗ direct)
    Mise à jour formule Synthèse (K{rSynth}) pour 7 tokens (au lieu de 6).
@@ -90,8 +93,13 @@ PAT_FORMULA_COL_0 = 3  # D
 PAT_LABEL = 'Erreurs'
 PAT_TOLERANCE = 0.5  # EUR, seuil d'arrondi pour considérer un écart de ventilation
 
-CTRL2_OLD_LABEL = 'Date'
-CTRL2_NEW_LABEL = 'Cohérence'
+CTRL2_OLD_LABEL = 'Date'           # label v3.x (avant migration)
+CTRL2_NEW_LABEL = 'DIVERS'         # label cible v4.1 (MAJUSCULES)
+# Variantes intermédiaires reconnues pour idempotence sur classeurs partiellement migrés
+CTRL2_VARIANT_LABELS = ('Cohérence', 'Divers')
+# Idem pour Section 5 (FORMULES)
+CTRL2_FORMULES_LABEL = 'FORMULES'
+CTRL2_FORMULES_VARIANTS = ('Formules',)
 # Référence Patrimoine.D{target_row} construite dynamiquement (syntaxe UNO : point)
 
 BOLD = 150
@@ -184,19 +192,20 @@ def _ctrl2_find_row(ws_ctrl, cr, label):
 
 
 def _section4_divers(ws_ctrl, ws_pat, cr, dry_run, changes):
-    """Refonte K65 : renommage Cohérence→Divers + 3 sous-lignes en pattern Balances.
+    """Refonte K65 : renommage → DIVERS + 3 sous-lignes en pattern Balances.
 
     Idempotent : si une sous-ligne 'Date hors période' existe déjà juste
-    après K65, on ne refait rien.
+    après K65, on ne refait rien. Reconnaît variantes legacy 'Date'
+    (v3.x), 'Cohérence' (migration partielle), 'Divers' (Title case).
     """
-    # Localiser le header (Cohérence ou Divers ou Date selon état migration)
+    # Localiser le header (DIVERS, ou variante legacy)
     target_row = None
-    for label in ('Cohérence', 'Divers', 'Date'):
+    for label in (CTRL2_NEW_LABEL, *CTRL2_VARIANT_LABELS, CTRL2_OLD_LABEL):
         target_row = _ctrl2_find_row(ws_ctrl, cr, label)
         if target_row is not None:
             break
     if target_row is None:
-        print("⚠ Section 4 : ligne Cohérence/Divers/Date introuvable — skip")
+        print(f"⚠ Section 4 : ligne {CTRL2_NEW_LABEL}/variantes/Date introuvable — skip")
         return
 
     # Idempotence
@@ -213,13 +222,13 @@ def _section4_divers(ws_ctrl, ws_pat, cr, dry_run, changes):
             pat_d_row = r
             break
 
-    # Renommer J{target_row} en 'Divers'
+    # Renommer J{target_row} en 'DIVERS'
     j_cell = ws_ctrl.getCellByPosition(CTRL2_TYPE_COL, uno_row(target_row))
-    if j_cell.getString().strip() != 'Divers':
+    if j_cell.getString().strip() != CTRL2_NEW_LABEL:
         old = j_cell.getString().strip()
         if not dry_run:
-            j_cell.setString('Divers')
-        changes.append(f"~ Contrôles!J{target_row} : '{old}' → 'Divers'")
+            j_cell.setString(CTRL2_NEW_LABEL)
+        changes.append(f"~ Contrôles!J{target_row} : '{old}' → '{CTRL2_NEW_LABEL}'")
 
     # Insertion 3 rows juste après target_row
     if not dry_run:
@@ -267,30 +276,40 @@ def _section4_divers(ws_ctrl, ws_pat, cr, dry_run, changes):
         ws_ctrl.getCellByPosition(CTRL2_GEN_COL, uno_row(r_cot)).setFormula(cot_l)
     changes.append(f"+ Contrôles row {r_cot} : sous-ligne 'Cotations'")
 
-    # Header K{target_row} (Divers) — pattern Balances : K dépend de L (qui agrège).
-    # Niveau ⚠ uniquement (pas de ✗ : aucune sous-ligne Divers ne propage ✗).
+    # Header K{target_row} (DIVERS) — pattern Balances : K dépend de L (qui agrège).
+    # Niveau ⚠ uniquement (pas de ✗ : aucune sous-ligne DIVERS ne propage ✗).
     divers_k = f'=IF(L{target_row}>0;"⚠";"✓")'
     divers_l = f'=SUM(L{r_date}:L{r_cot})'
     if not dry_run:
         ws_ctrl.getCellByPosition(CTRL2_DISPL_COL, uno_row(target_row)).setFormula(divers_k)
         ws_ctrl.getCellByPosition(CTRL2_GEN_COL, uno_row(target_row)).setFormula(divers_l)
-    changes.append(f"~ Contrôles K{target_row}/L{target_row} : Divers en agrégateur pattern Balances")
+    changes.append(f"~ Contrôles K{target_row}/L{target_row} : DIVERS en agrégateur pattern Balances")
 
 
 def _section5_formules(ws_ctrl, cr, dry_run, changes):
-    """Insère ligne 'Formules' juste après INCONNUS + 2 sous-lignes (PVL/AVR).
+    """Insère ligne 'FORMULES' juste après INCONNUS + 2 sous-lignes (PVL/AVR).
 
-    Idempotent : si 'Formules' existe déjà juste après INCONNUS, skip.
+    Idempotent : si 'FORMULES' (ou variante legacy 'Formules') existe déjà
+    juste après INCONNUS, skip — et renomme la variante en MAJ si trouvée.
     """
     inconnus_row = _ctrl2_find_row(ws_ctrl, cr, 'INCONNUS')
     if inconnus_row is None:
         print("⚠ Section 5 : ligne INCONNUS introuvable — skip")
         return
 
-    # Idempotence
+    # Idempotence : reconnaître la cible et toutes les variantes legacy
     next_label = ws_ctrl.getCellByPosition(
         CTRL2_TYPE_COL, uno_row(inconnus_row + 1)).getString().strip()
-    if next_label == 'Formules':
+    if next_label == CTRL2_FORMULES_LABEL:
+        return
+    if next_label in CTRL2_FORMULES_VARIANTS:
+        # Migration partielle : renommer le header en MAJ et continuer (la suite
+        # est idempotente sur les sous-lignes/formules, qui ne dépendent pas de la casse).
+        cell = ws_ctrl.getCellByPosition(CTRL2_TYPE_COL, uno_row(inconnus_row + 1))
+        if not dry_run:
+            cell.setString(CTRL2_FORMULES_LABEL)
+        changes.append(
+            f"~ Contrôles!J{inconnus_row + 1} : '{next_label}' → '{CTRL2_FORMULES_LABEL}'")
         return
 
     # Vérification layout : ⚓ attendu juste après INCONNUS
@@ -327,14 +346,14 @@ def _section5_formules(ws_ctrl, cr, dry_run, changes):
             '=IF(Plus_value.B3="✗";1;0)')
     changes.append(f"+ Contrôles row {r_pvl} : sous-ligne 'Plus_value'")
 
-    # Header Formules — K dépend de L (qui agrège). Niveau ✗ (B3/L1 retournent ✗).
+    # Header FORMULES — K dépend de L (qui agrège). Niveau ✗ (B3/L1 retournent ✗).
     formules_k = f'=IF(L{r_form}>0;"✗";"✓")'
     formules_l = f'=SUM(L{r_avr}:L{r_pvl})'
     if not dry_run:
-        ws_ctrl.getCellByPosition(CTRL2_TYPE_COL, uno_row(r_form)).setString('Formules')
+        ws_ctrl.getCellByPosition(CTRL2_TYPE_COL, uno_row(r_form)).setString(CTRL2_FORMULES_LABEL)
         ws_ctrl.getCellByPosition(CTRL2_DISPL_COL, uno_row(r_form)).setFormula(formules_k)
         ws_ctrl.getCellByPosition(CTRL2_GEN_COL, uno_row(r_form)).setFormula(formules_l)
-    changes.append(f"+ Contrôles row {r_form} : header 'Formules' (agrégateur Avoirs+Plus_value)")
+    changes.append(f"+ Contrôles row {r_form} : header '{CTRL2_FORMULES_LABEL}' (agrégateur Avoirs+Plus_value)")
 
 
 def _section_bump_schema_version(doc, dry_run, changes, target_version='3'):
@@ -361,13 +380,13 @@ def _section_bump_schema_version(doc, dry_run, changes, target_version='3'):
 
 
 def _section_fix_headers_k_simple_ref(ws_ctrl, cr, dry_run, changes):
-    """Corrige les K headers Divers/Formules pour référencer L au lieu de SUM(L:L).
+    """Corrige les K headers DIVERS/FORMULES pour référencer L au lieu de SUM(L:L).
 
     Idempotent. Si la formule contient SUM(...), la remplace par IF(L{r}>0,...).
     Bug : SUM(L:L) dans IF empêche LO de propager le recalcul correctement —
     K reste à "✓" alors que L bascule à >0.
     """
-    for header_label, alarm_token in (('Divers', '⚠'), ('Formules', '✗')):
+    for header_label, alarm_token in ((CTRL2_NEW_LABEL, '⚠'), (CTRL2_FORMULES_LABEL, '✗')):
         target_row = _ctrl2_find_row(ws_ctrl, cr, header_label)
         if target_row is None:
             continue
@@ -434,8 +453,8 @@ def _section_synthese(ws_ctrl, cr, doc, dry_run, changes):
     insertions ont étendu les NRs côté UNO mais pas côté ColResolver cache.
     """
     cr.refresh(xdoc=doc.document)
-    headers = ['COMPTES', 'CATÉGORIES', 'Divers', 'Appariements',
-               'Balances', 'INCONNUS', 'Formules']
+    headers = ['COMPTES', 'CATÉGORIES', 'DIVERS', 'APPARIEMENTS',
+               'BALANCES', 'INCONNUS', 'FORMULES']
     rows = {}
     try:
         s, e = cr.rows('CTRL2type')
@@ -579,22 +598,23 @@ def migrate(xlsm_path, dry_run=False):
                 d_cell.CharWeight = BOLD
             changes.append(f"+ Patrimoine!D{pat_row} bold")
 
-        # --- Contrôles : ligne 'Date' / 'Cohérence' via NR CTRL2type ---
+        # --- Contrôles : ligne 'Date' (v3.x) / 'Cohérence' / 'Divers' / 'DIVERS' via NR CTRL2type ---
         ctrl2_s, ctrl2_e = cr.rows('CTRL2type')
         type_col = cr.col('CTRL2type')
         gen_col = cr.col('CTRL2general')
 
+        recognized_labels = (CTRL2_OLD_LABEL, CTRL2_NEW_LABEL, *CTRL2_VARIANT_LABELS)
         target_row = None
         for r in range(ctrl2_s, ctrl2_e + 1):
             val = ws_ctrl.getCellByPosition(type_col, uno_row(r)).getString().strip()
-            if val in (CTRL2_OLD_LABEL, CTRL2_NEW_LABEL):
+            if val in recognized_labels:
                 target_row = r
                 break
 
         if target_row is None:
-            print(f"⚠ Ni '{CTRL2_OLD_LABEL}' ni '{CTRL2_NEW_LABEL}' trouvé dans CTRL2type — skip Contrôles")
+            print(f"⚠ Aucun label parmi {recognized_labels} trouvé dans CTRL2type — skip Contrôles")
         else:
-            # Renommer si besoin
+            # Renommer si besoin (cible : MAJUSCULES)
             j_cell = ws_ctrl.getCellByPosition(type_col, uno_row(target_row))
             if j_cell.getString().strip() != CTRL2_NEW_LABEL:
                 old = j_cell.getString().strip()
@@ -639,7 +659,7 @@ def migrate(xlsm_path, dry_run=False):
                     l_cell.NumberFormat = fmt_nb
                 changes.append(f"+ Contrôles!L{target_row} format = nombre entier")
 
-        # ━━━ Section 2 : ligne CONV 'Cohérence' (label réservé) ━━━
+        # ━━━ Section 2 : ligne CONV 'DIVERS' (label réservé) ━━━
         conv_s, conv_e = cr.rows('CONVnom')
         if not conv_s:
             print("⚠ NR CONVnom introuvable — skip CONV row")
@@ -648,15 +668,32 @@ def migrate(xlsm_path, dry_run=False):
             cell_col_0 = conv_col_0 + 1   # K
             leg_col_0 = conv_col_0 + 2    # L
 
-            # Idempotent : si 'Cohérence' déjà présent dans la col K du body, skip.
-            already = False
+            # Idempotence étendue (corrige aussi #52) :
+            #   - 'DIVERS' déjà là → rien à faire
+            #   - variante legacy ('Cohérence' / 'Divers') → renommer en 'DIVERS'
+            #   - rien → insérer une row avec 'DIVERS'
+            existing_row = None       # row où une variante a été trouvée
+            already_dest = False      # 'DIVERS' déjà posé
             for r in range(conv_s, conv_e + 1):
                 v = ws_pat.getCellByPosition(cell_col_0, uno_row(r)).getString().strip()
                 if v == CTRL2_NEW_LABEL:
-                    already = True
+                    already_dest = True
+                    break
+                if v in CTRL2_VARIANT_LABELS:
+                    existing_row = r
                     break
 
-            if not already:
+            if already_dest:
+                pass  # déjà migré
+            elif existing_row is not None:
+                # Renommage in place (correction #52)
+                cell = ws_pat.getCellByPosition(cell_col_0, uno_row(existing_row))
+                old = cell.getString().strip()
+                if not dry_run:
+                    cell.setString(CTRL2_NEW_LABEL)
+                changes.append(
+                    f"~ Patrimoine!K{existing_row} : '{old}' → '{CTRL2_NEW_LABEL}' (CONV)")
+            else:
                 # Insertion juste après la ligne K=='COMPTES' (groupe sémantique
                 # "Tableau 2 feuille Contrôles"). Layout-agnostic : pas de row
                 # hardcodée, on scan le label.

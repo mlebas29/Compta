@@ -901,13 +901,13 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
     # 7 contrôles individuels lus dans Contrôles (cf. _CTRL_CELLS).
     # A1 = =$K$80 = synthèse mono-char globale ; le détail vient de la lecture directe.
     _CTRL_LABELS = [
-        'Comptes (soldes)',
-        'Catégories',
-        'Divers',
-        'Appariements',
-        'Balances',
-        'Inconnus (comptes)',
-        'Formules',
+        'COMPTES',
+        'CATÉGORIES',
+        'DIVERS',
+        'APPARIEMENTS',
+        'BALANCES',
+        'INCONNUS',
+        'FORMULES',
     ]
     _CTRL_EXPLANATIONS = [
         'Écarts entre soldes calculés et soldes relevés',

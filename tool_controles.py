@@ -48,13 +48,13 @@ def read_a1_status(sheet):
 # A1 = =$K$80 ne fournit qu'un symbole global ; le détail se lit directement ici.
 _CTRL_CELLS = [(10, 62), (10, 63), (10, 64), (10, 68), (10, 69), (10, 74), (10, 75)]
 _CTRL_LABELS = [
-    'Comptes (soldes)',
-    'Catégories',
-    'Divers',
-    'Appariements',
-    'Balances',
-    'Inconnus (comptes)',
-    'Formules',
+    'COMPTES',
+    'CATÉGORIES',
+    'DIVERS',
+    'APPARIEMENTS',
+    'BALANCES',
+    'INCONNUS',
+    'FORMULES',
 ]
 _CTRL_EXPLANATIONS = [
     'Écarts entre soldes calculés et soldes relevés',
@@ -455,7 +455,7 @@ Codes de sortie:
             else:
                 print_ctrl_summary(tokens)
 
-                # Position 0=Comptes, 1=Catégories, 2=Cohérence, 3=Appariements, 4=Balances, 5=Inconnus
+                # Position 0=COMPTES, 1=CATÉGORIES, 2=DIVERS, 3=APPARIEMENTS, 4=BALANCES, 5=INCONNUS, 6=FORMULES
                 has_comptes = tokens[0] == '✗'
                 has_categories = tokens[1] == '✗'
                 has_comptes_inconnus = tokens[5] == '✗'

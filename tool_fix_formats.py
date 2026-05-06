@@ -193,7 +193,7 @@ def fix_budget(doc, apply):
         devises.append((c, val))
 
     if not devises:
-        print("  (aucune devise trouvée)")
+        print("  (aucune devise étrangère)")
         return 0
 
     # La colonne "Total € au cours du jour" (CATtotal_euro) est en EUR par définition :
