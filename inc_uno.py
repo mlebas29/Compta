@@ -183,6 +183,136 @@ def letter_of(xdoc, name):
     return result
 
 
+# ━━━ Helpers Conditional Format ━━━
+#
+# Les classeurs Compta utilisent 2 patterns de CF d'alarme :
+#   1. Token ✗/⚠ (cellules de synthèse) : 2 conditions FIND("✗") puis FIND("⚠")
+#      avec styles ConditionalStyle_2 (rouge) / ConditionalStyle_3 (orange).
+#   2. ISERROR (pieds montants surveillés) : 1 condition ISERROR(self) avec
+#      style ConditionalStyle_2 (rouge) — colore la cellule si formule plante.
+#
+# Les styles ConditionalStyle_2/3 sont créés par les CF d'origine du témoin
+# (mappés par LO depuis dxfId 1/2 du xlsm). Les helpers ci-dessous les réutilisent.
+#
+# Note séparateur : UNO veut ; (PAS , — sinon Err 509). Openpyxl relit en virgules
+# à l'écriture xlsx, c'est attendu.
+
+CF_STYLE_ERROR = 'ConditionalStyle_2'
+CF_STYLE_WARN = 'ConditionalStyle_3'
+CF_FORMULA_ERROR = 'NOT(ISERROR(FIND("✗";INDIRECT("RC";0))))'
+CF_FORMULA_WARN = 'NOT(ISERROR(FIND("⚠";INDIRECT("RC";0))))'
+CF_FORMULA_ISERROR = 'ISERROR(INDIRECT("RC";0))'
+
+
+def _make_cf_prop(name, value):
+    """Construit un PropertyValue UNO pour addNew sur ConditionalFormat."""
+    pv = uno.createUnoStruct('com.sun.star.beans.PropertyValue')
+    pv.Name = name
+    pv.Value = value
+    return pv
+
+
+def has_alarm_cf(cell):
+    """Vrai si la cellule porte les 2 conditions FIND("✗") et FIND("⚠")."""
+    cf = cell.ConditionalFormat
+    if cf.Count < 2:
+        return False
+    has_x = False
+    has_w = False
+    for i in range(cf.Count):
+        f = cf.getByIndex(i).Formula1
+        if '"✗"' in f and 'FIND' in f:
+            has_x = True
+        if '"⚠"' in f and 'FIND' in f:
+            has_w = True
+    return has_x and has_w
+
+
+def has_iserror_cf(cell):
+    """Vrai si la cellule porte la CF ISERROR(INDIRECT("RC";0))."""
+    cf = cell.ConditionalFormat
+    for i in range(cf.Count):
+        f = cf.getByIndex(i).Formula1
+        if 'ISERROR' in f and 'INDIRECT' in f and 'FIND' not in f:
+            return True
+    return False
+
+
+def set_alarm_cf(cell):
+    """(Re)pose les 2 CF d'alarme ✗/⚠. clear() préalable.
+
+    Utiliser après check has_alarm_cf() pour idempotence, ou sur cellule
+    connue sans autre CF (le clear() supprime tout).
+    """
+    from com.sun.star.sheet.ConditionOperator import FORMULA
+    cf = cell.ConditionalFormat
+    cf.clear()
+    cf.addNew((
+        _make_cf_prop('Operator', FORMULA),
+        _make_cf_prop('Formula1', CF_FORMULA_ERROR),
+        _make_cf_prop('StyleName', CF_STYLE_ERROR),
+    ))
+    cf.addNew((
+        _make_cf_prop('Operator', FORMULA),
+        _make_cf_prop('Formula1', CF_FORMULA_WARN),
+        _make_cf_prop('StyleName', CF_STYLE_WARN),
+    ))
+    cell.ConditionalFormat = cf
+
+
+def set_iserror_cf(cell):
+    """Pose une CF qui colore la cellule en rouge si la formule plante.
+
+    Pieds montants surveillés (E{GT}/E3 PVL, L{Total}/L2 AVR) : si la SUM/
+    SUMPRODUCT propage une erreur (#N/A, #REF!, #DIV/0!, #VALUE!), la
+    cellule s'allume directement, complétant la synthèse via B3/L1.
+
+    clear() préalable. Utiliser après check has_iserror_cf() pour idempotence.
+    """
+    from com.sun.star.sheet.ConditionOperator import FORMULA
+    cf = cell.ConditionalFormat
+    cf.clear()
+    cf.addNew((
+        _make_cf_prop('Operator', FORMULA),
+        _make_cf_prop('Formula1', CF_FORMULA_ISERROR),
+        _make_cf_prop('StyleName', CF_STYLE_ERROR),
+    ))
+    cell.ConditionalFormat = cf
+
+
+def has_nonzero_cf(cell):
+    """Vrai si la cellule porte une CF cellIs NOT_EQUAL 0 (style rouge)."""
+    from com.sun.star.sheet.ConditionOperator import NOT_EQUAL
+    cf = cell.ConditionalFormat
+    for i in range(cf.Count):
+        e = cf.getByIndex(i)
+        try:
+            if e.Operator == NOT_EQUAL and e.Formula1 == '0':
+                return True
+        except Exception:
+            pass
+    return False
+
+
+def set_nonzero_cf(cell):
+    """Pose une CF qui colore la cellule en rouge si elle est différente de 0.
+
+    Pattern « cellIs notEqual 0 » répandu dans les classeurs Compta pour les
+    pieds compteurs d'écart (Patrimoine!D{Erreurs}, Budget pieds POSTES/CAT).
+
+    clear() préalable. Utiliser après check has_nonzero_cf() pour idempotence.
+    """
+    from com.sun.star.sheet.ConditionOperator import NOT_EQUAL
+    cf = cell.ConditionalFormat
+    cf.clear()
+    cf.addNew((
+        _make_cf_prop('Operator', NOT_EQUAL),
+        _make_cf_prop('Formula1', '0'),
+        _make_cf_prop('StyleName', CF_STYLE_ERROR),
+    ))
+    cell.ConditionalFormat = cf
+
+
 def _cleanup_drill_dxf_borders(xlsm_path, logger=None):
     """Retire les <border> vides des dxfs (xl/styles.xml).
 

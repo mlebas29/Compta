@@ -1540,6 +1540,71 @@ def apply_alarm_bold(doc, alarm_sqrefs, apply, sheets=None):
         if col0 is not None and col0 >= 0:
             _add('Budget', col0, cat_e + 3)
 
+    # Alarmes métier (3 cells) + pieds surveillés (4 cells) — #53
+    # Position fixe pour B3/L1/E3/L2, dynamique pour Cotations B{pied},
+    # Plus_value E{GT}, Avoirs L{Total}.
+    def _scan_label_row(sheet_name, label, col_0=0):
+        try:
+            sh = doc.get_sheet(sheet_name)
+        except (ValueError, KeyError):
+            return None
+        for r in range(2, 300):
+            if sh.getCellByPosition(col_0, r - 1).getString().strip() == label:
+                return r
+        return None
+
+    _add('Plus_value', 1, 3)        # B3 alarme synthèse PVL
+    _add('Avoirs', 11, 1)           # L1 alarme synthèse Avoirs
+    _add('Plus_value', 4, 3)        # E3 recopie tête PVL
+    _add('Avoirs', 11, 2)           # L2 recopie tête Avoirs
+    gt_row = _scan_label_row('Plus_value', 'GRAND TOTAL')
+    if gt_row:
+        _add('Plus_value', 4, gt_row)   # E{GT} pied PVL
+    total_row = _scan_label_row('Avoirs', 'Total')
+    if total_row:
+        _add('Avoirs', 11, total_row)   # L{Total} pied Avoirs
+    # Cotations B{pied} : pied = ligne sous la 2e ⚓ de la table
+    try:
+        ws_cot = doc.get_sheet('Cotations')
+        anchors = [r for r in range(2, 100)
+                   if ws_cot.getCellByPosition(0, r - 1).getString().strip() == '⚓']
+        if len(anchors) >= 2:
+            _add('Cotations', 1, anchors[-1] + 1)
+    except (ValueError, KeyError):
+        pass
+
+    # Patrimoine : col D des TOTAL sections internes (exclure global D4 qui
+    # pointe sur Avoirs) + ligne 'Erreurs'. Ces cells doivent être bold pour
+    # mise en évidence des montants par section.
+    try:
+        ws_pat = doc.get_sheet('Patrimoine')
+        for r in range(2, 100):
+            b_val = ws_pat.getCellByPosition(1, r - 1).getString().strip()
+            if b_val == 'TOTAL':
+                d_form = ws_pat.getCellByPosition(3, r - 1).getFormula()
+                # Exclure global TOTAL D4 (formule ref externe vers Avoirs/PVL)
+                if any(s in d_form for s in ('Avoirs.', 'Plus_value.', 'Budget.', 'Cotations.')):
+                    continue
+                _add('Patrimoine', 3, r)
+            elif b_val == 'Erreurs':
+                _add('Patrimoine', 3, r)
+    except (ValueError, KeyError):
+        pass
+
+    # Contrôles col L (CTRL2 Général) : compteurs d'erreur des 7 alarmes +
+    # sous-lignes. Toutes les cells avec formule doivent être bold.
+    if cr_doc:
+        ctrl2_s, ctrl2_e = doc.cr.rows('CTRL2type')
+        col_l = doc.cr.col('CTRL2general')
+        if ctrl2_s and ctrl2_e and col_l is not None and col_l >= 0:
+            try:
+                ws_ctrl = doc.get_sheet('Contrôles')
+                for r in range(ctrl2_s, ctrl2_e + 1):
+                    if ws_ctrl.getCellByPosition(col_l, r - 1).getFormula().startswith('='):
+                        _add('Contrôles', col_l, r)
+            except (ValueError, KeyError):
+                pass
+
     # Fusionner avec alarm_sqrefs avant la boucle principale
     merged_sqrefs = {s: set(cells) for s, cells in alarm_sqrefs.items()}
     for s, extra in additional.items():
@@ -1571,6 +1636,110 @@ def apply_alarm_bold(doc, alarm_sqrefs, apply, sheets=None):
             print(f"  {sheet_name} : {n_changed} cell(s) contrôle bold")
         total += n_changed
     return total
+
+
+def apply_alarm_cf(doc, apply, sheets=None):
+    """Pose les CF d'alarme manquantes sur les cellules surveillées (#53).
+
+    Deux patterns :
+      - 3 cells alarme métier (CF FIND ✗/⚠) :
+          Plus_value!B3, Avoirs!L1, Cotations!B{pied}
+      - 4 cells pieds montants surveillés + recopies tête (CF ISERROR rouge) :
+          Plus_value!E{GT}, Plus_value!E3
+          Avoirs!L{Total}, Avoirs!L2
+
+    Idempotent (skip si CF déjà en place). Cohérent avec les Sections 3/8 de
+    tool_migrate_wip qui posent les mêmes CF lors de la migration v4.1.0.
+
+    Couvre aussi Patrimoine!D{Erreurs} (CF cellIs != 0).
+    """
+    from inc_uno import (
+        has_alarm_cf, set_alarm_cf,
+        has_iserror_cf, set_iserror_cf,
+        has_nonzero_cf, set_nonzero_cf,
+    )
+
+    if sheets:
+        wanted = {s.lower() for s in sheets}
+        aliases = {
+            'avoirs': 'avoirs', 'pvl': 'plus_value', 'plus_value': 'plus_value',
+            'cotations': 'cotations',
+        }
+        wanted_sheets = {aliases.get(w, w) for w in wanted}
+    else:
+        wanted_sheets = None
+
+    n_changed = 0
+
+    def _filtered(sheet_name):
+        if wanted_sheets and sheet_name.lower() not in wanted_sheets:
+            return None
+        try:
+            return doc.get_sheet(sheet_name)
+        except (ValueError, KeyError):
+            return None
+
+    def _scan(sheet_name, label, col_0=0):
+        sh = _filtered(sheet_name)
+        if sh is None:
+            return None
+        for r in range(2, 300):
+            if sh.getCellByPosition(col_0, r - 1).getString().strip() == label:
+                return r
+        return None
+
+    def _try(sheet_name, addr, kind):
+        nonlocal n_changed
+        sh = _filtered(sheet_name)
+        if sh is None:
+            return
+        cell = sh.getCellRangeByName(addr)
+        if kind == 'alarm':
+            if has_alarm_cf(cell):
+                return
+            if apply:
+                set_alarm_cf(cell)
+            print(f"  + {sheet_name}!{addr} : CF alarme ✗/⚠")
+        elif kind == 'iserror':
+            if has_iserror_cf(cell):
+                return
+            if apply:
+                set_iserror_cf(cell)
+            print(f"  + {sheet_name}!{addr} : CF ISERROR")
+        elif kind == 'nonzero':
+            if has_nonzero_cf(cell):
+                return
+            if apply:
+                set_nonzero_cf(cell)
+            print(f"  + {sheet_name}!{addr} : CF cellIs != 0")
+        n_changed += 1
+
+    # 3 alarmes métier
+    _try('Plus_value', 'B3', 'alarm')
+    _try('Avoirs', 'L1', 'alarm')
+    sh_cot = _filtered('Cotations')
+    if sh_cot is not None:
+        anchors = [r for r in range(2, 100)
+                   if sh_cot.getCellByPosition(0, r - 1).getString().strip() == '⚓']
+        if len(anchors) >= 2:
+            _try('Cotations', f'B{anchors[-1] + 1}', 'alarm')
+
+    # 4 pieds surveillés (CF ISERROR)
+    gt_row = _scan('Plus_value', 'GRAND TOTAL')
+    if gt_row:
+        _try('Plus_value', f'E{gt_row}', 'iserror')
+    _try('Plus_value', 'E3', 'iserror')
+    total_row = _scan('Avoirs', 'Total')
+    if total_row:
+        _try('Avoirs', f'L{total_row}', 'iserror')
+    _try('Avoirs', 'L2', 'iserror')
+
+    # Patrimoine D{Erreurs} : CF cellIs != 0 (compteur écarts ventilation)
+    err_row = _scan('Patrimoine', 'Erreurs', col_0=1)  # scan col B
+    if err_row:
+        _try('Patrimoine', f'D{err_row}', 'nonzero')
+
+    return n_changed
 
 
 def fix_formats(xlsm_path, apply=False, sheets=None, charter=False):
@@ -1668,6 +1837,13 @@ def fix_formats(xlsm_path, apply=False, sheets=None, charter=False):
             n_bold = apply_alarm_bold(doc, alarm_sqrefs, apply, sheets=sheets)
             total_fixes += n_bold
             if not n_bold:
+                print("  ✓ OK")
+
+            # === CF d'alarme sur cells surveillées (#53) ===
+            print("\n🔔 CF d'alarme cells surveillées...", flush=True)
+            n_cf = apply_alarm_cf(doc, apply, sheets=sheets)
+            total_fixes += n_cf
+            if not n_cf:
                 print("  ✓ OK")
 
         if apply and total_fixes:

@@ -497,6 +497,48 @@ def audit_alarm_coverage(wb, path):
                 if isinstance(v, str) and v.startswith('='):
                     _check(sheet, col, r, label)
 
+    # Alarmes métier (3 cellules) : Plus_value!B3 / Avoirs!L1 / Cotations!B{pied}
+    # Les 2 premières sont en position fixe ; Cotations dépend du layout (pied
+    # juste sous la ⚓ basse de la table cotations). Posées par tool_migrate_wip
+    # Sections 3 et 8.
+    if 'Plus_value' in wb.sheetnames:
+        _check('Plus_value', 'B', 3, 'Alarme synthèse PVL')
+    if 'Avoirs' in wb.sheetnames:
+        _check('Avoirs', 'L', 1, 'Alarme synthèse Avoirs')
+    if 'Cotations' in wb.sheetnames:
+        ws_cot = wb['Cotations']
+        cot_pied = None
+        for r in range(2, 100):
+            v = ws_cot.cell(r, 1).value  # col A
+            if v == '⚓':
+                cot_pied = r + 1  # pied = ligne sous la 2e ⚓
+        if cot_pied:
+            _check('Cotations', 'B', cot_pied, 'Alarme métier Cotations')
+
+    # Pieds montants surveillés + recopies tête (CF ISERROR : allume si formule plante)
+    # Plus_value!E{GT} (pied PVL E) + E3 (recopie tête)
+    if 'Plus_value' in wb.sheetnames:
+        ws_pvl = wb['Plus_value']
+        gt_row = None
+        for r in range(2, 300):
+            if ws_pvl.cell(r, 1).value == 'GRAND TOTAL':
+                gt_row = r
+                break
+        if gt_row:
+            _check('Plus_value', 'E', gt_row, 'PVL pied E (GRAND TOTAL)')
+        _check('Plus_value', 'E', 3, 'PVL recopie tête E3')
+    # Avoirs!L{Total} (pied AVR L) + L2 (recopie tête)
+    if 'Avoirs' in wb.sheetnames:
+        ws_avr = wb['Avoirs']
+        total_row = None
+        for r in range(2, 300):
+            if ws_avr.cell(r, 1).value == 'Total':
+                total_row = r
+                break
+        if total_row:
+            _check('Avoirs', 'L', total_row, 'AVR pied L (Total)')
+        _check('Avoirs', 'L', 2, 'AVR recopie tête L2')
+
     return violations
 
 

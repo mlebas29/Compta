@@ -96,7 +96,10 @@ import argparse
 import sys
 from pathlib import Path
 
-from inc_uno import UnoDocument, check_lock_file
+from inc_uno import (
+    UnoDocument, check_lock_file,
+    has_alarm_cf, set_alarm_cf,
+)
 from inc_excel_schema import uno_row
 
 
@@ -119,55 +122,8 @@ CTRL2_FORMULES_VARIANTS = ('Formules',)
 BOLD = 150
 
 
-# ━━━ Conditional Format helpers (Sections 7 & 8) ━━━
-
-# Styles cellule existant déjà dans le classeur (créés par les CF d'origine).
-# UNO les expose sous leur nom interne mappé depuis les dxfId xlsx :
-#   dxfId 1 (rouge ✗) → ConditionalStyle_2
-#   dxfId 2 (orange ⚠) → ConditionalStyle_3
-CF_STYLE_ERROR = 'ConditionalStyle_2'
-CF_STYLE_WARN = 'ConditionalStyle_3'
-# Note séparateur : UNO veut ; (PAS , pour les formules — sinon Err 509).
-# Openpyxl relit en virgules à l'écriture xlsx, c'est normal.
-CF_FORMULA_ERROR = 'NOT(ISERROR(FIND("✗";INDIRECT("RC";0))))'
-CF_FORMULA_WARN = 'NOT(ISERROR(FIND("⚠";INDIRECT("RC";0))))'
-
-
-def _mkprop(name, value):
-    """Construit un PropertyValue UNO (utilisé pour addNew sur CF)."""
-    import uno
-    pv = uno.createUnoStruct('com.sun.star.beans.PropertyValue')
-    pv.Name = name
-    pv.Value = value
-    return pv
-
-
-def _has_alarm_cf(cell):
-    """Vrai si la cellule porte déjà les 2 conditions ✗ et ⚠ (idempotence)."""
-    cf = cell.ConditionalFormat
-    if cf.Count < 2:
-        return False
-    f0 = cf.getByIndex(0).Formula1
-    f1 = cf.getByIndex(1).Formula1
-    return '"✗"' in f0 and '"⚠"' in f1
-
-
-def _set_alarm_cf(cell):
-    """(Re)pose les 2 CF d'alarme ✗/⚠ sur la cellule (clear puis addNew)."""
-    from com.sun.star.sheet.ConditionOperator import FORMULA
-    cf = cell.ConditionalFormat
-    cf.clear()
-    cf.addNew((
-        _mkprop('Operator', FORMULA),
-        _mkprop('Formula1', CF_FORMULA_ERROR),
-        _mkprop('StyleName', CF_STYLE_ERROR),
-    ))
-    cf.addNew((
-        _mkprop('Operator', FORMULA),
-        _mkprop('Formula1', CF_FORMULA_WARN),
-        _mkprop('StyleName', CF_STYLE_WARN),
-    ))
-    cell.ConditionalFormat = cf
+# Helpers CF (set_alarm_cf, has_alarm_cf) déplacés dans inc_uno.py — partagés
+# avec tool_fix_formats / tool_audit_formats (#53).
 
 
 # ━━━ Section 3 helpers ━━━
@@ -589,7 +545,7 @@ def _section7_fix_alarm_cf_ranges(ws_ctrl, dry_run, changes):
             cfs.removeByID(cf_id)
             for r in header_rows:
                 cell = ws_ctrl.getCellByPosition(CTRL2_DISPL_COL, uno_row(r))
-                _set_alarm_cf(cell)
+                set_alarm_cf(cell)
         rows_str = ','.join(f'K{r}' for r in header_rows)
         changes.append(f"~ Contrôles CF K{row_s}:K{row_e} → fissionnée sur {rows_str}")
 
@@ -616,10 +572,10 @@ def _section8_alarm_cf_three_cells(doc, dry_run, changes):
             print(f"⚠ Section 8 : feuille '{sheet_name}' introuvable ({e})")
             continue
         cell = sheet.getCellRangeByName(cell_addr)
-        if _has_alarm_cf(cell):
+        if has_alarm_cf(cell):
             continue
         if not dry_run:
-            _set_alarm_cf(cell)
+            set_alarm_cf(cell)
         changes.append(f"+ {sheet_name}!{cell_addr} : CF d'alarme ✗/⚠")
 
 
