@@ -66,7 +66,21 @@ Sections actuellement intégrées :
    'Total €' pour cohérence visuelle avec les sous-lignes Divers et
    Formules (pattern uniforme : sous-ligne = J indenté, K vide, L = valeur).
 
-7. Bump SCHEMA_VERSION 2 → 3
+7. Restriction des plages CF d'alarme étendues (CTRL2)
+   Les insertions des Sections 4 et 5 ont fait étendre par UNO les CF des
+   cellules headers (K65 → K65:K68 pour DIVERS, K75 → K75:K78 pour INCONNUS+
+   FORMULES) aux sous-lignes K vides. L'expression CF `FIND("✗"|"⚠"; RC)`
+   se déclenche par effet de bord sur les sous-lignes voisines quand le
+   header s'allume. Solution : fissionner ces ranges multi-row pour ne
+   conserver la CF que sur les rows headers (J non-vide non-indenté).
+
+8. Auto-pose CF d'alarme sur Plus_value!B3, Avoirs!L1, Cotations!B20
+   Les 3 cellules d'alarme posées par la Section 3 retournent ✗/✓ ou ⚠/✓
+   (formule métier) mais n'avaient pas de CF associée — convention "à la
+   main" héritée du commit d628e492. Cette section pose les 2 conditions
+   FIND("✗") / FIND("⚠") avec les styles ConditionalStyle_2/3 existants.
+
+9. Bump SCHEMA_VERSION 2 → 3
    Le named range constante SCHEMA_VERSION du classeur passe de '2' à '3'
    pour refléter la refonte CTRL2 (insertions rows + nouvelles cellules).
    Sans ce bump, l'app détecte un mismatch au démarrage et bloque
@@ -103,6 +117,57 @@ CTRL2_FORMULES_VARIANTS = ('Formules',)
 # Référence Patrimoine.D{target_row} construite dynamiquement (syntaxe UNO : point)
 
 BOLD = 150
+
+
+# ━━━ Conditional Format helpers (Sections 7 & 8) ━━━
+
+# Styles cellule existant déjà dans le classeur (créés par les CF d'origine).
+# UNO les expose sous leur nom interne mappé depuis les dxfId xlsx :
+#   dxfId 1 (rouge ✗) → ConditionalStyle_2
+#   dxfId 2 (orange ⚠) → ConditionalStyle_3
+CF_STYLE_ERROR = 'ConditionalStyle_2'
+CF_STYLE_WARN = 'ConditionalStyle_3'
+# Note séparateur : UNO veut ; (PAS , pour les formules — sinon Err 509).
+# Openpyxl relit en virgules à l'écriture xlsx, c'est normal.
+CF_FORMULA_ERROR = 'NOT(ISERROR(FIND("✗";INDIRECT("RC";0))))'
+CF_FORMULA_WARN = 'NOT(ISERROR(FIND("⚠";INDIRECT("RC";0))))'
+
+
+def _mkprop(name, value):
+    """Construit un PropertyValue UNO (utilisé pour addNew sur CF)."""
+    import uno
+    pv = uno.createUnoStruct('com.sun.star.beans.PropertyValue')
+    pv.Name = name
+    pv.Value = value
+    return pv
+
+
+def _has_alarm_cf(cell):
+    """Vrai si la cellule porte déjà les 2 conditions ✗ et ⚠ (idempotence)."""
+    cf = cell.ConditionalFormat
+    if cf.Count < 2:
+        return False
+    f0 = cf.getByIndex(0).Formula1
+    f1 = cf.getByIndex(1).Formula1
+    return '"✗"' in f0 and '"⚠"' in f1
+
+
+def _set_alarm_cf(cell):
+    """(Re)pose les 2 CF d'alarme ✗/⚠ sur la cellule (clear puis addNew)."""
+    from com.sun.star.sheet.ConditionOperator import FORMULA
+    cf = cell.ConditionalFormat
+    cf.clear()
+    cf.addNew((
+        _mkprop('Operator', FORMULA),
+        _mkprop('Formula1', CF_FORMULA_ERROR),
+        _mkprop('StyleName', CF_STYLE_ERROR),
+    ))
+    cf.addNew((
+        _mkprop('Operator', FORMULA),
+        _mkprop('Formula1', CF_FORMULA_WARN),
+        _mkprop('StyleName', CF_STYLE_WARN),
+    ))
+    cell.ConditionalFormat = cf
 
 
 # ━━━ Section 3 helpers ━━━
@@ -444,6 +509,120 @@ def _section6_indent_balances(ws_ctrl, cr, dry_run, changes):
         changes.append(f"~ Contrôles!J{r} : '{cur.strip()}' indenté")
 
 
+def _section_uppercase_legacy_headers(ws_ctrl, cr, dry_run, changes):
+    """Renomme en MAJUSCULES les headers CTRL2 restés en Title case.
+
+    Le chantier MAJUSCULES de v4.1.0 (Sections 4/5) gère DIVERS et FORMULES.
+    Les autres headers (COMPTES, CATÉGORIES, INCONNUS) ont leur libellé MAJ
+    posé à la main dans le témoin. Mais APPARIEMENTS et BALANCES, présents
+    historiquement, peuvent rester en Title case ('Appariements', 'Balances')
+    sur les classeurs migrés. Cette section les normalise.
+
+    Retire aussi les espaces insécables \\xa0 et tabulations parasites
+    hérités de saisies par copier-coller.
+
+    Idempotent : skip si déjà en MAJUSCULES.
+    """
+    legacy_map = {
+        'appariements': 'APPARIEMENTS',
+        'balances': 'BALANCES',
+    }
+    try:
+        s, e = cr.rows('CTRL2type')
+    except Exception:
+        s, e = 1, 200
+    for r in range(max(1, s - 2), e + 5):
+        cell = ws_ctrl.getCellByPosition(CTRL2_TYPE_COL, uno_row(r))
+        v = cell.getString()
+        v_clean = v.strip(' \xa0\t')
+        cible = legacy_map.get(v_clean.lower())
+        if cible is None or v == cible:
+            continue
+        if not dry_run:
+            cell.setString(cible)
+        changes.append(f"~ Contrôles!J{r} : {v_clean!r} → '{cible}'")
+
+
+def _section7_fix_alarm_cf_ranges(ws_ctrl, dry_run, changes):
+    """Restreint les plages CF d'alarme étendues aux cellules headers seules.
+
+    Sections 4 et 5 ont inséré des sous-lignes après les headers DIVERS et
+    INCONNUS/FORMULES, ce qui a fait étendre par UNO les CF des cellules
+    parentes vers ces nouvelles rows :
+      K65 → K65:K68 (DIVERS + 3 sous-lignes K vides)
+      K75 → K75:K78 (INCONNUS + FORMULES + 2 sous-lignes K vides)
+    L'expression `FIND("✗"|"⚠"; RC)` se déclenche par effet de bord sur les
+    sous-lignes voisines quand le header s'allume.
+
+    Approche : pour chaque CF couvrant un range col K multi-row, identifier
+    les rows headers (J non-vide non-indenté) ; si la plage mélange headers
+    et sous-lignes, supprimer la CF étendue et recréer cellule par cellule
+    sur les seuls headers.
+
+    Idempotent : ne touche que les ranges multi-row mixtes (header + sous-ligne).
+    """
+    import re as _re
+    cfs = ws_ctrl.ConditionalFormats
+
+    for cf in list(cfs.ConditionalFormats):
+        addr = cf.Range.getRangeAddressesAsString()
+        m = _re.match(r"^[^.]+\.K(\d+):K(\d+)$", addr)
+        if not m:
+            continue
+        row_s, row_e = int(m.group(1)), int(m.group(2))
+        if row_s == row_e:
+            continue  # déjà single cell
+
+        # Identifier les rows headers (J non-vide, non-indenté, non-⚓)
+        header_rows = []
+        for r in range(row_s, row_e + 1):
+            v = ws_ctrl.getCellByPosition(CTRL2_TYPE_COL, uno_row(r)).getString()
+            if v and not v.startswith(' ') and v.strip() != '⚓':
+                header_rows.append(r)
+
+        # Skip si pas de header ou que des headers (range homogène, pas concerné)
+        if not header_rows or len(header_rows) == (row_e - row_s + 1):
+            continue
+
+        cf_id = cf.ID
+        if not dry_run:
+            cfs.removeByID(cf_id)
+            for r in header_rows:
+                cell = ws_ctrl.getCellByPosition(CTRL2_DISPL_COL, uno_row(r))
+                _set_alarm_cf(cell)
+        rows_str = ','.join(f'K{r}' for r in header_rows)
+        changes.append(f"~ Contrôles CF K{row_s}:K{row_e} → fissionnée sur {rows_str}")
+
+
+def _section8_alarm_cf_three_cells(doc, dry_run, changes):
+    """Pose les 2 CF d'alarme ✗/⚠ sur Plus_value!B3, Avoirs!L1, Cotations!B20.
+
+    Les 3 cellules portent les formules métier des Sections 3 (token ✗/✓ ou
+    ⚠/✓) mais n'avaient pas de CF associée — convention "à la main" héritée
+    du commit d628e492. Cette section pose les 2 conditions FIND("✗") /
+    FIND("⚠") avec les styles existants ConditionalStyle_2 / ConditionalStyle_3.
+
+    Idempotent : skip si la cellule a déjà 2 CF avec les bonnes formules.
+    """
+    targets = [
+        ('Plus_value', 'B3'),
+        ('Avoirs', 'L1'),
+        ('Cotations', 'B20'),
+    ]
+    for sheet_name, cell_addr in targets:
+        try:
+            sheet = doc.get_sheet(sheet_name)
+        except Exception as e:
+            print(f"⚠ Section 8 : feuille '{sheet_name}' introuvable ({e})")
+            continue
+        cell = sheet.getCellRangeByName(cell_addr)
+        if _has_alarm_cf(cell):
+            continue
+        if not dry_run:
+            _set_alarm_cf(cell)
+        changes.append(f"+ {sheet_name}!{cell_addr} : CF d'alarme ✗/⚠")
+
+
 def _section_synthese(ws_ctrl, cr, doc, dry_run, changes):
     """Réécrit la formule Synthèse (K{rSynth}) pour 7 tokens.
 
@@ -760,11 +939,29 @@ def migrate(xlsm_path, dry_run=False):
         except Exception as e:
             print(f"⚠ Fix Date : {e}")
 
+        # ━━━ Normalisation MAJUSCULES headers Appariements / Balances ━━━
+        try:
+            _section_uppercase_legacy_headers(ws_ctrl, cr, dry_run, changes)
+        except Exception as e:
+            print(f"⚠ Uppercase headers : {e}")
+
         # ━━━ Synthèse : recalibrage K{rSynth} pour 7 tokens ━━━
         try:
             _section_synthese(ws_ctrl, cr, doc, dry_run, changes)
         except Exception as e:
             print(f"⚠ Synthèse : {e}")
+
+        # ━━━ Section 7 : restreindre CF étendues sur sous-lignes K vides ━━━
+        try:
+            _section7_fix_alarm_cf_ranges(ws_ctrl, dry_run, changes)
+        except Exception as e:
+            print(f"⚠ Section 7 : {e}")
+
+        # ━━━ Section 8 : auto-pose CF d'alarme sur les 3 cellules métier ━━━
+        try:
+            _section8_alarm_cf_three_cells(doc, dry_run, changes)
+        except Exception as e:
+            print(f"⚠ Section 8 : {e}")
 
         # ━━━ Bump SCHEMA_VERSION 2 → 3 (refonte CTRL2 + alarmes) ━━━
         try:
