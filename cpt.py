@@ -520,7 +520,7 @@ def do_push(force=False):
     mode = inc_mode.get_mode()
     if mode == 'dev':
         logger.error("❌ Push interdit depuis l'environnement DEV")
-        logger.error("   Déployer d'abord vers PROD : tool_deploy.py --to-prod")
+        logger.error("   Synchroniser PROD d'abord : git -C ~/Compta pull")
         logger.error("   Puis lancer le push depuis ~/Compta")
         sys.exit(1)
 
