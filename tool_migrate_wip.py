@@ -80,7 +80,15 @@ Sections actuellement intégrées :
    main" héritée du commit d628e492. Cette section pose les 2 conditions
    FIND("✗") / FIND("⚠") avec les styles ConditionalStyle_2/3 existants.
 
-9. Bump SCHEMA_VERSION 2 → 3
+9. Pieds globaux Plus_value H/I/K en NR-driven (#46 partiel)
+   Pieds 'TOTAL métaux/crypto-monnaies/devises' : remplace
+   `=SUMIFS(K:K, A:A, "X")` (col absolus) par `=SUMIFS(<NR>, PVLsection, "X")`
+   sur H (PVLmontant_init), I (PVLsigma), K (PVLmontant) — layout-agnostic.
+   Note : sous-totaux 'Total' par portefeuille **non migrés** — leurs refs
+   absolues (K8:K12, etc.) restent en place faute d'une formule NR-driven
+   sans cycle ni perte de conversion devise (Yuh). À reprendre ultérieurement.
+
+10. Bump SCHEMA_VERSION 2 → 3
    Le named range constante SCHEMA_VERSION du classeur passe de '2' à '3'
    pour refléter la refonte CTRL2 (insertions rows + nouvelles cellules).
    Sans ce bump, l'app détecte un mismatch au démarrage et bloque
@@ -670,6 +678,54 @@ def _section3_cotations(ws_cot, dry_run, changes):
         changes.append(f"+ Cotations!A{target_row} = 'Alarme cotations'")
 
 
+def _section9_pvl_formulas_nr_driven(ws_pvl, dry_run, changes):
+    """Convertit les pieds globaux H/I/K du Plus_value en NR-driven (#46).
+
+    Cible : pieds 'TOTAL métaux/crypto-monnaies/devises' (col A) sur les 3
+    colonnes H (PVLmontant_init), I (PVLsigma), K (PVLmontant).
+    Remplace `=SUMIFS(K:K, A:A, "X")` (col absolus) par
+    `=SUMIFS(<NR>, PVLsection, "X")` — layout-agnostic.
+
+    Cellules HORS zone PVLmontant donc pas de cycle d'évaluation possible.
+
+    Cas non couverts (volontairement) :
+    - 'TOTAL portefeuilles' : déjà NR-driven (SUMPRODUCT via PVLtitre="Retenu").
+    - 'Total' par portefeuille : refs absolues hardcoded conservées. Tentatives
+      NR-driven (SUMIFS / SUMPRODUCT) cassent la conversion devise (Yuh) ou
+      créent un cycle non résoluble (la cellule est dans la zone PVLmontant
+      et ses dépendantes Retenu/#Solde forment un cycle bidirectionnel).
+      À reprendre dans une version ultérieure si solution propre identifiée.
+
+    Idempotent : compare la formule courante au format cible, skip si identique.
+    """
+    COLS = [
+        (7,  'PVLmontant_init'),  # H
+        (8,  'PVLsigma'),         # I
+        (10, 'PVLmontant'),       # K
+    ]
+    COL_LETTER = {7: 'H', 8: 'I', 10: 'K'}
+    section_targets = {
+        'TOTAL métaux': 'métaux',
+        'TOTAL crypto-monnaies': 'crypto',
+        'TOTAL devises': 'devises',
+    }
+
+    # NB : GRAND TOTAL apparaît AVANT les TOTAL portefeuilles/métaux/crypto/devises
+    # (pied multi-lignes), donc pas de break dessus — scan complet jusqu'à 300.
+    for r in range(1, 300):
+        a = ws_pvl.getCellByPosition(0, uno_row(r)).getString().strip()
+        if a in section_targets:
+            section_label = section_targets[a]
+            for col_0, nr in COLS:
+                target = f'=SUMIFS({nr};PVLsection;"{section_label}")'
+                cell = ws_pvl.getCellByPosition(col_0, uno_row(r))
+                if cell.getFormula() != target:
+                    if not dry_run:
+                        cell.setFormula(target)
+                    changes.append(
+                        f"~ Plus_value!{COL_LETTER[col_0]}{r} ({a}) : SUMIFS NR-driven")
+
+
 def migrate(xlsm_path, dry_run=False):
     p = Path(xlsm_path).resolve()
     if not p.exists():
@@ -918,6 +974,12 @@ def migrate(xlsm_path, dry_run=False):
             _section8_alarm_cf_three_cells(doc, dry_run, changes)
         except Exception as e:
             print(f"⚠ Section 8 : {e}")
+
+        # ━━━ Section 9 : formules K Plus_value en NR-driven (#46) ━━━
+        try:
+            _section9_pvl_formulas_nr_driven(doc.get_sheet('Plus_value'), dry_run, changes)
+        except Exception as e:
+            print(f"⚠ Section 9 : {e}")
 
         # ━━━ Bump SCHEMA_VERSION 2 → 3 (refonte CTRL2 + alarmes) ━━━
         try:

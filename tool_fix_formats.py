@@ -336,18 +336,20 @@ def fix_plus_value(doc, apply, cr=None):
         is_non_eur = devise != 'EUR'
         row_fixes = []
 
-        # E (PVL) et K (Solde) : toujours en devise de la ligne (la valeur est
-        # native, ex: gramme d'or pour OrPr, satoshi pour SAT, USD pour cpt USD).
-        # H (Montant_init) et I (Sigma) : devise native pour portefeuilles, EUR sinon
-        # (formules en equiv_euro / AVR_euro pour métaux/crypto/devises).
+        # Modèle DEV (portefeuilles) : E/K/H/I en devise native du compte.
+        # Modèle EUR (métaux/crypto/devises) : E/K/H/I en EUR — les valeurs sont
+        # déjà en equiv EUR par construction des formules (cf. Compta_pvl.md).
         is_portefeuille = section == 'portefeuilles'
-        expected_devise_fmt = fmt_cache.get(devise, fmt_eur)
-        expected_devise_red = fmt_cache_red.get(devise, fmt_eur_red)
-        ek_label = devise
         if is_portefeuille:
+            expected_devise_fmt = fmt_cache.get(devise, fmt_eur)
+            expected_devise_red = fmt_cache_red.get(devise, fmt_eur_red)
+            ek_label = devise
             expected_hi_fmt = fmt_cache.get(devise, fmt_eur)
             hi_label = devise
         else:
+            expected_devise_fmt = fmt_eur
+            expected_devise_red = fmt_eur_red
+            ek_label = 'EUR'
             expected_hi_fmt = fmt_eur
             hi_label = 'EUR'
 
