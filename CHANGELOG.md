@@ -6,20 +6,38 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 - 🔧 = outil de migration du classeur de travail (mode assisté)
 - Détails dans Compta_upgrade.md
 
-## v4.0.6 📘 🔧
-| 2026-05-05         |                                                              |
+## v4.1.0 📘 🔧
+| 2026-05-08         |                                                              |
 | ------------------ | ------------------------------------------------------------ |
-| Description        | Refonte **Alarmes** (ajouts, clarification, ré-org). Nouveau **doc PVL** |
-| Migration assistée | oui (`tool_migrate_wip.py` —  SCHEMA_VERSION 2 → 3)          |
+| Description        | **Fiabilisation Plus_value et Contrôles** — **refonte des alarmes**. Nouveau **document sur les plus-values** `Compta_pvl.md`. |
+| Migration assistée | oui (`tool_migrate_v4.1.0.py` — `SCHEMA_VERSION` 2 → 3)      |
 
-**Synthèse Contrôles complète après refonte :**
+> **Note pour le mode classeur** — cette version cumule de nombreuses modifications du classeur (insertions de lignes, recopies de formules, poses de mises en forme conditionnelles, renommages). La migration manuelle est laborieuse. Il est recommandé de **basculer ponctuellement en mode assisté** le temps de la migration : `git clone`, exécuter `tool_migrate_v4.1.0.py`, puis revenir au mode classeur si souhaité. Détails dans `Compta_upgrade.md`.
 
-- **Divers** — anciennement *Cohérence / Date*. Agrège  3 sous-lignes : *Date hors période*, *Ventilation Patrimoine*, *Cotations*.
-- **Formules** (nouveau) — Agrège 2 sous-lignes : *Avoirs*, *Plus_value*.
+**Plus_value**
 
-`tool_controles.py` et la barre d'état GUI (cpt_gui) adaptés pour 7 tokens alarme.
+- **Total par portefeuille** unifié — une seule formule pour tous les portefeuilles, mono ou multi-devises (par exemple Yuh : titres EUR + USD + CHF). Le pied est exprimé dans la devise du portefeuille. La conversion de devise des portefeuilles mixtes devient correcte.
+- **Date du pied Total** — bug d'écriture (colonne *montant* au lieu de *date*) qui court-circuitait la comparaison entre date du pied et date du dernier #Solde et figeait le *Retenu* sur la mauvaise branche. Trois portefeuilles concernés sur la PROD de référence (PEE, Ass vie ébène, eToro USD).
+- **PVL %** sur les 5 pieds (GRAND TOTAL + 4 totaux de section) — dénominateur incorrect (*sigma + montant actuel*) remplacé par (*montant initial + sigma*). Sur la PROD de référence : ~22 % au lieu de ~14 % sur GRAND TOTAL.
+- **Formats des sections métaux / crypto-monnaies / devises** — les colonnes *PVL*, *Montant actuel*, *Montant initial* et *Sigma* basculent en EUR (cohérence avec le modèle EUR documenté dans `Compta_pvl.md`). Avant : devise native (gramme d'or, satoshi, USD selon la ligne).
 
-**Doctrine plus-value latente** — nouvelle documentation `Compta_pvl.md`
+**Contrôles**
+
+- **Synthèse refondue** — la ligne *Cohérence / Date* devient **Divers** avec 3 sous-lignes : *Date hors période*, *Ventilation Patrimoine*, *Cotations*. Nouvelle ligne **Formules** avec 2 sous-lignes : *Avoirs*, *Plus_value*. La synthèse globale agrège désormais 7 contrôles (au lieu de 6).
+- **Alarmes formules** — trois cellules de surveillance (`Plus_value!B3`, `Avoirs!L1`, alarme *Cotations*) deviennent rouges en cas d'erreur de calcul sur les pieds montants (#N/A, #REF!, #DIV/0! …). Erreurs comptées dans la nouvelle ligne *Formules*.
+- **Alarme cohérence Patrimoine** — nouveau compteur *Erreurs* en pied de la feuille Patrimoine, détecte les ventilations en écart > 0,5 € sur les 5 sections (par type, sous-type, domiciliation, titulaire, propriété). Alimente la sous-ligne *Ventilation Patrimoine* dans Divers.
+- **Alarme métier Cotations** — détecte les devises utilisées sans cours configuré et les codes présents mais sans cours.
+- **Bug latent** — la ventilation Patrimoine n'est plus comptée deux fois dans le pied *Divers* (apparaissait seulement en cas d'écart Patrimoine effectif).
+- **Mise en forme** — labels en MAJUSCULES (DIVERS, FORMULES, BALANCES, APPARIEMENTS) ; indentation des sous-lignes Balances pour cohérence avec Divers et Formules.
+
+**Documentation**
+
+- Nouveau document **`Compta_pvl.md`** — doctrine plus-value latente : sémantique des colonnes, formule pivot E = K − (H + I), modèle DEV (devise native) vs modèle EUR (selon section), traitement des cessions et de la fiscalité.
+
+**Outil de migration**
+
+- Plus robuste — exécutions répétées sans effet de bord (trois corrections d'idempotence), message d'avertissement parasite supprimé, alarme *Cotations* posée à la bonne ligne quelle que soit la taille de la liste de cotations.
+- **Rapport de deltas** affiché en fin d'exécution : valeurs des 5 pieds Plus_value avant / après recalcul. Permet de constater immédiatement quelles valeurs ont bougé.
 
 
 

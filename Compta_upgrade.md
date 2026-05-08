@@ -18,25 +18,69 @@ Au démarrage (mode assisté), l'app vérifie la `SCHEMA_VERSION` du classeur ; 
 Une version peut porter l'un, l'autre, ou les deux. Les sections ci-dessous suivent le même découpage.
 
 
-## v4.0.6 📘🔧 — Refonte alarmes classeur
+## v4.1.0 📘🔧 — Fiabilisation Plus_value + refonte alarmes Contrôles
 
-Schéma `SCHEMA_VERSION 2 → 3`.
+Schéma `SCHEMA_VERSION 2 → 3`. Outil idempotent : exécution sans effet sur un classeur déjà à niveau.
+
+> **Recommandation pour le mode classeur** — la migration v4.1.0 cumule de nombreuses opérations dans le classeur (insertion de lignes, recopie de formules, pose de mises en forme conditionnelles, renommages). Compter au moins une heure de saisie minutieuse, avec un risque réel d'erreur. Il est plus simple de **basculer ponctuellement en mode assisté** le temps de la migration, puis de revenir au mode classeur si on le souhaite :
+>
+> ```bash
+> git clone https://github.com/mlebas29/Compta.git ~/Compta-tmp
+> cd ~/Compta-tmp
+> bash install_migrate.sh             # installation minimale (Python + LibreOffice + openpyxl)
+> python3 tool_migrate_v4.1.0.py ~/Compta/comptes.xlsm
+> ```
+>
+> `install_migrate.sh` est une variante allégée de `install.sh` (sans Playwright, Tkinter, GPG, OCR…). Une fois la migration faite, le clone `~/Compta-tmp` peut être supprimé.
 
 | Mode classeur | Mode assisté |
 | --- | --- |
-| Ajout 3 cellules d'alarmes + refonte tableau 2 feuille Contrôles | `tool_migrate_wip.py` (procédure ci-dessous). |
+| Voir la liste des modifications ci-dessous (à reporter dans le classeur en s'aidant de `comptes_exemple.xlsx`). | `tool_migrate_v4.1.0.py` (procédure ci-dessous). |
 
-*Procédure (LibreOffice fermé) :*
+*Procédure mode assisté (LibreOffice fermé) :*
 
 ```bash
-python3 tool_migrate_wip.py ~/Compta/comptes.xlsm
+python3 tool_migrate_v4.1.0.py ~/Compta/comptes.xlsm
 ```
 
-**Migration** :
+À la fin de l'exécution, l'outil affiche un **rapport de deltas** sur les 5 pieds Plus_value (GRAND TOTAL et 4 totaux de section) — utile pour repérer les portefeuilles dont la valeur *Retenu* a basculé après la correction des dates de pied.
 
-- Ajout 3 cellules d'alarme : `Plus_value!B3`, `Avoirs!L1`, `Cotations` en pied de tableau (`B20` dans `comptes_exemple.xlsx`).
-- Refonte du bloc *Contrôles* : renommage `Cohérence` → `Divers` + sous-lignes `Date hors période` / `Ventilation Patrimoine` / `Cotations` ; insertion ligne `Formules` + sous-lignes `Avoirs` / `Plus_value` ; indentation des sous-lignes existantes Balances ; recalibrage formule *Synthèse* (de 6 à 7 tokens).
--  `SCHEMA_VERSION` 2 → 3.
+**Modifications appliquées** (à reporter manuellement en mode classeur) :
+
+*Plus_value*
+
+- Pied **Total** de chaque portefeuille : recopier la formule unifiée (colonnes H/I/K + *Date initiale* + *Date solde*).
+- 5 pieds (GRAND TOTAL + 4 totaux de section) : col **PVL %** = `=E…/(H…+I…)` (au lieu de `E/(I+K)`).
+- Pied **TOTAL portefeuilles** : recopier la formule (SUMPRODUCT générique avec lookup COTcours).
+- Pieds **TOTAL métaux / crypto-monnaies / devises** : recopier les formules H/I/K (SUMIFS sur named ranges).
+- Sections métaux / crypto-monnaies / devises : appliquer le format EUR aux colonnes *PVL*, *Montant initial*, *Sigma*, *Montant actuel* (au lieu de la devise native).
+
+*Contrôles*
+
+- Renommer la ligne *Cohérence* (ou *Date*) en **DIVERS**, ajouter 3 sous-lignes : *Date hors période*, *Ventilation Patrimoine*, *Cotations*.
+- Insérer une ligne **FORMULES** avant la sentinelle ⚓ basse, avec 2 sous-lignes : *Avoirs*, *Plus_value*.
+- Indenter les sous-lignes BALANCES (*Virements €*, *Titres €*, *Changes Eq €*, *Total €*).
+- Mettre les labels en MAJUSCULES (DIVERS, FORMULES, BALANCES, APPARIEMENTS).
+- Ajuster la formule **Synthèse des contrôles** pour 7 jetons (au lieu de 6).
+- Poser une mise en forme conditionnelle rouge sur `Plus_value!B3`, `Avoirs!L1`, et la cellule alarme *Cotations* (en pied de la liste cotations).
+
+*Patrimoine*
+
+- Ajouter en pied une ligne **Erreurs** (col B) avec le compteur des écarts de ventilation (col D) — formule `=(ABS(D{section1}-D4)>0.5)+…` sur les 5 sections.
+
+*Cotations*
+
+- Ajouter en pied une cellule alarme métier (label *Alarme cotations* en col A) qui détecte les devises utilisées sans cours et les codes sans valeur.
+
+*Conventions* (tableau dans Patrimoine)
+
+- Renommer la ligne `Cohérence` en `DIVERS`.
+
+*Schéma*
+
+- `SCHEMA_VERSION` 2 → 3.
+
+**Note** — vu le volume, le passage par `tool_migrate_v4.1.0.py` est nettement plus fiable que le report manuel.
 
 
 ## v4.0.0 📘 🔧 — Devises N-->1 colonne + charte graphique 

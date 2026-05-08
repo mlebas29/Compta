@@ -838,39 +838,50 @@ class DevisesMixin:
             ws_pv.getCellByPosition(cr.col(nr_name), uno_row(total_row)).setFormula(formula)
 
     def _update_pv_bloc_total(self, ws_pv, account_name, total_row, doc=None):
-        """Reconstruit les formules Total d'un bloc portefeuille si multi-devise.
+        """(Re)pose les formules Total d'un bloc portefeuille — formule unifiée.
 
-        Scanne les titres (*...*) du bloc pour trouver les devises.
-        Mono-devise : SUM(range) — pas de changement.
-        Multi-devise : SUMPRODUCT pondéré cours(titre)/cours(portefeuille)
-        — Total reste exprimé dans la devise du portefeuille (D{total_row}).
+        Doctrine PVL : H/I/K stockés en devise du titre (col D), pied exprimé
+        en devise du portefeuille (D{total_row}, pivot). Formule unique :
+
+            =SUMPRODUCT({col}{first}:{col}{last} * lookup_titre) / pivot
+
+        avec lookup_titre = INDEX(COTcours;MATCH(D{first}:D{last};COTcode;0))
+        et pivot = INDEX(COTcours;MATCH(D{total_row};COTcode;0)).
+
+        Cas mono-devise : tous les ratios = 1, équivaut à SUM(range).
+        Cas multi-devise : conversion correcte vers la devise pivot.
+
+        DATE_INIT : MIN sur la plage des titres.
+
+        Si aucun titre dans le bloc, met les formules à 0 (cohérent avec
+        gui_accounts._delete_title pour le dernier titre).
         """
         from inc_excel_schema import uno_row
         cr = doc.cr
 
         col_b = cr.col('PVLcompte')
         col_c = cr.col('PVLtitre')
-        col_d = cr.col('PVLdevise')
         total_r0 = uno_row(total_row)
 
-        # Scanner les titres du bloc (lignes *...* avant Total)
-        devises = {}  # devise → [row_1indexed, ...]
+        # Scanner les titres (*...*) du bloc, du Total vers le haut.
+        title_rows = []
         for scan in range(total_row - 1, 0, -1):
             b = ws_pv.getCellByPosition(col_b, uno_row(scan)).getString().strip()
             if b != account_name:
                 break
             c = ws_pv.getCellByPosition(col_c, uno_row(scan)).getString().strip()
             if c.startswith('*') and c.endswith('*'):
-                d = ws_pv.getCellByPosition(col_d, uno_row(scan)).getString().strip()
-                if d:
-                    devises.setdefault(d, []).append(scan)
+                title_rows.append(scan)
 
-        if len(devises) <= 1:
-            return  # Mono-devise : SUM(range) suffit
+        if not title_rows:
+            # Bloc sans titre : valeurs à 0
+            for pv_c in ('PVLdate_init', 'PVLmontant_init',
+                         'PVLsigma', 'PVLdate', 'PVLmontant'):
+                ws_pv.getCellByPosition(cr.col(pv_c), total_r0).setValue(0)
+            return
 
-        # Multi-devise : Σ(K_i · cours(d_i)) / cours(P) — P = devise du portefeuille (D{total_row})
-        first_titre = min(r for rows in devises.values() for r in rows)
-        last_titre = max(r for rows in devises.values() for r in rows)
+        first_titre = min(title_rows)
+        last_titre = max(title_rows)
 
         d_range = f'D{first_titre}:D{last_titre}'
         pivot = f'IFERROR(INDEX(COTcours;MATCH(D{total_row};COTcode;0));1)'
@@ -882,11 +893,16 @@ class DevisesMixin:
             )
             ws_pv.getCellByPosition(cr.col(nr_name), total_r0).setFormula(formula)
 
-        # DATE_INIT : MIN de toutes les dates titres
+        # PVLdate_init : MIN sur les dates titres
         cg = cr.letter('PVLdate_init')
         ws_pv.getCellByPosition(
             cr.col('PVLdate_init'), total_r0).setFormula(
             f'=MIN({cg}{first_titre}:{cg}{last_titre})')
+        # PVLdate : ref sur la date du dernier titre (last_titre)
+        cj = cr.letter('PVLdate')
+        ws_pv.getCellByPosition(
+            cr.col('PVLdate'), total_r0).setFormula(
+            f'={cj}{last_titre}')
 
     def _create_pv_simple_line(self, ws_pv, doc, acct, total_label):
         """Insère une ligne simple dans Plus_value (métaux, crypto, devises).
@@ -1098,47 +1114,10 @@ class DevisesMixin:
             ws_pv.getCellByPosition(cr.col('PVLdate'), r0).setValue(0)
             ws_pv.getCellByPosition(cr.col('PVLmontant'), r0).setValue(0)
 
-            # --- Mettre à jour les formules Total ---
-            total_r0 = uno_row(new_total_row)
-
-            if has_existing:
-                for pv_col, func in [
-                    ('PVLdate_init', 'MIN'),
-                    ('PVLmontant_init', 'SUM'),
-                    ('PVLsigma', 'SUM'),
-                    ('PVLmontant', 'SUM'),
-                ]:
-                    ci = cr.col(pv_col)
-                    formula = ws_pv.getCellByPosition(ci, total_r0).getFormula()
-                    # Pattern 1 : range
-                    m = re.match(
-                        rf'(={func}\([A-Z]+\d+:[A-Z]+)(\d+)(\))', formula)
-                    if m:
-                        new_f = f'{m.group(1)}{int(m.group(2)) + 1}{m.group(3)}'
-                        ws_pv.getCellByPosition(ci, total_r0).setFormula(new_f)
-                        continue
-                    # Pattern 2 : cellule unique
-                    m2 = re.match(
-                        rf'(={func}\()([A-Z]+)(\d+)(\))', formula)
-                    if m2:
-                        col_l = m2.group(2)
-                        new_f = (f'{m2.group(1)}{col_l}{m2.group(3)}'
-                                 f':{col_l}{r}{m2.group(4)}')
-                        ws_pv.getCellByPosition(ci, total_r0).setFormula(new_f)
-            else:
-                # Premier titre : créer les formules du Total
-                ws_pv.getCellByPosition(cr.col('PVLdate_init'), total_r0).setFormula(
-                    f'=MIN({cG}{r}:{cG}{r})')
-                ws_pv.getCellByPosition(cr.col('PVLmontant_init'), total_r0).setFormula(
-                    f'=SUM({cH}{r}:{cH}{r})')
-                ws_pv.getCellByPosition(cr.col('PVLsigma'), total_r0).setFormula(
-                    f'=SUM({cI}{r}:{cI}{r})')
-                ws_pv.getCellByPosition(cr.col('PVLdate'), total_r0).setFormula(
-                    f'={cr.letter("PVLdate")}{r}')
-                ws_pv.getCellByPosition(cr.col('PVLmontant'), total_r0).setFormula(
-                    f'=SUM({cK}{r}:{cK}{r})')
-
-            # Reconstruire les formules Total du bloc si multi-devise
+            # --- (Re)poser les formules Total — formule unifiée ---
+            # _update_pv_bloc_total pose H/I/K (SUMPRODUCT/lookup/pivot),
+            # PVLdate_init (MIN) et PVLdate (ref dernier titre) à partir des
+            # titres scannés du bloc.
             self._update_pv_bloc_total(ws_pv, account_name, new_total_row, doc=doc)
 
             # Formats nombre sur la ligne titre
