@@ -184,13 +184,17 @@ def fix_budget(doc, apply):
             break
         pied_rows.append(r)
 
-    # Scanner les devises depuis le vrai header — restreint aux codes connus
+    # Scanner les devises depuis le vrai header — restreint aux codes connus.
+    # Note : les headers de devise sont formatés '@" ▼"' (triangle décoratif
+    # signalant la dropdown de validation). UNO getString() inclut ce suffixe
+    # → ne garder que le 1er token pour la comparaison.
     devises = []
     for c in range(cat_col_0 + 1, cat_col_0 + 30):
         val = ws.getCellByPosition(c, header_row_0).getString().strip()
-        if val not in FORMATS_DEVISE:
+        code = val.split()[0] if val else ''
+        if code not in FORMATS_DEVISE:
             break
-        devises.append((c, val))
+        devises.append((c, code))
 
     if not devises:
         print("  (aucune devise étrangère)")
