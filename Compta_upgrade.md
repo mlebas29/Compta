@@ -31,7 +31,7 @@ Schéma `SCHEMA_VERSION 2 → 3`. Outil idempotent : exécution sans effet sur u
 > python3 tool_migrate_v4.1.0.py ~/Compta/comptes.xlsm
 > ```
 >
-> `install_migrate.sh` est une variante allégée de `install.sh` (sans Playwright, Tkinter, GPG, OCR…). Une fois la migration faite, le clone `~/Compta-tmp` peut être supprimé.
+> `install_migrate.sh` est une variante allégée de `install.sh` (sans Playwright, Tkinter, GPG, OCR…). Procédure **Linux** ou **Windows 11 + WSL2** uniquement — Windows pur n'est pas supporté. Une fois la migration faite, le clone `~/Compta-tmp` peut être supprimé.
 
 | Mode classeur | Mode assisté |
 | --- | --- |

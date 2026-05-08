@@ -222,7 +222,7 @@ Les fichiers de l'application sont modifiables, mais `git pull` signalera les co
 - **Linux Ubuntu 22.04 / 24.04** et dérivés (**Zorin, Mint**) - avec **GNOME, KDE, XFCE…** en session **X11** (ou XWayland).
 -  **Windows 11** via WSL2-Ubuntu
 
-**(3)** Lorsque le classeur évolue significativement, il est recommandé de passer **ponctuellement** en mode assisté avec une **installation allégée** (voir Compta_upgrade.md ), le temps d'exécuter l'outil de mise à niveau, puis de revenir au mode classeur après suppression de cette installation temporaire.
+**(3)** Lorsque le classeur évolue significativement, il est recommandé de passer **ponctuellement** en mode assisté avec une **installation allégée** (voir Compta_upgrade.md ), le temps d'exécuter l'outil de mise à niveau, puis de revenir au mode classeur après suppression de cette installation temporaire. Comme le mode assisté complet, cette installation allégée requiert **Linux** ou **Windows 11 + WSL2** ; elle n'est pas supportée sur Windows pur.
 
 ## 9. Signaler un bug
 
