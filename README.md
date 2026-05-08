@@ -210,7 +210,7 @@ Les fichiers de l'application sont modifiables, mais `git pull` signalera les co
 |                  | Mode classeur                              | Mode assisté                                                 |
 | ---------------- | ------------------------------------------ | ------------------------------------------------------------ |
 | **Installation** | Aucune (juste un tableur compatible Excel) | installation manuelle pour certaines distributions Linux  **(1)** |
-| **GUI**          | Aucune                                     | **Wayland pur** non supporté  **(2)**                        |
+| **GUI**          | N/A                                        | **Wayland pur** non supporté  **(2)**                        |
 | **Mise à jour**  | outil parfois nécessaire (3)               | Aucune                                                       |
 
 **(1)** **Fedora, Arch, openSUSE** et toutes les distributions qui n'utilisent pas l'`apt` Debian/Ubuntu  — voir `requirements.txt`. 
@@ -222,7 +222,7 @@ Les fichiers de l'application sont modifiables, mais `git pull` signalera les co
 - **Linux Ubuntu 22.04 / 24.04** et dérivés (**Zorin, Mint**) - avec **GNOME, KDE, XFCE…** en session **X11** (ou XWayland).
 -  **Windows 11** via WSL2-Ubuntu
 
-**(3)** L'évolution du classeur (structures, formules, formats ...) rend les mises à jour manuelles de certaines versions peu réalistes. Pour ces versions Compta_upgrade.md recommande de passer **ponctuellement** en mode assisté avec une **installation allégée**, le temps d'exécuter l'outil de migration, puis de revenir au mode classeur après suppression de cette installation temporaire.
+**(3)** Lorsque le classeur évolue significativement, il est recommandé de passer **ponctuellement** en mode assisté avec une **installation allégée** (voir Compta_upgrade.md ), le temps d'exécuter l'outil de mise à niveau, puis de revenir au mode classeur après suppression de cette installation temporaire.
 
 ## 9. Signaler un bug
 
