@@ -1057,21 +1057,17 @@ def check_format_coherence(doc, cr=None):
             # le nom est en col B (PVLcompte), col C est vide
             label = ligne or ws_pv.getCellByPosition(cr.col('PVLcompte'), r0).getString().strip() or '?'
 
-            # H/I : devise native pour portefeuilles, EUR pour les autres sections
-            expected_hi = devise if section == 'portefeuilles' else 'EUR'
-            for nr_name, col_name in (('PVLmontant_init', 'H'), ('PVLsigma', 'I')):
+            # E/H/I/K : devise native pour portefeuilles (modèle DEV),
+            # EUR pour métaux/crypto/devises (modèle EUR — Equiv EUR ligne par ligne)
+            expected = devise if section == 'portefeuilles' else 'EUR'
+            for nr_name, col_name in (('PVLpvl', 'E'),
+                                      ('PVLmontant_init', 'H'),
+                                      ('PVLsigma', 'I'),
+                                      ('PVLmontant', 'K')):
                 fmt_devise = _extract_devise_from_fmt(
                     ws_pv.getCellByPosition(cr.col(nr_name), r0).NumberFormat)
-                if fmt_devise and fmt_devise != expected_hi:
-                    print(f"  ✗ PVL {label} ({devise}): {col_name} formaté {fmt_devise}, attendu {expected_hi}")
-                    issues += 1
-
-            # E (PVL) et K (SOLDE) : toujours en devise de la ligne
-            for nr_name, col_name in (('PVLpvl', 'E'), ('PVLmontant', 'K')):
-                fmt_devise = _extract_devise_from_fmt(
-                    ws_pv.getCellByPosition(cr.col(nr_name), r0).NumberFormat)
-                if fmt_devise and fmt_devise != devise:
-                    print(f"  ✗ PVL {label} ({devise}): {col_name} formaté {fmt_devise}, attendu {devise}")
+                if fmt_devise and fmt_devise != expected:
+                    print(f"  ✗ PVL {label} ({devise}): {col_name} formaté {fmt_devise}, attendu {expected}")
                     issues += 1
 
     return issues
