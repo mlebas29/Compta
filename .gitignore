@@ -45,6 +45,7 @@ docs/
 # Outils DEV-only — vocation à devenir publics progressivement (#63)
 tool_check_sites.py
 tool_commit.sh
+tool_pull.sh
 tool_diff_xlsm.py
 tool_export.py
 tool_export_configs.py
