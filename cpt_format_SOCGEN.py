@@ -402,12 +402,33 @@ def process_operations_parsed(file_path):
     return result
 
 
+def post_process_supports(supports_data, total_valorisation, compte):
+    """Hook post-traitement des supports avant émission CSV.
+
+    Pass-through public : retourne tous les supports tels quels, dans l'ordre
+    alphabétique. Monkeypatchable depuis `private/patch_*.py` pour les
+    de l'assurance vie ébène 2).
+
+    Args:
+        supports_data: dict {nom_support: valorisation}
+        total_valorisation: somme des valorisations
+        compte: nom du compte cible
+
+    Returns:
+        liste de tuples (nom, valorisation) à émettre dans le CSV
+    """
+    return [(n, supports_data[n]) for n in sorted(supports_data)]
+
+
 def process_positions(file_path):
     """
-    Parse fichier Excel supports et génère format 4 colonnes
+    Parse fichier Excel supports et génère format 4 colonnes.
 
     Détection du compte par nom de fichier :
-    - SG_Ebene_supports*.xlsx → ébène 1
+    - SG_Ebene2_supports*.xlsx → ébène 2
+    - SG_Ebene_supports*.xlsx  → ébène 1
+
+    le hook `post_process_supports` — pass-through public, monkeypatchable.
     """
     if xl is None:
         print("❌ Module openpyxl requis: pip install openpyxl", file=sys.stderr)
@@ -471,10 +492,18 @@ def process_positions(file_path):
         else:
             compte = 'Ass vie ébène Cécile'
 
-    # Exporter tous les supports
-    for support_name in sorted(supports_data.keys()):
-        valorisation = supports_data[support_name]
-        output_lines.append(f'{date_aujourdhui};{support_name};{valorisation:.2f};{compte}')
+    # Générer CSV format 4 colonnes via le hook post_process_supports
+    output_lines = []
+    date_aujourdhui = get_file_date(file_path)
+
+    # En-tête
+    output_lines.append('Date;Ligne;Montant;Compte')
+
+    # Émettre les supports retournés par le hook (pass-through par défaut,
+    for name, valorisation in post_process_supports(
+            supports_data, total_valorisation, compte):
+        output_lines.append(
+            f'{date_aujourdhui};{name};{valorisation:.2f};{compte}')
 
     return '\n'.join(output_lines)
 

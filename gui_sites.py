@@ -193,7 +193,7 @@ class SitesMixin:
         self.site_desc_text.config(state='normal')
         self.site_desc_text.delete('1.0', 'end')
         self.site_desc_text.insert('1.0', desc_text)
-        if self.mode in ('prod', 'export'):
+        if self.mode == 'prod':
             self.site_desc_text.config(state='disabled')
         else:
             # Lier la sauvegarde au site courant

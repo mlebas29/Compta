@@ -121,9 +121,14 @@ class ExecMixin:
         # Bouton Outils — Button + tk_popup (gère bien le grab Linux, contrairement
         # à Menubutton dont le menu reste posté quand la fenêtre perd le focus).
         outils_menu = tk.Menu(self.root, tearoff=0)
-        if self.mode != 'export':
+        # Items Wiki conditionnés à la présence de Seafile en config (cloneur
+        # tiers sans Seafile : ces items disparaissent). Publier reste réservé
+        # au mode prod (l'instance qui a autorité sur le classeur).
+        has_seafile = bool(self.config.get(
+            'paths', 'seafile_comptes_file', fallback=None))
+        if has_seafile:
             outils_menu.add_command(label='Charger Wiki', command=self._exec_pull)
-        if self.mode == 'prod':
+        if has_seafile and self.mode == 'prod':
             outils_menu.add_command(label='Publier Wiki', command=self._exec_push)
         outils_menu.add_command(label='Réinitialiser...', command=self._exec_reset)
         outils_menu.add_command(label='Annuler import', command=self._exec_fallback)
@@ -329,24 +334,29 @@ class ExecMixin:
         self._exec_run(cmd, 'Push Seafile')
 
     def _exec_reset(self):
-        if self.mode == 'export':
-            self._exec_reset_export_dialog()
-        else:
-            # DEV/PROD : confirmation simple → pull Seafile + purge
-            if not messagebox.askyesno(
-                    'Confirmation',
-                    'Réinitialiser le système ?\n\n'
-                    'Cela va :\n'
-                    '- Récupérer comptes.xlsm depuis Seafile\n'
-                    '- Purger archives, dropbox et logs',
-                    parent=self.root):
-                return
-            cmd = [sys.executable, str(self.config_path.parent / 'cpt.py'),
-                   '--reset']
-            self._exec_run(cmd, 'Réinitialisation')
+        # Seafile présent → reset simple (pull + purge). Sinon → dialogue
+        # template (utilisateur sans Seafile, p.ex. cloneur tiers en mode
+        # classeur).
+        has_seafile = bool(self.config.get(
+            'paths', 'seafile_comptes_file', fallback=None))
+        if not has_seafile:
+            self._exec_reset_template_dialog()
+            return
 
-    def _exec_reset_export_dialog(self):
-        """Dialogue de réinitialisation pour le mode Export."""
+        if not messagebox.askyesno(
+                'Confirmation',
+                'Réinitialiser le système ?\n\n'
+                'Cela va :\n'
+                '- Récupérer comptes.xlsm depuis Seafile\n'
+                '- Purger archives, dropbox et logs',
+                parent=self.root):
+            return
+        cmd = [sys.executable, str(self.config_path.parent / 'cpt.py'),
+               '--reset']
+        self._exec_run(cmd, 'Réinitialisation')
+
+    def _exec_reset_template_dialog(self):
+        """Dialogue de réinitialisation sans Seafile (template + réinstall)."""
         dlg = tk.Toplevel(self.root)
         dlg.title('Réinitialiser')
         dlg.transient(self.root)

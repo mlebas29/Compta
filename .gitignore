@@ -7,6 +7,7 @@ logs/
 *.gpg
 .~lock.*
 .claude/
+private/
 comptes.xlsm
 config.ini
 config_accounts.json

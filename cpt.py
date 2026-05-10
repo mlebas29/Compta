@@ -412,17 +412,13 @@ def do_reset():
 def do_reset_template():
     """Réinitialisation template — classeur vierge + purge configs et données
 
-    Utilisé en mode Export : charge le template vierge, vide les JSON
-    de mapping (comptes, pipeline), purge archives/dropbox/logs et cookies.
+    Charge le template vierge, vide les JSON de mapping (comptes, pipeline),
+    purge archives/dropbox/logs et cookies.
     """
     logger.info("🔄 Réinitialisation template (classeur vierge)")
 
     # 1. Copier le template vierge → comptes.xlsm
-    # En Export le template est livré à la racine, en DEV il est dans tests/
-    if COMPTA_MODE == 'export':
-        template_src = BASE_DIR / 'comptes_template.xlsm'
-    else:
-        template_src = SCRIPT_DIR / 'tests' / 'tnr' / 'template' / 'expected.xlsm'
+    template_src = BASE_DIR / 'comptes_template.xlsm'
     local_path = BASE_DIR / "comptes.xlsm"
 
     if not template_src.exists():

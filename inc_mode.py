@@ -11,6 +11,10 @@ import configparser
 import sys
 from pathlib import Path
 
+# Chargement opportuniste des extensions privées (cf. Compta_fusion.md).
+# inc_mode est importé par tous les points d'entrée → 1 seul endroit suffit.
+import inc_bootstrap  # noqa: F401  — side-effect : sys.path + patches privés
+
 VALID_MODES = {'dev', 'prod', 'export'}
 
 # Variable globale pour éviter d'afficher plusieurs fois le warning
