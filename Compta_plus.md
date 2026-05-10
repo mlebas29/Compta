@@ -92,7 +92,7 @@ Cotations : Cotations
 ### Ciblage
 
 ```bash
-cpt --sites SG,PEE         # Sites spécifiques uniquement
+cpt --sites SOCGEN,NATIXIS  # Sites spécifiques uniquement
 cpt --fetch-only           # Collecte seule (sans import)
 cpt --update-only          # Import seul (sans collecte)
 ```
@@ -209,7 +209,7 @@ cpt --fallback             # Annuler et recommencer
 
 ```bash
 cpt --status               # Vérifier fichiers dans dropbox/
-cpt --sites SG             # Relancer un site spécifique
+cpt --sites SOCGEN         # Relancer un site spécifique
 ```
 
 ### Fichier Excel verrouillé

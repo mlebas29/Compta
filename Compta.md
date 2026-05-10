@@ -201,7 +201,7 @@ Tous les scripts démarrent en **headless** (fenêtre du navigateur invisible). 
 | **eToro** | Login requis (session expirée) | CAPTCHA et/ou code 2FA dans Chrome |
 | **Wise** | Login requis (session expirée) | Mobile 2FA + email 2FA (clipboard) |
 | **Kraken** | Cloudflare Turnstile (CAPTCHA) | Cocher "humain", puis 2FA email (clipboard) |
-| **BB/SG/PEE/DEGIRO** | Selon script (2FA, OCR...) | Variable |
+| **BOURSOBANK/SOCGEN/NATIXIS/DEGIRO** | Selon script (2FA, OCR...) | Variable |
 
 - Si session active (profil persistant) : reste headless, pas d'interaction
 - Wise : clipboard surveille liens wise.com, ouvre dans nouvel onglet

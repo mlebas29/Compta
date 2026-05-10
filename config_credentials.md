@@ -1,7 +1,7 @@
 | Clé | Identifiant | Password |
 |-----|-------------|----------|
-| SG | | |
-| BB | | |
+| SOCGEN | | |
+| BOURSOBANK | | |
 | DEGIRO | | |
 | WISE | | |
 | KRAKEN | | |
