@@ -33,6 +33,38 @@ for _a in _wise_config.get('accounts', []):
     if len(_parts) == 2 and len(_parts[1]) == 3 and _parts[1].isupper():
         CURRENCY_ACCOUNTS[_parts[1]] = _name
 
+EXPECTED_FILES = [
+    ('statement_*.zip', 'glob', '1'),
+]
+
+DESCRIPTION = """Wise — comptes paiements multi-devises.
+
+══════ Configuration ══════
+
+N comptes (1 par devise).
+
+══════ 2FA ══════
+
+Occasionnel, via App mobile.
+Peut être complété par un 2nd 2FA email (nouvel appareil) : clic droit sur le bouton d'approbation → copier le lien. Le script fait le reste.
+
+Procédure :
+1. Le script lance Chrome
+2. L'alerte s'affiche dans le terminal
+3. Approuver la connexion dans l'appli Wise mobile ("Oui, c'est moi")
+4. Le script détecte la connexion et poursuit la collecte
+
+══════ Collecte manuelle de secours ══════
+
+1. Opérations et soldes
+   wise.com/balances/statements → Créer un Relevé
+   → Toutes devises, format XLSX → Générer → Télécharger ZIP
+
+2. Intérêts comptes rémunérés (annuel, début d'année)
+   wise.com/balances/.../holding-money → Année précédente
+   → Reporter manuellement dans Excel
+   → dropbox/WISE/"""
+
 def log(message, verbose=False):
     """Print log message if verbose mode enabled."""
     if verbose:

@@ -38,6 +38,29 @@ MOIS_FR = {
 }
 
 
+EXPECTED_FILES = [
+    ('amazon_operations.csv', 'exact', '1'),
+]
+
+DESCRIPTION = """Amazon — solde et historique carte cadeau.
+
+══════ Configuration ══════
+
+Compte unique.
+
+══════ 2FA ══════
+
+Possible (non encore rencontré).
+
+══════ Collecte manuelle de secours ══════
+
+1. Opérations carte cadeau
+   amazon.fr → Compte → Cartes cadeaux → Activité
+   → Copier/coller le tableau dans un CSV
+   → dropbox/AMAZON/"""
+
+MAX_ACCOUNTS = 1
+
 def parse_amazon_csv(csv_file):
     """Parse le CSV Amazon scrapé et retourne les opérations en tuples 9 champs.
 

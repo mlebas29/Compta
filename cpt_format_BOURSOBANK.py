@@ -51,6 +51,57 @@ ACCOUNT_RESERVE = require_account(_bb_accounts, 'Réserve', SITE)
 ACCOUNT_BASE = ACCOUNT_TITRES.rsplit(' ', 1)[0]
 
 
+EXPECTED_FILES = [
+    ('export_compte_principal.csv', 'exact', '1'),
+    ('export_livret_bourso.csv', 'exact', '1'),
+    ('export-operations-*.csv', 'glob', '0+'),
+    ('positions.csv', 'exact', '0-1'),
+    ('export-positions-instantanees-*.csv', 'glob', '0-1'),
+    ('Mes Comptes - BoursoBank.pdf', 'exact', '1'),
+    ('Portefeuille - BoursoBank.pdf', 'exact', '0-1'),
+]
+
+DESCRIPTION = """BoursoBank — tous les comptes (chèque, livret, portefeuille titres).
+
+══════ Configuration ══════
+
+Jusqu'à 4 comptes (1 principal + 1 épargne + 1 portefeuille + 1 Réserve auto).
+
+══════ 2FA ══════
+
+Occasionnel (premier login ou session expirée).
+
+Procédure :
+1. Le script remplit les identifiants (clavier virtuel OCR)
+2. L'alerte s'affiche dans le terminal
+3. Confirmer la notification sur l'app mobile BoursoBank
+4. Le script détecte la connexion et poursuit la collecte
+
+══════ Collecte manuelle de secours ══════
+
+1. Opérations compte chèque
+   clients.boursobank.com/compte/cav/ → Exporter
+   → renommer export_compte_principal.csv
+
+2. Opérations livret
+   .../compte/epargne/ → Exporter
+   → renommer export_livret_bourso.csv
+
+3. Opérations titres
+   .../bourse/mouvements → Exporter → export-operations-*.csv
+
+4. Positions
+   .../bourse/portefeuille → Exporter → positions.csv
+
+5. Soldes (tous comptes)
+   Accueil → Imprimer → Mes Comptes - BoursoBank.pdf
+
+6. Solde Réserve
+   .../bourse/portefeuille → Imprimer → Portefeuille - BoursoBank.pdf
+   → dropbox/BB/"""
+
+MAX_ACCOUNTS = 4
+
 def format_date(date_str):
     """
     Convertit YYYY-MM-DD en DD/MM/YYYY ou garde DD/MM/YYYY

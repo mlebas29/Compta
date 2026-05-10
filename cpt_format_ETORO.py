@@ -65,6 +65,45 @@ ACCOUNT_RESERVE = require_account(_etoro_accounts, 'Réserve', SITE)
 ACCOUNT_MONEY = require_account(_etoro_accounts, 'Money', SITE)
 
 
+EXPECTED_FILES = [
+    ('eToroTransactions_*.tsv', 'glob', '1'),
+    ('etoro-account-statement*.xlsx', 'glob', '1'),
+    ('eToro_accueil.pdf', 'exact', '1'),
+    ('eToro_portfolio.pdf', 'exact', '1'),
+]
+
+DESCRIPTION = """eToro — plateforme trading, compte-titre EUR/USD.
+
+══════ Configuration ══════
+
+Jusqu'à 3 comptes (1 portefeuille + 1 compte + 1 Réserve auto).
+
+══════ 2FA ══════
+
+Occasionnel.
+
+Procédure :
+1. Le script remplit les identifiants et soumet le formulaire
+2. L'alerte s'affiche dans le terminal : "Tape le code reçu par SMS/email puis Entrée"
+3. Saisir le code à 5 chiffres directement dans le terminal
+4. Le script remplit le code dans Chrome et clique Continue
+5. La connexion est validée en quelques secondes
+
+══════ Collecte manuelle de secours ══════
+
+1. Opérations compte EUR
+   etoro.com/wallet/account/EUR → Export (TSV)
+
+2. Opérations USD Réserve
+   etoro.com/documents/accountstatement → Créer → XLS
+
+3. Soldes EUR + USD
+   etoro.com/home → Imprimer → eToro_accueil.pdf
+
+4. Portefeuille titres
+   etoro.com/portfolio/overview → Imprimer → eToro_portfolio.pdf
+   → dropbox/ETORO/"""
+
 def get_temp_dir():
     """Retourne le répertoire temporaire logs/debug/ETORO/ pour les fichiers parsed"""
     script_dir = Path(__file__).parent

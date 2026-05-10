@@ -52,6 +52,69 @@ def site_name_from_file(filepath):
     return stem
 
 
+_SITE_MODULE_CACHE = {}
+
+
+def _get_site_module(site_name):
+    """Importe (avec cache) le module cpt_format_<site>. Retourne None si absent."""
+    if site_name in _SITE_MODULE_CACHE:
+        return _SITE_MODULE_CACHE[site_name]
+    import importlib
+    try:
+        module = importlib.import_module(f'cpt_format_{site_name}')
+    except ImportError:
+        module = None
+    _SITE_MODULE_CACHE[site_name] = module
+    return module
+
+
+def get_expected_files(site_name):
+    """Retourne la liste des patterns (fichier, matching, cardinalité) attendus
+    dans dropbox/<site>/, déclarée par le module cpt_format_<site>.py via sa
+    variable EXPECTED_FILES. Liste vide si site inconnu ou pas de déclaration.
+    """
+    module = _get_site_module(site_name)
+    return getattr(module, 'EXPECTED_FILES', []) if module else []
+
+
+def get_site_description(site_name):
+    """Retourne la description GUI du site, déclarée par le module
+    cpt_format_<site>.py via sa variable DESCRIPTION. None si absent.
+    """
+    module = _get_site_module(site_name)
+    return getattr(module, 'DESCRIPTION', None) if module else None
+
+
+def get_max_accounts(site_name):
+    """Retourne le nombre maximum de comptes pour ce site, déclaré par le
+    module cpt_format_<site>.py via sa variable MAX_ACCOUNTS. None si pas
+    de limite (= illimité).
+    """
+    module = _get_site_module(site_name)
+    return getattr(module, 'MAX_ACCOUNTS', None) if module else None
+
+
+def get_all_site_descriptions():
+    """Aggrège les DESCRIPTION de tous les modules cpt_format_*.py présents
+    dans sys.path (racine + private/ via inc_bootstrap). Retourne {site: desc}.
+    """
+    import importlib
+    import pkgutil
+    descs = {}
+    for finder, name, ispkg in pkgutil.iter_modules():
+        if not name.startswith('cpt_format_'):
+            continue
+        site = name[len('cpt_format_'):]
+        try:
+            module = importlib.import_module(name)
+        except ImportError:
+            continue
+        d = getattr(module, 'DESCRIPTION', None)
+        if d:
+            descs[site] = d
+    return descs
+
+
 def get_file_date(filepath):
     """Date de modification du fichier source, formatée DD/MM/YYYY.
 
@@ -362,8 +425,6 @@ def verify_dropbox_files(site_dir, site_name):
         Liste de warnings (strings). Liste vide si tout est OK.
     """
     import fnmatch
-    from config_site_files import SITE_FILES
-
     import os
     site_dir = Path(site_dir)
     warnings = []
@@ -372,11 +433,10 @@ def verify_dropbox_files(site_dir, site_name):
     if TNR_MODE or 'test_data' in str(site_dir) or '/tnr/' in str(site_dir):
         return warnings
 
+    patterns = get_expected_files(site_name)
     # Site non configuré ou MANUEL → pas de vérification
-    if site_name not in SITE_FILES:
+    if not patterns:
         return warnings
-
-    patterns = SITE_FILES[site_name]
 
     # Lister tous les fichiers présents (ignorer _temp, _formatted)
     all_files = [f.name for f in site_dir.iterdir()

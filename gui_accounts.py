@@ -196,10 +196,7 @@ class AccountsMixin:
 
     # --- Champs conditionnels par site et gardes comptes ---
 
-    # Limites max comptes par site
-    SITE_MAX_ACCOUNTS = {
-        'BOURSOBANK': 4, 'NATIXIS': 1, 'PAYPAL': 1, 'AMAZON': 1, 'ORCHESTRA': 1,
-    }
+    # Limites max comptes : déclaré par module via MAX_ACCOUNTS dans cpt_format_<site>.py
 
     # ----------------------------------------------------------------
     # Helpers nom convivial du site (config.ini [SITE] name = ...) ↔ clé
@@ -522,11 +519,13 @@ class AccountsMixin:
                 site = 'N/A'
 
             # Garde max comptes par site
-            if site in self.SITE_MAX_ACCOUNTS:
+            from inc_format import get_max_accounts
+            max_accounts = get_max_accounts(site)
+            if max_accounts is not None:
                 current = self._count_site_accounts(site)
-                if current >= self.SITE_MAX_ACCOUNTS[site]:
+                if current >= max_accounts:
                     messagebox.showwarning('Limite',
-                        f'{site} : maximum {self.SITE_MAX_ACCOUNTS[site]} compte(s).',
+                        f'{site} : maximum {max_accounts} compte(s).',
                         parent=dlg)
                     return
 

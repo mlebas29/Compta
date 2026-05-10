@@ -312,10 +312,10 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
         self.tk_vars = {}
         self.site_vars = {}
 
-        # Descriptions par site : défauts (config_descriptions_default.json) + overrides utilisateur
-        self.desc_default_path = self.config_path.parent / 'config_descriptions_default.json'
+        # Descriptions par site : défauts (DESCRIPTION dans cpt_format_<site>.py) + overrides utilisateur
         self.desc_path = self.config_path.parent / 'config_descriptions.json'
-        self.site_descriptions_default = self._load_json(self.desc_default_path)
+        from inc_format import get_all_site_descriptions
+        self.site_descriptions_default = get_all_site_descriptions()
         self.site_descriptions = self._load_descriptions()
 
         # Mapping compte → site (persisté dans config_accounts.json)
@@ -892,9 +892,9 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DevisesMixin,
         for s in map_sites - ini_sites:
             # Site absent de config.ini : pas de nom convivial, on garde la clé
             warnings.append(f'Site « {s} » dans config_accounts.json mais absent de config.ini')
-        # Sites sans description par défaut
+        # Sites sans description par défaut (variable DESCRIPTION dans le module)
         for s in ini_sites - set(self.site_descriptions_default.keys()):
-            warnings.append(f'Site « {_site_label(s)} » absent de config_descriptions_default.json')
+            warnings.append(f'Site « {_site_label(s)} » : pas de DESCRIPTION dans cpt_format_{s}.py')
 
         return auto_fixes, warnings
 

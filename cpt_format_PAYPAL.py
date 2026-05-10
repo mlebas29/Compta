@@ -37,6 +37,29 @@ if not _paypal_accounts or 'name' not in _paypal_accounts[0]:
 ACCOUNT_NAME = _paypal_accounts[0]['name']
 
 
+EXPECTED_FILES = [
+    ('*.CSV', 'glob', '1'),
+]
+
+DESCRIPTION = """PayPal — transactions et solde.
+
+══════ Configuration ══════
+
+Compte unique.
+
+══════ 2FA ══════
+
+SMS.
+
+══════ Collecte manuelle de secours ══════
+
+1. Rapport d'activité
+   paypal.com → Activité → Rapports → Créer un rapport
+   → Type CSV, période souhaitée → Télécharger
+   → dropbox/PAYPAL/"""
+
+MAX_ACCOUNTS = 1
+
 def parse_paypal_csv(csv_file):
     """Parse un CSV PayPal et retourne les opérations en tuples 9 champs.
 

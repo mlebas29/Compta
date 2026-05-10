@@ -45,6 +45,33 @@ except ImportError:
     pdfplumber = None
 
 
+EXPECTED_FILES = [
+    ('Historique et suivi de mes opérations - Natixis Interépargne.pdf', 'exact', '1'),
+    ('Mon épargne en détail - Natixis Interépargne.pdf', 'exact', '1'),
+]
+
+DESCRIPTION = """Plan Épargne Entreprise — compte-titre unique.
+
+══════ Configuration ══════
+
+Compte unique.
+
+══════ 2FA ══════
+
+Aucune.
+
+══════ Collecte manuelle de secours ══════
+
+1. Opérations + Solde
+   hsbc.epargnants.votreepargnesalariale.com → Historique
+   → Imprimer (Ctrl+P) → garder le nom PDF
+
+2. Positions
+   → Épargne en détail → Imprimer (Ctrl+P) → garder le nom PDF
+   → dropbox/NATIXIS/"""
+
+MAX_ACCOUNTS = 1
+
 def format_date(date_str):
     """
     Convertit DD/MM/YYYY en DD/MM/YYYY (déjà au bon format)

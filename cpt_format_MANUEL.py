@@ -26,6 +26,25 @@ from inc_format import process_files, lines_to_tuples, log_csv_debug as _log_csv
 SITE = site_name_from_file(__file__)
 
 # Lookup case-insensitive des devises connues (config_cotations.json + EUR)
+EXPECTED_FILES = [
+    ('*.xlsx', 'glob', '0-1'),
+]
+
+DESCRIPTION = """Opérations manuelles — fichiers CSV déposés dans dropbox/MANUEL/.
+
+══════ Configuration ══════
+
+Pas de configuration. Pour les opérations non collectées automatiquement : bijoux, créances, compléments.
+Les fichiers sont importés puis archivés automatiquement.
+
+══════ 2FA ══════
+
+N/A.
+
+══════ Collecte manuelle de secours ══════
+
+N/A."""
+
 def _build_devise_lookup():
     cfg_path = Path(__file__).parent / 'config_cotations.json'
     with open(cfg_path) as f:

@@ -46,6 +46,27 @@ WALLET_MAPPING = {
 }
 
 
+EXPECTED_FILES = [
+    ('btc_balances.csv', 'exact', '1'),
+    ('btc_*_operations.csv', 'glob', '0+'),
+]
+
+DESCRIPTION = """Bitcoin — wallets auto-hébergés.
+
+══════ Configuration ══════
+
+N comptes (1 par wallet). Chaque wallet a un wallet_key et une liste d'adresses dans config_accounts.json.
+Les adresses sont publiques, la collecte ne nécessite pas de mot de passe.
+
+══════ 2FA ══════
+
+Aucune.
+
+══════ Collecte manuelle de secours ══════
+
+Pas de procédure manuelle web.
+En cas de panne API, vérifier les soldes sur mempool.space."""
+
 def detect_account_from_filename(filename):
     """Detect account from filename: btc_relai_operations.csv → Relai BTC"""
     for key, account_name in BTC_ACCOUNTS.items():

@@ -39,6 +39,40 @@ CRYPTO_ASSETS = {'BTC', 'ETH', 'SOL', 'ADA', 'DOT'}  # Add more as needed
 # Crypto units conversion
 SATOSHI_PER_BTC = 100_000_000  # 1 BTC = 100,000,000 satoshis
 
+EXPECTED_FILES = [
+    ('kraken-spot-balances-*.zip', 'glob', '1'),
+    ('kraken-spot-ledgers-*.zip', 'glob', '1'),
+]
+
+DESCRIPTION = """Kraken — exchange crypto.
+
+══════ Configuration ══════
+
+N comptes (1 par devise).
+
+══════ 2FA ══════
+
+Occasionnel.
+
+Procédure :
+1. Le script remplit les identifiants et soumet le formulaire
+2. L'alerte s'affiche dans le terminal : "Copie le lien de l'email Kraken"
+3. Ouvrir l'email Kraken, clic droit sur le bouton de confirmation → Copier le lien
+4. Le script détecte le lien dans le presse-papier et navigue automatiquement
+5. La connexion est validée en quelques secondes
+
+══════ Collecte manuelle de secours ══════
+
+1. Opérations
+   kraken.com/c/account-settings/documents
+   → Nouvelle exportation → Type Registres, CSV
+   → Télécharger ZIP (ledgers.csv)
+
+2. Soldes
+   → Nouvelle exportation → Type Soldes, CSV
+   → Télécharger ZIP (balances.csv)
+   → dropbox/KRAKEN/"""
+
 def log(message, verbose=False):
     """Print log message if verbose mode enabled."""
     if verbose:

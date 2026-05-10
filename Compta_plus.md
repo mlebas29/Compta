@@ -272,4 +272,4 @@ Récapitulatif des fichiers générés par la collecte automatique ou manuelle. 
 | **AMAZON** | `amazon_operations.csv` | Opérations + Solde | Compte Amazon |
 | **MANUEL** | `*.csv`, `*.xlsx` | Opérations + Soldes | Créances, Compléments |
 
-*Note : Voir `config_site_files.py` pour les patterns exacts et règles de validation.*
+*Note : Voir la variable `EXPECTED_FILES` dans chaque `cpt_format_<NAME>.py` pour les patterns exacts et règles de validation.*

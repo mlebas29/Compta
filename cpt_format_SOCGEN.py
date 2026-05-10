@@ -74,6 +74,56 @@ SUPPORT_NAME_MAPPING = {
 }
 
 
+EXPECTED_FILES = [
+    ('Mes comptes en ligne _ SG.pdf', 'exact', '1'),
+    ('00050659433.csv', 'exact', '1'),
+    ('Export_00030472944_*.csv', 'glob', '1'),
+    ('Export_00030472951_*.csv', 'glob', '1'),
+    ('Export_00034192035_*.csv', 'glob', '1'),
+    ('Export_00034192043_*.csv', 'glob', '1'),
+    ('Export_00036889059_*.csv', 'glob', '1'),
+    ('SG_Ebene_operations.pdf', 'exact', '0-1'),
+    ('SG_Ebene_operations#*.pdf', 'glob', '0+'),
+    ('SG_Ebene2_operations.pdf', 'exact', '0-1'),
+    ('SG_Ebene2_operations#*.pdf', 'glob', '0+'),
+    ('SG_Ebene_supports.xlsx', 'exact', '1'),
+    ('SG_Ebene2_supports.xlsx', 'exact', '1'),
+]
+
+DESCRIPTION = """Société Générale — tous les comptes (chèque, épargne, assurance vie).
+
+══════ Configuration ══════
+
+Comptes multiples avec type_sg (principal, epargne, assurance_vie).
+Chaque compte a un numéro et/ou id_technique dans config_accounts.json.
+Les assurances vie ont un file_key pour le nommage des fichiers.
+
+══════ 2FA ══════
+
+Occasionnel.
+
+Procédure :
+1. Le script remplit les identifiants et soumet le formulaire
+2. L'alerte s'affiche dans le terminal
+3. Confirmer la notification sur l'app mobile SG
+4. Si SG re-présente la page 2FA, le script re-clique automatiquement sur Continuer
+5. Le script détecte la connexion et poursuit la collecte
+
+══════ Collecte manuelle de secours ══════
+
+1. Synthèse — Soldes tous comptes
+   particuliers.sg.fr → Synthèse → Imprimer (Ctrl+P)
+   → Mes comptes en ligne _ SG.pdf
+
+2. Opérations comptes
+   Pour chaque compte → Exporter au format CSV
+   Fichiers : xxxxx.csv, Export_xxxxx_*.csv, etc.
+
+3. Assurances vie
+   Suivre mes opérations → Imprimer → SG_{file_key}_operations.pdf
+   Télécharger supports → SG_{file_key}_supports.xlsx
+   → dropbox/SG/"""
+
 def detect_compte(file_path):
     """Détecte le nom du compte depuis le nom de fichier via file_key"""
     filename = file_path.stem.lower()

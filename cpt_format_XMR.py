@@ -35,6 +35,26 @@ XMR_ACCOUNTS = {
 }
 
 
+EXPECTED_FILES = [
+    ('xmr_balances.csv', 'exact', '1'),
+    ('xmr_*_operations.csv', 'glob', '0+'),
+]
+
+DESCRIPTION = """Monero — wallets auto-hébergés.
+
+══════ Configuration ══════
+
+N comptes (1 par wallet). Chaque wallet a un wallet_key et un wallet_name (nom MoneroGUI) dans config_accounts.json.
+Le chemin wallet_dir est configuré dans config.ini [XMR].
+
+══════ 2FA ══════
+
+Aucune. Collecte via monero-wallet-cli et le nœud local.
+
+══════ Collecte manuelle de secours ══════
+
+Pas de procédure manuelle web."""
+
 def detect_account_from_filename(filename):
     """Detect account from filename: xmr_marc_operations.csv → Marc XMR"""
     for key, account_name in XMR_ACCOUNTS.items():

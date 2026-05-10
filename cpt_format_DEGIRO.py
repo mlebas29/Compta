@@ -38,6 +38,37 @@ ACCOUNT_RESERVE = require_account(_degiro_accounts, 'Réserve', SITE)
 # Nom de base pour le relevé (sans suffixe)
 ACCOUNT_BASE = ACCOUNT_TITRES.rsplit(' ', 1)[0]
 
+EXPECTED_FILES = [
+    ('Account.csv', 'exact', '1'),
+    ('Portfolio.csv', 'exact', '1'),
+]
+
+DESCRIPTION = """DEGIRO — courtier en ligne, compte-titre.
+
+══════ Configuration ══════
+
+Jusqu'à 2 comptes (1 portefeuille + 1 Réserve auto).
+
+══════ 2FA ══════
+
+Systématique, à chaque connexion.
+
+Procédure :
+1. Le script remplit les identifiants et soumet le formulaire
+2. L'alerte s'affiche dans le terminal
+3. Confirmer la connexion dans l'app DEGIRO sur mobile
+4. Le script détecte la connexion et poursuit la collecte
+
+══════ Collecte manuelle de secours ══════
+
+1. Opérations
+   trader.degiro.nl → Boîte de réception → Relevé de compte
+   → Télécharger Account.csv
+
+2. Positions + Soldes
+   Portefeuille → Exporter → Portfolio.csv
+   → dropbox/DEGIRO/"""
+
 def parse_degiro_csv(input_file):
     """
     Parse le fichier Account.csv de DEGIRO et le convertit au format standard
