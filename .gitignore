@@ -58,3 +58,6 @@ cpt_gui_export.desktop
 
 # Doctrine témoin DEV
 witness_schema_v2.xlsm
+
+# Instance DEV imbriquée sous PROD (~/Compta/dev/ — gitignored côté PROD)
+dev/
