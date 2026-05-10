@@ -1,5 +1,5 @@
 [Desktop Entry]
-Name=Comptabilité [TEST]
+Name=Comptabilité [DEV]
 Comment=Gestion comptable — collecte, import et appariement
 Exec=python3 /home/marc/Compta/dev/cpt_gui.py
 Path=/home/marc/Compta/dev
