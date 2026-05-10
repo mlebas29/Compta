@@ -2,15 +2,59 @@ __pycache__/
 *.pyc
 dropbox/
 archives/
+archives.test_backup/
 logs/
+debug/
 *.bak
 *.gpg
 .~lock.*
 .claude/
 private/
+
+# Configs runtime perso (gitignored partout, .default versionné)
 comptes.xlsm
+comptes_*.xlsm
+comptes_*.xlsx
 config.ini
 config_accounts.json
 config_category_mappings.json
 config_cotations.json
 config_pipeline.json
+
+# Doc DEV (Marc + Claude)
+CLAUDE.md
+CLAUDE_log.md
+CLAUDE_todo.md
+Compta_dev.md
+Compta_test.md
+
+# Sessions / cookies Playwright
+.bg_cookies.json
+.chrome_profile_*/
+.playwright-mcp/
+
+# Aider
+.aider*
+
+# TNR — futur public via #63 (anonymisation)
+tests/
+
+# Doc dev (DEV-only, futur partiel public)
+docs/
+
+# Outils DEV-only — vocation à devenir publics progressivement (#63)
+tool_check_sites.py
+tool_commit.sh
+tool_diff_xlsm.py
+tool_export.py
+tool_export_configs.py
+tool_gui_cli.py
+tool_migrate_ctrl2_balances.py
+tool_rename_site.py
+tool_strip_drill_pollution.py
+tool_sync_from_witness.py
+inc_export_config.py
+cpt_gui_export.desktop
+
+# Doctrine témoin DEV
+witness_schema_v2.xlsm

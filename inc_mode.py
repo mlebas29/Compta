@@ -102,7 +102,7 @@ def get_base_dir(mode=None):
     if mode == 'prod':
         return Path.home() / 'Compta'
     elif mode == 'dev':
-        return Path.home() / 'Compta' / 'Claude'
+        return Path.home() / 'Compta' / 'dev'
     else:
         # export ou inconnu : répertoire du script
         return Path(sys.argv[0]).resolve().parent
