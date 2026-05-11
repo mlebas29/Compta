@@ -8,6 +8,7 @@ Logique de détection :
 """
 
 import configparser
+import os
 import sys
 from pathlib import Path
 
@@ -24,7 +25,7 @@ _test_warning_shown = False
 def _read_mode_from_config(config_path=None):
     """Lit le mode depuis config.ini [general] mode=."""
     if config_path is None:
-        config_path = Path(sys.argv[0]).resolve().parent / 'config.ini'
+        config_path = Path(sys.argv[0]).absolute().parent / 'config.ini'
     else:
         config_path = Path(config_path)
 
@@ -48,9 +49,9 @@ def detect_mode_from_path(script_path=None):
         'export' si dans ~/Compta/Export
     """
     if script_path is None:
-        script_path = Path(sys.argv[0]).resolve().parent
+        script_path = Path(sys.argv[0]).absolute().parent
     else:
-        script_path = Path(script_path).resolve()
+        script_path = Path(script_path).absolute()
 
     path_str = str(script_path)
 
@@ -93,9 +94,18 @@ def get_base_dir(mode=None):
     """
     Retourne le répertoire de base selon le mode.
 
+    Priorité :
+    1. Variable d'environnement COMPTA_BASE_DIR (override absolu — sandbox, install custom)
+    2. Mode 'prod' → ~/Compta, 'dev' → ~/Compta/dev (defaults usuels)
+    3. Fallback : répertoire du script (mode 'export' / inconnu)
+
     Returns:
         Path: Chemin vers le répertoire de base
     """
+    env_dir = os.environ.get('COMPTA_BASE_DIR')
+    if env_dir:
+        return Path(env_dir)
+
     if mode is None:
         mode = get_mode()
 
@@ -104,8 +114,8 @@ def get_base_dir(mode=None):
     elif mode == 'dev':
         return Path.home() / 'Compta' / 'dev'
     else:
-        # export ou inconnu : répertoire du script
-        return Path(sys.argv[0]).resolve().parent
+        # export ou inconnu : répertoire du script (sans résoudre les symlinks → sandbox-friendly)
+        return Path(sys.argv[0]).absolute().parent
 
 
 def verify_environment(verbose=True):

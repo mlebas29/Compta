@@ -34,7 +34,7 @@ from inc_logging import Logger
 # Utiliser la détection automatique de mode avec vérification de cohérence
 BASE_DIR = inc_mode.get_base_dir()
 COMPTA_MODE = inc_mode.get_mode()
-SCRIPT_DIR = Path(__file__).parent.resolve()
+SCRIPT_DIR = Path(__file__).parent
 
 # Logger global (toujours afficher, pas de journal - les sous-scripts ont leur propre journal)
 logger = Logger(

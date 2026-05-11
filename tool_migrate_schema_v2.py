@@ -263,7 +263,7 @@ def read_conv_from_template(target_path, log):
     """
     from pathlib import Path
     import re as _re
-    script_dir = Path(__file__).parent.resolve()
+    script_dir = Path(__file__).parent
     template_path = script_dir / 'comptes_template.xlsm'
     target_res = Path(target_path).resolve()
     if target_res == template_path:
