@@ -36,8 +36,16 @@ Compta_test.md
 # Aider
 .aider*
 
-# TNR — futur public via #63 (anonymisation)
-tests/
+# TNR — pilote roundtrip ouvert publiquement (cohorte à venir avec #63 anonymisation complète)
+tests/*
+!tests/tnr_lib.py
+!tests/tnr_roundtrip.py
+!tests/tnr/
+tests/tnr/*
+!tests/tnr/roundtrip/
+tests/tnr/roundtrip/result.xlsm*
+tests/tnr/roundtrip/sandbox/
+tests/tnr/roundtrip/run.log
 
 # Doc dev (DEV-only, futur partiel public)
 docs/
