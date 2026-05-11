@@ -261,25 +261,25 @@ Aucune édition manuelle de fichier de config requise — la GUI lit les modules
 
 Pattern monkeypatch : 1 fichier `custom/patch_<nom>.py` qui importe un module public et override un hook. `inc_bootstrap.py` charge tous les `patch_*.py` au démarrage.
 
-Exemple — calcul SYNOE pour Ass vie ébène 2 :
+Exemple — regrouper les supports d'une assurance vie en agrégat ETF :
 
 ```python
-# custom/patch_synoe.py
+# custom/patch_etf.py
 import cpt_format_SOCGEN
 
-HORS_MANDAT = {'SÉCURITÉ EUROS', 'MOOREA FUND - HIGH YIELD'}
+HORS_ETF = {'FONDS_EUROS', 'FONDS_OBLIG'}
 
 def post_process_supports(supports_data, total_valorisation, compte):
-    if compte != 'Ass vie ébène 2 Cécile':
+    if compte != 'Assurance vie Alice':
         return [(n, supports_data[n]) for n in sorted(supports_data)]
-    total_hors_mandat = sum(
-        supports_data[n] for n in HORS_MANDAT if n in supports_data
+    total_hors_etf = sum(
+        supports_data[n] for n in HORS_ETF if n in supports_data
     )
-    synoe = total_valorisation - total_hors_mandat
+    etf = total_valorisation - total_hors_etf
     rows = [
-        (n, supports_data[n]) for n in sorted(HORS_MANDAT) if n in supports_data
+        (n, supports_data[n]) for n in sorted(HORS_ETF) if n in supports_data
     ]
-    rows.append(('SYNOE', synoe))
+    rows.append(('ETF', etf))
     return rows
 
 cpt_format_SOCGEN.post_process_supports = post_process_supports
@@ -305,3 +305,44 @@ custom/
 ```
 
 Le bootstrap charge d'abord les `patch_*.py` (au démarrage), puis le scan des sites trouve `cpt_fetch_FOO.py` au moment de l'orchestration. Ordre préservé.
+
+## Tests et docs — séparation public/privé
+
+`tests/` et `docs/` à la racine DEV ont vocation à devenir publics (cf. chantier #63 anonymisation TNR + ouverture progressive de la doc dev). Ils sont aujourd'hui gitignored par PUB **temporairement**. À leur ouverture, ils seront distribués à tout cloneur GitHub — ce qui dicte une règle stricte :
+
+> **Aucune référence à un site privé, aucune fixture privée, aucune doc qui nomme un site privé n'a sa place dans `tests/` ou `docs/`.** Tout ce qui est privé vit sous `custom/`, en miroir de la structure publique.
+
+```
+~/Compta/dev/
+├── tests/                       futur public (anonymisé via #63)
+│   ├── tnr_pipe.py              code TNR commun
+│   ├── tnr_lib.py
+│   └── tnr/pipe/                fixtures publiques (BOURSOBANK, NATIXIS, …)
+├── docs/                        futur partiel public
+│   └── site_BOURSOBANK.md
+└── custom/                      privé strict (PRV)
+    ├── tests/tnr/pipe/          fixtures privées (overlay)
+    └── docs/
+        └── site_FOO.md          (cohérent avec Cas A)
+```
+
+### Pattern overlay pour les TNR
+
+Le code TNR public scanne `tests/tnr/<scenario>/` puis, **si** des fixtures privées existent à l'emplacement miroir, les ajoute à la liste. Le scénario tourne avec ou sans privé sans connaître le contenu spécifique.
+
+Pour respecter la doctrine *« le code public ne mentionne jamais `custom/` »*, `inc_bootstrap.py` reste l'unique fichier public à exposer le chemin. Il publie une variable consommable :
+
+```python
+# inc_bootstrap.py — extension à prévoir lors du premier TNR/doc privé
+CUSTOM_DIR = _CUSTOM if _CUSTOM.is_dir() else None
+```
+
+Le code TNR consulte `inc_bootstrap.CUSTOM_DIR` (et None si absent), sans jamais épeler le nom `custom/`. Un cloneur GitHub sans `custom/` voit ses TNR publics tourner normalement avec ses seules fixtures publiques.
+
+### Doc
+
+Pas de mécanisme de merge — `docs/` (public) et `custom/docs/` (privé) sont deux répertoires distincts consultés séparément selon le besoin. La séparation au niveau dossier suffit : aucune doctrine de fusion, aucune mécanique côté code.
+
+### Statut
+
+Doctrine **cible**, à appliquer quand un TNR ou une doc privée sera créé. Le mécanisme `CUSTOM_DIR` reste à exposer dans `inc_bootstrap.py`. Aucun TNR ni doc privée n'existe à ce jour.
