@@ -27,14 +27,17 @@ github.com/mlebas29/Compta              (repo public, .git PUB)
 ├── .gitignore                          exclut /dev/, données perso
 ├── cpt_*.py, gui_*.py, inc_*.py        code PUB
 ├── tool_*.py                           outils PUB
-├── tests/                              TNR PUB
+├── tests/                              TNR PUB (gitignored aujourd'hui, futur public via #63)
+├── docs/                               doc dev PUB (gitignored aujourd'hui, futur public via #63)
 ├── README.md, Compta_*.md              doc PUB
 │
-├── custom/                            clone PRV read-only
+├── custom/                             clone PRV read-only
 │   ├── .git/                           remote = file://~/Compta/dev/custom
 │   ├── cpt_fetch_<NAME>.py             sites privés
 │   ├── cpt_format_<NAME>.py            (idem)
-│   └── patch_*.py                      monkeypatches du code public
+│   ├── patch_*.py                      monkeypatches du code public
+│   ├── tests/                          PRV tests overlay (privé strict — jamais public)
+│   └── docs/                           PRV docs overlay (sites privés, données nominatives)
 │
 ├── comptes.xlsm, config.ini            classeur + config locale
 ├── config_*.json                       mappings, alias
@@ -43,19 +46,24 @@ github.com/mlebas29/Compta              (repo public, .git PUB)
 └── dev/                                DEV — gitignored par PROD
     ├── .git/                           clone PUB autonome (parallèle)
     ├── cpt_*.py, gui_*.py, …           code en cours d'édition
-    ├── tests/                          TNR (édition + run)
+    ├── tests/                          TNR (édition + run, futur public via #63)
+    ├── docs/                           doc dev (futur public via #63)
     ├── CLAUDE.md, CLAUDE_todo.md       outils session Claude (gitignored)
     ├── CLAUDE_log.md                   (gitignored, jetable)
     │
-    ├── custom/                        dépôt PRV authoritative (.git PRV)
+    ├── custom/                         dépôt PRV authoritative (.git PRV)
     │   ├── .git/                       AUCUN remote distant
     │   ├── cpt_fetch_*.py / cpt_format_*.py
-    │   └── patch_*.py
+    │   ├── patch_*.py
+    │   ├── tests/                      PRV tests authoritative (overlay privé)
+    │   └── docs/                       PRV docs authoritative
     │
     ├── comptes.xlsm                    sandbox jetable
     ├── config.ini, config_*.json
     └── dropbox/, archives/, logs/      sandbox
 ```
+
+Symétrie clé : `tests/` et `docs/` existent à 4 emplacements (PROD/DEV × public/custom). Le code TNR utilise `find_code_root()` pour s'auto-localiser quel que soit le contexte.
 
 ## Répartition des fichiers
 
@@ -308,41 +316,42 @@ Le bootstrap charge d'abord les `patch_*.py` (au démarrage), puis le scan des s
 
 ## Tests et docs — séparation public/privé
 
-`tests/` et `docs/` à la racine DEV ont vocation à devenir publics (cf. chantier #63 anonymisation TNR + ouverture progressive de la doc dev). Ils sont aujourd'hui gitignored par PUB **temporairement**. À leur ouverture, ils seront distribués à tout cloneur GitHub — ce qui dicte une règle stricte :
+Cf. l'arbo en section [Schéma](#schéma) : `tests/` et `docs/` existent à 4 emplacements (PROD/DEV × public/custom). Les emplacements publics ont vocation à devenir distribuables sur GitHub via le chantier #63 (anonymisation TNR + ouverture doc dev), ce qui dicte une règle stricte :
 
 > **Aucune référence à un site privé, aucune fixture privée, aucune doc qui nomme un site privé n'a sa place dans `tests/` ou `docs/`.** Tout ce qui est privé vit sous `custom/`, en miroir de la structure publique.
 
+### Doctrine sandbox pour les TNR
+
+Le code TNR n'opère **jamais** directement sur l'instance courante (DEV ou PROD). Chaque scénario travaille dans une sandbox jetable :
+
 ```
-~/Compta/dev/
-├── tests/                       futur public (anonymisé via #63)
-│   ├── tnr_pipe.py              code TNR commun
-│   ├── tnr_lib.py
-│   └── tnr/pipe/                fixtures publiques (BOURSOBANK, NATIXIS, …)
-├── docs/                        futur partiel public
-│   └── site_BOURSOBANK.md
-└── custom/                      privé strict (PRV)
-    ├── tests/tnr/pipe/          fixtures privées (overlay)
-    └── docs/
-        └── site_FOO.md          (cohérent avec Cas A)
+tests/tnr/<scenario>/sandbox/    créée à chaque run par setup_sandbox()
+├── *.py                         symlinks vers le code applicatif (DEV racine)
+├── custom -> ../../../custom/   symlink vers l'overlay privé
+├── config.ini, config_*.json    copies modifiables
+└── comptes_template.xlsm        copie initiale
 ```
 
-### Pattern overlay pour les TNR
+Trois helpers dans `tnr_lib.py` :
 
-Le code TNR public scanne `tests/tnr/<scenario>/` puis, **si** des fixtures privées existent à l'emplacement miroir, les ajoute à la liste. Le scénario tourne avec ou sans privé sans connaître le contenu spécifique.
+| Helper | Rôle |
+|---|---|
+| `find_code_root(test_file)` | Auto-détection des 4 contextes DEV/PROD × public/custom. Remonte 2 niveaux et corrige si on est sous `custom/`. |
+| `setup_sandbox(scenario_dir)` | Crée la sandbox (mkdir + symlinks + copies). Idempotent (reset si existante). |
+| `set_base_dir(sandbox)` | Bascule `SCRIPT_DIR` + 11 vars dérivées (`COMPTES_XLSX`, `DROPBOX_DIR`, configs, etc.) sur la sandbox. Élimine le besoin de `backup_context`/`restore_context`. |
 
-Pour respecter la doctrine *« le code public ne mentionne jamais `custom/` »*, `inc_bootstrap.py` reste l'unique fichier public à exposer le chemin. Il publie une variable consommable :
+Variable d'environnement **`COMPTA_BASE_DIR`** : exportée par les TNR avant chaque appel `subprocess` au code applicatif (`cpt_update.py`, `tool_controles.py`, etc.) pour que `inc_mode.get_base_dir()` retourne la sandbox.
 
-```python
-# inc_bootstrap.py — extension à prévoir lors du premier TNR/doc privé
-CUSTOM_DIR = _CUSTOM if _CUSTOM.is_dir() else None
-```
-
-Le code TNR consulte `inc_bootstrap.CUSTOM_DIR` (et None si absent), sans jamais épeler le nom `custom/`. Un cloneur GitHub sans `custom/` voit ses TNR publics tourner normalement avec ses seules fixtures publiques.
+Bénéfices : DEV jamais touché (LO peut éditer `comptes.xlsm` pendant un TNR), debug post-mortem possible (la sandbox survit au plantage), parallélisation triviale, plus de `.tnr_running`/`.test_backup`.
 
 ### Doc
 
 Pas de mécanisme de merge — `docs/` (public) et `custom/docs/` (privé) sont deux répertoires distincts consultés séparément selon le besoin. La séparation au niveau dossier suffit : aucune doctrine de fusion, aucune mécanique côté code.
 
-### Statut
+### Statut (au 11/05/2026)
 
-Doctrine **cible**, à appliquer quand un TNR ou une doc privée sera créé. Le mécanisme `CUSTOM_DIR` reste à exposer dans `inc_bootstrap.py`. Aucun TNR ni doc privée n'existe à ce jour.
+- **Infrastructure sandbox** : livrée (`setup_sandbox`, `set_base_dir`, `find_code_root` dans `tnr_lib`).
+- **Préconditions PUB** : livrées (`inc_mode.get_base_dir()` honore `COMPTA_BASE_DIR`, `.resolve()` retiré là où il bloquait les symlinks).
+- **TNR migrés sandbox (3/7)** : `roundtrip`, `fast`, `build`. Reste : `pipe`, `example`, `reverse`, `format`.
+- **Docs** : ventilation effectuée — 13 docs anonymisées en `docs/` (gitignored par PUB, prêtes pour #63) + 5 docs privées en `custom/docs/` (versionnées PRV).
+- **Filet PRV temporaire** : `custom/tests/` contient un snapshot complet de `tests/` (scripts + expected + inputs `dropbox/`) pour pallier l'absence de versionnement public. Cette doublure est explicitement temporaire — démantèlement prévu après #63 : à terme, `tests/` public sera versionné par PUB et `custom/tests/` ne contiendra plus que les fixtures privées (overlay strict).
