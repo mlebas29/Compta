@@ -96,7 +96,7 @@ def get_max_accounts(site_name):
 
 def get_all_site_descriptions():
     """Aggrège les DESCRIPTION de tous les modules cpt_format_*.py présents
-    dans sys.path (racine + private/ via inc_bootstrap). Retourne {site: desc}.
+    dans sys.path (racine + custom/ via inc_bootstrap). Retourne {site: desc}.
     """
     import importlib
     import pkgutil

@@ -406,7 +406,7 @@ def post_process_supports(supports_data, total_valorisation, compte):
     """Hook post-traitement des supports avant émission CSV.
 
     Pass-through public : retourne tous les supports tels quels, dans l'ordre
-    alphabétique. Monkeypatchable depuis `private/patch_*.py` pour les
+    alphabétique. Monkeypatchable depuis `custom/patch_*.py` pour les
     de l'assurance vie ébène 2).
 
     Args:
