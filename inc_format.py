@@ -95,26 +95,31 @@ def get_max_accounts(site_name):
 
 
 def get_all_site_descriptions():
-    """Aggrège les DESCRIPTION de tous les modules cpt_format_*.py présents
-    dans sys.path (racine + custom/ via inc_bootstrap). Retourne {site: desc}.
+    """Aggrège les DESCRIPTION de tous les cpt_format_*.py (PUB + custom/).
+
+    Extraction par regex (lecture texte) plutôt qu'import : évite de déclencher
+    require_account() au module-level, qui plante si config_accounts.json[SITE]
+    est vide ou absent (cas du fresh clone). Le site reste visible dans la
+    liste GUI même sans compte configuré.
     """
-    import importlib
-    import pkgutil
+    import re
+    import inc_mode
+    base = inc_mode.get_base_dir()
+    pattern = re.compile(r'^DESCRIPTION\s*=\s*"""(.*?)"""', re.DOTALL | re.MULTILINE)
     descs = {}
-    for finder, name, ispkg in pkgutil.iter_modules():
-        if not name.startswith('cpt_format_'):
+    for d in (base, base / 'custom'):
+        if not d.is_dir():
             continue
-        site = name[len('cpt_format_'):]
-        try:
-            module = importlib.import_module(name)
-        except (ImportError, ValueError):
-            # ImportError : module absent ; ValueError : config_accounts.json
-            # incomplet (require_account au module-level). Site invisible dans
-            # la liste, GUI démarre quand même.
-            continue
-        d = getattr(module, 'DESCRIPTION', None)
-        if d:
-            descs[site] = d
+        for f in sorted(d.glob('cpt_format_*.py')):
+            site = f.stem.removeprefix('cpt_format_')
+            if site in descs:
+                continue  # PUB prioritaire, custom/ ne ré-écrase pas
+            try:
+                m = pattern.search(f.read_text(encoding='utf-8'))
+                if m:
+                    descs[site] = m.group(1)
+            except Exception:
+                continue
     return descs
 
 
