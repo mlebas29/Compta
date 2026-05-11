@@ -57,7 +57,6 @@ tool_pull.sh
 tool_diff_xlsm.py
 tool_export.py
 tool_export_configs.py
-tool_gui_cli.py
 tool_migrate_ctrl2_balances.py
 tool_rename_site.py
 tool_strip_drill_pollution.py
