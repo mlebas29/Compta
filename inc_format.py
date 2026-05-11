@@ -107,7 +107,10 @@ def get_all_site_descriptions():
         site = name[len('cpt_format_'):]
         try:
             module = importlib.import_module(name)
-        except ImportError:
+        except (ImportError, ValueError):
+            # ImportError : module absent ; ValueError : config_accounts.json
+            # incomplet (require_account au module-level). Site invisible dans
+            # la liste, GUI démarre quand même.
             continue
         d = getattr(module, 'DESCRIPTION', None)
         if d:
