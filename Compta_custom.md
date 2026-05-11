@@ -1,8 +1,8 @@
-# Compta_private.md — Architecture du framework `private/`
+# Compta_custom.md — Architecture du framework `custom/`
 
 Document développeur. Décrit l'architecture du projet à partir de **v4.2** : deux dépôts git à périmètres disjoints (PUB public + PRV privé d'extensions), deux instances physiques (PROD usage / DEV édition), et le mécanisme bootstrap qui charge dynamiquement les extensions privées sans qu'aucun fichier public ne les mentionne.
 
-> Ce doc s'adresse aux contributeurs (cloneurs GitHub qui ajoutent leur propre `private/`) et aux développeurs du repo public.
+> Ce doc s'adresse aux contributeurs (cloneurs GitHub qui ajoutent leur propre `custom/`) et aux développeurs du repo public.
 
 ## Principe
 
@@ -30,8 +30,8 @@ github.com/mlebas29/Compta              (repo public, .git PUB)
 ├── tests/                              TNR PUB
 ├── README.md, Compta_*.md              doc PUB
 │
-├── private/                            clone PRV read-only
-│   ├── .git/                           remote = file://~/Compta/dev/private
+├── custom/                            clone PRV read-only
+│   ├── .git/                           remote = file://~/Compta/dev/custom
 │   ├── cpt_fetch_<NAME>.py             sites privés
 │   ├── cpt_format_<NAME>.py            (idem)
 │   └── patch_*.py                      monkeypatches du code public
@@ -47,7 +47,7 @@ github.com/mlebas29/Compta              (repo public, .git PUB)
     ├── CLAUDE.md, CLAUDE_todo.md       outils session Claude (gitignored)
     ├── CLAUDE_log.md                   (gitignored, jetable)
     │
-    ├── private/                        dépôt PRV authoritative (.git PRV)
+    ├── custom/                        dépôt PRV authoritative (.git PRV)
     │   ├── .git/                       AUCUN remote distant
     │   ├── cpt_fetch_*.py / cpt_format_*.py
     │   └── patch_*.py
@@ -63,9 +63,9 @@ github.com/mlebas29/Compta              (repo public, .git PUB)
 |---|---|---|---|
 | `cpt_*.py`, `gui_*.py`, `inc_*.py`, `tool_*.py` | PUB | PROD + DEV | code utilisable par tout cloneur |
 | `tests/`, `install.sh`, `README.md`, `Compta_*.md` | PUB | PROD + DEV | doc + tests utilisateur |
-| `tool_commit.sh`, `tool_pull.sh` | PUB | PROD + DEV | wrappers utiles à tout cloneur qui ajoute son `private/` |
-| `cpt_fetch_<NAME>.py`, `cpt_format_<NAME>.py` (sites privés) | PRV | `private/` | sites perso |
-| `patch_*.py` (monkeypatches) | PRV | `private/` | extensions ponctuelles du code public |
+| `tool_commit.sh`, `tool_pull.sh` | PUB | PROD + DEV | wrappers utiles à tout cloneur qui ajoute son `custom/` |
+| `cpt_fetch_<NAME>.py`, `cpt_format_<NAME>.py` (sites privés) | PRV | `custom/` | sites perso |
+| `patch_*.py` (monkeypatches) | PRV | `custom/` | extensions ponctuelles du code public |
 | `comptes.xlsm`, `config.ini`, `config_*.json`, `dropbox/`, `archives/`, `logs/` | — | PROD + DEV (instances séparées) | données opérationnelles, jamais versionnées |
 | `CLAUDE.md`, `CLAUDE_todo.md`, `CLAUDE_log.md` | — | DEV uniquement | outils session Claude, jamais versionnés |
 
@@ -77,7 +77,7 @@ Mécanique git native, deux `git pull` (un par dépôt) :
 
 ```bash
 cd ~/Compta            && git pull        # PUB depuis github
-cd ~/Compta/private    && git pull        # PRV depuis ~/Compta/dev/private (file://)
+cd ~/Compta/custom    && git pull        # PRV depuis ~/Compta/dev/custom (file://)
 python gui_main.py
 ```
 
@@ -86,7 +86,7 @@ python gui_main.py
 ```
 tool_pull.sh                       # status (commits/tags en attente)
 tool_pull.sh PUB                   # pull PUB depuis github
-tool_pull.sh PRV                   # pull PRV depuis ~/Compta/dev/private
+tool_pull.sh PRV                   # pull PRV depuis ~/Compta/dev/custom
 tool_pull.sh PUB PRV               # pull les deux
 
 tool_pull.sh -h | --help
@@ -102,7 +102,7 @@ Exécution depuis ~/Compta/ uniquement.
 
 ## Usage côté DEV
 
-L'instance DEV est où Marc édite, teste, casse. Deux `.git` cohabitent : `.git` PUB à la racine `~/Compta/dev/`, `.git` PRV sous `~/Compta/dev/private/`. Le `.gitignore` PUB exclut `private/` ⇒ les deux dépôts ne se voient jamais.
+L'instance DEV est où Marc édite, teste, casse. Deux `.git` cohabitent : `.git` PUB à la racine `~/Compta/dev/`, `.git` PRV sous `~/Compta/dev/custom/`. Le `.gitignore` PUB exclut `custom/` ⇒ les deux dépôts ne se voient jamais.
 
 Mécanique git native — selon le path du fichier modifié, on commit dans le `.git` correspondant :
 
@@ -114,7 +114,7 @@ git commit -m "msg"
 git push                              # → github
 
 # fichier PRV
-cd ~/Compta/dev/private
+cd ~/Compta/dev/custom
 git add cpt_extras_synoe.py
 git commit -m "msg"                   # pas de push, .git PRV n'a pas de remote
 ```
@@ -140,7 +140,7 @@ Argument positionnel (optionnel) : PUB | PRV. Par défaut les deux.
 serait invisible).
 
 Routage automatique des modifs :
-  - Fichiers sous private/  → .git PRV
+  - Fichiers sous custom/  → .git PRV
   - Tout le reste            → .git PUB
 
 Fichiers non trackés : avertissement listant chaque fichier, sans auto-ajout.
@@ -152,7 +152,7 @@ Exécution depuis ~/Compta/dev/ uniquement.
 
 ### Édition des fichiers PRV depuis DEV
 
-Le `private/` côté DEV héberge le `.git` PRV authoritative — c'est là que les commits PRV naissent. Quand PROD pull, c'est ce répertoire qu'il consulte via `file://`.
+Le `custom/` côté DEV héberge le `.git` PRV authoritative — c'est là que les commits PRV naissent. Quand PROD pull, c'est ce répertoire qu'il consulte via `file://`.
 
 ## Usage parallèle PROD + DEV
 
@@ -168,16 +168,16 @@ cd ~/Compta/dev && python gui_main.py
 
 Aucune ressource partagée, aucune interférence.
 
-## Chargement dynamique du `private/`
+## Chargement dynamique du `custom/`
 
-Le code métier (`cpt_*`, `gui_*`) reste vierge — aucune mention de `private/`. Le mécanisme : **bootstrap minimal** combinant glob discovery (sites) et monkeypatches (hooks ponctuels).
+Le code métier (`cpt_*`, `gui_*`) reste vierge — aucune mention de `custom/`. Le mécanisme : **bootstrap minimal** combinant glob discovery (sites) et monkeypatches (hooks ponctuels).
 
 ### `inc_bootstrap.py`
 
 Au démarrage de tout point d'entrée :
 
-1. Si `private/` existe, l'ajouter à `sys.path`.
-2. Importer tous les `private/patch_*.py` dans l'ordre alphabétique — chacun monkeypatche ce qu'il doit modifier dans le code public.
+1. Si `custom/` existe, l'ajouter à `sys.path`.
+2. Importer tous les `custom/patch_*.py` dans l'ordre alphabétique — chacun monkeypatche ce qu'il doit modifier dans le code public.
 3. Le scan des fetchers / formateurs (cas A) découvre les modules privés via `sys.path`.
 
 L'import se fait via `inc_mode` (lui-même importé par tous les points d'entrée), donc 1 seul endroit dans le code public.
@@ -202,8 +202,8 @@ Tout nouveau hook ponctuel à ajouter doit suivre la même règle : nom neutre, 
 Aucun fichier public à modifier. Le bootstrap découvre le nouveau site au prochain démarrage.
 
 ```
-private/cpt_fetch_FOO.py     # collecte (Playwright auto, ou stub manuel pour PDF/CSV déposé)
-private/cpt_format_FOO.py    # parsing → CSV opérations + soldes
+custom/cpt_fetch_FOO.py     # collecte (Playwright auto, ou stub manuel pour PDF/CSV déposé)
+custom/cpt_format_FOO.py    # parsing → CSV opérations + soldes
 ```
 
 Squelette `cpt_fetch_FOO.py` :
@@ -259,12 +259,12 @@ Aucune édition manuelle de fichier de config requise — la GUI lit les modules
 
 ### Cas B — installer un patch code
 
-Pattern monkeypatch : 1 fichier `private/patch_<nom>.py` qui importe un module public et override un hook. `inc_bootstrap.py` charge tous les `patch_*.py` au démarrage.
+Pattern monkeypatch : 1 fichier `custom/patch_<nom>.py` qui importe un module public et override un hook. `inc_bootstrap.py` charge tous les `patch_*.py` au démarrage.
 
 Exemple — calcul SYNOE pour Ass vie ébène 2 :
 
 ```python
-# private/patch_synoe.py
+# custom/patch_synoe.py
 import cpt_format_SOCGEN
 
 HORS_MANDAT = {'SÉCURITÉ EUROS', 'MOOREA FUND - HIGH YIELD'}
@@ -289,7 +289,7 @@ Côté public, `cpt_format_SOCGEN.py` réserve le hook en pass-through :
 
 ```python
 def post_process_supports(supports_data, total_valorisation, compte):
-    """Pass-through par défaut. Monkeypatchable depuis private/patch_*.py."""
+    """Pass-through par défaut. Monkeypatchable depuis custom/patch_*.py."""
     return [(n, supports_data[n]) for n in sorted(supports_data)]
 ```
 
@@ -298,7 +298,7 @@ def post_process_supports(supports_data, total_valorisation, compte):
 Un site privé peut nécessiter à la fois ses 2 modules (cas A) **et** un patch sur le code public (cas B). Pas de friction — les deux mécanismes coexistent naturellement :
 
 ```
-private/
+custom/
 ├── cpt_fetch_FOO.py
 ├── cpt_format_FOO.py
 └── patch_gui_foo_menu.py   # ex : ajoute un raccourci "Outils → FOO" dans la GUI
