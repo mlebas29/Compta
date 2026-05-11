@@ -9,7 +9,7 @@ debug/
 *.gpg
 .~lock.*
 .claude/
-private/
+custom/
 
 # Configs runtime perso (gitignored partout, .default versionné)
 comptes.xlsm
