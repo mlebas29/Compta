@@ -348,10 +348,6 @@ Bénéfices : DEV jamais touché (LO peut éditer `comptes.xlsm` pendant un TNR)
 
 Pas de mécanisme de merge — `docs/` (public) et `custom/docs/` (privé) sont deux répertoires distincts consultés séparément selon le besoin. La séparation au niveau dossier suffit : aucune doctrine de fusion, aucune mécanique côté code.
 
-### Statut (au 11/05/2026)
+### Filet PRV temporaire
 
-- **Infrastructure sandbox** : livrée (`setup_sandbox`, `set_base_dir`, `find_code_root` dans `tnr_lib`).
-- **Préconditions PUB** : livrées (`inc_mode.get_base_dir()` honore `COMPTA_BASE_DIR`, `.resolve()` retiré là où il bloquait les symlinks).
-- **TNR migrés sandbox (3/7)** : `roundtrip`, `fast`, `build`. Reste : `pipe`, `example`, `reverse`, `format`.
-- **Docs** : ventilation effectuée — 13 docs anonymisées en `docs/` (gitignored par PUB, prêtes pour #63) + 5 docs privées en `custom/docs/` (versionnées PRV).
-- **Filet PRV temporaire** : `custom/tests/` contient un snapshot complet de `tests/` (scripts + expected + inputs `dropbox/`) pour pallier l'absence de versionnement public. Cette doublure est explicitement temporaire — démantèlement prévu après #63 : à terme, `tests/` public sera versionné par PUB et `custom/tests/` ne contiendra plus que les fixtures privées (overlay strict).
+Tant que `tests/` n'est pas ouvert publiquement (chantier #63 anonymisation), le snapshot complet `custom/tests/` (scripts TNR + expected + inputs) sert de filet anti-perte versionné en PRV. À l'ouverture publique, ce snapshot sera démantelé : `tests/` deviendra le tracking principal côté PUB, `custom/tests/` ne contiendra plus que les fixtures **strictement privées** (overlay).

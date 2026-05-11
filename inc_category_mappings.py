@@ -31,10 +31,8 @@ def _load_patterns():
         return _patterns_by_group
 
     if not _JSON_PATH.exists():
-        # Pas de JSON → aucun pattern, toutes opérations en catégorie '-'.
-        # La GUI auto-crée un fichier vide au 1er lancement.
-        _patterns_by_group = {}
-        return _patterns_by_group
+        print(f"❌ {_JSON_PATH} introuvable", file=sys.stderr)
+        sys.exit(1)
 
     try:
         with open(_JSON_PATH, 'r', encoding='utf-8') as f:
@@ -84,10 +82,12 @@ def categorize(libelle, site=None):
                options = dict {'ref': '-'} ou {}
 
     Example:
-        >>> categorize("VIR Virement", "SG")
+        >>> categorize("VIR Virement Marc", "SG")
         ('-', {'ref': '-'})
         >>> categorize("CARTE 1234 LECLERC", "SG")
         ('Marché', {})
+        >>> categorize("POUR: VeraCash", "SG")
+        ('@Change', {'ref': '-'})
         >>> categorize("Opération inconnue", "SG")
         ('-', {})
     """
@@ -114,3 +114,69 @@ def categorize(libelle, site=None):
 # FONCTION DE TEST (optionnel)
 # ============================================================================
 
+if __name__ == '__main__':
+    # Tests unitaires
+    test_cases = [
+        # WISE
+        ("Argent envoyé à Marc", "WISE", "-", {'ref': '-'}),
+        ("Frais Wise Assets Europe", "WISE", "Frais bancaires", {}),
+
+        # SG
+        ("PRLV ALLIANZ", "SG", "ALLIANZ", {}),
+        ("CARTE 1234 LECLERC BREST", "SG", "-", {}),
+        ("RETRAIT DAB SG", "SG", "-", {'ref': '-'}),
+        ("POUR: VeraCash", "SG", "@Change", {'ref': '-'}),
+        ("BG GESTION virement", "SG", "-", {'ref': '-'}),
+        ("LECLERC BREST", "SG", "-", {}),
+        ("MUTUALITE SOCIALE AGRICOLE D'ILE DE FR ANCE MOTIF: AV", "SG", "MSA retraite", {}),
+
+        # BB
+        ("ACHAT ACCOR", "BB", "@Achat titres", {'ref': '-'}),
+        ("VENTE THALES", "BB", "@Vente titres", {'ref': '-'}),
+        ("COUPON OBLIGATIONS", "BB", "Coupon", {}),
+        ("VIR Virement depuis XXX", "BB", "-", {'ref': '-'}),
+
+        # BG_GESTION
+        ("Notre règlement par virement :", "BG_GESTION", "-", {'ref': '-'}),
+        ("Loyer (01) 2025", "BG_GESTION", "Yvelles", {}),
+        ("Honoraires gestion", "BG_GESTION", "Yvelles", {}),
+        ("APPEL DE FONDS", "BG_GESTION", "Yvelles", {}),
+
+        # PEE
+        ("Modification de placements du fonds HSBC", "PEE", "@Arbitrage titres", {}),
+        ("INVESTISSEMENT EMPLOYEUR", "PEE", "Syngenta", {}),
+        ("Remboursement partiel", "PEE", "-", {'ref': '-'}),
+
+        # YUH
+        ("E.Leclerc", "YUH", "-", {}),
+        ("TotalEnergies", "YUH", "Transport", {}),
+        ("Pharmacie LOUEDEC", "YUH", "Santé", {}),
+        ("Virement de MR OU MME MARC LEBAS", "YUH", "-", {'ref': '-'}),
+        ("GAB PLOUDALMEZEAU", "YUH", "-", {'ref': '-'}),
+        ("CHINA TOWN", "YUH", "Restaurant", {}),
+        ("Intérêts sur dépôts", "YUH", "Intérêts", {}),
+    ]
+
+    print(f"Source: {_JSON_PATH}")
+    print(f"JSON existe: {_JSON_PATH.exists()}")
+    print()
+    print("Tests de catégorisation:")
+    print()
+    passed = 0
+    failed = 0
+
+    for libelle, site, expected_cat, expected_opts in test_cases:
+        cat, opts = categorize(libelle, site)
+        if cat == expected_cat and opts == expected_opts:
+            status = "✓"
+            passed += 1
+            print(f"{status} {libelle[:40]:40} ({site:12}) → {cat:20} {opts}")
+        else:
+            status = "✗"
+            failed += 1
+            print(f"{status} {libelle[:40]:40} ({site:12})")
+            print(f"     Attendu: {expected_cat:20} {expected_opts}")
+            print(f"     Obtenu:  {cat:20} {opts}")
+
+    print()
+    print(f"Résultats: {passed} passés, {failed} échoués")
