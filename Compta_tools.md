@@ -195,10 +195,54 @@ Si un pull échoue, l'autre est tenté quand même. Résumé final par dépôt.
 Codes retour : 0 succès, 1 échec d'au moins un pull.
 Exécution depuis `~/Compta/` uniquement.
 
-### install_custom.sh — Installation initiale de custom/
+### install_custom.sh — Mise en place de `custom/` (DEV + PROD)
 
-*(À venir.)* Script interactif qui crée le dossier `custom/` selon le mode
-choisi : option A.1 (git init local, propagation `file://`), A.2 (git clone
-d'un remote privé), ou B (mkdir simple, propagation manuelle). Pose les
-squelettes `cpt_fetch_<NAME>.py` et `cpt_format_<NAME>.py` minimaux et met
-à jour `config.ini` (sections `[sites]` et `[<NAME>]`).
+Comble la différence entre l'arborescence cible (décrite dans
+`Compta_custom.md`) et l'état initial de l'utilisateur. Les flags paramètrent
+la cible ; le script crée tout ce qui manque, idempotent.
+
+```bash
+./install_custom.sh                          # statut (diff cible/réel)
+./install_custom.sh --git                    # init .git PRV dans dev/custom/
+./install_custom.sh --git --remote <url>     # idem + remote PRV
+./install_custom.sh --remote <url>           # ajoute remote à .git PRV existant
+./install_custom.sh --py=<NAME>              # squelettes cpt_fetch_<NAME>.py / cpt_format_<NAME>.py
+./install_custom.sh -h | --help
+```
+
+Exécution depuis `~/Compta/` uniquement. URL du clone PUB déduite de
+`~/Compta/.git/config` (remote origin).
+
+Gestes idempotents enchaînés selon les flags :
+
+| # | Geste | Pré-condition | Effet |
+|---|---|---|---|
+| 1 | Créer DEV | `~/Compta/dev/` absent | `git clone <origin-PROD> ~/Compta/dev` |
+| 2 | Créer DEV custom | `~/Compta/dev/custom/` absent | `mkdir` |
+| 3 | Init `.git` PRV | `--git` et `.git` absent | `git init` + `.gitignore` minimal |
+| 4 | Configurer remote PRV | `--remote <url>` et remote absent | `git remote add origin <url>` |
+| 5 | Poser squelettes | `--py=<NAME>` et fichiers absents | crée `cpt_fetch_<NAME>.py` + `cpt_format_<NAME>.py` |
+| 6 | Commit initial DEV custom | étape 3 ou 5 ont créé des fichiers | `git commit -m "Init custom/"` |
+| 7 | Créer PROD custom | `~/Compta/custom/` absent | clone `file://~/Compta/dev/custom` (mode A) ou rsync (mode B) |
+
+Sans flag, affiche la diff cible/réel et suggère les commandes à lancer.
+
+`.gitignore` PRV minimal posé par étape 3 :
+
+```
+__pycache__/
+*.pyc
+*.bak
+*.bak_*
+
+# Sandboxes TNR jetables
+tests/tnr/*/sandbox/
+```
+
+L'utilisateur reprend ensuite la main : édition des squelettes, configuration
+du site dans `config.ini` (via GUI Configuration ou manuellement), commits
+ultérieurs via `tool_commit.sh`. Cf. `Compta_custom.md` § *Cas A* pour le
+workflow complet d'ajout de site.
+
+Codes retour : 0 succès, 1 erreur.
+Exécution depuis `~/Compta/` uniquement.

@@ -95,6 +95,14 @@ et aussi :
 >
 > Pour **Windows 11** c'est la même procédure, après avoir installé WSL2  (Voir [Compta_portage.md](Compta_portage.md))
 
+### Extensibilité
+
+L'application est extensible via un dossier `custom/` qui accueille :
+
+- des **sites privés** (collecte + format) qui s'ajoutent aux sites publics sans toucher au code public
+- des **monkeypatches** qui modifient localement le comportement de l'app sans la forker
+
+Le tout est piloté par l'outil `install_custom.sh` qui pose l'arborescence et les squelettes. Voir [`Compta_custom.md`](Compta_custom.md) pour l'architecture et [`Compta_tools.md`](Compta_tools.md) pour l'outil.
 
 
 ## 4. Mise à jour
@@ -116,9 +124,10 @@ La documentation concerne essentiellement le mode assisté
 -  [`Compta.md`](Compta.md)  : guide d'utilisation
 -  [`Compta_pvl.md`](Compta_pvl.md)  : modèles utilisés pour les calculs des plus-values
 -  [`Compta_plus.md`](Compta_plus.md) : commandes avancées, dépannage
--  [`Compta_tools.md`](Compta_tools.md) : outils de maintenance du classeur
+-  [`Compta_tools.md`](Compta_tools.md) : outils de maintenance et environnement git
 -  [`Compta_upgrade.md`](Compta_upgrade.md) : mise à niveau du classeur
 -  [`Compta_charte.md`](Compta_charte.md) : charte graphique du classeur
+-  [`Compta_custom.md`](Compta_custom.md) : architecture du framework `custom/` (extensibilité)
 -  [`CHANGELOG.md`](CHANGELOG.md) : informations de mise à jour
 
 

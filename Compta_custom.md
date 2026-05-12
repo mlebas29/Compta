@@ -190,6 +190,22 @@ Tout nouveau hook ponctuel à ajouter doit suivre la même règle : nom neutre, 
 
 Aucun fichier public à modifier. Le bootstrap découvre le nouveau site au prochain démarrage.
 
+**Bootstrap automatique** via `install_custom.sh` (cf. `Compta_tools.md`) :
+
+```bash
+cd ~/Compta
+./install_custom.sh --git --py=FOO          # cas A.1 (.git PRV local)
+./install_custom.sh --git --remote <url> --py=FOO   # cas A.2 (avec remote)
+```
+
+Le script crée DEV s'il manque, initialise `.git` PRV, pose les squelettes
+`cpt_fetch_FOO.py` / `cpt_format_FOO.py`, fait un commit initial et propage
+vers `~/Compta/custom/`. Il reste à l'utilisateur :
+
+1. Étoffer les squelettes (cf. modèles ci-dessous)
+2. Configurer le site dans `config.ini` et `config_accounts.json` (via GUI Configuration ou manuellement)
+3. Lancer l'app — le bootstrap découvre le site
+
 ```
 custom/cpt_fetch_FOO.py     # collecte (Playwright auto, ou stub manuel pour PDF/CSV déposé)
 custom/cpt_format_FOO.py    # parsing → CSV opérations + soldes
