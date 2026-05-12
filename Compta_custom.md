@@ -6,7 +6,7 @@ L'architecture se caractérise par l'ajout d'un dossier **custom** dans l'arbore
 
 L'infrastructure des Tests de non régression **TNR** se conforme au schéma custom pour d'éventuels tests des extensions.
 
-**Option A** — deux dépôts git à périmètres disjoints (PUB public + PRV privé d'extensions), deux instances physiques (PROD usage / DEV édition), et le mécanisme bootstrap qui charge dynamiquement les extensions privées sans qu'aucun fichier public ne les mentionne.
+**Option A** — deux dépôts git à périmètres disjoints (PUB public + PRV privé d'extensions), deux instances physiques (PROD usage / DEV édition), et le mécanisme bootstrap qui charge dynamiquement les extensions privées sans qu'aucun fichier public ne les mentionne. Le dépôt PRV peut être hébergé sur un remote git privé (GitHub privé, GitLab, Gitea…) ou rester strictement local (propagation `file://`) — au choix de l'utilisateur.
 
 **Option B** — un seul dépôt public, `custom/` non versionné. Les instances PROD/DEV restent recommandées ; la propagation `dev/custom/` → `custom/` se fait par copie manuelle (rsync, cp) à défaut de `git pull`. Même mécanisme bootstrap.
 
@@ -21,7 +21,7 @@ Deux dépôts **à périmètres disjoints** (*), deux instances physiques **comp
 - **Instance PROD** (`~/Compta/`) — dossier d'utilisation du classeur familial avec PUB + PRV
 - **Instance DEV** (`~/Compta/dev/`) — dossier facultatif pour développement PUB et PRV
 
-(*) Un fichier source vit **à un seul endroit** : soit dans PUB, soit dans PRV.
+(*) Un fichier versionné vit **à un seul endroit** : soit dans PUB, soit dans PRV.
 
 ## Schéma
 
@@ -40,7 +40,7 @@ github.com/mlebas29/Compta              (repo public, .git PUB)
 ├── README.md, Compta_*.md              doc PUB
 │
 ├── custom/                             extensions privées
-│   ├── .git/                           option A : pull depuis file://~/Compta/dev/custom
+│   ├── .git/                           option A : pull depuis remote PRV ou file://~/Compta/dev/custom
 │   ├── cpt_fetch_<NAME>.py             sites privés
 │   ├── cpt_format_<NAME>.py            (idem)
 │   ├── patch_*.py                      monkeypatches du code public
@@ -55,12 +55,12 @@ github.com/mlebas29/Compta              (repo public, .git PUB)
     ├── tests/                          TNR (édition + run, public)
     ├── docs/                           doc dev
     │
-    ├── custom/                         dépôt PRV authoritative (.git PRV)
+    ├── custom/                         dépôt PRV de référence (.git PRV)
     │   ├── .git/                       option A uniquement
     │   ├── cpt_fetch_*.py / cpt_format_*.py
     │   ├── patch_*.py
-    │   ├── tests/                      PRV tests authoritative (overlay privé)
-    │   └── docs/                       PRV docs authoritative
+    │   ├── tests/                      PRV tests de référence (overlay privé)
+    │   └── docs/                       PRV docs de référence
     │
     ├── comptes.xlsm                    sandbox jetable
     ├── config.ini, config_*.json       sandbox
@@ -91,7 +91,7 @@ Mécanique git native, un `git pull` par dépôt :
 
 ```bash
 cd ~/Compta            && git pull        # PUB depuis github
-cd ~/Compta/custom    && git pull        # PRV depuis ~/Compta/dev/custom (file://)
+cd ~/Compta/custom    && git pull        # PRV (remote privé ou file://)
 python gui_main.py
 ```
 
@@ -100,7 +100,7 @@ python gui_main.py
 ```
 tool_pull.sh                       # status (commits/tags en attente)
 tool_pull.sh PUB                   # pull PUB depuis github
-tool_pull.sh PRV                   # pull PRV depuis ~/Compta/dev/custom
+tool_pull.sh PRV                   # pull PRV (remote privé ou file://)
 tool_pull.sh PUB PRV               # pull les deux
 
 tool_pull.sh -h | --help
@@ -122,7 +122,7 @@ rsync -a ~/Compta/dev/custom/ ~/Compta/custom/         # si instance DEV mainten
 python gui_main.py
 ```
 
-`tool_pull.sh PRV` n'a pas de sens dans ce mode (pas de remote PRV). Le contenu de `custom/` est soit édité sur place, soit propagé depuis DEV par `rsync`/`cp`.
+`tool_pull.sh PRV` n'a pas de sens dans ce mode (pas de `.git` PRV). Le contenu de `custom/` est soit édité sur place, soit propagé depuis DEV par `rsync`/`cp`.
 
 ## Usage côté DEV
 
@@ -144,7 +144,8 @@ git push                              # → github
 # fichier PRV
 cd ~/Compta/dev/custom
 git add cpt_extras_synoe.py
-git commit -m "msg"                   # pas de push, .git PRV n'a pas de remote
+git commit -m "msg"
+git push                              # → remote PRV si configuré
 ```
 
 `tool_commit.sh` est un wrapper qui automatise ce routage : il classe les fichiers modifiés selon leur path, fait un `git add` + `git commit` dans le `.git` adapté, et permet à un même `-m "msg"` de produire **un commit PUB + un commit PRV** en une seule invocation. Spec :
@@ -164,8 +165,8 @@ tool_commit.sh -m "message" --tag vX.Y.Z # commit + tag PUB
 tool_commit.sh -h | --help
 
 Argument positionnel (optionnel) : PUB | PRV. Par défaut les deux.
---push et --tag n'agissent que sur PUB (PRV n'a pas de remote, et un tag PRV
-serait invisible).
+--push et --tag n'agissent que sur PUB. Pour pousser PRV vers un remote
+(si configuré), `git push` manuel depuis `custom/`.
 
 Routage automatique des modifs :
   - Fichiers sous custom/  → .git PRV
@@ -180,7 +181,7 @@ Exécution depuis ~/Compta/dev/ uniquement.
 
 #### Édition des fichiers PRV depuis DEV
 
-Le `custom/` côté DEV héberge le `.git` PRV authoritative — c'est là que les commits PRV naissent. Quand PROD pull, c'est ce répertoire qu'il consulte via `file://`.
+Le `custom/` côté DEV héberge le `.git` PRV de référence — c'est là que les commits PRV naissent. Quand PROD pull, c'est soit ce répertoire qu'il consulte via `file://`, soit le remote PRV s'il est configuré.
 
 ### Option B — `.git` PUB seul
 
