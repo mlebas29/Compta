@@ -14,8 +14,8 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
-DEV_DIR="$HOME/Compta/dev"
-PRV_DIR="$DEV_DIR/custom"
+DEV_DIR="$PWD"
+PRV_DIR="$PWD/custom"
 CO_AUTHOR="Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 
 usage() {
@@ -40,7 +40,7 @@ Détection auto du mode (lecture du filesystem) :
 Tag : --tag taggue PUB uniquement (jamais PRV) et implique --push.
 Non trackés : avertissement, pas d'auto-add (utiliser git add explicite).
 
-Exécution depuis $DEV_DIR uniquement.
+Exécution depuis la racine d'un clone Compta (cwd-relatif).
 EOF
     exit 0
 }
@@ -86,9 +86,9 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# --- Vérifier cwd ---
-if [[ "$PWD" != "$DEV_DIR" ]]; then
-    echo -e "${RED}✗${NC} Exécuter depuis $DEV_DIR (cwd actuel : $PWD)"
+# --- Vérifier cwd (racine d'un clone Compta) ---
+if [[ ! -f "$PWD/cpt_update.py" || ! -f "$PWD/inc_mode.py" ]]; then
+    echo -e "${RED}✗${NC} Exécuter depuis la racine d'un clone Compta (cwd actuel : $PWD)"
     exit 1
 fi
 

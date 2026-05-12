@@ -169,7 +169,7 @@ Fichiers non trackés : avertissement listant chaque fichier, sans auto-ajout.
 L'utilisateur reste maître de l'inclusion (`git add` explicite).
 
 Codes retour : 0 succès, 1 erreur (cwd, conflit, argument invalide).
-Exécution depuis `~/Compta/dev/` uniquement.
+Exécution depuis la racine d'un clone Compta (cwd-relatif).
 
 ### tool_pull.sh — Pull git par instance
 
@@ -193,7 +193,7 @@ pull ; propagation manuelle requise en option B).
 Si un pull échoue, l'autre est tenté quand même. Résumé final par dépôt.
 
 Codes retour : 0 succès, 1 échec d'au moins un pull.
-Exécution depuis `~/Compta/` uniquement.
+Exécution depuis la racine d'un clone Compta (cwd-relatif).
 
 ### install_custom.sh — Mise en place de `custom/` (DEV + PROD)
 
@@ -210,20 +210,20 @@ la cible ; le script crée tout ce qui manque, idempotent.
 ./install_custom.sh -h | --help
 ```
 
-Exécution depuis `~/Compta/` uniquement. URL du clone PUB déduite de
-`~/Compta/.git/config` (remote origin).
+Exécution depuis la racine d'un clone Compta (cwd-relatif). URL du clone PUB
+déduite du remote origin de l'instance courante.
 
-Gestes idempotents enchaînés selon les flags :
+Gestes idempotents enchaînés selon les flags (chemins relatifs au cwd) :
 
 | # | Geste | Pré-condition | Effet |
 |---|---|---|---|
-| 1 | Créer DEV | `~/Compta/dev/` absent | `git clone <origin-PROD> ~/Compta/dev` |
-| 2 | Créer DEV custom | `~/Compta/dev/custom/` absent | `mkdir` |
+| 1 | Créer DEV | `dev/` absent | `git clone <origin> dev/` |
+| 2 | Créer DEV custom | `dev/custom/` absent | `mkdir` |
 | 3 | Init `.git` PRV | `--git` et `.git` absent | `git init` + `.gitignore` minimal |
 | 4 | Configurer remote PRV | `--remote <url>` et remote absent | `git remote add origin <url>` |
 | 5 | Poser squelettes | `--py=<NAME>` et fichiers absents | crée `cpt_fetch_<NAME>.py` + `cpt_format_<NAME>.py` |
 | 6 | Commit initial DEV custom | étape 3 ou 5 ont créé des fichiers | `git commit -m "Init custom/"` |
-| 7 | Créer PROD custom | `~/Compta/custom/` absent | clone `file://~/Compta/dev/custom` (mode A) ou rsync (mode B) |
+| 7 | Créer PROD custom | `custom/` absent | clone `file://dev/custom` (mode A) ou rsync (mode B) |
 
 Sans flag, affiche la diff cible/réel et suggère les commandes à lancer.
 
@@ -245,4 +245,4 @@ ultérieurs via `tool_commit.sh`. Cf. `Compta_custom.md` § *Cas A* pour le
 workflow complet d'ajout de site.
 
 Codes retour : 0 succès, 1 erreur.
-Exécution depuis `~/Compta/` uniquement.
+Exécution depuis la racine d'un clone Compta (cwd-relatif).

@@ -10,8 +10,8 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
-PROD_DIR="$HOME/Compta"
-PROD_PRV_DIR="$PROD_DIR/custom"
+PROD_DIR="$PWD"
+PROD_PRV_DIR="$PWD/custom"
 
 usage() {
     cat <<EOF
@@ -33,7 +33,7 @@ Détection auto du mode (lecture du filesystem) :
 Si un pull échoue, l'autre est tenté quand même.
 Codes retour : 0 succès, 1 échec d'au moins un pull.
 
-Exécution depuis $PROD_DIR uniquement.
+Exécution depuis la racine d'un clone Compta (cwd-relatif).
 EOF
     exit 0
 }
@@ -71,9 +71,9 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# --- Vérifier cwd ---
-if [[ "$PWD" != "$PROD_DIR" ]]; then
-    echo -e "${RED}✗${NC} Exécuter depuis $PROD_DIR (cwd actuel : $PWD)"
+# --- Vérifier cwd (racine d'un clone Compta) ---
+if [[ ! -f "$PWD/cpt_update.py" || ! -f "$PWD/inc_mode.py" ]]; then
+    echo -e "${RED}✗${NC} Exécuter depuis la racine d'un clone Compta (cwd actuel : $PWD)"
     exit 1
 fi
 
