@@ -1,19 +1,27 @@
 # Compta_custom.md — Architecture du framework `custom/`
 
-Document développeur. Décrit l'architecture du projet à partir de **v4.2** : deux dépôts git à périmètres disjoints (PUB public + PRV privé d'extensions), deux instances physiques (PROD usage / DEV édition), et le mécanisme bootstrap qui charge dynamiquement les extensions privées sans qu'aucun fichier public ne les mentionne.
+Document développeur. Décrit l'architecture du projet à partir de **v4.2** afin de pouvoir personnaliser l'application pour y ajouter un ou plusieurs sites privés et/ou modifier son comportement avec des "monkeypatch" privés. 
 
-> Ce doc s'adresse aux contributeurs (cloneurs GitHub qui ajoutent leur propre `custom/`) et aux développeurs du repo public.
+L'architecture se caractérise par l'ajout d'un dossier **custom** dans l'arborescence. Le contenu de ce dossier qui accueille les extensions peut être versionné avec git (option A), ou non versionné (option B).
+
+L'infrastructure des Tests de non régression **TNR** se conforme au schéma custom pour d'éventuels tests des extensions.
+
+**Option A** — deux dépôts git à périmètres disjoints (PUB public + PRV privé d'extensions), deux instances physiques (PROD usage / DEV édition), et le mécanisme bootstrap qui charge dynamiquement les extensions privées sans qu'aucun fichier public ne les mentionne.
+
+**Option B** — un seul dépôt public, `custom/` non versionné. Les instances PROD/DEV restent recommandées ; la propagation `dev/custom/` → `custom/` se fait par copie manuelle (rsync, cp) à défaut de `git pull`. Même mécanisme bootstrap.
+
+> Ce document s'adresse aux contributeurs (cloneurs GitHub qui ajoutent leur propre `custom/`) et aux développeurs du dépôt public GitHub.
 
 ## Principe
 
-Deux dépôts git **à périmètres disjoints** (*), deux instances physiques **complètement isolées** :
+Deux dépôts **à périmètres disjoints** (*), deux instances physiques **complètement isolées**. Une instance regroupe un clone du dépôt PUB et un clone du dépôt PRV. Un clone est une copie locale d'un dépôt, susceptible de diverger temporairement de la source.
 
-- **Dépôt public** (`github.com/mlebas29/Compta`) — **PUB** = code et doc public
-- **Dépôt privé** (`.git` local, sans remote distant) — **PRV** = extensions privées
+- **Dépôt GitHub public** (`github.com/mlebas29/Compta`) — **PUB** = code et doc public
+- **Dépôt privé** (avec ou sans `.git` local) — **PRV** = extensions privées
 - **Instance PROD** (`~/Compta/`) — dossier d'utilisation du classeur familial avec PUB + PRV
 - **Instance DEV** (`~/Compta/dev/`) — dossier facultatif pour développement PUB et PRV
 
-(*) Un fichier versionné vit **à un seul endroit** : soit dans PUB, soit dans PRV.
+(*) Un fichier source vit **à un seul endroit** : soit dans PUB, soit dans PRV.
 
 ## Schéma
 
@@ -27,43 +35,39 @@ github.com/mlebas29/Compta              (repo public, .git PUB)
 ├── .gitignore                          exclut /dev/, données perso
 ├── cpt_*.py, gui_*.py, inc_*.py        code PUB
 ├── tool_*.py                           outils PUB
-├── tests/                              TNR PUB (gitignored aujourd'hui, futur public via #63)
-├── docs/                               doc dev PUB (gitignored aujourd'hui, futur public via #63)
+├── tests/                              TNR (Tests de non régression) PUB
+├── docs/                               doc dev PUB 
 ├── README.md, Compta_*.md              doc PUB
 │
-├── custom/                             clone PRV read-only
-│   ├── .git/                           remote = file://~/Compta/dev/custom
+├── custom/                             extensions privées
+│   ├── .git/                           option A : pull depuis file://~/Compta/dev/custom
 │   ├── cpt_fetch_<NAME>.py             sites privés
 │   ├── cpt_format_<NAME>.py            (idem)
 │   ├── patch_*.py                      monkeypatches du code public
-│   ├── tests/                          PRV tests overlay (privé strict — jamais public)
-│   └── docs/                           PRV docs overlay (sites privés, données nominatives)
 │
 ├── comptes.xlsm, config.ini            classeur + config locale
-├── config_*.json                       mappings, alias
+├── config_*.json                       données de configuration
 ├── dropbox/, archives/, logs/          données opérationnelles
 │
 └── dev/                                DEV — gitignored par PROD
     ├── .git/                           clone PUB autonome (parallèle)
     ├── cpt_*.py, gui_*.py, …           code en cours d'édition
-    ├── tests/                          TNR (édition + run, futur public via #63)
-    ├── docs/                           doc dev (futur public via #63)
-    ├── CLAUDE.md, CLAUDE_todo.md       outils session Claude (gitignored)
-    ├── CLAUDE_log.md                   (gitignored, jetable)
+    ├── tests/                          TNR (édition + run, public)
+    ├── docs/                           doc dev
     │
     ├── custom/                         dépôt PRV authoritative (.git PRV)
-    │   ├── .git/                       AUCUN remote distant
+    │   ├── .git/                       option A uniquement
     │   ├── cpt_fetch_*.py / cpt_format_*.py
     │   ├── patch_*.py
     │   ├── tests/                      PRV tests authoritative (overlay privé)
     │   └── docs/                       PRV docs authoritative
     │
     ├── comptes.xlsm                    sandbox jetable
-    ├── config.ini, config_*.json
+    ├── config.ini, config_*.json       sandbox
     └── dropbox/, archives/, logs/      sandbox
 ```
 
-Symétrie clé : `tests/` et `docs/` existent à 4 emplacements (PROD/DEV × public/custom). Le code TNR utilise `find_code_root()` pour s'auto-localiser quel que soit le contexte.
+`tests/` et `docs/` existent à plusieurs emplacements (PROD/DEV × public/custom). Le code TNR utilise `find_code_root()` pour s'auto-localiser quel que soit le contexte.
 
 ## Répartition des fichiers
 
@@ -81,7 +85,9 @@ Symétrie clé : `tests/` et `docs/` existent à 4 emplacements (PROD/DEV × pub
 
 L'instance PROD ne fait que **consommer** du code stable. Aucune édition.
 
-Mécanique git native, deux `git pull` (un par dépôt) :
+### Option A — deux `git pull`
+
+Mécanique git native, un `git pull` par dépôt :
 
 ```bash
 cd ~/Compta            && git pull        # PUB depuis github
@@ -108,9 +114,23 @@ Codes retour : 0 succès, 1 échec d'au moins un pull.
 Exécution depuis ~/Compta/ uniquement.
 ```
 
+### Option B — un `git pull` PUB + propagation manuelle de `custom/`
+
+```bash
+cd ~/Compta && git pull                                # PUB depuis github
+rsync -a ~/Compta/dev/custom/ ~/Compta/custom/         # si instance DEV maintenue
+python gui_main.py
+```
+
+`tool_pull.sh PRV` n'a pas de sens dans ce mode (pas de remote PRV). Le contenu de `custom/` est soit édité sur place, soit propagé depuis DEV par `rsync`/`cp`.
+
 ## Usage côté DEV
 
-L'instance DEV est où Marc édite, teste, casse. Deux `.git` cohabitent : `.git` PUB à la racine `~/Compta/dev/`, `.git` PRV sous `~/Compta/dev/custom/`. Le `.gitignore` PUB exclut `custom/` ⇒ les deux dépôts ne se voient jamais.
+L'instance DEV est où le développeur édite, teste, casse.
+
+### Option A — deux `.git` cohabitent
+
+`.git` PUB à la racine `~/Compta/dev/`, `.git` PRV sous `~/Compta/dev/custom/`. Le `.gitignore` PUB exclut `custom/` ⇒ les deux dépôts ne se voient jamais.
 
 Mécanique git native — selon le path du fichier modifié, on commit dans le `.git` correspondant :
 
@@ -158,9 +178,15 @@ Codes retour : 0 succès, 1 erreur (cwd, conflit, argument invalide).
 Exécution depuis ~/Compta/dev/ uniquement.
 ```
 
-### Édition des fichiers PRV depuis DEV
+#### Édition des fichiers PRV depuis DEV
 
 Le `custom/` côté DEV héberge le `.git` PRV authoritative — c'est là que les commits PRV naissent. Quand PROD pull, c'est ce répertoire qu'il consulte via `file://`.
+
+### Option B — `.git` PUB seul
+
+Un seul dépôt (PUB) à la racine de DEV. Les fichiers sous `custom/` sont gitignorés et éditables directement, sans `.git` PRV ni `tool_commit.sh PRV`. La sauvegarde de `custom/` est à la charge de l'utilisateur (rsync vers PROD, backup externe, dépôt git privé hors arbo, etc.).
+
+`tool_commit.sh` continue à fonctionner pour PUB (status, commit, push, tag) — la cible PRV est simplement sans objet.
 
 ## Usage parallèle PROD + DEV
 
@@ -269,7 +295,7 @@ Aucune édition manuelle de fichier de config requise — la GUI lit les modules
 
 Pattern monkeypatch : 1 fichier `custom/patch_<nom>.py` qui importe un module public et override un hook. `inc_bootstrap.py` charge tous les `patch_*.py` au démarrage.
 
-Exemple — regrouper les supports d'une assurance vie en agrégat ETF :
+Exemple — regrouper les supports ETF d'une assurance vie en un seul agrégat :
 
 ```python
 # custom/patch_etf.py
@@ -316,9 +342,9 @@ Le bootstrap charge d'abord les `patch_*.py` (au démarrage), puis le scan des s
 
 ## Tests et docs — séparation public/privé
 
-Cf. l'arbo en section [Schéma](#schéma) : `tests/` et `docs/` existent à 4 emplacements (PROD/DEV × public/custom). Les emplacements publics ont vocation à devenir distribuables sur GitHub via le chantier #63 (anonymisation TNR + ouverture doc dev), ce qui dicte une règle stricte :
+Cf. l'arbo en section [Schéma](#schéma) : `tests/` et `docs/` existent à plusieurs emplacements. Les emplacements publics étant distribuables sur GitHub, une règle stricte s'impose :
 
-> **Aucune référence à un site privé, aucune fixture privée, aucune doc qui nomme un site privé n'a sa place dans `tests/` ou `docs/`.** Tout ce qui est privé vit sous `custom/`, en miroir de la structure publique.
+> **Aucune référence à un site privé, aucun jeu de test privé, aucune doc qui nomme un site privé n'a sa place dans `tests/` ou `docs/`.** Tout ce qui est privé vit sous `custom/`, en miroir de la structure publique.
 
 ### Doctrine sandbox pour les TNR
 
@@ -342,12 +368,14 @@ Trois helpers dans `tnr_lib.py` :
 
 Variable d'environnement **`COMPTA_BASE_DIR`** : exportée par les TNR avant chaque appel `subprocess` au code applicatif (`cpt_update.py`, `tool_controles.py`, etc.) pour que `inc_mode.get_base_dir()` retourne la sandbox.
 
-Bénéfices : DEV jamais touché (LO peut éditer `comptes.xlsm` pendant un TNR), debug post-mortem possible (la sandbox survit au plantage), parallélisation triviale, plus de `.tnr_running`/`.test_backup`.
+Bénéfices : DEV jamais touché (LibreOffice peut éditer `comptes.xlsm` pendant un TNR), debug post-mortem possible (la sandbox survit au plantage), parallélisation triviale, plus de `.tnr_running`/`.test_backup`.
 
 ### Doc
 
 Pas de mécanisme de merge — `docs/` (public) et `custom/docs/` (privé) sont deux répertoires distincts consultés séparément selon le besoin. La séparation au niveau dossier suffit : aucune doctrine de fusion, aucune mécanique côté code.
 
-### Filet PRV temporaire
+### `custom/tests/` — overlay privé
 
-Tant que `tests/` n'est pas ouvert publiquement (chantier #63 anonymisation), le snapshot complet `custom/tests/` (scripts TNR + expected + inputs) sert de filet anti-perte versionné en PRV. À l'ouverture publique, ce snapshot sera démantelé : `tests/` deviendra le tracking principal côté PUB, `custom/tests/` ne contiendra plus que les fixtures **strictement privées** (overlay).
+En option A, `custom/tests/` versionne sous PRV les jeux de test et scripts TNR **strictement privés** (référencent un site privé ou contiennent des données nominatives). Le tracking principal reste `tests/` côté PUB.
+
+En option B, la sauvegarde de `custom/tests/` relève des choix de l'utilisateur (cf. *Usage côté DEV — Option B*).
