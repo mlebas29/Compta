@@ -137,6 +137,7 @@ _show_changes() {
         [[ -n "$modified" ]]  && { echo "  Modifié :";    echo "$modified"  | sed 's/^/    /'; }
         [[ -n "$untracked" ]] && { echo "  Non tracké :"; echo "$untracked" | sed 's/^/    /'; }
     fi
+    return 0
 }
 
 status_pub() {

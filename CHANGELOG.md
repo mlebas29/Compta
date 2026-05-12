@@ -6,6 +6,30 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 - 🔧 = outil de migration du classeur de travail (mode assisté)
 - Détails dans Compta_upgrade.md
 
+## v4.2.0-wip
+| 2026-05-12         |                                                              |
+| ------------------ | ------------------------------------------------------------ |
+| Description        | **App personnalisable** (cadre de developpement). **Environnement de test** (TNR). |
+| Migration assistée | pas de migration nécessaire                                  |
+
+**Architecture `custom/`**
+
+- Nouveau dossier `custom/` qui accueille les extensions privées (sites perso, monkeypatches) sans modification du code public. Bootstrap minimal au démarrage.
+- Nouveau tool `install_custom.sh` qui pose l'arborescence et les squelettes Python.
+- Outillage git remanié et distribué : `tool_commit.sh`, `tool_pull.sh` (syntaxe unifiée, détection auto du mode).
+- Documentation : nouveau `Compta_custom.md`, section *Extensibilité* dans `README.md`.
+
+**TNR (Test de non régression)**
+
+- Cadre de test et premier scénario  (`roundtrip`)  — utilisable par tout contributeur pour valider une modification du code.
+
+**Divers**
+
+- Fiabilisation `tool_fix_formats` post-v4.1.0 : cohérence E/K en EUR sur sections métaux/crypto/devises, scan headers devise robuste.
+- première installation : tous les sites restent visibles en GUI Configuration même sans `config_accounts.json` initial.
+
+
+
 ## v4.1.0 📘 🔧
 | 2026-05-08         |                                                              |
 | ------------------ | ------------------------------------------------------------ |
