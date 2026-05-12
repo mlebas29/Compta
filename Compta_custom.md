@@ -95,24 +95,7 @@ cd ~/Compta/custom    && git pull        # PRV (remote privé ou file://)
 python gui_main.py
 ```
 
-`tool_pull.sh` est un wrapper qui combine les deux pulls et offre un mode status. Spec :
-
-```
-tool_pull.sh                       # status (commits/tags en attente)
-tool_pull.sh PUB                   # pull PUB depuis github
-tool_pull.sh PRV                   # pull PRV (remote privé ou file://)
-tool_pull.sh PUB PRV               # pull les deux
-
-tool_pull.sh -h | --help
-
-Argument positionnel : PUB | PRV (combinables). Sans argument, fait un status
-(git fetch --dry-run pour PUB, git log ..origin/main pour PRV).
-
-Si un pull échoue, l'autre est tenté quand même. Résumé final par dépôt.
-Codes retour : 0 succès, 1 échec d'au moins un pull.
-
-Exécution depuis ~/Compta/ uniquement.
-```
+`tool_pull.sh` est un wrapper qui combine les deux pulls et détecte automatiquement le mode (présence de `.git` PRV, remote configuré ou non). Cf. **`Compta_tools.md`** pour la spec complète (synopsis, flags, codes retour).
 
 ### Option B — un `git pull` PUB + propagation manuelle de `custom/`
 
@@ -148,36 +131,7 @@ git commit -m "msg"
 git push                              # → remote PRV si configuré
 ```
 
-`tool_commit.sh` est un wrapper qui automatise ce routage : il classe les fichiers modifiés selon leur path, fait un `git add` + `git commit` dans le `.git` adapté, et permet à un même `-m "msg"` de produire **un commit PUB + un commit PRV** en une seule invocation. Spec :
-
-```
-tool_commit.sh                           # status PUB + PRV (défaut, sans -m)
-tool_commit.sh PUB                       # status PUB seulement
-tool_commit.sh PRV                       # status PRV seulement
-
-tool_commit.sh -m "message"              # commit PUB + PRV (selon modifs)
-tool_commit.sh -m "message" PUB          # commit PUB seulement
-tool_commit.sh -m "message" PRV          # commit PRV seulement
-
-tool_commit.sh -m "message" --push       # commit + push PUB
-tool_commit.sh -m "message" --tag vX.Y.Z # commit + tag PUB
-
-tool_commit.sh -h | --help
-
-Argument positionnel (optionnel) : PUB | PRV. Par défaut les deux.
---push et --tag n'agissent que sur PUB. Pour pousser PRV vers un remote
-(si configuré), `git push` manuel depuis `custom/`.
-
-Routage automatique des modifs :
-  - Fichiers sous custom/  → .git PRV
-  - Tout le reste            → .git PUB
-
-Fichiers non trackés : avertissement listant chaque fichier, sans auto-ajout.
-L'utilisateur reste maître de l'inclusion (git add explicite).
-
-Codes retour : 0 succès, 1 erreur (cwd, conflit, argument invalide).
-Exécution depuis ~/Compta/dev/ uniquement.
-```
+`tool_commit.sh` est un wrapper qui automatise ce routage : il classe les fichiers modifiés selon leur path, fait un `git add` + `git commit` dans le `.git` adapté, et permet à un même message de produire **un commit PUB + un commit PRV** en une seule invocation. Cf. **`Compta_tools.md`** pour la spec complète (synopsis, flags, push/tag, codes retour).
 
 #### Édition des fichiers PRV depuis DEV
 

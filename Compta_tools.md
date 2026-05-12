@@ -4,6 +4,11 @@ Le projet inclut des outils en ligne de commande pour diagnostiquer,
 vérifier et corriger le classeur `comptes.xlsm`. Ils sont tous optionnels
 et complémentaires à l'interface graphique.
 
+Deux familles : les **outils classeur** (audit, fix, migration) qui agissent
+sur le `.xlsm` ; et les **outils d'environnement git** (commit, pull, install
+de `custom/`) qui orchestrent la circulation du code entre PROD, DEV et
+github — usage plutôt dev.
+
 ---
 
 ### tool_controles.py — Diagnostic du classeur
@@ -121,3 +126,79 @@ temporaires qui peuvent rester après un crash du pipeline.
 ./tool_cleanup.py --processes       # processus uniquement
 ```
 
+---
+
+## Outils environnement git
+
+Cf. `Compta_custom.md` pour la doctrine d'usage (modes A.1 / A.2 / B, routage
+PUB/PRV).
+
+### tool_commit.sh — Commit git par instance
+
+Wrapper qui détecte le mode d'installation `custom/` et route les commits
+vers le `.git` adapté selon le path du fichier modifié (`custom/` → PRV,
+reste → PUB). Permet de produire en une invocation un commit PUB et un commit
+PRV avec le même message.
+
+La sémantique du script est le commit local. Push et tag sont des options
+explicites.
+
+```bash
+./tool_commit.sh "message"                   # commit local (PUB + PRV selon ce qui existe)
+./tool_commit.sh "message" --push            # commit + push (PUB → github ; PRV → remote si configuré)
+./tool_commit.sh "message" --push --tag vX   # commit + push + tag PUB
+./tool_commit.sh "message" --pub             # restreint PUB
+./tool_commit.sh "message" --prv             # restreint PRV
+./tool_commit.sh --status                    # affichage état (pas de commit)
+./tool_commit.sh -h | --help
+```
+
+Détection automatique du mode (lecture du filesystem, aucune config externe) :
+
+| Mode | État physique | Comportement |
+|---|---|---|
+| **0** | pas de `custom/` | PUB seul |
+| **B** | `custom/` sans `.git` | PUB seul, PRV signalé sans `.git` |
+| **A.1** | `custom/.git` sans remote | PUB push, PRV commit local |
+| **A.2** | `custom/.git` avec remote | PUB et PRV push |
+
+Tag : `--tag vX.Y.Z` taggue PUB uniquement (jamais PRV — un tag invisible
+n'a pas de sens) et implique `--push`.
+
+Fichiers non trackés : avertissement listant chaque fichier, sans auto-ajout.
+L'utilisateur reste maître de l'inclusion (`git add` explicite).
+
+Codes retour : 0 succès, 1 erreur (cwd, conflit, argument invalide).
+Exécution depuis `~/Compta/dev/` uniquement.
+
+### tool_pull.sh — Pull git par instance
+
+Wrapper qui pull les dépôts disponibles selon le mode détecté. PUB est
+toujours pullé depuis github. PRV est pullé depuis son remote configuré
+(option A.2) ou depuis le `file://` source local (option A.1).
+
+```bash
+./tool_pull.sh                               # pull PUB + PRV (selon mode)
+./tool_pull.sh --pub                         # restreint PUB
+./tool_pull.sh --prv                         # restreint PRV
+./tool_pull.sh --status                      # affichage état (pas de pull)
+./tool_pull.sh -h | --help
+```
+
+Détection mode : identique à `tool_commit.sh`.
+
+Cas 0 et B : `--prv` retourne une erreur explicite (pas de `.git` PRV à
+pull ; propagation manuelle requise en option B).
+
+Si un pull échoue, l'autre est tenté quand même. Résumé final par dépôt.
+
+Codes retour : 0 succès, 1 échec d'au moins un pull.
+Exécution depuis `~/Compta/` uniquement.
+
+### install_custom.sh — Installation initiale de custom/
+
+*(À venir.)* Script interactif qui crée le dossier `custom/` selon le mode
+choisi : option A.1 (git init local, propagation `file://`), A.2 (git clone
+d'un remote privé), ou B (mkdir simple, propagation manuelle). Pose les
+squelettes `cpt_fetch_<NAME>.py` et `cpt_format_<NAME>.py` minimaux et met
+à jour `config.ini` (sections `[sites]` et `[<NAME>]`).
