@@ -13,8 +13,8 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
-PROD_DIR="$HOME/Compta"
-DEV_DIR="$HOME/Compta/dev"
+PROD_DIR="$PWD"
+DEV_DIR="$PWD/dev"
 DEV_CUSTOM="$DEV_DIR/custom"
 PROD_CUSTOM="$PROD_DIR/custom"
 
@@ -40,7 +40,7 @@ réel. Gestes idempotents enchaînés selon les flags :
   6. Commit initial DEV custom (si étape 3 ou 5 a créé)
   7. Créer ~/Compta/custom/ si absent (clone file:// ou rsync selon mode)
 
-Exécution depuis $PROD_DIR uniquement.
+Exécution depuis la racine d'un clone Compta (cwd-relatif).
 EOF
     exit 0
 }
@@ -66,9 +66,9 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# --- Vérifier cwd ---
-if [[ "$PWD" != "$PROD_DIR" ]]; then
-    echo -e "${RED}✗${NC} Exécuter depuis $PROD_DIR (cwd actuel : $PWD)"
+# --- Vérifier cwd (racine d'un clone Compta) ---
+if [[ ! -f "$PWD/cpt_update.py" || ! -f "$PWD/inc_mode.py" ]]; then
+    echo -e "${RED}✗${NC} Exécuter depuis la racine d'un clone Compta (cpt_update.py / inc_mode.py introuvables ; cwd : $PWD)"
     exit 1
 fi
 
@@ -136,30 +136,31 @@ target_mode() {
 # --- Statut (sans flag d'action) ---
 status() {
     echo -e "${BLUE}État de l'arborescence custom :${NC}"
+    echo "  (PROD : $PROD_DIR)"
     echo
     if $HAS_DEV; then
-        echo -e "  ${GREEN}✓${NC} ~/Compta/dev/"
+        echo -e "  ${GREEN}✓${NC} dev/"
     else
-        echo -e "  ${RED}✗${NC} ~/Compta/dev/                       (absent)"
+        echo -e "  ${RED}✗${NC} dev/                       (absent)"
     fi
     if $HAS_DEV_CUSTOM; then
-        echo -e "  ${GREEN}✓${NC} ~/Compta/dev/custom/"
+        echo -e "  ${GREEN}✓${NC} dev/custom/"
     else
-        echo -e "  ${RED}✗${NC} ~/Compta/dev/custom/                (absent)"
+        echo -e "  ${RED}✗${NC} dev/custom/                (absent)"
     fi
     if $HAS_PRV_GIT; then
         if $HAS_PRV_REMOTE; then
-            echo -e "  ${GREEN}✓${NC} ~/Compta/dev/custom/.git/           (remote: $PRV_REMOTE_URL)"
+            echo -e "  ${GREEN}✓${NC} dev/custom/.git/           (remote: $PRV_REMOTE_URL)"
         else
-            echo -e "  ${GREEN}✓${NC} ~/Compta/dev/custom/.git/           (sans remote)"
+            echo -e "  ${GREEN}✓${NC} dev/custom/.git/           (sans remote)"
         fi
     else
-        echo -e "  ${YELLOW}—${NC} ~/Compta/dev/custom/.git/           (absent — option B ou non installé)"
+        echo -e "  ${YELLOW}—${NC} dev/custom/.git/           (absent — option B ou non installé)"
     fi
     if $HAS_PROD_CUSTOM; then
-        echo -e "  ${GREEN}✓${NC} ~/Compta/custom/"
+        echo -e "  ${GREEN}✓${NC} custom/"
     else
-        echo -e "  ${RED}✗${NC} ~/Compta/custom/                    (absent)"
+        echo -e "  ${RED}✗${NC} custom/                    (absent)"
     fi
     echo
 
@@ -286,25 +287,25 @@ SKELS_CREATED=false
 
 # Geste 1 — Créer DEV
 if ! $HAS_DEV; then
-    echo -e "${YELLOW}--- 1. Création ~/Compta/dev/ ---${NC}"
+    echo -e "${YELLOW}--- 1. Création $DEV_DIR ---${NC}"
     echo "  git clone $ORIGIN_URL $DEV_DIR"
     git clone "$ORIGIN_URL" "$DEV_DIR"
     HAS_DEV=true
-    echo -e "${GREEN}✓${NC} ~/Compta/dev/ créé"
+    echo -e "${GREEN}✓${NC} $DEV_DIR créé"
     echo
 else
-    echo -e "${GREEN}✓${NC} ~/Compta/dev/ déjà présent — sauté"
+    echo -e "${GREEN}✓${NC} $DEV_DIR déjà présent — sauté"
 fi
 
 # Geste 2 — Créer DEV custom
 if ! $HAS_DEV_CUSTOM; then
-    echo -e "${YELLOW}--- 2. Création ~/Compta/dev/custom/ ---${NC}"
+    echo -e "${YELLOW}--- 2. Création $DEV_CUSTOM ---${NC}"
     mkdir -p "$DEV_CUSTOM"
     HAS_DEV_CUSTOM=true
-    echo -e "${GREEN}✓${NC} ~/Compta/dev/custom/ créé"
+    echo -e "${GREEN}✓${NC} $DEV_CUSTOM créé"
     echo
 else
-    echo -e "${GREEN}✓${NC} ~/Compta/dev/custom/ déjà présent — sauté"
+    echo -e "${GREEN}✓${NC} $DEV_CUSTOM déjà présent — sauté"
 fi
 
 # Geste 3 — Init .git PRV
@@ -379,30 +380,30 @@ fi
 if ! $HAS_PROD_CUSTOM; then
     # Vérifier que DEV custom n'est pas vide
     if [[ -z "$(ls -A "$DEV_CUSTOM" 2>/dev/null)" ]]; then
-        echo -e "${YELLOW}—${NC} ~/Compta/custom/ : DEV custom vide, propagation sautée"
+        echo -e "${YELLOW}—${NC} $PROD_CUSTOM : DEV custom vide, propagation sautée"
     elif $HAS_PRV_GIT; then
         # Mode A : clone file://
         # Vérifier qu'il y a au moins un commit
         if git -C "$DEV_CUSTOM" rev-parse HEAD >/dev/null 2>&1; then
-            echo -e "${YELLOW}--- 7. Création ~/Compta/custom/ (clone file://) ---${NC}"
+            echo -e "${YELLOW}--- 7. Création $PROD_CUSTOM (clone file://) ---${NC}"
             git clone -q "file://$DEV_CUSTOM" "$PROD_CUSTOM"
             HAS_PROD_CUSTOM=true
-            echo -e "${GREEN}✓${NC} ~/Compta/custom/ cloné depuis DEV"
+            echo -e "${GREEN}✓${NC} $PROD_CUSTOM cloné depuis DEV"
             echo
         else
-            echo -e "${YELLOW}—${NC} ~/Compta/custom/ : DEV custom sans commit, propagation sautée"
+            echo -e "${YELLOW}—${NC} $PROD_CUSTOM : DEV custom sans commit, propagation sautée"
             echo "  → faire 'tool_commit.sh \"Init custom/\"' puis relancer install_custom.sh"
         fi
     else
         # Mode B : rsync
-        echo -e "${YELLOW}--- 7. Création ~/Compta/custom/ (rsync, mode B) ---${NC}"
+        echo -e "${YELLOW}--- 7. Création $PROD_CUSTOM (rsync, mode B) ---${NC}"
         rsync -a "$DEV_CUSTOM/" "$PROD_CUSTOM/"
         HAS_PROD_CUSTOM=true
-        echo -e "${GREEN}✓${NC} ~/Compta/custom/ copié depuis DEV"
+        echo -e "${GREEN}✓${NC} $PROD_CUSTOM copié depuis DEV"
         echo
     fi
 else
-    echo -e "${GREEN}✓${NC} ~/Compta/custom/ déjà présent — sauté"
+    echo -e "${GREEN}✓${NC} $PROD_CUSTOM déjà présent — sauté"
     if $SKELS_CREATED && ! $PRV_GIT_CREATED; then
         echo "  → squelettes posés en DEV ; lancer 'tool_commit.sh \"...\"' puis 'tool_pull.sh' pour propager"
     fi
