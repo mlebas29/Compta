@@ -105,7 +105,7 @@ rsync -a ~/Compta/dev/custom/ ~/Compta/custom/         # si instance DEV mainten
 python gui_main.py
 ```
 
-`tool_pull.sh PRV` n'a pas de sens dans ce mode (pas de `.git` PRV). Le contenu de `custom/` est soit édité sur place, soit propagé depuis DEV par `rsync`/`cp`.
+`tool_pull.sh --prv` n'a pas de sens dans ce mode (pas de `.git` PRV). Le contenu de `custom/` est soit édité sur place, soit propagé depuis DEV par `rsync`/`cp`.
 
 ## Usage côté DEV
 
