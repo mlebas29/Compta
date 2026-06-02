@@ -75,6 +75,9 @@ confirm "Re-cloner $REPO_DIR ?"
 run "git clone \"$URL\" \"${REPO_DIR}.new\""
 run "mv \"$REPO_DIR\" \"$backup\""
 run "mv \"${REPO_DIR}.new\" \"$REPO_DIR\""
-run "rsync -a --ignore-existing --exclude='.git/' \"$backup\"/ \"$REPO_DIR\"/"
+# Restaure le privé/non-tracké, SAUF docs/site_BG.md (relique du rename BG→ORCHESTRA :
+# le doc privé vit désormais dans custom/site_ORCHESTRA.md, ne pas le ré-injecter dans le PUB).
+run "rsync -a --ignore-existing --exclude='.git/' --exclude='docs/site_BG.md' \"$backup\"/ \"$REPO_DIR\"/"
 say ""
 say "✓ Re-clone fait. Sauvegarde conservée : $backup (supprime-la quand validé)."
+say "  (si lancé depuis l'intérieur du repo : 'cd $REPO_DIR' pour revenir dans le clone frais.)"
