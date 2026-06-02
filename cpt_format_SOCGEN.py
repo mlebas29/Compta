@@ -1,0 +1,907 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+cpt_format_SOCGEN.py - Convertit les fichiers SG en format standardisé
+
+Pour opérations CSV: Parse directement avec cpt_categorize (remplace AWK)
+Pour positions (supports assurance vie): Parse Excel et génère format 4 colonnes
+Pour PDF imprimés: Parse texte avec pdfplumber (fallback collecte manuelle)
+
+Usage:
+  ./cpt_format_SOCGEN.py <fichier.csv|.xlsx|.pdf>
+"""
+
+import sys
+import csv
+import re
+import json
+import unicodedata
+from pathlib import Path
+from datetime import datetime
+import inc_categorize
+from inc_format import process_files, lines_to_tuples, log_csv_debug as _log_csv_debug, get_file_date, site_name_from_file, require_account
+
+SITE = site_name_from_file(__file__)
+
+try:
+    import openpyxl as xl
+except ImportError:
+    xl = None
+
+try:
+    import pdfplumber
+except ImportError:
+    pdfplumber = None
+
+# Comptes SG : chargés depuis config_accounts.json
+_ACCOUNTS_JSON = Path(__file__).parent / 'config_accounts.json'
+with open(_ACCOUNTS_JSON, 'r', encoding='utf-8') as _f:
+    _sg_config = json.load(_f).get(SITE, {})
+_sg_accounts_list = _sg_config.get('accounts', [])
+_sg_accounts = {a['name']: a for a in _sg_accounts_list}
+
+# Mapping file_key → nom compte (détection assurances vie dans les noms de fichier)
+FILE_KEY_MAPPING = {
+    a['file_key'].lower(): a['name']
+    for a in _sg_accounts_list
+    if 'file_key' in a
+}
+
+# Compte chèque (opérations CSV)
+ACCOUNT_CHEQUE = require_account(_sg_accounts, 'chèque', SITE, ignorecase=True)
+
+# Mapping numéro → nom pour les comptes épargne (Export_*.csv)
+COMPTE_NUMERO_MAPPING = {
+    a['numero']: a['name']
+    for a in _sg_accounts_list
+    if a.get('type_sg') == 'epargne'
+}
+
+
+def _deacc(s):
+    """Minuscule sans accents — pour matcher les libellés bruts du PDF synthèse."""
+    return unicodedata.normalize('NFKD', s).encode('ascii', 'ignore').decode('ascii').lower()
+
+
+# Assurances vie, triées par file_key (ordre lexical) — fallbacks de détection
+_av_names = [
+    a['name'] for a in sorted(
+        (x for x in _sg_accounts_list if x.get('type_sg') == 'assurance_vie'),
+        key=lambda x: x.get('file_key', ''))
+]
+
+# Synthèse PDF — comptes épargne : 4 derniers chiffres du numéro → nom
+# (épargne uniquement, comme l'ancien mapping : le compte principal n'y figurait pas)
+_numero_last4 = {
+    a['numero'][-4:]: a['name']
+    for a in _sg_accounts_list if a.get('type_sg') == 'epargne'
+}
+
+# Synthèse PDF — assurances vie (sans numéro) : clé de nom dé-accentuée → nom
+_av_name_keys = {
+    _deacc(a['name']).replace('ass vie ', '').strip(): a['name']
+    for a in _sg_accounts_list if a.get('type_sg') == 'assurance_vie'
+}
+
+# Mapping des noms de supports (renommage relevé SG → nom Plus_value) — config_accounts.json privé (zéro nom en dur)
+# Schéma : "SOCGEN": { "support_renames": { "<nom support relevé SG>": "<nom Plus_value>", ... } }
+SUPPORT_NAME_MAPPING = _sg_config.get('support_renames', {})
+
+# Construit dynamiquement depuis config_accounts.json — aucun numéro ni file_key en dur
+EXPECTED_FILES = [('Mes comptes en ligne _ SG.pdf', 'exact', '1')]
+for _a in _sg_accounts_list:
+    _t = _a.get('type_sg')
+    if _t == 'principal':
+        EXPECTED_FILES.append((f"{_a['numero']}.csv", 'exact', '1'))
+    elif _t == 'epargne':
+        EXPECTED_FILES.append((f"Export_{_a['numero']}_*.csv", 'glob', '1'))
+    elif _t == 'assurance_vie':
+        _fk = _a['file_key']
+        EXPECTED_FILES += [
+            (f"SG_{_fk}_operations.pdf", 'exact', '0-1'),
+            (f"SG_{_fk}_operations#*.pdf", 'glob', '0+'),
+            (f"SG_{_fk}_supports.xlsx", 'exact', '1'),
+        ]
+
+def detect_compte(file_path):
+    """Détecte le nom du compte depuis le nom de fichier via file_key"""
+    filename = file_path.stem.lower()
+    # Trier par longueur décroissante pour éviter les matchs partiels
+    # Ex: un file_key plus long doit matcher avant un plus court
+    for file_key, compte_name in sorted(FILE_KEY_MAPPING.items(), key=lambda x: -len(x[0])):
+        if file_key in filename:
+            return compte_name
+    return None
+
+def process_operations(file_path):
+    """
+    Parse le CSV SG et génère le format standardisé 9 colonnes
+
+    Format CSV SG (5 champs):
+      Ligne 1: ;;;;date_solde;montant_solde EUR
+      Lignes 2-3: Headers (skip)
+      Lignes 4+: Date;Court;Long;Montant;Devise
+
+    Remplace l'appel à cpt_format_SG.awk
+    Note: Le filtrage par date est centralisé dans inc_format.process_files()
+    """
+    ACCOUNT_NAME = ACCOUNT_CHEQUE
+    COMMENTAIRE = ""
+
+    output_lines = []
+
+    # Lire le fichier avec encoding latin-1 (format SG)
+    with open(file_path, 'r', encoding='latin-1') as f:
+        lines = f.readlines()
+
+    if len(lines) < 4:
+        print("⚠ Fichier CSV trop court (< 4 lignes)", file=sys.stderr)
+        return ""
+
+    # Ligne 1: Récupérer le solde
+    line1 = lines[0].strip()
+    fields1 = line1.split(';')
+
+    if len(fields1) < 6:
+        print(f"⚠ Ligne 1 invalide (attendu >= 6 champs, reçu {len(fields1)})", file=sys.stderr)
+        date_solde = ""
+        solde_montant = "0,00"
+    else:
+        date_solde = fields1[4].strip()  # Colonne 5 (index 4)
+        solde_avec_devise = fields1[5].strip()  # Colonne 6 (index 5)
+        # Split par espace pour retirer "EUR"
+        solde_parts = solde_avec_devise.split()
+        solde_montant = solde_parts[0] if solde_parts else "0,00"
+
+    # Parser toutes les opérations d'abord (pour filtrage)
+    operations = []
+    for line in lines[3:]:  # Skip lignes 1, 2, 3 (index 0, 1, 2)
+        line = line.strip()
+        if not line:
+            continue
+
+        fields = line.split(';')
+        if len(fields) < 5:
+            continue
+
+        date_str = fields[0].strip()
+        label_long = fields[2].strip()  # Utilisé pour catégorisation
+        montant = fields[3].strip()
+        devise = fields[4].strip() if len(fields) > 4 else "EUR"
+
+        operations.append({
+            'date_str': date_str,
+            'label_long': label_long,
+            'montant': montant,
+            'devise': devise
+        })
+
+    # Générer les lignes formatées
+    for op in operations:
+        # Catégorisation automatique via patterns
+        cat, opts = inc_categorize.categorize_operation(op['label_long'], SITE)
+        ref = opts.get('ref', '')
+
+        # Format standardisé: Date;Libellé;Montant;Devise;Equiv;Réf;Catégorie;Compte;Commentaire
+        output_line = f"{op['date_str']};{op['label_long']};{op['montant']};{op['devise']};;{ref};{cat};{ACCOUNT_NAME};{COMMENTAIRE}"
+        output_lines.append(output_line)
+
+    # Ligne #Solde finale
+    if date_solde:
+        solde_line = f"{date_solde};Relevé compte;{solde_montant};EUR;;;#Solde;{ACCOUNT_NAME};{COMMENTAIRE}"
+        output_lines.append(solde_line)
+
+    # Construire la sortie complète (header + lignes)
+    result = "Date;Libellé;Montant;Devise;Equiv;Réf;Catégorie;Compte;Commentaire\n"
+    result += "\n".join(output_lines)
+
+    return result
+
+def process_epargne_csv(file_path):
+    """
+    Traite les CSV épargne SG (Export_*.csv) - format direct depuis le site
+
+    Format CSV:
+      Ligne 1: ="0006112345678901";date_debut;date_fin;
+      Ligne 2: date_comptabilisation;libellé_complet_operation;montant_operation;devise;
+      Lignes 3+: DD/MM/YYYY;Libellé;Montant;EUR;
+
+    Output: Format standardisé 9 colonnes avec catégorisation
+    """
+    COMMENTAIRE = ""
+    output_lines = []
+    operations = []
+
+    # Lire le fichier avec encoding latin-1 (format SG)
+    with open(file_path, 'r', encoding='latin-1') as f:
+        lines = f.readlines()
+
+    if len(lines) < 3:
+        print("⚠ Fichier CSV trop court (< 3 lignes)", file=sys.stderr)
+        return "Date;Libellé;Montant;Devise;Equiv;Réf;Catégorie;Compte;Commentaire\n"
+
+    # Ligne 1: Extraire le numéro de compte
+    # Format: ="0006112345678901";29/07/2025;28/01/2026;
+    line1 = lines[0].strip()
+    fields1 = line1.split(';')
+
+    compte = None
+    date_fin = None
+
+    if len(fields1) >= 3:
+        # Extraire le numéro de compte (retirer ="0006" et garder les 11 derniers chiffres)
+        numero_raw = fields1[0].strip().strip('="')
+        # Le numéro peut être "0006112345678901" → extraire "12345678901"
+        if len(numero_raw) >= 11:
+            numero = numero_raw[-11:]
+            compte = COMPTE_NUMERO_MAPPING.get(numero)
+        date_fin = fields1[2].strip()  # Date de fin pour le solde
+
+    if not compte:
+        # Essayer d'extraire depuis le nom de fichier
+        filename = Path(file_path).stem
+        for num, nom in COMPTE_NUMERO_MAPPING.items():
+            if num in filename:
+                compte = nom
+                break
+
+    if not compte:
+        print(f"⚠ Compte non identifié dans {file_path}", file=sys.stderr)
+        compte = "Compte SG"
+
+    # Ligne 2: En-têtes (skip)
+    # Lignes 3+: Opérations
+    for line in lines[2:]:
+        line = line.strip()
+        if not line:
+            continue
+
+        fields = line.split(';')
+        if len(fields) < 4:
+            continue
+
+        date_str = fields[0].strip()
+        libelle = fields[1].strip()
+        montant = fields[2].strip()
+        devise = fields[3].strip() if fields[3].strip() else "EUR"
+
+        # Ignorer si date vide
+        if not date_str or not re.match(r'\d{2}/\d{2}/\d{4}', date_str):
+            continue
+
+        operations.append({
+            'date_str': date_str,
+            'libelle': libelle,
+            'montant': montant,
+            'devise': devise
+        })
+
+    # Générer les lignes formatées
+    for op in operations:
+        cat, opts = inc_categorize.categorize_operation(op['libelle'], SITE)
+        ref = opts.get('ref', '')
+
+        output_line = f"{op['date_str']};{op['libelle']};{op['montant']};{op['devise']};;{ref};{cat};{compte};{COMMENTAIRE}"
+        output_lines.append(output_line)
+
+    # Note: Pas de #Solde dans ce format - le solde vient du PDF "Mes comptes en ligne _ SG.pdf"
+
+    result = "Date;Libellé;Montant;Devise;Equiv;Réf;Catégorie;Compte;Commentaire\n"
+    result += "\n".join(output_lines)
+
+    return result
+
+def process_operations_parsed(file_path):
+    """
+    Traite les fichiers CSV RAW parsed (assurances vie / épargne) - format 4 colonnes
+
+    Format RAW:
+      Header: Date;Opération;Montant;Compte (ou Date;Libellé;Montant;Compte)
+      Lignes: Date;Libellé;Montant;Compte
+      #Solde: Date;#Solde;Montant;Compte
+
+    Output: Format standardisé 9 colonnes avec catégorisation
+
+    Note: Le filtrage par date est centralisé dans inc_format.process_files()
+    """
+    COMMENTAIRE = ""
+
+    output_lines = []
+    soldes_par_compte = {}  # {nom_compte: {'date_str': ..., 'montant': ...}}
+
+    # Lire le fichier avec encoding UTF-8 (format parsed)
+    with open(file_path, 'r', encoding='utf-8') as f:
+        reader = csv.DictReader(f, delimiter=';')
+
+        operations = []
+        for row in reader:
+            date_str_raw = row['Date'].strip()
+            # Header peut être "Opération" ou "Libellé"
+            libelle = row.get('Opération', row.get('Libellé', '')).strip()
+            montant = row['Montant'].strip()
+            compte = row['Compte'].strip()
+
+            # Convertir date DD/MM/YY → DD/MM/YYYY pour parse_french_date
+            # Exemple: "31/12/25" → "31/12/2025"
+            if '/' in date_str_raw:
+                parts = date_str_raw.split('/')
+                if len(parts) == 3 and len(parts[2]) == 2:
+                    # Année sur 2 chiffres → convertir en 4 chiffres
+                    # 00-49 → 2000-2049, 50-99 → 1950-1999
+                    year_2digit = int(parts[2])
+                    year_4digit = 2000 + year_2digit if year_2digit < 50 else 1900 + year_2digit
+                    date_str = f"{parts[0]}/{parts[1]}/{year_4digit}"
+                else:
+                    date_str = date_str_raw
+            else:
+                date_str = date_str_raw
+
+            # Gérer le #Solde (dans la colonne Libellé/Opération)
+            if libelle == '#Solde':
+                # Stocker le solde par compte (peut y avoir plusieurs comptes)
+                soldes_par_compte[compte] = {
+                    'date_str': date_str,
+                    'montant': montant
+                }
+                continue
+
+            operations.append({
+                'date_str': date_str,
+                'libelle': libelle,
+                'montant': montant,
+                'compte': compte
+            })
+
+    # Identifier les comptes qui ont des opérations
+    comptes_avec_operations = set(op['compte'] for op in operations)
+
+    # Générer les lignes formatées
+    for op in operations:
+        # Catégorisation automatique via patterns
+        cat, opts = inc_categorize.categorize_operation(op['libelle'], SITE)
+        ref = opts.get('ref', '')
+
+        # Format standardisé: Date;Libellé;Montant;Devise;Equiv;Réf;Catégorie;Compte;Commentaire
+        output_line = f"{op['date_str']};{op['libelle']};{op['montant']};EUR;;{ref};{cat};{op['compte']};{COMMENTAIRE}"
+        output_lines.append(output_line)
+
+    # Ajouter #Solde pour chaque compte qui a des opérations conservées
+    for compte, solde_info in soldes_par_compte.items():
+        if compte in comptes_avec_operations:
+            solde_line = f"{solde_info['date_str']};Relevé compte;{solde_info['montant']};EUR;;;#Solde;{compte};{COMMENTAIRE}"
+            output_lines.append(solde_line)
+
+    # Construire la sortie complète (header + lignes)
+    result = "Date;Libellé;Montant;Devise;Equiv;Réf;Catégorie;Compte;Commentaire\n"
+    result += "\n".join(output_lines)
+
+    return result
+
+def post_process_supports(supports_data, total_valorisation, compte):
+    """Hook post-traitement des supports avant émission CSV.
+
+    Pass-through public : retourne tous les supports tels quels, dans l'ordre
+    alphabétique. Monkeypatchable depuis `custom/patch_*.py`.
+
+    Args:
+        supports_data: dict {nom_support: valorisation}
+        total_valorisation: somme des valorisations
+        compte: nom du compte cible
+
+    Returns:
+        liste de tuples (nom, valorisation) à émettre dans le CSV
+    """
+    return [(n, supports_data[n]) for n in sorted(supports_data)]
+
+def process_positions(file_path):
+    """
+    Parse fichier Excel supports et génère format 4 colonnes.
+
+    Détection du compte par nom de fichier (file_key) :
+    - SG_<file_key>_supports*.xlsx → compte assurance vie correspondant
+
+    le hook `post_process_supports` — pass-through public, monkeypatchable.
+    """
+    if xl is None:
+        print("❌ Module openpyxl requis: pip install openpyxl", file=sys.stderr)
+        sys.exit(1)
+
+    # Parser Excel d'abord (pour détecter le compte par contenu si nécessaire)
+    import re
+    supports_data = {}
+    total_valorisation = 0.0
+
+    wb = xl.load_workbook(file_path, data_only=True)
+    ws = wb.active
+
+    for row in range(2, ws.max_row + 1):
+        support_name = ws.cell(row, 2).value  # Colonne B : Support
+        valorisation_str = ws.cell(row, 5).value  # Colonne E : Valorisation
+
+        if not support_name:
+            continue
+
+        support_name = str(support_name).strip()
+
+        # Cas spécial : "SUPPORT EURO" → "SÉCURITÉ EUROS"
+        if support_name == 'SUPPORT EURO':
+            support_name = 'SÉCURITÉ EUROS'
+
+        # Appliquer le mapping des noms (correspondance exacte prioritaire, puis startswith)
+        if support_name in SUPPORT_NAME_MAPPING:
+            support_name = SUPPORT_NAME_MAPPING[support_name]
+        else:
+            # Fallback: correspondance par préfixe
+            for old_name, new_name in SUPPORT_NAME_MAPPING.items():
+                if support_name.startswith(old_name):
+                    support_name = new_name
+                    break
+
+        # Parser la valorisation
+        if valorisation_str:
+            valorisation_str = str(valorisation_str).strip()
+            valorisation_str = re.sub(r'[\s€]', '', valorisation_str).replace(',', '.')
+            try:
+                valorisation = float(valorisation_str)
+                # Additionner si le support existe déjà (fusion après mapping)
+                if support_name in supports_data:
+                    supports_data[support_name] += valorisation
+                else:
+                    supports_data[support_name] = valorisation
+                total_valorisation += valorisation
+            except ValueError:
+                pass
+
+    wb.close()
+
+    # Détecter le compte : 1) par nom de fichier (critère principal)
+    #                      2) par nombre de supports (fallback si nom ambigu)
+    compte = detect_compte(Path(file_path))
+    if not compte and _av_names:
+        # Fallback par nombre de supports : le 2e contrat AV a 25+ supports, le 1er ~5
+        if len(supports_data) > 10 and len(_av_names) > 1:
+            compte = _av_names[1]
+        else:
+            compte = _av_names[0]
+
+    # Générer CSV format 4 colonnes via le hook post_process_supports
+    output_lines = []
+    date_aujourdhui = get_file_date(file_path)
+
+    # En-tête
+    output_lines.append('Date;Ligne;Montant;Compte')
+
+    # Émettre les supports retournés par le hook (pass-through par défaut,
+    for name, valorisation in post_process_supports(
+            supports_data, total_valorisation, compte):
+        output_lines.append(
+            f'{date_aujourdhui};{name};{valorisation:.2f};{compte}')
+
+    return '\n'.join(output_lines)
+
+def process_pdf_synthese(file_path):
+    """
+    Parse le PDF synthèse SG "Mes comptes en ligne _ SG.pdf" pour extraire les soldes
+
+    Ce PDF contient les soldes de tous les comptes SG.
+    Génère uniquement des lignes #Solde (format 9 colonnes).
+
+    Format extrait (exemple) :
+      Livret A Barnabé •••• 1234 1 234,56 €
+      Ass vie Barnabé •••• 5678 12 345,67 €
+    """
+    if pdfplumber is None:
+        print("❌ pdfplumber non installé. Exécutez: pip3 install pdfplumber", file=sys.stderr)
+        sys.exit(1)
+
+    output_lines = []
+    date_aujourdhui = get_file_date(file_path)
+
+    # Mapping nom/numéro → compte : dérivé de config_accounts.json
+    # (cf. _numero_last4 pour les comptes bancaires, _av_name_keys pour les AV)
+
+    with pdfplumber.open(file_path) as pdf:
+        for page in pdf.pages:
+            text = page.extract_text()
+            if not text:
+                continue
+
+            lines = text.split('\n')
+
+            for line in lines:
+                line_stripped = line.strip()
+
+                # Pattern: "Nom compte •••• XXXX Montant €"
+                match = re.match(r'^(.+?)\s+••••\s+(\d{4})\s+([\d\s]+,\d{2})\s*€', line_stripped)
+                if match:
+                    nom_brut = match.group(1).strip()
+                    last4 = match.group(2)
+                    montant_str = match.group(3).replace(' ', '').replace(',', '.')
+
+                    # 1) comptes bancaires : match par les 4 derniers chiffres du numéro
+                    compte = _numero_last4.get(last4)
+                    # 2) assurances vie (sans numéro en config) : match par nom dé-accentué
+                    if not compte:
+                        nb = _deacc(nom_brut)
+                        for key, nom_compte in sorted(_av_name_keys.items(), key=lambda x: -len(x[0])):
+                            if key in nb:
+                                compte = nom_compte
+                                break
+
+                    if compte:
+                        try:
+                            montant = float(montant_str)
+                            output_lines.append(
+                                f"{date_aujourdhui};Relevé compte;{montant:.2f};EUR;;;#Solde;{compte};".replace('.', ',')
+                            )
+                        except ValueError:
+                            pass
+
+    result = "Date;Libellé;Montant;Devise;Equiv;Réf;Catégorie;Compte;Commentaire\n"
+    result += "\n".join(output_lines)
+
+    return result
+
+def process_pdf_assurance_vie(file_path):
+    """
+    Parse un PDF d'opérations assurance vie SG "Gestion des contrats - Assurance Vie.pdf"
+
+    Format tableau fragmenté :
+      - Lignes avec montant : "YYYY au cours de + 0,23 EUR Réalisé" ou "DD/MM/YYYY texte + X,XX EUR Réalisé"
+      - Lignes libellé avant/après : "Intérêts crédités", "l'année 2025", etc.
+
+    Stratégie : chercher les lignes avec montant, puis reconstituer le contexte.
+    """
+    if pdfplumber is None:
+        print("❌ pdfplumber non installé. Exécutez: pip3 install pdfplumber", file=sys.stderr)
+        sys.exit(1)
+
+    COMMENTAIRE = ""
+    output_lines = []
+    operations = []
+
+    # Détecter le compte depuis le nom de fichier via file_key
+    compte = detect_compte(Path(file_path))
+    if not compte:
+        compte = _av_names[0] if _av_names else None
+
+    with pdfplumber.open(file_path) as pdf:
+        all_lines = []
+        for page in pdf.pages:
+            text = page.extract_text()
+            if text:
+                all_lines.extend(text.split('\n'))
+
+        if not all_lines:
+            return "Date;Libellé;Montant;Devise;Equiv;Réf;Catégorie;Compte;Commentaire\n"
+
+        # D'abord, identifier les lignes pertinentes (entre "Suivi des opérations" et footer)
+        in_operations = False
+        filtered_lines = []
+        for line in all_lines:
+            line = line.strip()
+            if 'Suivi des opérations' in line:
+                in_operations = True
+                continue
+            if 'Questions fréquentes' in line or 'https://' in line:
+                in_operations = False
+                continue
+            if in_operations and line:
+                # Ignorer header du tableau
+                if line == 'Date Opération Montant Statut Origine':
+                    continue
+                filtered_lines.append(line)
+
+        # Parser les opérations : chercher les lignes avec montant
+        # Pattern: "+ X,XX EUR" ou "- X,XX EUR"
+        i = 0
+        while i < len(filtered_lines):
+            line = filtered_lines[i]
+
+            # Chercher un montant dans la ligne
+            montant_match = re.search(r'([+-])\s*([\d\s]+,\d{2})\s*EUR', line)
+            if montant_match:
+                sign = montant_match.group(1)
+                montant_str = montant_match.group(2).replace(' ', '').replace(',', '.')
+                try:
+                    montant = float(montant_str)
+                    if sign == '-':
+                        montant = -montant
+                except ValueError:
+                    i += 1
+                    continue
+
+                # Extraire la date et le libellé
+                # La date peut être :
+                # 1. En début de ligne: "31/12/2025 texte + X,XX EUR"
+                # 2. Dans la partie texte: "2025 au cours de + 0,23 EUR"
+                # 3. Dans une ligne précédente
+
+                before_montant = line[:montant_match.start()].strip()
+
+                # Chercher une date DD/MM/YYYY dans before_montant
+                date_match = re.search(r'(\d{2}/\d{2}/\d{4})', before_montant)
+                if date_match:
+                    date_str = date_match.group(1)
+                    # Libellé = partie entre date et montant
+                    libelle_part = before_montant[date_match.end():].strip()
+                else:
+                    # Chercher une année seule (2025, 2024...)
+                    year_match = re.match(r'^(\d{4})\s+(.+)', before_montant)
+                    if year_match:
+                        year = year_match.group(1)
+                        date_str = f"31/12/{year}"  # Année → 31/12/année
+                        libelle_part = year_match.group(2).strip()
+                    else:
+                        # Date inconnue → utiliser date du fichier (≈ date du fetch)
+                        date_str = get_file_date(file_path)
+                        libelle_part = before_montant
+
+                # Récupérer le libellé complet (ligne précédente + partie courante + ligne suivante)
+                libelle_parts = []
+
+                # Ligne précédente si elle ne contient pas de montant et pas de date
+                if i > 0:
+                    prev_line = filtered_lines[i-1]
+                    if not re.search(r'[+-]\s*[\d\s]+,\d{2}\s*EUR', prev_line):
+                        if not re.match(r'^\d{2}/\d{2}/\d{4}', prev_line) and prev_line not in ('1/2', '2/2'):
+                            # Vérifier que ce n'est pas un libellé d'une autre opération (pas de Réalisé)
+                            if 'Réalisé' not in prev_line:
+                                libelle_parts.append(prev_line)
+
+                if libelle_part:
+                    libelle_parts.append(libelle_part)
+
+                # Ligne suivante si c'est une continuation (pas de montant, pas de date)
+                if i + 1 < len(filtered_lines):
+                    next_line = filtered_lines[i+1]
+                    if not re.search(r'[+-]\s*[\d\s]+,\d{2}\s*EUR', next_line):
+                        if not re.match(r'^\d{2}/\d{2}/\d{4}', next_line) and not re.match(r'^\d{4}$', next_line):
+                            if next_line not in ('Réalisé', 'Sogecap', '1/2', '2/2') and 'Réalisé' not in next_line:
+                                libelle_parts.append(next_line)
+
+                # Construire le libellé final
+                libelle = ' '.join(libelle_parts).strip()
+                # Nettoyer
+                libelle = re.sub(r'\s+', ' ', libelle)
+                libelle = re.sub(r'\s*Réalisé.*$', '', libelle).strip()
+
+                # Mapper vers des libellés connus
+                # Aligner les libellés sur ceux du HTML (pour éviter doublons)
+                if 'Intérêts crédités' in libelle or 'au cours de' in libelle:
+                    year_in_libelle = re.search(r"l'année (\d{4})", libelle)
+                    if year_in_libelle:
+                        libelle = f"Intérêts crédités au cours de l'année {year_in_libelle.group(1)}"
+                    else:
+                        libelle = "Intérêts crédités"
+                elif 'Participation aux bénéfices' in libelle or 'bénéfices sur le' in libelle:
+                    libelle = "Participation aux bénéfices sur le(s) support(..."
+                elif 'Prélèvements sociaux' in libelle or libelle == 'sociaux':
+                    libelle = "Prélèvements sociaux"
+
+                if libelle:
+                    operations.append({
+                        'date_str': date_str,
+                        'libelle': libelle,
+                        'montant': f"{montant:.2f}".replace('.', ',')
+                    })
+
+            i += 1
+
+    # Générer les lignes formatées
+    for op in operations:
+        cat, opts = inc_categorize.categorize_operation(op['libelle'], SITE)
+        ref = opts.get('ref', '')
+
+        output_line = f"{op['date_str']};{op['libelle']};{op['montant']};EUR;;{ref};{cat};{compte};{COMMENTAIRE}"
+        output_lines.append(output_line)
+
+    result = "Date;Libellé;Montant;Devise;Equiv;Réf;Catégorie;Compte;Commentaire\n"
+    result += "\n".join(output_lines)
+
+    return result
+
+def process_pdf_printed(file_path):
+    """
+    Parse un PDF imprimé depuis l'interface web SG (fallback collecte manuelle)
+
+    Le PDF imprimé contient les opérations d'un ou plusieurs comptes épargne/assurance-vie.
+    Format texte extrait typique:
+      - Lignes avec date DD/MM/YYYY, libellé et montant
+      - Soldes identifiables par "Solde" ou montant en fin de section
+
+    Retourne le format standardisé 9 colonnes.
+    """
+    if pdfplumber is None:
+        print("❌ pdfplumber non installé. Exécutez: pip3 install pdfplumber", file=sys.stderr)
+        sys.exit(1)
+
+    COMMENTAIRE = ""
+    output_lines = []
+    operations = []
+    soldes_par_compte = {}
+
+    # Mapping des noms de comptes depuis le PDF vers les noms Excel
+    compte_mapping = {
+        'livret a': 'Livret A',
+        'ldd': 'LDD',
+        'ldds': 'LDD',
+        'pel': 'PEL',
+        'cel': 'CEL',
+        'csl': 'Compte livret SG',
+        'compte sur livret': 'Compte livret SG',
+    }
+
+    current_compte = None
+
+    with pdfplumber.open(file_path) as pdf:
+        for page in pdf.pages:
+            text = page.extract_text()
+            if not text:
+                continue
+
+            lines = text.split('\n')
+
+            for line in lines:
+                line = line.strip()
+                if not line:
+                    continue
+
+                # Détecter le nom du compte
+                line_lower = line.lower()
+                for key, compte_name in compte_mapping.items():
+                    if key in line_lower and 'solde' not in line_lower:
+                        current_compte = compte_name
+                        break
+
+                # Chercher les opérations : ligne commençant par une date DD/MM/YYYY
+                date_match = re.match(r'(\d{2}/\d{2}/\d{4})\s+(.+)', line)
+                if date_match and current_compte:
+                    date_str = date_match.group(1)
+                    rest = date_match.group(2)
+
+                    # Extraire le montant (dernier nombre de la ligne, avec ou sans signe)
+                    # Format: "1 234,56" ou "-1 234,56" ou "1234,56"
+                    amount_match = re.search(r'(-?\d[\d\s]*,\d{2})\s*€?\s*$', rest)
+                    if amount_match:
+                        libelle = rest[:amount_match.start()].strip()
+                        montant_str = amount_match.group(1).replace(' ', '').replace(',', '.')
+
+                        try:
+                            montant = float(montant_str)
+                            operations.append({
+                                'date_str': date_str,
+                                'libelle': libelle,
+                                'montant': f"{montant:.2f}".replace('.', ','),
+                                'compte': current_compte
+                            })
+                        except ValueError:
+                            pass
+
+                # Détecter les soldes : ligne contenant "solde" et un montant
+                if 'solde' in line_lower and current_compte:
+                    solde_match = re.search(r'(-?\d[\d\s]*,\d{2})\s*€?\s*$', line)
+                    if solde_match:
+                        montant_str = solde_match.group(1).replace(' ', '').replace(',', '.')
+                        try:
+                            solde = float(montant_str)
+                            date_aujourdhui = get_file_date(file_path)
+                            soldes_par_compte[current_compte] = {
+                                'date_str': date_aujourdhui,
+                                'montant': f"{solde:.2f}".replace('.', ',')
+                            }
+                        except ValueError:
+                            pass
+
+    # Identifier les comptes qui ont des opérations
+    comptes_avec_operations = set(op['compte'] for op in operations)
+
+    # Générer les lignes formatées
+    for op in operations:
+        cat, opts = inc_categorize.categorize_operation(op['libelle'], SITE)
+        ref = opts.get('ref', '')
+
+        output_line = f"{op['date_str']};{op['libelle']};{op['montant']};EUR;;{ref};{cat};{op['compte']};{COMMENTAIRE}"
+        output_lines.append(output_line)
+
+    # Ajouter #Solde pour chaque compte qui a des opérations conservées
+    for compte, solde_info in soldes_par_compte.items():
+        if compte in comptes_avec_operations:
+            solde_line = f"{solde_info['date_str']};Relevé compte;{solde_info['montant']};EUR;;;#Solde;{compte};{COMMENTAIRE}"
+            output_lines.append(solde_line)
+
+    # Construire la sortie
+    result = "Date;Libellé;Montant;Devise;Equiv;Réf;Catégorie;Compte;Commentaire\n"
+    result += "\n".join(output_lines)
+
+    return result
+
+# ============================================================================
+# API POUR UPDATE - NOUVELLE INTERFACE
+# ============================================================================
+
+def _wrap_csv_to_tuples(func, num_fields):
+    """Wrapper pour convertir une fonction retournant du CSV en liste de tuples."""
+    def wrapper(file_path):
+        output = func(file_path)
+        return _parse_csv_output(output, num_fields)
+    return wrapper
+
+def format_site(site_dir, verbose=False, logger=None):
+    """API pour Update.
+
+    Traite tous les fichiers du répertoire SG:
+    - CSV opérations (00*.csv, Export_*.csv, operations_*.csv)
+    - XLSX supports assurance vie (Supports*.xlsx, *_supports*.xlsx)
+    - PDF relevés (Mes comptes en ligne*.pdf, Gestion des contrats*.pdf, SG_*_operations*.pdf)
+    """
+    if logger is None:
+        from inc_logging import Logger
+        logger = Logger(SITE, verbose=verbose)
+
+    # Vérification fichiers dropbox
+    from inc_format import verify_dropbox_files
+    for w in verify_dropbox_files(site_dir, SITE):
+        logger.warning(w)
+
+    # Wrappers pour convertir CSV text → tuples
+    ops_wrapper = _wrap_csv_to_tuples(process_operations, 9)
+    epargne_wrapper = _wrap_csv_to_tuples(process_epargne_csv, 9)
+    parsed_wrapper = _wrap_csv_to_tuples(process_operations_parsed, 9)
+    positions_wrapper = _wrap_csv_to_tuples(process_positions, 4)
+    pdf_synthese_wrapper = _wrap_csv_to_tuples(process_pdf_synthese, 9)
+    pdf_assurance_wrapper = _wrap_csv_to_tuples(process_pdf_assurance_vie, 9)
+
+    handlers = [
+        # CSV opérations
+        ('00*.csv', ops_wrapper, 'ops'),
+        ('Export_*.csv', epargne_wrapper, 'ops'),
+        ('operations_*.csv', parsed_wrapper, 'ops'),
+        # XLSX positions
+        ('Supports*.xlsx', positions_wrapper, 'pos'),
+        ('*_supports*.xlsx', positions_wrapper, 'pos'),
+        # PDF soldes et opérations
+        ('*[Mm]es comptes en ligne*.pdf', pdf_synthese_wrapper, 'ops'),
+        ('*[Gg]estion des contrats*.pdf', pdf_assurance_wrapper, 'ops'),
+        ('SG_*_operations*.pdf', pdf_assurance_wrapper, 'ops'),
+    ]
+
+    return process_files(site_dir, handlers, verbose, SITE, logger=logger)
+
+def _parse_csv_output(csv_output, num_fields):
+    """Parse la sortie CSV texte et retourne une liste de tuples.
+
+    Args:
+        csv_output: Sortie CSV (string avec header + lignes)
+        num_fields: Nombre de champs attendus (9 pour opérations, 4 pour positions)
+
+    Returns:
+        Liste de tuples (sans le header)
+    """
+    if not csv_output:
+        return []
+
+    lines = csv_output.strip().split('\n')
+    if len(lines) < 2:
+        return []
+
+    result = []
+    # Skip header (première ligne)
+    for line in lines[1:]:
+        if not line.strip():
+            continue
+        fields = line.split(';')
+        # Compléter avec des chaînes vides si nécessaire
+        while len(fields) < num_fields:
+            fields.append('')
+        result.append(tuple(fields[:num_fields]))
+
+    return result
+
+def log_csv_debug(operations, positions, site_dir, logger=None):
+    """Wrapper vers inc_format.log_csv_debug()"""
+    _log_csv_debug(SITE, operations, positions, logger)
+
+if __name__ == '__main__':
+    from inc_format import cli_main
+    cli_main(format_site)

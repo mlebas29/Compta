@@ -1,0 +1,2163 @@
+"""Mixin Devises/PV pour ConfigGUI."""
+
+from datetime import datetime
+import json
+import openpyxl
+import re
+import shutil
+import threading
+import time
+
+# tkinter optionnel : import top-level échoue sur LO Python 3.8 (sans tkinter).
+# Les méthodes UI de ce mixin plantent alors si appelées, mais HeadlessGUI
+# (qui hérite de DevisesMixin) ne les appelle pas — il n'utilise que les
+# méthodes UNO/openpyxl.
+try:
+    import tkinter as tk
+    from tkinter import messagebox, ttk
+except ImportError:
+    tk = None
+    messagebox = None
+    ttk = None
+
+from inc_excel_schema import (
+    ColResolver,
+    DEVISE_SOURCES,
+    SHEET_AVOIRS, SHEET_BUDGET, SHEET_CONTROLES,
+    SHEET_OPERATIONS, SHEET_PLUS_VALUE,
+)
+
+
+class DevisesMixin:
+    """Devises, Plus-values, sauvegarde comptes."""
+
+    def _devise_add(self):
+        """Ouvre le dialog d'ajout d'une nouvelle devise."""
+        if not self.xlsx_path:
+            return
+        self._devise_add_dialog()
+
+    def _devise_add_dialog(self):
+        dlg = tk.Toplevel(self.root)
+        dlg.title('Nouvelle devise / cotation')
+        dlg.geometry('560x290')
+        dlg.transient(self.root)
+        dlg.wait_visibility()
+        dlg.grab_set()
+
+        row = 0
+        ttk.Label(dlg, text='Code :').grid(
+            row=row, column=0, sticky='w', padx=10, pady=4)
+        code_var = tk.StringVar()
+        code_entry = ttk.Entry(dlg, textvariable=code_var, width=12)
+        code_entry.grid(row=row, column=1, padx=10, pady=4, sticky='w')
+
+        row += 1
+        ttk.Label(dlg, text='Nom complet :').grid(
+            row=row, column=0, sticky='w', padx=10, pady=4)
+        nom_var = tk.StringVar()
+        ttk.Entry(dlg, textvariable=nom_var, width=35).grid(
+            row=row, column=1, padx=10, pady=4, sticky='w')
+
+        row += 1
+        ttk.Label(dlg, text='Famille :').grid(
+            row=row, column=0, sticky='w', padx=10, pady=4)
+        famille_var = tk.StringVar()
+        famille_combo = ttk.Combobox(dlg, textvariable=famille_var,
+                                     values=list(DEVISE_SOURCES.keys()),
+                                     width=12, state='readonly')
+        famille_combo.grid(row=row, column=1, padx=10, pady=4, sticky='w')
+
+        row += 1
+        ttk.Label(dlg, text='Décimales :').grid(
+            row=row, column=0, sticky='w', padx=10, pady=4)
+        dec_var = tk.IntVar(value=2)
+        ttk.Spinbox(dlg, textvariable=dec_var, from_=0, to=8, width=5).grid(
+            row=row, column=1, padx=10, pady=4, sticky='w')
+
+        row += 1
+        ttk.Label(dlg, text='Dérivée de :').grid(
+            row=row, column=0, sticky='w', padx=10, pady=4)
+        # Codes spot uniquement (ceux avec une source API = pas dérivés)
+        existing_codes = sorted(
+            code for code, meta in self.cotations_meta.items()
+            if meta.get('source1'))
+        derived_var = tk.StringVar()
+        ttk.Combobox(dlg, textvariable=derived_var,
+                      values=[''] + existing_codes,
+                      width=12).grid(row=row, column=1, padx=10, pady=4, sticky='w')
+
+        row += 1
+        ttk.Label(dlg, text='Formule :').grid(
+            row=row, column=0, sticky='w', padx=10, pady=4)
+        formula_var = tk.StringVar()
+        ttk.Entry(dlg, textvariable=formula_var, width=20).grid(
+            row=row, column=1, padx=10, pady=4, sticky='w')
+        ttk.Label(dlg, text='ex: *1.043, /100000000, /2',
+                  foreground='gray').grid(row=row, column=1, padx=160, sticky='w')
+
+        row += 1
+        status_label = ttk.Label(dlg, text='', foreground='red')
+        status_label.grid(row=row, column=0, columnspan=2, padx=10)
+
+        def on_ok():
+            code = code_var.get().strip()
+            famille = famille_var.get().strip()
+            nom = nom_var.get().strip() or None
+            decimals = dec_var.get()
+            derived_from = derived_var.get().strip() or None
+            formula = formula_var.get().strip() or None
+
+            if not code:
+                status_label.config(text='Le code est obligatoire.')
+                return
+            if not famille:
+                status_label.config(text='La famille est obligatoire.')
+                return
+            if derived_from and not formula:
+                status_label.config(text='Formule requise pour une dérivée.')
+                return
+
+            # Vérifier que le code n'existe pas déjà (source de vérité : COTcode)
+            try:
+                from inc_excel_schema import SHEET_COTATIONS
+                wb = openpyxl.load_workbook(self.xlsx_path, data_only=True)
+                ws_cot = wb[SHEET_COTATIONS]
+                cot_start, cot_end = self.cr.rows('COTcode')
+                cot_col = self.cr.col('COTcode')
+                for row in range(cot_start, cot_end + 1):
+                    val = ws_cot.cell(row, cot_col).value
+                    if val and str(val).strip() == code:
+                        wb.close()
+                        status_label.config(text=f'La devise "{code}" existe déjà.')
+                        return
+                wb.close()
+            except Exception as e:
+                status_label.config(text=f'Erreur lecture : {e}')
+                return
+
+            # NB : la construction de cotations_meta + write_cotations_json se fait
+            # à la fin de _save_devise — on ne pré-écrit plus ici, sinon sur Mac le
+            # daemon (qui relit JSON depuis disque au démarrage de son batch)
+            # verrait l'entrée déjà présente et add_devise sauterait le save xlsm
+            # (check duplicate `if code in cotations_meta`).
+            dlg.destroy()
+            self._run_devise_save(code, famille, nom=nom,
+                                   derived_from=derived_from, formula=formula,
+                                   decimals=decimals)
+
+        row += 1
+        btn_frame = ttk.Frame(dlg)
+        btn_frame.grid(row=row, column=0, columnspan=2, pady=10)
+        ttk.Button(btn_frame, text='OK', command=on_ok).pack(
+            side='left', padx=5)
+        ttk.Button(btn_frame, text='Annuler',
+                   command=dlg.destroy).pack(side='left', padx=5)
+
+        code_entry.focus()
+
+    def _run_devise_save(self, code, famille, nom=None,
+                          derived_from=None, formula=None, decimals=2):
+        """Lance _save_devise dans un thread avec fenêtre d'attente animée.
+
+        Linux (HAS_UNO=True)  : appel in-process direct à _save_devise.
+        Mac (HAS_UNO=False)   : délégation au daemon via add_devise — Tk et
+        uno étant incompatibles dans un même Python sur Mac.
+        """
+        from inc_uno import HAS_UNO
+
+        def on_success():
+            if code not in self.ACCOUNT_DEVISES:
+                self.ACCOUNT_DEVISES.append(code)
+            self._set_status(f'Devise "{code}" ajoutée.')
+
+        def worker():
+            if HAS_UNO:
+                self._save_devise(code, famille, nom=nom,
+                                  derived_from=derived_from, formula=formula,
+                                  decimals=decimals)
+            else:
+                self._daemon_call('add_devise', code=code, famille=famille,
+                                  nom=nom, derived_from=derived_from,
+                                  formula=formula, decimals=decimals)
+
+        self._run_uno_operation('Écriture en cours', worker, on_success)
+
+    def _refresh_drill_styles_and_cf(self, doc, log=None):
+        """Rafraîchit les cell styles Drill_{CODE}_{body,pied} + les CF rules Budget
+        d'après la liste actuelle des devises dans Cotations.
+
+        Appelé depuis _save_devise / _delete_devise : la liste COTcode a changé,
+        donc les styles (créés si absents) et surtout les CF Budget (une règle par
+        devise) doivent être rafraîchis. Les styles existants ne sont pas supprimés
+        (inoffensifs si une devise disparaît).
+
+        Délègue à tool_migrate_schema_v2 pour une seule source de vérité.
+        """
+        from tool_migrate_schema_v2 import setup_drill_formats
+        if log is None:
+            log = []
+        ws_bud = doc.get_sheet(SHEET_BUDGET)
+        ws_ctrl = doc.get_sheet(SHEET_CONTROLES)
+        nr = doc._document.NamedRanges
+        setup_drill_formats(doc, ws_bud, ws_ctrl, nr, log)
+
+    def _save_devise(self, code, famille, nom=None,
+                      derived_from=None, formula=None, decimals=2, doc=None):
+        """Insère une nouvelle devise dans Cotations, Budget et Contrôles via UNO.
+
+        Args:
+            decimals: nombre de décimales à afficher pour la cotation (entré
+                par l'utilisateur dans le dialog).
+            doc: UnoDocument ouvert (mode batch). Si None, ouvre/ferme automatiquement.
+        """
+        from contextlib import nullcontext
+        from inc_uno import UnoDocument, copy_col_style
+        from inc_excel_schema import (
+            uno_col, uno_row,
+            SHEET_COTATIONS,
+        )
+
+        bak_path = self.xlsx_path.with_suffix('.xlsm.bak')
+        shutil.copy2(self.xlsx_path, bak_path)
+
+        source1, source2 = DEVISE_SOURCES.get(famille, ('', ''))
+        last_bud = self.budget_last_devise_col  # ex: 24 (X=SEK)
+        last_ctrl = self.ctrl_last_devise_col   # ex: 29 (AC)
+
+        owned = doc is None
+        ctx = UnoDocument(self.xlsx_path) if owned else nullcontext(doc)
+        with ctx as doc:
+            cr = doc.cr
+            # ==== ÉTAPE A — Cotations : insérer une ligne dans le groupe ====
+            ws_cot = doc.get_sheet(SHEET_COTATIONS)
+            cot_data_start = self._start_cot + 1
+
+            # Insérer les colonnes Nature/Famille/Décimales si absentes
+            header_0 = uno_row(cot_data_start - 2)  # header = START - 1
+            if ws_cot.getCellByPosition(cr.col('COTnature'), header_0).getString().strip() != 'Nature':
+                ws_cot.Columns.insertByIndex(cr.col('COTnature'), 1)
+                ws_cot.getCellByPosition(cr.col('COTnature'), header_0).setString('Nature')
+            if ws_cot.getCellByPosition(cr.col('COTfamille'), header_0).getString().strip() != 'Famille':
+                ws_cot.Columns.insertByIndex(cr.col('COTfamille'), 1)
+                ws_cot.getCellByPosition(cr.col('COTfamille'), header_0).setString('Famille')
+            if ws_cot.getCellByPosition(cr.col('COTdecimales'), header_0).getString().strip() != 'Décimales':
+                ws_cot.Columns.insertByIndex(cr.col('COTdecimales'), 1)
+                ws_cot.getCellByPosition(cr.col('COTdecimales'), header_0).setString('Décimales')
+
+            # Scanner col A (code) + lookup famille dans cotations_meta
+            cot_insert_pos = None
+            cot_last_data = cot_data_start  # fallback
+            for row_idx in range(cot_data_start, self._end_cot + 1):
+                cell_code = ws_cot.getCellByPosition(cr.col('COTcode'), uno_row(row_idx))
+                row_code = cell_code.getString().strip()
+                cell_label = ws_cot.getCellByPosition(cr.col('COTlabel'), uno_row(row_idx))
+                row_label = cell_label.getString().strip()
+                if not row_code and not row_label:
+                    continue
+                if row_label in ('✓', '⚓') or row_code in ('✓', '⚓'):
+                    continue  # model row / ancre — ne pas inclure dans la zone de données
+                cot_last_data = row_idx
+                # Lookup famille via JSON meta (par code ou par label)
+                row_famille = self.cotations_meta.get(row_code, {}).get('famille', '')
+                if not row_famille:
+                    row_famille = self.cotations_meta.get(row_label, {}).get('famille', '')
+                if row_famille == famille:
+                    cot_insert_pos = row_idx  # on continue pour trouver le dernier du groupe
+                elif cot_insert_pos is not None:
+                    # On a quitté le groupe → insérer ici
+                    break
+
+            if cot_insert_pos is None:
+                # Famille non trouvée → insérer après la dernière ligne de données
+                cot_insert_pos = cot_last_data
+
+            # cot_insert_pos pointe vers le dernier row du groupe → insérer après
+            cot_new_row = cot_insert_pos + 1
+            ws_cot.Rows.insertByIndex(uno_row(cot_new_row), 1)
+
+            # Mettre à jour _end_cot (l'insertion repousse END)
+            if self._end_cot and cot_new_row <= self._end_cot:
+                self._end_cot += 1
+
+            # Style propagé automatiquement depuis la model row par insertByIndex
+
+            # Remplir la ligne : A=label, B=nature, C=famille, D=décimales, E=code
+            r0_cot = uno_row(cot_new_row)
+            ws_cot.getCellByPosition(cr.col('COTlabel'), r0_cot).setString(nom or code)
+            ws_cot.getCellByPosition(cr.col('COTcode'), r0_cot).setString(code)
+            ws_cot.getCellByPosition(cr.col('COTfamille'), r0_cot).setString(famille)
+            ws_cot.getCellByPosition(cr.col('COTdecimales'), r0_cot).setValue(decimals)
+
+            # Nature + cours
+            ws_cot.getCellByPosition(cr.col('COTnature'), r0_cot).setString(
+                'dérivée' if derived_from else 'primaire')
+            if derived_from and formula:
+                # Formule dérivée : trouver le row du spot (col CODE)
+                spot_row = None
+                for ri in range(cot_data_start, cot_new_row + 5):
+                    if ws_cot.getCellByPosition(cr.col('COTcode'), uno_row(ri)).getString().strip() == derived_from:
+                        spot_row = ri
+                        break
+                if spot_row:
+                    cot_cours_letter = cr.letter('COTcours')
+                    cell = ws_cot.getCellByPosition(
+                        cr.col('COTcours'), r0_cot)
+                    cell.setFormula(
+                        f'={cot_cours_letter}${spot_row}{formula}')
+                    cell.CharColor = 0x000000  # noir = formule
+            elif source1:
+                try:
+                    from cpt_fetch_quotes import API_FETCHERS
+                    fetcher = API_FETCHERS.get(source1)
+                    if fetcher:
+                        result = fetcher([code])
+                        if code in result:
+                            ws_cot.getCellByPosition(
+                                cr.col('COTcours'), r0_cot).setValue(result[code])
+                            ws_cot.getCellByPosition(
+                                cr.col('COTdate'), r0_cot).setString(
+                                datetime.now().strftime('%d/%m/%Y'))
+                except Exception:
+                    pass  # pas bloquant — le cours sera renseigné au prochain fetch
+
+            # Col H : cours de l'Euro = 1/cours_EUR
+            cot_cours_letter = cr.letter('COTcours')
+            ws_cot.getCellByPosition(cr.col('COTdate') + 1, r0_cot).setFormula(
+                f'=1/{cot_cours_letter}{cot_new_row}')
+
+            # Créer le named range cours_XXX → cellule cours de la nouvelle cotation
+            cours_name = self.cours_name(code)
+            if cours_name:
+                from com.sun.star.table import CellAddress
+                cot_cours_col_letter = cr.letter('COTcours')
+                nr = doc.document.NamedRanges
+                if nr.hasByName(cours_name):
+                    nr.removeByName(cours_name)
+                nr.addNewByName(cours_name,
+                                f'$Cotations.${cot_cours_col_letter}${cot_new_row}',
+                                CellAddress(), 0)
+
+            # Déterminer la dernière ligne de données Cotations (pour SUMIF range)
+            cot_last_row = cot_new_row
+            for row_idx in range(cot_new_row + 1, cot_new_row + 30):
+                cell_e = ws_cot.getCellByPosition(cr.col('COTcode'), uno_row(row_idx))
+                if cell_e.getString().strip():
+                    cot_last_row = row_idx
+                else:
+                    break
+
+            # ==== ÉTAPES B-F : supprimées en modèle drill ====
+            # Avant : insertion col devise dans Budget + Contrôles + extension
+            # formules + pieds. Dans le modèle drill (SCHEMA_VERSION=2), Budget et
+            # Contrôles ont UNE SEULE col agrégée filtrée par cellule drill, et le
+            # Total € est un SUMPRODUCT cours du jour via COTcode/COTcours.
+
+            # Étendre la validation LIST des cellules drill pour inclure la nouvelle devise.
+            # Source = $Cotations.$E$<first_data>:$E$<last_data>
+            # Drill cell position : header row de CAT (Budget) et CTRL2 (Contrôles).
+            cot_code_letter = cr.letter('COTcode')
+            first_data = cot_data_start  # 1-indexed, 1ère row après model row top
+            src = f'$Cotations.${cot_code_letter}${first_data}:${cot_code_letter}${cot_last_row}'
+            ws_bud2 = doc.get_sheet(SHEET_BUDGET)
+            ws_ctrl2 = doc.get_sheet(SHEET_CONTROLES)
+            bud_drill_col = cr.col('CATmontant') if 'CATmontant' in cr._cols else 5  # col F 0-idx
+            ctrl_drill_col = cr.col('CTRL2drill') if 'CTRL2drill' in cr._cols else 12  # col M 0-idx
+            bud_drill_row_1 = self.budget_header_row or 13
+            ctrl_drill_row_1 = self.ctrl2_header_row or 8
+            for ws, col_0, row_1 in [(ws_bud2, bud_drill_col, bud_drill_row_1),
+                                      (ws_ctrl2, ctrl_drill_col, ctrl_drill_row_1)]:
+                cell = ws.getCellByPosition(col_0, uno_row(row_1))
+                v = cell.Validation
+                v.Type = 6  # LIST
+                v.setFormula1(src)
+                v.ShowList = 1
+                v.IgnoreBlankCells = True
+                v.ErrorAlertStyle = 0  # STOP
+                v.ShowErrorMessage = True
+                cell.Validation = v
+
+            # Drill styles (Drill_{CODE}_body/pied) + CF refresh pour la nouvelle devise.
+            # Approche B (un style par devise) : ajouter/rafraîchir les CF rules Budget.
+            self._refresh_drill_styles_and_cf(doc, log=[])
+
+            # ==== Finaliser ====
+            if owned:
+                self._uno_finalize(doc)
+
+        # ==== ÉTAPE G — Persist metadata devise (JSON) ====
+
+        # Persister les métadonnées dans config_cotations.json. Pour une devise
+        # dérivée (derived_from), on n'écrit pas les sources externes (la valeur
+        # est calculée depuis sa source mère via la formule Excel).
+        meta = {'famille': famille, 'decimals': decimals}
+        if source1 and not derived_from:
+            meta['source1'] = source1
+        if source2 and not derived_from:
+            meta['source2'] = source2
+        self.cotations_meta[code] = meta
+        from inc_config_io import write_cotations_json
+        write_cotations_json(self.cotations_json_path, self.cotations_meta)
+
+    # ----------------------------------------------------------------
+    # SUPPRESSION DEVISE
+    # ----------------------------------------------------------------
+
+    def _devise_delete_dialog(self):
+        """Dialog de sélection et confirmation pour supprimer une devise."""
+        if not self.xlsx_path:
+            return
+
+        # Lister les devises existantes depuis COTcode (source de vérité, hors EUR)
+        try:
+            from inc_excel_schema import SHEET_COTATIONS
+            wb = openpyxl.load_workbook(self.xlsx_path, data_only=True)
+            ws_cot = wb[SHEET_COTATIONS]
+            cot_start, cot_end = self.cr.rows('COTcode')
+            cot_col = self.cr.col('COTcode')
+            devises = []
+            for row in range(cot_start, cot_end + 1):
+                val = ws_cot.cell(row, cot_col).value
+                if not val:
+                    continue
+                code = str(val).strip()
+                if code in ('EUR', '⚓', '✓'):  # EUR non supprimable, sentinelles ignorées
+                    continue
+                devises.append(code)
+            wb.close()
+        except Exception as e:
+            messagebox.showerror('Erreur', f'Erreur lecture : {e}', parent=self.root)
+            return
+
+        if not devises:
+            messagebox.showinfo('Info', 'Aucune devise supprimable (seul EUR reste).',
+                                parent=self.root)
+            return
+
+        dlg = tk.Toplevel(self.root)
+        dlg.title('Supprimer une devise')
+        dlg.geometry('380x170')
+        dlg.transient(self.root)
+        dlg.wait_visibility()
+        dlg.grab_set()
+
+        ttk.Label(dlg, text='Devise à supprimer :').grid(
+            row=0, column=0, sticky='w', padx=10, pady=5)
+        devise_var = tk.StringVar()
+        devise_combo = ttk.Combobox(dlg, textvariable=devise_var,
+                                    values=devises, width=12, state='readonly')
+        devise_combo.grid(row=0, column=1, padx=10, pady=5, sticky='w')
+
+        status_label = ttk.Label(dlg, text='', foreground='red')
+        status_label.grid(row=1, column=0, columnspan=2, padx=10)
+
+        def on_ok():
+            code = devise_var.get().strip()
+            if not code:
+                status_label.config(text='Sélectionner une devise.')
+                return
+
+            # Garde-fou : vérifier qu'aucun compte Avoirs n'utilise cette devise
+            try:
+                wb2 = openpyxl.load_workbook(self.xlsx_path, data_only=True)
+                ws_av = wb2[SHEET_AVOIRS]
+                avr_data = self._start_avr + 1
+                for row in range(avr_data, ws_av.max_row + 1):
+                    dev = ws_av.cell(row, self.cr.col('AVRdevise')).value
+                    if dev and str(dev).strip() == code:
+                        intitule = ws_av.cell(row, self.cr.col('AVRintitulé')).value or ''
+                        wb2.close()
+                        status_label.config(
+                            text=f'Compte "{intitule.strip()}" utilise {code}.')
+                        return
+                wb2.close()
+            except Exception as e:
+                status_label.config(text=f'Erreur : {e}')
+                return
+
+            if not messagebox.askyesno(
+                    'Confirmer',
+                    f'Supprimer la devise "{code}" ?\n\n'
+                    f'Cotations (ligne), Budget (colonne),\n'
+                    f'Contrôles (colonne) et JSON seront nettoyés.',
+                    parent=dlg):
+                return
+
+            dlg.destroy()
+            self._run_devise_delete(code)
+
+        btn_frame = ttk.Frame(dlg)
+        btn_frame.grid(row=2, column=0, columnspan=2, pady=10)
+        ttk.Button(btn_frame, text='Supprimer', command=on_ok).pack(
+            side='left', padx=5)
+        ttk.Button(btn_frame, text='Annuler',
+                   command=dlg.destroy).pack(side='left', padx=5)
+
+    def _run_devise_delete(self, code):
+        """Lance _delete_devise dans un thread avec fenêtre d'attente."""
+        wait = tk.Toplevel(self.root)
+        wait.title('')
+        wait.geometry('320x80')
+        wait.transient(self.root)
+        wait.resizable(False, False)
+        wait.protocol('WM_DELETE_WINDOW', lambda: None)
+        wait.wait_visibility()
+        wait.grab_set()
+
+        msg_var = tk.StringVar(value='Suppression en cours')
+        ttk.Label(wait, textvariable=msg_var, font=('', 11)).pack(
+            expand=True, pady=15)
+
+        dots = [0]
+
+        def animate():
+            dots[0] = (dots[0] % 3) + 1
+            msg_var.set('Suppression en cours' + '.' * dots[0])
+            wait.after(400, animate)
+
+        animate()
+
+        result = {}
+        from inc_uno import HAS_UNO
+
+        def worker():
+            try:
+                if HAS_UNO:
+                    self._delete_devise(code)
+                else:
+                    self._daemon_call('delete_devise', code=code)
+            except Exception as e:
+                result['error'] = e
+
+        t = threading.Thread(target=worker, daemon=True)
+        t.start()
+
+        def check_done():
+            if t.is_alive():
+                wait.after(100, check_done)
+                return
+            wait.grab_release()
+            wait.destroy()
+            if 'error' in result:
+                messagebox.showerror('Erreur UNO',
+                                     f'Erreur lors de la suppression :\n{result["error"]}',
+                                     parent=self.root)
+            else:
+                if code in self.ACCOUNT_DEVISES:
+                    self.ACCOUNT_DEVISES.remove(code)
+                self._set_status(f'Devise "{code}" supprimée.')
+
+        check_done()
+
+    def _delete_devise(self, code, doc=None):
+        """Supprime une devise de Cotations, Budget, Contrôles et JSON.
+
+        Args:
+            doc: UnoDocument ouvert (mode batch). Si None, ouvre/ferme automatiquement.
+
+        Raises:
+            RuntimeError: si `code` a des dérivées dépendantes — autres devises
+                dont la formule COTcours référence la cellule COTcours de
+                `code`. L'user doit les supprimer ou modifier leur formule
+                d'abord, sinon elles deviendraient #REF! orphelines.
+        """
+        from contextlib import nullcontext
+        from inc_uno import UnoDocument
+        from inc_excel_schema import (
+            uno_col, uno_row,
+            SHEET_COTATIONS,
+        )
+        from inc_compta_schema import BusinessError
+
+        bak_path = self.xlsx_path.with_suffix('.xlsm.bak')
+        shutil.copy2(self.xlsx_path, bak_path)
+
+        owned = doc is None
+        ctx = UnoDocument(self.xlsx_path) if owned else nullcontext(doc)
+        with ctx as doc:
+            cr = doc.cr
+            ws_cot = doc.get_sheet(SHEET_COTATIONS)
+            cot_data_start = self._start_cot + 1
+            cot_code_col = cr.col('COTcode')
+            cot_cours_col = cr.col('COTcours')
+            cot_cours_letter = cr.letter('COTcours')
+
+            # Localiser la ligne du code à supprimer.
+            parent_row = None
+            for ri in range(cot_data_start, self._end_cot + 1):
+                if ws_cot.getCellByPosition(
+                        cot_code_col, uno_row(ri)).getString().strip() == code:
+                    parent_row = ri
+                    break
+
+            # Garde dérivées : refuser si une autre devise référence COTcours
+            # de `code` par cell-ref absolu sur la row (ex. =H$5*… pour OrPr
+            # dérivée d'XAU en row 5). Lecture UNO et non cotations_meta :
+            # derived_from n'est pas persisté en JSON, le cache serait vide
+            # et la garde inopérante.
+            if parent_row is not None:
+                ref_pat = re.compile(
+                    r'(?<![A-Za-z])' + re.escape(cot_cours_letter)
+                    + r'\$?' + str(parent_row) + r'(?![0-9])'
+                )
+                dependants = []
+                for ri in range(cot_data_start, self._end_cot + 1):
+                    if ri == parent_row:
+                        continue
+                    other = ws_cot.getCellByPosition(
+                        cot_code_col, uno_row(ri)).getString().strip()
+                    if not other:
+                        continue
+                    formula = ws_cot.getCellByPosition(
+                        cot_cours_col, uno_row(ri)).getFormula()
+                    if formula and ref_pat.search(formula):
+                        dependants.append(other)
+                if dependants:
+                    raise BusinessError(
+                        f"Devise « {code} » impossible à supprimer : "
+                        f"devise(s) dérivée(s) qui en dépende(nt) : "
+                        f"{', '.join(sorted(dependants))}. Les supprimer "
+                        f"ou modifier leur formule d'abord."
+                    )
+
+            # ==== Cotations : supprimer la ligne du code ====
+            if parent_row is not None:
+                ws_cot.Rows.removeByIndex(uno_row(parent_row), 1)
+
+            # ==== Named range cours_XXX : supprimer ====
+            # En drill model, c'est le seul ménage à faire en plus de Cotations.
+            # Plus de cols Budget/Contrôles à enlever (drill single-col).
+            nr = doc._document.NamedRanges
+            cours_name = self.cours_name(code) if hasattr(self, 'cours_name') else f'cours_{code}'
+            if cours_name and nr.hasByName(cours_name):
+                nr.removeByName(cours_name)
+
+            # Refresh Drill styles + CF (retire la devise supprimée des CF Budget)
+            self._refresh_drill_styles_and_cf(doc, log=[])
+
+            if owned:
+                self._uno_finalize(doc)
+
+        # ==== JSON : supprimer l'entrée ====
+        self.cotations_meta.pop(code, None)
+        from inc_config_io import write_cotations_json
+        write_cotations_json(self.cotations_json_path, self.cotations_meta)
+
+    # ----------------------------------------------------------------
+    # HELPERS PLUS_VALUE
+    # ----------------------------------------------------------------
+
+    def _get_pv_section_for_account(self, acct_type, devise):
+        """Détermine si/où créer une entrée Plus_value pour un nouveau compte.
+
+        Returns: ('portfolio', None) | ('line', 'TOTAL métaux') | (None, None)
+        """
+        if acct_type == 'Portefeuilles':
+            return ('portfolio', None)
+        if not devise or devise == 'EUR':
+            return (None, None)
+        # Chercher la famille de la devise dans config_cotations.json
+        meta = self.cotations_meta.get(devise, {})
+        famille = meta.get('famille', 'fiat')  # défaut fiat pour devises inconnues
+        total_label = self.PV_SECTION_TOTALS.get(famille)
+        if total_label:
+            return ('line', total_label)
+        return (None, None)
+
+    def _find_pv_row_by_label(self, ws_pv, label):
+        """Trouve la ligne (1-indexed) d'un label dans la colonne B (Compte) de Plus_value."""
+        from inc_excel_schema import uno_row, uno_col, ColResolver
+        cr = doc.cr
+        col_b = cr.col('PVLcompte')
+        for row_idx in range(1, 200):
+            val = ws_pv.getCellByPosition(col_b, uno_row(row_idx)).getString().strip()
+            if val == label:
+                return row_idx
+        return None
+
+    def _create_pv_portfolio_block(self, ws_pv, doc, acct):
+        """Insère un bloc Portefeuille vide (5 lignes) dans Plus_value.
+
+        Structure :
+          r   : en-tête (section + nom + "Portefeuille")
+          r+1 : Total (formules SUM vides → valeurs 0)
+          r+2 : #Solde Opérations (formules SUMIFS/MAXIFS)
+          r+3 : Retenu (formules copie #Solde + IF)
+          r+4 : ligne vide
+        """
+        from inc_uno import copy_row_style
+        from inc_excel_schema import uno_col, uno_row, ColResolver
+        cr = doc.cr
+
+        # Lettres de colonnes via cr.letter()
+        cB = cr.letter('PVLcompte')
+        cD = cr.letter('PVLdevise')
+        cE = cr.letter('PVLpvl')
+        cG = cr.letter('PVLdate_init')
+        cH = cr.letter('PVLmontant_init')
+        cI = cr.letter('PVLsigma')
+        cJ = cr.letter('PVLdate')
+        cK = cr.letter('PVLmontant')
+
+        # Trouver l'emplacement — TOTAL portefeuilles est maintenant dans les TOTALs en pied
+        # Les nouveaux blocs sont insérés avant la dernière ligne vide de la section portefeuilles
+        # Chercher la dernière ligne de données portefeuilles (section = "portefeuilles")
+        last_pf_data_row = None
+        for scan in range(200, 0, -1):
+            val_a = ws_pv.getCellByPosition(cr.col('PVLsection'), uno_row(scan)).getString().strip()
+            if val_a == 'portefeuilles' or val_a == self.PV_SECTION_LABELS['portefeuilles']:
+                last_pf_data_row = scan
+                break
+
+        if not last_pf_data_row:
+            # Template vierge : pas de données, insérer avant GRAND TOTAL (début footer)
+            footer_row = (self._end_pvl + 1) if self._end_pvl else None
+            if not footer_row:
+                return
+            insert_row = footer_row
+        else:
+            # Insérer après le dernier bloc portefeuilles (+1 ligne vide de séparation)
+            insert_row = last_pf_data_row + 2
+
+
+        nom = acct['intitule']
+        devise = acct.get('devise') or 'EUR'
+
+        # Insérer 5 lignes
+        insert_row = insert_row  # 1-indexed
+        insert_0 = uno_row(insert_row)
+        ws_pv.Rows.insertByIndex(insert_0, 5)
+
+        r = insert_row   # 1-indexed, première ligne insérée
+        r0 = uno_row(r)
+
+        # Template de style : model row PVL (row juste après ⚓ top du NR),
+        # conforme charte (col A beige + data blanc). Évite l'héritage parasite
+        # qui résulterait d'une copie depuis un sub-pied beige (Retenu).
+        # Le sub-pied portefeuille est posé en 2ème couche par _apply_pv_formats.
+        template_row = uno_row((self._start_pvl or 5) + 1)
+
+        # Copier le style pour les 4 lignes de données (pas la ligne vide)
+        for offset in range(4):
+            copy_row_style(ws_pv, template_row, r0 + offset, col_start=0, col_end=12)
+
+        # --- Ligne r : en-tête ---
+        ws_pv.getCellByPosition(cr.col('PVLsection'), r0).setString('portefeuilles')
+        ws_pv.getCellByPosition(cr.col('PVLcompte'), r0).setString(nom)
+        ws_pv.getCellByPosition(cr.col('PVLtitre'), r0).setString('Portefeuille')
+
+        # --- Ligne r+1 : Total (vide, valeurs 0) ---
+        ws_pv.getCellByPosition(cr.col('PVLsection'), r0 + 1).setString('portefeuilles')
+        ws_pv.getCellByPosition(cr.col('PVLcompte'), r0 + 1).setString(nom)
+        ws_pv.getCellByPosition(cr.col('PVLtitre'), r0 + 1).setString('Total')
+        ws_pv.getCellByPosition(cr.col('PVLdevise'), r0 + 1).setString(devise)
+        ws_pv.getCellByPosition(cr.col('PVLpvl'), r0 + 1).setFormula(
+            f'={cK}{r+1}-({cH}{r+1}+{cI}{r+1})')
+        ws_pv.getCellByPosition(cr.col('PVLdate_init'), r0 + 1).setValue(0)
+        ws_pv.getCellByPosition(cr.col('PVLmontant_init'), r0 + 1).setValue(0)
+        ws_pv.getCellByPosition(cr.col('PVLsigma'), r0 + 1).setValue(0)
+        ws_pv.getCellByPosition(cr.col('PVLmontant'), r0 + 1).setValue(0)
+
+        # --- Ligne r+2 : #Solde Opérations ---
+        ws_pv.getCellByPosition(cr.col('PVLsection'), r0 + 2).setString('portefeuilles')
+        ws_pv.getCellByPosition(cr.col('PVLcompte'), r0 + 2).setString(nom)
+        ws_pv.getCellByPosition(cr.col('PVLtitre'), r0 + 2).setString('#Solde Opérations')
+        ws_pv.getCellByPosition(cr.col('PVLdevise'), r0 + 2).setString(devise)
+        ws_pv.getCellByPosition(cr.col('PVLpvl'), r0 + 2).setFormula(
+            f'={cK}{r+2}-({cH}{r+2}+{cI}{r+2})')
+        ws_pv.getCellByPosition(cr.col('PVLdate_init'), r0 + 2).setFormula(
+            f'=MINIFS(OPdate;OPcompte;${cB}{r+2};OPdevise;{cD}{r+2};OPcatégorie;Solde)')
+        ws_pv.getCellByPosition(cr.col('PVLmontant_init'), r0 + 2).setFormula(
+            f'=SUMIFS(OPmontant;OPcompte;${cB}{r+2};OPdevise;${cD}{r+2};OPdate;${cG}{r+2};OPcatégorie;Solde)')
+        ws_pv.getCellByPosition(cr.col('PVLsigma'), r0 + 2).setFormula(f'={cI}{r+1}')
+        ws_pv.getCellByPosition(cr.col('PVLdate'), r0 + 2).setFormula(
+            f'=MAXIFS(OPdate;OPcompte;${cB}{r+2};OPdevise;${cD}{r+2};OPcatégorie;Solde)')
+        ws_pv.getCellByPosition(cr.col('PVLmontant'), r0 + 2).setFormula(
+            f'=SUMIFS(OPmontant;OPcompte;${cB}{r+2};OPdevise;${cD}{r+2};OPcatégorie;Solde;OPdate;{cJ}{r+2})')
+
+        # --- Ligne r+3 : Retenu ---
+        ws_pv.getCellByPosition(cr.col('PVLsection'), r0 + 3).setString('portefeuilles')
+        ws_pv.getCellByPosition(cr.col('PVLcompte'), r0 + 3).setString(nom)
+        ws_pv.getCellByPosition(cr.col('PVLtitre'), r0 + 3).setString('Retenu')
+        ws_pv.getCellByPosition(cr.col('PVLdevise'), r0 + 3).setString(devise)
+        ws_pv.getCellByPosition(cr.col('PVLpvl'), r0 + 3).setFormula(
+            f'={cK}{r+3}-({cH}{r+3}+{cI}{r+3})')
+        ws_pv.getCellByPosition(cr.col('PVLdate_init'), r0 + 3).setFormula(f'={cG}{r+2}')
+        ws_pv.getCellByPosition(cr.col('PVLmontant_init'), r0 + 3).setFormula(f'={cH}{r+2}')
+        ws_pv.getCellByPosition(cr.col('PVLsigma'), r0 + 3).setFormula(f'={cI}{r+2}')
+        ws_pv.getCellByPosition(cr.col('PVLdate'), r0 + 3).setFormula(
+            f'=IF({cJ}{r+1}>{cJ}{r+2};{cJ}{r+1};{cJ}{r+2})')
+        ws_pv.getCellByPosition(cr.col('PVLmontant'), r0 + 3).setFormula(
+            f'=IF({cJ}{r+1}>{cJ}{r+2};{cK}{r+1};{cK}{r+2})')
+
+        # --- Ligne r+4 : vide (déjà vide par insertByIndex) ---
+
+        # Étendre TOTAL portefeuilles pour devise non-EUR
+        # Trouver la ligne TOTAL portefeuilles dans le footer (col A = SECTION)
+        total_pf_row = None
+        for scan in range(r + 4, r + 30):
+            val_a = ws_pv.getCellByPosition(cr.col('PVLsection'), uno_row(scan)).getString().strip()
+            if 'TOTAL portefeuilles' in val_a:
+                total_pf_row = scan
+                break
+        if total_pf_row:
+            self._update_pv_total_portefeuilles(ws_pv, total_pf_row, r + 3, devise, doc=doc)
+
+        # --- Formats nombre sur les 4 lignes de données ---
+        self._apply_pv_formats(ws_pv, doc, r, devise, section='portefeuilles', count=3)
+
+    def _apply_pv_formats(self, ws_pv, doc, first_row, devise, section, count):
+        """Applique formats nombre + convention de fond charte v3.6 sur les lignes PVL.
+
+        Convention de fond (col A col_ref relève d'apply_charter, pas touchée ici) :
+          - Header bloc + lignes titres + data section : fond hérité (blanc).
+            Pour portefeuille non-EUR, montants E/H/I/K en GRIS_BLANC.
+          - Sub-pied portefeuille (3 lignes Total/#Solde/Retenu) : PIED_FILL
+            sur B+C+D+F+G+J ; E/H/I/K en GRIS_BEIGE si non-EUR sinon PIED_FILL.
+
+        Args:
+            first_row: première ligne (1-indexed), Total ou ligne unique
+            devise: code devise du compte
+            section: 'portefeuilles' ou autre (métaux/crypto/devises)
+            count: nombre de lignes à formater (3 pour bloc, 0 pour simple)
+        """
+        from inc_excel_schema import uno_row
+        cr = doc.cr
+        from inc_formats import (
+            FORMATS_DEVISE, FORMAT_EUR, FORMAT_EUR_RED,
+            GRIS_BLANC, GRIS_BEIGE, PIED_FILL,
+        )
+
+        fmt_date = doc.register_number_format('DD/MM/YY')
+        is_portefeuille = section == 'portefeuilles'
+        is_non_eur = devise != 'EUR'
+        is_bloc = count > 0
+
+        # E/K : devise native pour portefeuilles, EUR pour les autres
+        # (sections métaux/crypto/devises ont SIGMA en equiv_euro et
+        # SOLDE en AVRmontant_solde_euro → valeurs déjà en EUR).
+        if is_portefeuille:
+            devise_fmt_str = FORMATS_DEVISE.get(devise, FORMAT_EUR)
+            fmt_ek = doc.register_number_format(
+                f'{devise_fmt_str};[RED]\\-{devise_fmt_str}' if is_non_eur
+                else FORMAT_EUR_RED)
+            fmt_hi = doc.register_number_format(devise_fmt_str)
+        else:
+            fmt_ek = doc.register_number_format(FORMAT_EUR_RED)
+            fmt_hi = doc.register_number_format(FORMAT_EUR)
+
+        # Cols montants grisées sur portefeuille non-EUR (E/H/I/K)
+        gris_cols = (
+            {cr.col('PVLpvl'), cr.col('PVLmontant'),
+             cr.col('PVLmontant_init'), cr.col('PVLsigma')}
+            if (is_non_eur and is_portefeuille) else set()
+        )
+        # Cols sub-pied à peindre en PIED_FILL : tout sauf col A (col_ref) et
+        # sauf les cols grisées (qui recevront GRIS_BEIGE).
+        # = B, C, D, F, G, J (+ E, H, I, K si EUR car gris_cols vide)
+        pied_beige_cols = [
+            c for c in (
+                cr.col('PVLcompte'), cr.col('PVLtitre'), cr.col('PVLdevise'),
+                cr.col('PVLpvl'), cr.col('PVLpct'),
+                cr.col('PVLdate_init'), cr.col('PVLmontant_init'),
+                cr.col('PVLsigma'), cr.col('PVLdate'), cr.col('PVLmontant'),
+            ) if c not in gris_cols
+        ]
+
+        for offset in range(count + 1):
+            r0 = uno_row(first_row + offset)
+            is_header = is_bloc and offset == 0
+            is_pied = is_bloc and offset > 0
+
+            # Formats nombre (toutes rows)
+            ws_pv.getCellByPosition(cr.col('PVLdate_init'), r0).NumberFormat = fmt_date
+            ws_pv.getCellByPosition(cr.col('PVLdate'), r0).NumberFormat = fmt_date
+            ws_pv.getCellByPosition(cr.col('PVLpvl'), r0).NumberFormat = fmt_ek
+            ws_pv.getCellByPosition(cr.col('PVLmontant'), r0).NumberFormat = fmt_ek
+            ws_pv.getCellByPosition(cr.col('PVLmontant_init'), r0).NumberFormat = fmt_hi
+            ws_pv.getCellByPosition(cr.col('PVLsigma'), r0).NumberFormat = fmt_hi
+
+            # Fonds : 2 cas distincts (data/header = héritage blanc + grisage non-EUR ;
+            # sub-pied = PIED_FILL + grisage GRIS_BEIGE non-EUR).
+            if is_pied:
+                for c0 in pied_beige_cols:
+                    ws_pv.getCellByPosition(c0, r0).CellBackColor = PIED_FILL
+                for c0 in gris_cols:
+                    ws_pv.getCellByPosition(c0, r0).CellBackColor = GRIS_BEIGE
+            elif not is_header and gris_cols:
+                # Data row non-EUR portefeuille : gris sur les montants
+                for c0 in gris_cols:
+                    ws_pv.getCellByPosition(c0, r0).CellBackColor = GRIS_BLANC
+
+    def _update_pv_total_portefeuilles(self, ws_pv, total_row, retenu_row=None, devise=None, doc=None):
+        """Pose les formules TOTAL portefeuilles (H/I/K) en EUR, générique multi-devise.
+
+        SUMPRODUCT pondère chaque Retenu par cours(devise) via lookup COTcode/COTcours.
+        EUR est présent dans COTcode avec cours=1 ; IFERROR→1 couvre devise vide/inconnue.
+        Note : la complétude de COTcode (toutes les devises utilisées sont cotées)
+        est surveillée par l'alarme métier "Cotations" sur la feuille Cotations,
+        agrégée dans Contrôles!K65 'DIVERS'. NA() ici polluerait cross-section
+        (SUMPRODUCT itère sur toute la plage PVLdevise).
+        Formule indépendante des devises présentes : plus de regénération nécessaire.
+        """
+        from inc_excel_schema import uno_row
+        cr = doc.cr
+
+        cours_lookup = 'IFERROR(INDEX(COTcours;MATCH(PVLdevise;COTcode;0));1)'
+        for nr_name in ('PVLmontant_init', 'PVLsigma', 'PVLmontant'):
+            formula = (
+                f'=SUMPRODUCT((PVLsection="portefeuilles")*(PVLtitre="Retenu")'
+                f'*{nr_name}*{cours_lookup})'
+            )
+            ws_pv.getCellByPosition(cr.col(nr_name), uno_row(total_row)).setFormula(formula)
+
+    def _update_pv_bloc_total(self, ws_pv, account_name, total_row, doc=None):
+        """(Re)pose les formules Total d'un bloc portefeuille — formule unifiée.
+
+        Doctrine PVL : H/I/K stockés en devise du titre (col D), pied exprimé
+        en devise du portefeuille (D{total_row}, pivot). Formule unique :
+
+            =SUMPRODUCT({col}{first}:{col}{last} * lookup_titre) / pivot
+
+        avec lookup_titre = INDEX(COTcours;MATCH(D{first}:D{last};COTcode;0))
+        et pivot = INDEX(COTcours;MATCH(D{total_row};COTcode;0)).
+
+        Cas mono-devise : tous les ratios = 1, équivaut à SUM(range).
+        Cas multi-devise : conversion correcte vers la devise pivot.
+
+        DATE_INIT : MIN sur la plage des titres.
+
+        Si aucun titre dans le bloc, met les formules à 0 (cohérent avec
+        gui_accounts._delete_title pour le dernier titre).
+        """
+        from inc_excel_schema import uno_row
+        cr = doc.cr
+
+        col_b = cr.col('PVLcompte')
+        col_c = cr.col('PVLtitre')
+        total_r0 = uno_row(total_row)
+
+        # Scanner les titres (*...*) du bloc, du Total vers le haut.
+        title_rows = []
+        for scan in range(total_row - 1, 0, -1):
+            b = ws_pv.getCellByPosition(col_b, uno_row(scan)).getString().strip()
+            if b != account_name:
+                break
+            c = ws_pv.getCellByPosition(col_c, uno_row(scan)).getString().strip()
+            if c.startswith('*') and c.endswith('*'):
+                title_rows.append(scan)
+
+        if not title_rows:
+            # Bloc sans titre : valeurs à 0
+            for pv_c in ('PVLdate_init', 'PVLmontant_init',
+                         'PVLsigma', 'PVLdate', 'PVLmontant'):
+                ws_pv.getCellByPosition(cr.col(pv_c), total_r0).setValue(0)
+            return
+
+        first_titre = min(title_rows)
+        last_titre = max(title_rows)
+
+        d_range = f'D{first_titre}:D{last_titre}'
+        pivot = f'IFERROR(INDEX(COTcours;MATCH(D{total_row};COTcode;0));1)'
+        lookup = f'IFERROR(INDEX(COTcours;MATCH({d_range};COTcode;0));1)'
+        for nr_name in ('PVLmontant_init', 'PVLsigma', 'PVLmontant'):
+            cl = cr.letter(nr_name)
+            formula = (
+                f'=SUMPRODUCT({cl}{first_titre}:{cl}{last_titre}*{lookup})/{pivot}'
+            )
+            ws_pv.getCellByPosition(cr.col(nr_name), total_r0).setFormula(formula)
+
+        # PVLdate_init : MIN sur les dates titres
+        cg = cr.letter('PVLdate_init')
+        ws_pv.getCellByPosition(
+            cr.col('PVLdate_init'), total_r0).setFormula(
+            f'=MIN({cg}{first_titre}:{cg}{last_titre})')
+        # PVLdate : ref sur la date du dernier titre (last_titre)
+        cj = cr.letter('PVLdate')
+        ws_pv.getCellByPosition(
+            cr.col('PVLdate'), total_r0).setFormula(
+            f'={cj}{last_titre}')
+
+    def _create_pv_simple_line(self, ws_pv, doc, acct, total_label):
+        """Insère une ligne simple dans Plus_value (métaux, crypto, devises).
+
+        Les TOTALs en pied utilisent SUMIFS → pas besoin d'étendre les formules.
+        """
+        from inc_uno import copy_row_style
+        from inc_excel_schema import uno_col, uno_row
+        cr = doc.cr
+
+        # Déduire la section depuis le total_label
+        section_map = {
+            'TOTAL métaux': 'métaux',
+            'TOTAL crypto-monnaies': 'crypto',
+            'TOTAL devises': 'devises',
+        }
+        section = section_map.get(total_label)
+        if not section:
+            return
+
+        # Trouver la dernière ligne de cette section
+        section_label = self.PV_SECTION_LABELS.get(section)
+        last_section_row = None
+        for scan in range(200, 0, -1):
+            val_a = ws_pv.getCellByPosition(cr.col('PVLsection'), uno_row(scan)).getString().strip()
+            if val_a == section or val_a == section_label:
+                last_section_row = scan
+                break
+        if not last_section_row:
+            # Section vide → trouver la section précédente et insérer après
+            section_order = ['portefeuilles', 'métaux', 'crypto', 'devises']
+            idx = section_order.index(section)
+            for prev_idx in range(idx - 1, -1, -1):
+                prev_section = section_order[prev_idx]
+                prev_label = self.PV_SECTION_LABELS.get(prev_section)
+                for scan in range(200, 0, -1):
+                    val_a = ws_pv.getCellByPosition(cr.col('PVLsection'), uno_row(scan)).getString().strip()
+                    if val_a == prev_section or val_a == prev_label:
+                        last_section_row = scan
+                        break
+                if last_section_row:
+                    break
+            if not last_section_row:
+                # Template vierge : insérer avant la ligne TOTAL correspondante
+                col_b = cr.col('PVLcompte')
+                pvl_data = (self._start_pvl or 5) + 1
+            for scan in range(pvl_data, pvl_data + 200):
+                val_b = ws_pv.getCellByPosition(col_b, uno_row(scan)).getString().strip()
+                if val_b == total_label:
+                    last_section_row = scan - 1
+                    break
+            if not last_section_row:
+                    return
+
+        nom = acct['intitule']
+        devise = acct.get('devise') or ''
+
+        # Lettres de colonnes via cr.letter()
+        cB = cr.letter('PVLcompte')
+        cD = cr.letter('PVLdevise')
+        cG = cr.letter('PVLdate_init')
+        cH = cr.letter('PVLmontant_init')
+        cI = cr.letter('PVLsigma')
+        cK = cr.letter('PVLmontant')
+
+        # Insérer 1 ligne après la dernière ligne de la section
+        insert_row = last_section_row + 1
+        insert_0 = uno_row(insert_row)
+        ws_pv.Rows.insertByIndex(insert_0, 1)
+
+        r = insert_row  # 1-indexed
+        r0 = uno_row(r)
+
+        # Template de style : ligne au-dessus
+        template_0 = r0 - 1 if r0 > 0 else r0
+        copy_row_style(ws_pv, template_0, r0, col_start=0, col_end=12)
+
+        # Remplir
+        ws_pv.getCellByPosition(cr.col('PVLsection'), r0).setString(section)
+        ws_pv.getCellByPosition(cr.col('PVLcompte'), r0).setString(nom)
+        ws_pv.getCellByPosition(cr.col('PVLdevise'), r0).setString(devise)
+        ws_pv.getCellByPosition(cr.col('PVLpvl'), r0).setFormula(
+            f'={cK}{r}-({cH}{r}+{cI}{r})')
+        # Ancrage PVL = MAX(date #Solde avec OPequiv_euro renseigné).
+        # Permet la purge : un nouveau #Solde valorisé déplace l'ancrage.
+        # Cas dégradé (aucun #Solde valorisé) : MAXIFS → 0 (epoch), H → 0, PVL = SOLDE - SIGMA.
+        ws_pv.getCellByPosition(cr.col('PVLdate_init'), r0).setFormula(
+            f'=MAXIFS(OPdate;OPcompte;{cB}{r};OPdevise;{cD}{r};OPcatégorie;Solde;OPequiv_euro;"<>")')
+        ws_pv.getCellByPosition(cr.col('PVLmontant_init'), r0).setFormula(
+            f'=SUMIFS(OPequiv_euro;OPcompte;{cB}{r};OPdevise;{cD}{r};OPcatégorie;Solde;OPdate;{cG}{r})')
+        ws_pv.getCellByPosition(cr.col('PVLsigma'), r0).setFormula(
+            f'=SUMIFS(OPequiv_euro;OPcompte;{cB}{r};OPdevise;{cD}{r};OPcatégorie;"<>"&Spéciale;OPdate;">="&{cG}{r})')
+        ws_pv.getCellByPosition(cr.col('PVLdate'), r0).setFormula(
+            f'=SUMIF(AVRintitulé;${cB}{r};AVRdate_solde)')
+        ws_pv.getCellByPosition(cr.col('PVLmontant'), r0).setFormula(
+            f'=SUMIF(AVRintitulé;${cB}{r};AVRmontant_solde_euro)')
+
+        # Formats nombre
+        self._apply_pv_formats(ws_pv, doc, r, devise, section=section, count=0)
+
+    def _insert_pv_title(self, account_name, title_name, devise, date_init, doc=None):
+        """Insère un nouveau titre dans un bloc Portefeuille de Plus_value via UNO.
+
+        Args:
+            doc: UnoDocument ouvert (mode batch). Si None, ouvre/ferme automatiquement.
+        """
+        from contextlib import nullcontext
+        from inc_uno import UnoDocument, copy_row_style
+        from inc_excel_schema import uno_row, uno_col
+        import re
+
+        bak_path = self.xlsx_path.with_suffix('.xlsm.bak')
+        shutil.copy2(self.xlsx_path, bak_path)
+
+        owned = doc is None
+        ctx = UnoDocument(self.xlsx_path) if owned else nullcontext(doc)
+        with ctx as doc:
+            cr = doc.cr
+            cB = cr.letter('PVLcompte')
+            cC = cr.letter('PVLtitre')
+            cD = cr.letter('PVLdevise')
+            cG = cr.letter('PVLdate_init')
+            cH = cr.letter('PVLmontant_init')
+            cI = cr.letter('PVLsigma')
+            cK = cr.letter('PVLmontant')
+            ws_pv = doc.get_sheet(SHEET_PLUS_VALUE)
+
+            # --- Trouver le bloc : header_row et total_row ---
+            header_row = None
+            total_row = None
+            col_b = cr.col('PVLcompte')
+            col_c = cr.col('PVLtitre')
+            for scan in range(1, 200):
+                val_b = ws_pv.getCellByPosition(col_b, uno_row(scan)).getString().strip()
+                val_c = ws_pv.getCellByPosition(col_c, uno_row(scan)).getString().strip()
+                if val_b != account_name:
+                    continue
+                if header_row is None and val_c != 'Total':
+                    header_row = scan
+                if val_c == 'Total':
+                    total_row = scan
+                    break
+
+            if not total_row:
+                raise ValueError(
+                    f"Ligne 'Total' introuvable pour « {account_name} » "
+                    f"dans Plus_value")
+
+            # --- Trouver les titres existants (C = *...*) entre header et Total ---
+            first_title_row = None
+            for scan in range(header_row + 1, total_row):
+                val_c = ws_pv.getCellByPosition(col_c, uno_row(scan)).getString().strip()
+                if val_c.startswith('*') and val_c.endswith('*'):
+                    if first_title_row is None:
+                        first_title_row = scan
+
+            has_existing = first_title_row is not None
+
+            # --- Insérer 1 ligne à total_row (avant Total) ---
+            ws_pv.Rows.insertByIndex(uno_row(total_row), 1)
+            new_total_row = total_row + 1  # Total décalé de 1
+
+            r = total_row   # 1-indexed, la nouvelle ligne titre
+            r0 = uno_row(r)
+
+            # --- Copier le style ---
+            # Si titre existant dans le bloc : template = titre précédent (conforme par
+            # propagation). Sinon : model row PVL (row juste après ⚓ top du NR),
+            # conforme charte. On évite l'héritage parasite qui résulterait d'une
+            # copie depuis un sub-pied beige (#Solde Opérations).
+            if has_existing:
+                template_0 = uno_row(r - 1)
+            else:
+                template_0 = uno_row((self._start_pvl or 5) + 1)
+            copy_row_style(ws_pv, template_0, r0, col_start=0, col_end=12)
+
+            # --- Remplir la ligne titre ---
+            ws_pv.getCellByPosition(cr.col('PVLsection'), r0).setString('portefeuilles')
+            ws_pv.getCellByPosition(cr.col('PVLcompte'), r0).setString(account_name)
+            ws_pv.getCellByPosition(cr.col('PVLtitre'), r0).setString(f'*{title_name}*')
+            ws_pv.getCellByPosition(cr.col('PVLdevise'), r0).setString(devise)
+            ws_pv.getCellByPosition(cr.col('PVLpvl'), r0).setFormula(
+                f'={cK}{r}-({cH}{r}+{cI}{r})')
+
+            # G = date initiale (serial date) ou 0
+            if date_init:
+                serial = (date_init - datetime(1899, 12, 30)).days
+                ws_pv.getCellByPosition(cr.col('PVLdate_init'), r0).setValue(serial)
+            else:
+                ws_pv.getCellByPosition(cr.col('PVLdate_init'), r0).setValue(0)
+
+            ws_pv.getCellByPosition(cr.col('PVLmontant_init'), r0).setValue(0)
+
+            # I = formule SIGMA
+            if has_existing:
+                h_src = ws_pv.getCellByPosition(
+                    cr.col('PVLsigma'), uno_row(first_title_row)).getFormula()
+                h_formula = re.sub(
+                    r'(\$?[A-Z]+)' + str(first_title_row) + r'(?!\d)',
+                    lambda m: m.group(1) + str(r),
+                    h_src)
+                ws_pv.getCellByPosition(cr.col('PVLsigma'), r0).setFormula(h_formula)
+            else:
+                ws_pv.getCellByPosition(cr.col('PVLsigma'), r0).setFormula(
+                    f'=SUMIFS(OPmontant;OPcompte;${cB}{r};OPdevise;${cD}{r}'
+                    f';OPcatégorie;"<>"&Spéciale'
+                    f';OPlibellé;${cC}{r};OPdate;">="&${cG}{r})')
+
+            ws_pv.getCellByPosition(cr.col('PVLdate'), r0).setValue(0)
+            ws_pv.getCellByPosition(cr.col('PVLmontant'), r0).setValue(0)
+
+            # --- (Re)poser les formules Total — formule unifiée ---
+            # _update_pv_bloc_total pose H/I/K (SUMPRODUCT/lookup/pivot),
+            # PVLdate_init (MIN) et PVLdate (ref dernier titre) à partir des
+            # titres scannés du bloc.
+            self._update_pv_bloc_total(ws_pv, account_name, new_total_row, doc=doc)
+
+            # Formats nombre sur la ligne titre
+            self._apply_pv_formats(ws_pv, doc, r, devise, section='portefeuilles', count=0)
+
+            if owned:
+                self._uno_finalize(doc)
+
+    def _delete_pv_entries(self, ws_pv, deleted_names, doc=None):
+        """Supprime les entrées Plus_value des comptes supprimés.
+
+        Détecte automatiquement bloc multi-lignes (Portefeuille, Assurance-vie...)
+        vs ligne simple (métaux/crypto/devises).
+        Les TOTALs en pied utilisent SUMIFS → pas besoin de les mettre à jour.
+        """
+        from inc_excel_schema import uno_row, uno_col
+        cr = doc.cr
+
+        deleted_set = set(deleted_names)
+        col_b = cr.col('PVLcompte')
+        col_c = cr.col('PVLtitre')
+
+        for name in list(deleted_set):
+            # Scanner toute la feuille pour trouver la première occurrence col B (Compte)
+            first_row = None
+            for scan in range(1, 200):
+                val = ws_pv.getCellByPosition(col_b, uno_row(scan)).getString().strip()
+                if val == name:
+                    first_row = scan
+                    break
+            if first_row is None:
+                continue
+
+            # Scanner toutes les lignes consécutives du compte (bloc ou ligne unique)
+            block_rows = [first_row]
+            for scan in range(first_row + 1, first_row + 50):
+                val_b = ws_pv.getCellByPosition(col_b, uno_row(scan)).getString().strip()
+                val_c = ws_pv.getCellByPosition(col_c, uno_row(scan)).getString().strip()
+                if val_b == name:
+                    block_rows.append(scan)
+                elif not val_b and not val_c:
+                    # Vérifier si c'est un spacer structurel (avant section header,
+                    # TOTAL, ou END marker ✓ qui est sur col A)
+                    next_a = ws_pv.getCellByPosition(
+                        cr.col('PVLsection'), uno_row(scan + 1)).getString().strip()
+                    next_b = ws_pv.getCellByPosition(
+                        col_b, uno_row(scan + 1)).getString().strip()
+                    if (next_a.startswith('Les ') or 'TOTAL' in next_b.upper()
+                            or next_a in ('✓', '⚓')):
+                        break  # Spacer structurel / ancre → préserver
+                    # Ligne vide après le bloc → inclure puis stop
+                    block_rows.append(scan)
+                    break
+                else:
+                    break
+
+            # Supprimer tout le bloc en une opération
+            # Les TOTALs en pied avec SUMIFS se recalculent automatiquement
+            count = len(block_rows)
+            ws_pv.Rows.removeByIndex(uno_row(first_row), count)
+
+        # Nettoyer les doubles spacers (2 lignes vides consécutives après un header section)
+        col_a = cr.col('PVLsection')
+        for scan in range(200, 5, -1):
+            a2 = ws_pv.getCellByPosition(col_a, uno_row(scan - 2)).getString().strip()
+            if not a2.startswith('Les '):
+                continue
+            a1 = ws_pv.getCellByPosition(col_a, uno_row(scan - 1)).getString().strip()
+            b1 = ws_pv.getCellByPosition(col_b, uno_row(scan - 1)).getString().strip()
+            a0 = ws_pv.getCellByPosition(col_a, uno_row(scan)).getString().strip()
+            b0 = ws_pv.getCellByPosition(col_b, uno_row(scan)).getString().strip()
+            if not a1 and not b1 and not a0 and not b0:
+                ws_pv.Rows.removeByIndex(uno_row(scan), 1)
+
+    @staticmethod
+    def _cleanup_model_rows(ws, first_row, end_row, check_cols):
+        """Supprime les model rows vides entre first_row et end_row (1-indexed).
+
+        Une model row est une ligne où TOUTES les colonnes check_cols sont vides.
+        Utilisé pour nettoyer les lignes de template après insertion de vrais comptes.
+        """
+        from inc_excel_schema import uno_row
+        rows_to_del = []
+        for r in range(first_row, end_row):
+            all_empty = all(
+                not ws.getCellByPosition(c, uno_row(r)).getString().strip()
+                for c in check_cols
+            )
+            if all_empty:
+                rows_to_del.append(r)
+        for r in reversed(rows_to_del):
+            ws.Rows.removeByIndex(uno_row(r), 1)
+        return len(rows_to_del)
+
+    @staticmethod
+    def _cleanup_model_rows_ops(ws_ops, cr=None):
+        """Supprime les model rows vides dans Opérations.
+
+        Bulk read via getDataArray (2 calls UNO total au lieu de 2×N) — sur
+        Mac, gain ~10x (N getCellByPosition était ~4.8s à 1k rows).
+        """
+        cursor = ws_ops.createCursor()
+        cursor.gotoEndOfUsedArea(True)
+        last_0 = cursor.getRangeAddress().EndRow
+        if last_0 < 4:
+            return
+        col_date = cr.col('OPdate')
+        col_compte = cr.col('OPcompte')
+        date_col = ws_ops.getCellRangeByPosition(
+            col_date, 4, col_date, last_0).getDataArray()
+        compte_col = ws_ops.getCellRangeByPosition(
+            col_compte, 4, col_compte, last_0).getDataArray()
+        rows_to_del = []
+        for i in range(len(date_col)):
+            d = date_col[i][0]
+            c = compte_col[i][0]
+            d_str = str(d).strip() if d not in (None, '') else ''
+            c_str = str(c).strip() if c not in (None, '') else ''
+            if not d_str and not c_str:
+                rows_to_del.append(4 + i)
+        for r0 in reversed(rows_to_del):
+            ws_ops.Rows.removeByIndex(r0, 1)
+
+    def _save_accounts(self, doc=None):
+        """Sauvegarde les comptes dans Avoirs + contrôle dans Contrôles (via UNO).
+
+        Args:
+            doc: UnoDocument ouvert (mode batch). Si None, ouvre/ferme automatiquement.
+        """
+        from contextlib import nullcontext
+        from inc_uno import UnoDocument, copy_row_style, get_col_range_bounds
+        from inc_excel_schema import uno_col, uno_row
+
+        # Backup
+        bak_path = self.xlsx_path.with_suffix('.xlsm.bak')
+        shutil.copy2(self.xlsx_path, bak_path)
+
+        owned = doc is None
+        ctx = UnoDocument(self.xlsx_path) if owned else nullcontext(doc)
+        with ctx as doc:
+            cr = doc.cr
+            ws = doc.get_sheet(SHEET_AVOIRS)
+            ws_ctrl = doc.get_sheet(SHEET_CONTROLES)
+            ws_ops = doc.get_sheet(SHEET_OPERATIONS)
+
+            # --- Trouver la ligne Total actuelle (1-indexed) ---
+            # Scanner au-delà de _end_avr : Total est après la dernière donnée
+            avr_data = self._start_avr + 1
+            total_row = (self._end_avr + 1) if self._end_avr else None
+
+            # --- Avoirs : supprimer les lignes des comptes supprimés ---
+            if self._deleted_accounts:
+                deleted_set = set(self._deleted_accounts)
+                av_rows_to_delete = []
+                for row_idx in range(avr_data, total_row or self._end_avr + 1):
+                    val = ws.getCellByPosition(cr.col('AVRintitulé'), uno_row(row_idx)).getString()
+                    if val and val.strip() in deleted_set:
+                        av_rows_to_delete.append(row_idx)
+                # Supprimer en ordre inverse (indices hauts restent valides)
+                for row_idx in reversed(av_rows_to_delete):
+                    ws.Rows.removeByIndex(uno_row(row_idx), 1)
+                # Ajuster total_row
+                total_row -= len(av_rows_to_delete)
+                # Ajuster acct['row'] pour les comptes existants restants
+                for a in self.accounts_data:
+                    if a.get('row') is not None:
+                        shift = sum(1 for d in av_rows_to_delete if d < a['row'])
+                        a['row'] -= shift
+
+            # --- Avoirs : mettre à jour les champs éditables des comptes existants ---
+            # Bulk read + skip write si identique : sur add_account simple (rien
+            # modifié), gain ~10x sur Mac (4 reads UNO + 0 writes vs 4N writes).
+            existing_accts = [a for a in self.accounts_data
+                              if a.get('row') is not None and not a.get('_is_new')]
+            if existing_accts:
+                rows_uno = [uno_row(a['row']) for a in existing_accts]
+                min_r0 = min(rows_uno)
+                max_r0 = max(rows_uno)
+                cols = {
+                    'domiciliation': cr.col('AVRdomiciliation'),
+                    'sous_type': cr.col('AVRsous_type'),
+                    'titulaire': cr.col('AVRtitulaire'),
+                    'propriete': cr.col('AVRpropriete'),
+                }
+                current = {}
+                for key, col in cols.items():
+                    data = ws.getCellRangeByPosition(
+                        col, min_r0, col, max_r0).getDataArray()
+                    current[key] = [str(d[0]).strip()
+                                    if d[0] not in (None, '') else ''
+                                    for d in data]
+                for acct, r0 in zip(existing_accts, rows_uno):
+                    offset = r0 - min_r0
+                    for key, col in cols.items():
+                        new_val = (acct.get(key) or '').strip()
+                        if new_val != current[key][offset]:
+                            ws.getCellByPosition(col, r0).setString(new_val)
+
+            # --- Avoirs : insérer les nouveaux comptes dans le bloc Type correspondant ---
+            new_accounts = [a for a in self.accounts_data if a.get('row') is None]
+            if new_accounts and total_row:
+                template_row_0 = uno_row(avr_data)
+
+                for acct in new_accounts:
+                    target_type = acct['type']
+
+                    # Scanner pour trouver la dernière ligne du bloc Type
+                    # (ou la première ligne vide/Clos après le bloc)
+                    block_last = None
+                    first_empty_or_clos = None
+                    for row_idx in range(avr_data, total_row):
+                        val_a = ws.getCellByPosition(cr.col('AVRintitulé'), uno_row(row_idx)).getString().strip()
+                        val_b = ws.getCellByPosition(cr.col('AVRtype'), uno_row(row_idx)).getString().strip()
+                        if val_b == target_type:
+                            block_last = row_idx
+                        if (not val_a or val_b == 'Clos') and first_empty_or_clos is None:
+                            first_empty_or_clos = row_idx
+
+                    # Point d'insertion : après la dernière ligne du bloc, avant END (✓)
+                    avr_end_model = self._end_avr or total_row
+                    if block_last is not None:
+                        insert_row = min(block_last + 1, avr_end_model)
+                    elif first_empty_or_clos is not None:
+                        insert_row = min(first_empty_or_clos, avr_end_model)
+                    else:
+                        insert_row = avr_end_model
+
+                    # Insérer 1 ligne
+                    ws.Rows.insertByIndex(uno_row(insert_row), 1)
+                    # Décaler les row en mémoire pour les comptes existants >= insert_row
+                    for a in self.accounts_data:
+                        if a.get('row') is not None and a['row'] >= insert_row:
+                            a['row'] += 1
+                    total_row += 1
+                    if self._end_avr and insert_row <= self._end_avr:
+                        self._end_avr += 1
+                    # Décaler template_row_0 si l'insertion l'a poussé vers le bas
+                    if uno_row(insert_row) <= template_row_0:
+                        template_row_0 += 1
+
+                    r = insert_row   # 1-indexed
+                    r0 = uno_row(r)  # 0-indexed
+                    acct['row'] = r
+
+                    # Copier style du template (ligne 4)
+                    copy_row_style(ws, template_row_0, r0, col_start=0, col_end=12)
+
+                    # Écrire les données
+                    ws.getCellByPosition(cr.col('AVRintitulé'), r0).setString(acct['intitule'])
+                    ws.getCellByPosition(cr.col('AVRtype'), r0).setString(acct['type'])
+                    ws.getCellByPosition(cr.col('AVRdomiciliation'), r0).setString(acct.get('domiciliation') or '')
+                    ws.getCellByPosition(cr.col('AVRsous_type'), r0).setString(acct.get('sous_type') or '')
+                    ws.getCellByPosition(cr.col('AVRdevise'), r0).setString(acct.get('devise') or '')
+                    ws.getCellByPosition(cr.col('AVRtitulaire'), r0).setString(acct.get('titulaire') or '')
+                    ws.getCellByPosition(cr.col('AVRpropriete'), r0).setString(acct.get('propriete') or '')
+                    # DATE_ANTER et MONTANT_ANTER
+                    # Biens matériels : valeurs statiques (date/val acquisition)
+                    # Autres comptes : formules dynamiques — ancrage PVL = MAX(#Solde avec Equiv)
+                    if acct.get('date_anter'):
+                        from datetime import datetime
+                        epoch = datetime(1899, 12, 30)
+                        serial = (acct['date_anter'] - epoch).days
+                        cell_h = ws.getCellByPosition(cr.col('AVRdate_anter'), r0)
+                        cell_h.setValue(serial)
+                        cell_h.NumberFormat = doc.register_number_format('DD/MM/YYYY')
+                    elif acct.get('devise'):
+                        cell_h = ws.getCellByPosition(cr.col('AVRdate_anter'), r0)
+                        cell_h.setFormula(
+                            f'=MAXIFS(OPdate;OPcompte;$A{r};OPdevise;$E{r};'
+                            f'OPcatégorie;Solde;OPequiv_euro;"<>")')
+                        cell_h.NumberFormat = doc.register_number_format('DD/MM/YY')
+
+                    if acct.get('montant_anter') is not None:
+                        from inc_formats import FORMAT_EUR
+                        cell_i = ws.getCellByPosition(cr.col('AVRmontant_anter'), r0)
+                        cell_i.setValue(acct['montant_anter'])
+                        cell_i.NumberFormat = doc.register_number_format(FORMAT_EUR)
+                    elif acct.get('devise'):
+                        from inc_formats import FORMATS_DEVISE, FORMAT_EUR
+                        cell_i = ws.getCellByPosition(cr.col('AVRmontant_anter'), r0)
+                        cell_i.setFormula(
+                            f'=SUMIFS(OPmontant;OPcompte;$A{r};OPdevise;$E{r};'
+                            f'OPcatégorie;Solde;OPdate;$H{r})')
+                        fmt_str = FORMATS_DEVISE.get(acct['devise'], FORMAT_EUR)
+                        cell_i.NumberFormat = doc.register_number_format(fmt_str)
+
+                    # Formules J/K/L (UNO : pas de préfixe _xlfn.)
+                    devise = acct['devise']
+                    acct_type = acct['type']
+                    if acct_type == 'Portefeuilles':
+                        ws.getCellByPosition(cr.col('AVRdate_solde'), r0).setFormula(
+                            f'=SUMIFS(PVLdate;PVLcompte;$A{r};PVLtitre;Retenu)')
+                        ws.getCellByPosition(cr.col('AVRmontant_solde'), r0).setFormula(
+                            f'=SUMIFS(PVLmontant;PVLcompte;$A{r};PVLtitre;Retenu)')
+                    elif acct_type == 'Biens matériels' and not devise:
+                        # Bien matériel sans devise (immobilier, véhicules) : montant statique
+                        montant = acct.get('montant_debut')
+                        if montant is not None:
+                            ws.getCellByPosition(cr.col('AVRmontant_solde'), r0).setValue(float(montant))
+                    elif devise:
+                        ws.getCellByPosition(cr.col('AVRdate_solde'), r0).setFormula(
+                            f'=MAXIFS(OPdate;OPcompte;$A{r};OPdevise;$E{r};OPcatégorie;Solde)')
+                        ws.getCellByPosition(cr.col('AVRmontant_solde'), r0).setFormula(
+                            f'=SUMIFS(OPmontant;OPcompte;$A{r};OPdevise;$E{r};OPcatégorie;Solde;OPdate;$J{r})')
+
+                    cours = self.cours_name(devise)
+                    if cours:
+                        lK = cr.letter('AVRmontant_solde')
+                        ws.getCellByPosition(cr.col('AVRmontant_solde_euro'), r0).setFormula(f'={lK}{r}*{cours}')
+                    elif devise in ('EUR', None, ''):
+                        lK = cr.letter('AVRmontant_solde')
+                        ws.getCellByPosition(cr.col('AVRmontant_solde_euro'), r0).setFormula(f'={lK}{r}')
+
+                    # Format date sur J
+                    j_cell = ws.getCellByPosition(cr.col('AVRdate_solde'), r0)
+                    j_cell.NumberFormat = doc.register_number_format('DD/MM/YY')
+
+                    # Format nombre sur K si devise spécifique
+                    k_fmt_str = self.AVOIRS_K_FORMATS.get(devise)
+                    if k_fmt_str:
+                        k_cell = ws.getCellByPosition(cr.col('AVRmontant_solde'), r0)
+                        k_cell.NumberFormat = doc.register_number_format(k_fmt_str)
+
+                    # Format EUR sur L (Equiv EUR)
+                    from inc_formats import FORMAT_EUR
+                    l_cell = ws.getCellByPosition(cr.col('AVRmontant_solde_euro'), r0)
+                    l_cell.NumberFormat = doc.register_number_format(FORMAT_EUR)
+                    # Fond gris devise sur le montant K seul (libellé devise non grisé)
+                    if devise and devise not in ('EUR', ''):
+                        from inc_formats import GRIS_BLANC
+                        ws.getCellByPosition(cr.col('AVRmontant_solde'), r0).CellBackColor = GRIS_BLANC
+
+            # (recalibration AVR* + START/end AVR déplacée après cleanup model rows)
+
+            # --- Contrôles : supprimer les lignes des comptes supprimés ---
+            ctrl_rows_to_delete = sorted(self._deleted_ctrl_rows)
+            # Supprimer en ordre inverse (préserve le pied de page)
+            for row_idx in reversed(ctrl_rows_to_delete):
+                ws_ctrl.Rows.removeByIndex(uno_row(row_idx), 1)
+            # Refresh cr après removeByIndex : les NRs ont décalé, le cache doit suivre
+            # pour que cr.rows('CTRL2type') retourne les nouvelles bornes (utilisé plus
+            # bas pour la formule drill COMPTES).
+            if ctrl_rows_to_delete and hasattr(cr, 'refresh'):
+                cr.refresh(xdoc=doc._document)
+            # Ajuster ctrl_row pour les display_accounts restants
+            for entry in self.display_accounts:
+                crow = entry.get('ctrl_row')
+                if crow is not None:
+                    shift = sum(1 for d in ctrl_rows_to_delete if d < crow)
+                    entry['ctrl_row'] = crow - shift
+
+            # --- Contrôles : mettre à jour formules + flags contrôle ---
+            # Bulk read + skip si identique (cf. Avoirs update plus haut).
+            ctrl_entries = [e for e in self.display_accounts if e.get('ctrl_row')]
+            if ctrl_entries:
+                rows_uno = [uno_row(e['ctrl_row']) for e in ctrl_entries]
+                min_r0 = min(rows_uno)
+                max_r0 = max(rows_uno)
+                col_compte = cr.col('CTRL1compte')
+                col_ctrl = cr.col('CTRL1controle')
+                # Lire les formules actuelles (col compte) + valeurs (col controle)
+                cur_compte_data = ws_ctrl.getCellRangeByPosition(
+                    col_compte, min_r0, col_compte, max_r0).getFormulaArray()
+                cur_ctrl_data = ws_ctrl.getCellRangeByPosition(
+                    col_ctrl, min_r0, col_ctrl, max_r0).getDataArray()
+                avr_letter = cr.letter("AVRintitulé")
+                for entry, r0 in zip(ctrl_entries, rows_uno):
+                    offset = r0 - min_r0
+                    avoirs_acct = entry['avoirs_ref']
+                    new_avoirs_row = avoirs_acct.get('row')
+                    if new_avoirs_row:
+                        new_formula = f'=Avoirs.{avr_letter}{new_avoirs_row}'
+                        cur_formula = cur_compte_data[offset][0] or ''
+                        if cur_formula != new_formula:
+                            ws_ctrl.getCellByPosition(col_compte, r0).setFormula(new_formula)
+                    new_ctrl = 'Oui' if entry['controle'] else 'Non'
+                    cur_ctrl = cur_ctrl_data[offset][0]
+                    cur_ctrl_str = str(cur_ctrl).strip() if cur_ctrl not in (None, '') else ''
+                    if cur_ctrl_str != new_ctrl:
+                        ws_ctrl.getCellByPosition(col_ctrl, r0).setString(new_ctrl)
+
+            # --- Contrôles : créer les lignes manquantes pour nouveaux comptes ---
+            ctrl_last_data = max(
+                (e['ctrl_row'] for e in self.display_accounts if e.get('ctrl_row')),
+                default=self._start_ctrl1 + 1)
+            # Borner par la model row END (✓) — ne jamais insérer après
+            ctrl_end_model = self._end_ctrl1 or (ctrl_last_data + 1)
+            ctrl_next_row = min(ctrl_last_data + 1, ctrl_end_model)
+
+            for entry in self.display_accounts:
+                if entry.get('ctrl_row') is not None:
+                    continue
+                # Biens matériels : exclus de CTRL1 (pas d'opérations, valeurs manuelles)
+                if entry.get('type') == 'Biens matériels':
+                    continue
+                avoirs_acct = entry['avoirs_ref']
+                avoirs_row = avoirs_acct.get('row')
+                if not avoirs_row:
+                    continue
+
+                r = ctrl_next_row
+                r0 = uno_row(r)
+                devise = entry['devise']
+
+                # Insérer une ligne avant END (✓)
+                # Le style est propagé automatiquement depuis la model row
+                ws_ctrl.Rows.insertByIndex(r0, 1)
+                if self._end_ctrl1 and r <= self._end_ctrl1:
+                    self._end_ctrl1 += 1
+
+                # Formules nouveau modèle : ancrage min + relevé max via XLOOKUP
+                # Tolère 0..N #Solde, doublons même date résolus déterministiquement
+                ws_ctrl.getCellByPosition(cr.col('CTRL1compte'), r0).setFormula(
+                    f'=Avoirs.A{avoirs_row}')
+                if devise:
+                    ws_ctrl.getCellByPosition(cr.col('CTRL1devise'), r0).setString(devise)
+                # Col C = date ancrage : MINIFS si >=2 #Solde, sinon 0 (epoch)
+                ws_ctrl.getCellByPosition(cr.col('CTRL1date_ancrage'), r0).setFormula(
+                    f'=IF(COUNTIFS(OPcompte;$A{r};OPdevise;$B{r};OPcatégorie;Solde)>=2;'
+                    f'MINIFS(OPdate;OPcompte;$A{r};OPdevise;$B{r};OPcatégorie;Solde);0)')
+                # Col D = date relevé : MAXIFS sur les #Solde
+                ws_ctrl.getCellByPosition(cr.col('CTRL1date_releve'), r0).setFormula(
+                    f'=MAXIFS(OPdate;OPcompte;$A{r};OPdevise;$B{r};OPcatégorie;Solde)')
+                # Col E = montant ancrage : XLOOKUP first occurrence à date C, 0 si C=0
+                ws_ctrl.getCellByPosition(cr.col('CTRL1montant_ancrage'), r0).setFormula(
+                    f'=IF($C{r}=0;0;'
+                    f'XLOOKUP(1;(OPcompte=$A{r})*(OPdevise=$B{r})*(OPcatégorie=Solde)*(OPdate=$C{r});'
+                    f'OPmontant;0;0;1))')
+                # Col F = solde calculé : montant_ancrage + flux entre C (excl) et D (incl)
+                ws_ctrl.getCellByPosition(cr.col('CTRL1solde_calc'), r0).setFormula(
+                    f'=$E{r}+SUMIFS(OPmontant;OPcompte;$A{r};OPdevise;$B{r};'
+                    f'OPdate;">"&$C{r};OPdate;"<="&$D{r};'
+                    f'OPcatégorie;"<>Solde";OPcatégorie;"<>"&Spéciale)')
+                # Col G = montant relevé : XLOOKUP last occurrence à date D
+                ws_ctrl.getCellByPosition(cr.col('CTRL1montant_releve'), r0).setFormula(
+                    f'=XLOOKUP(1;(OPcompte=$A{r})*(OPdevise=$B{r})*(OPcatégorie=Solde)*(OPdate=$D{r});'
+                    f'OPmontant;0;0;-1)')
+                # Col H = écart : relevé - calculé, tolérance 1 centime
+                ws_ctrl.getCellByPosition(cr.col('CTRL1ecart'), r0).setFormula(
+                    f'=IF(ABS($G{r}-$F{r})<0.015;0;ROUND($G{r}-$F{r};2))')
+                # Col I = Oui/Non
+                ws_ctrl.getCellByPosition(cr.col('CTRL1controle'), r0).setString(
+                    'Oui' if entry['controle'] else 'Non')
+
+                # Format nombre sur E/F/G/H si devise spécifique
+                k_fmt_str = self.AVOIRS_K_FORMATS.get(devise)
+                if k_fmt_str:
+                    fmt_key = doc.register_number_format(k_fmt_str)
+                    for c in (cr.col('CTRL1montant_ancrage'), cr.col('CTRL1solde_calc'),
+                              cr.col('CTRL1montant_releve'), cr.col('CTRL1ecart')):
+                        ws_ctrl.getCellByPosition(c, r0).NumberFormat = fmt_key
+                # GRIS_BLANC pour non-EUR ; blanc explicite pour EUR
+                # (insertByIndex peut propager le gris d'une ligne voisine non-EUR ;
+                # transparent -1 prendrait la couleur du thème = noir en mode sombre)
+                from inc_formats import GRIS_BLANC, BLANC
+                bg_color = GRIS_BLANC if (devise and devise not in ('EUR', '')) else BLANC
+                for c in (cr.col('CTRL1montant_ancrage'), cr.col('CTRL1solde_calc'),
+                          cr.col('CTRL1montant_releve'), cr.col('CTRL1ecart')):
+                    ws_ctrl.getCellByPosition(c, r0).CellBackColor = bg_color
+
+                entry['ctrl_row'] = r
+                ctrl_next_row += 1
+
+            # Model rows CTRL1 : préservées (pas de cleanup)
+            # Elles servent d'ancrage aux named ranges et de modèle de format.
+
+            # --- Recalibrer formules CTRL2 sur les bornes CTRL1 (model rows incluses) ---
+            # On couvre start CTRL1..end CTRL1 pour matcher le template (B3:B4 vide)
+            # plutôt que de pointer le data range qui peut être vide.
+            from inc_uno import get_col_range_bounds
+            _cb = get_col_range_bounds(doc.document, 'CTRL1compte')
+            ctrl_start_now = _cb[2] if _cb else None
+            ctrl_end_now = _cb[3] if _cb else None
+            ctrl_end_now = ctrl_end_now or self._end_ctrl1 or ctrl_next_row
+            f = ctrl_start_now or self._start_ctrl1
+            l = ctrl_end_now
+
+            # -- CTRL2 M col COMPTES drill : COUNTIFS filtré par cellule drill --
+            # Modèle drill : une seule colonne M pointant vers M${drill_row}.
+            # Formule via NR auto-extend (CTRL1devise/controle/ecart) — plus de
+            # références hardcodées $B{f}:$B{l}.
+            # Détection par label 'COMPTES' + row drill = NR CTRL2type.start - 2
+            # (invariant à la présence d'une row ⚓ entre header et COMPTES).
+            comptes_row_1 = None
+            for rr in range(1, 60):
+                lbl = ws_ctrl.getCellByPosition(
+                    uno_col(10), uno_row(rr)).getString().strip()
+                if lbl.startswith('COMPTES'):
+                    comptes_row_1 = rr
+                    break
+            if comptes_row_1:
+                # Refresh cr : les insertByIndex CTRL1 plus haut ont décalé les
+                # named ranges CTRL2* dans le doc live, mais le cache de cr a
+                # été construit AVANT ces inserts. Sans refresh, ctrl2_start
+                # renvoie la position template et drill_row_1 pointe une row
+                # au-dessus du drill effectif (bug visible quand l'add compte
+                # + autres inserts décalent EUR drill de M$8 → M$9).
+                if hasattr(cr, 'refresh'):
+                    cr.refresh(xdoc=doc._document)
+                ctrl2_start, _ = cr.rows('CTRL2type')
+                # v3.6 : drill CTRL2 en r1-1 (sentinelle ⚓ incluse dans NR).
+                drill_row_1 = (ctrl2_start - 1) if ctrl2_start else (comptes_row_1 - 2)
+                drill_col_0 = cr.col('CTRL2drill')
+                drill_letter = ColResolver._idx_to_letter(drill_col_0 + 1)
+                ws_ctrl.getCellByPosition(drill_col_0, uno_row(comptes_row_1)).setFormula(
+                    f'=COUNTIFS(CTRL1devise;{drill_letter}${drill_row_1};'
+                    f'CTRL1controle;"Oui")'
+                    f'-COUNTIFS(CTRL1devise;{drill_letter}${drill_row_1};'
+                    f'CTRL1controle;"Oui";CTRL1ecart;0)')
+
+            # --- Plus_value : supprimer / créer ---
+            new_pv_accounts = [a for a in self.accounts_data if a.get('_is_new')]
+            need_pv = self._deleted_accounts or new_pv_accounts
+            ws_pv = doc.get_sheet(SHEET_PLUS_VALUE) if need_pv else None
+
+            if self._deleted_accounts and ws_pv:
+                self._delete_pv_entries(ws_pv, self._deleted_accounts, doc=doc)
+                # Reconstruire la formule TOTAL portefeuilles (peut redevenir générique)
+                pvl_data = (self._start_pvl or 5) + 1
+                for scan in range(pvl_data, pvl_data + 300):
+                    val_a = ws_pv.getCellByPosition(
+                        cr.col('PVLsection'), uno_row(scan)).getString().strip()
+                    if 'TOTAL portefeuilles' in val_a:
+                        self._update_pv_total_portefeuilles(ws_pv, scan, doc=doc)
+                        break
+
+            if new_pv_accounts and ws_pv:
+                for acct in new_pv_accounts:
+                    pv_type, pv_total = self._get_pv_section_for_account(
+                        acct['type'], acct.get('devise'))
+
+                    if pv_type == 'portfolio':
+                        self._create_pv_portfolio_block(ws_pv, doc, acct)
+                    elif pv_type == 'line':
+                        self._create_pv_simple_line(ws_pv, doc, acct, pv_total)
+
+            # --- Opérations : créer 2 #Solde (début + fin) pour les nouveaux comptes ---
+            # Exclure les biens matériels (pas d'opérations, valeurs manuelles)
+            new_ops_accounts = [e for e in self.display_accounts
+                                if 'formula_j' not in e.get('avoirs_ref', {})
+                                and e.get('avoirs_ref', {}).get('type') != 'Biens matériels']
+            for entry in new_ops_accounts:
+                avoirs_ref = entry.get('avoirs_ref', {})
+                self._append_solde_lines(
+                    ws_ops, entry['intitule'], entry['devise'],
+                    date_debut=avoirs_ref.get('date_debut'),
+                    date_solde=avoirs_ref.get('date_solde'),
+                    montant_debut=avoirs_ref.get('montant_debut'),
+                    equiv_euro_debut=avoirs_ref.get('equiv_euro_debut'),
+                    doc=doc)
+
+            # --- Opérations : supprimer / reloger les lignes des comptes supprimés ---
+            deleted_set = set(self._deleted_accounts)
+            rehouse_set = set(self._soft_deleted_accounts)  # ops appariées → "Compte clos"
+            COMPTE_CLOS = 'Compte clos'
+            if deleted_set:
+                rows_to_delete = []
+                cursor = ws_ops.createCursor()
+                cursor.gotoStartOfUsedArea(False)
+                cursor.gotoEndOfUsedArea(True)
+                last_row_0 = cursor.getRangeAddress().EndRow
+                for row_0 in range(2, last_row_0 + 1):
+                    compte = ws_ops.getCellByPosition(cr.col('OPcompte'), row_0).getString()
+                    if not compte or compte.strip() not in deleted_set:
+                        continue
+                    name = compte.strip()
+                    if name in rehouse_set:
+                        # Ops appariées → reloger dans "Compte clos"
+                        ref = ws_ops.getCellByPosition(cr.col('OPréf'), row_0).getString().strip()
+                        cat = ws_ops.getCellByPosition(cr.col('OPcatégorie'), row_0).getString().strip()
+                        if ref and ref != '-' and not cat.startswith('#'):
+                            ws_ops.getCellByPosition(cr.col('OPcompte'), row_0).setString(COMPTE_CLOS)
+                            continue
+                    rows_to_delete.append(row_0)
+                # Supprimer en ordre inverse
+                for row_0 in reversed(rows_to_delete):
+                    ws_ops.Rows.removeByIndex(row_0, 1)
+
+                # Garantir la model row start OP (row 4 = 0-indexed 3)
+                # OP n'a plus qu'une seule model row depuis suppression end OP (v3.0.0)
+                cursor2 = ws_ops.createCursor()
+                cursor2.gotoEndOfUsedArea(True)
+                last_0 = cursor2.getRangeAddress().EndRow
+                if last_0 < 3:  # rows 0-2 = en-têtes, besoin de row 3 = model row START
+                    count = 3 - last_0
+                    ws_ops.Rows.insertByIndex(last_0 + 1, count)
+                    # Appliquer le format données (l'insertion hérite de l'en-tête)
+                    from com.sun.star.table import BorderLine2
+                    empty_border = BorderLine2()
+                    header_0 = 2  # row 3 = en-tête colonnes (bordures hair)
+                    for r0 in range(last_0 + 1, last_0 + 1 + count):
+                        # B-I : copier bordures depuis en-tête, fond blanc, police 10
+                        copy_row_style(ws_ops, header_0, r0, col_start=1, col_end=9)
+                        for c0 in range(1, 9):
+                            cell = ws_ops.getCellByPosition(c0, r0)
+                            cell.CellBackColor = BLANC
+                        # Col A : fond blanc, sans bordures, police 10
+                        cell_a = ws_ops.getCellByPosition(0, r0)
+                        cell_a.CellBackColor = BLANC
+                        cell_a.CharHeight = 10
+                        cell_a.TopBorder = empty_border
+                        cell_a.BottomBorder = empty_border
+                        cell_a.LeftBorder = empty_border
+                        cell_a.RightBorder = empty_border
+                        # Hauteur ligne données
+                        ws_ops.Rows.getByIndex(r0).Height = 582  # 16.5pt
+
+                # Créer "Compte clos" dans Avoirs si des ops ont été relogées
+                if rehouse_set:
+                    if self._ensure_compte_clos(ws, total_row):
+                        total_row += 1
+                    # Balai : supprimer les paires entièrement dans "Compte clos"
+                    self._last_sweep_count = self._sweep_compte_clos_uno(ws_ops)
+
+                had_deletions = True
+                self._deleted_accounts = []
+                self._soft_deleted_accounts = []
+                self._deleted_ctrl_rows = []
+            else:
+                had_deletions = False
+
+            # --- Recaler formule Total et named ranges ---
+            # Les model rows (tête/pied) sont préservées — pas de cleanup.
+            # Elles restent dans les named ranges (ancrage pour SUM, SUMIFS, etc.)
+            # et sont vides donc n'affectent pas les calculs.
+            if total_row and (new_accounts or had_deletions):
+                # Lire START/end AVR depuis UNO (ajustés par removeByIndex/insertByIndex)
+                _avr_b = get_col_range_bounds(doc.document, 'AVRintitulé')
+                avr_start_now = _avr_b[2] if _avr_b else None
+                avr_end_now = _avr_b[3] if _avr_b else None
+                avr_first = avr_start_now or self._start_avr
+                last_data = avr_end_now or (total_row - 1)
+                # SUM couvre les 2 model rows start AVR..end AVR (inclus)
+                # pour éviter le collapse à SUM(L5) quand toutes les data sont supprimées
+                ws.getCellByPosition(
+                    cr.col('AVRmontant_solde_euro'), uno_row(total_row)
+                ).setFormula('=ROUND(SUM(AVRmontant_solde_euro);2)')
+                # Recaler AVR* + START/end AVR (incluant model rows)
+                avr_names = {
+                    'AVRintitulé': 'A', 'AVRtype': 'B', 'AVRdomiciliation': 'C',
+                    'AVRsous_type': 'D', 'AVRtitulaire': 'F', 'AVRpropriete': 'G',
+                    'AVRdate_solde': 'J', 'AVRmontant_solde': 'K',
+                    'AVRmontant_solde_euro': 'L',
+                }
+                xdoc = doc.document
+                nr = xdoc.NamedRanges
+                from com.sun.star.table import CellAddress
+                pos = CellAddress()
+                for name, cl in avr_names.items():
+                    if nr.hasByName(name):
+                        nr.removeByName(name)
+                    nr.addNewByName(name, f'$Avoirs.${cl}${avr_first}:${cl}${last_data}', pos, 0)
+                # Les named ranges colonnes sont recalés automatiquement par LO
+
+            # Recaler PVL* + START/end PVL
+            if new_accounts or had_deletions:
+                ws_pv = doc.get_sheet(SHEET_PLUS_VALUE)
+                # Lire START/end PVL depuis les named ranges UNO (ajustés par insertByIndex)
+                _pvl_b = get_col_range_bounds(doc.document, 'PVLcompte')
+                pvl_start_now = _pvl_b[2] if _pvl_b else None
+                pvl_end_now = _pvl_b[3] if _pvl_b else None
+                if pvl_start_now and pvl_end_now:
+                    pvl_start = pvl_start_now
+                    pvl_end = pvl_end_now
+                    xdoc = doc.document
+                    nr = xdoc.NamedRanges
+                    from com.sun.star.table import CellAddress
+                    pos = CellAddress()
+                    pvl_names = {
+                        'PVLcompte': 'B', 'PVLtitre': 'C',
+                        'PVLdate': 'J', 'PVLmontant': 'K',
+                    }
+                    for name, cl in pvl_names.items():
+                        if nr.hasByName(name):
+                            nr.removeByName(name)
+                        nr.addNewByName(name, f'$Plus_value.${cl}${pvl_start}:${cl}${pvl_end}', pos, 0)
+                    # Les named ranges colonnes sont recalés automatiquement par LO
+
+            if new_ops_accounts:
+                self._cleanup_model_rows_ops(ws_ops, cr=cr)
+
+            # Patrimoine : insérer les lignes manquantes
+            self._sync_patrimoine(doc)
+
+            if owned:
+                self._uno_finalize(doc)
+
+        # Nettoyer le flag _is_new et marquer formula_j après sauvegarde réussie
+        # (formula_j sert de garde pour ne pas recréer les #Solde à chaque save)
+        for a in self.accounts_data:
+            a.pop('_is_new', None)
+            if 'formula_j' not in a:
+                a['formula_j'] = True
+
+    # --- Patrimoine : insertion automatique de lignes pour nouvelles valeurs ---
+
+    # Mapping champ Avoirs → (nom défini AVR, header du bloc Patrimoine)
+    _PATRIMOINE_BLOCKS = {
+        'type':           ('AVRtype',           'par type'),
+        'sous_type':      ('AVRsous_type',      'par sous-type'),
+        'domiciliation':  ('AVRdomiciliation',  'par domiciliation'),
+        'titulaire':      ('AVRtitulaire',      'par titulaire'),
+        'propriete':      ('AVRpropriete',      'en propri'),
+    }
+
+    def _sync_patrimoine(self, doc):
+        """Ajoute dans Patrimoine les lignes manquantes pour les nouvelles valeurs."""
+        from inc_uno import col_of, letter_of
+        ws = doc.get_sheet('Patrimoine')
+        xdoc = doc.document
+
+        # Résoudre les colonnes PAT depuis les named ranges
+        cB = col_of(xdoc, 'PATlabel')
+        cC = col_of(xdoc, 'PATnombre')
+        cD = col_of(xdoc, 'PATvaleur')
+        cE = col_of(xdoc, 'PATpoids')
+        lB = letter_of(xdoc, 'PATlabel')
+        lC = letter_of(xdoc, 'PATnombre')
+        lD = letter_of(xdoc, 'PATvaleur')
+
+        # Collecter toutes les valeurs actuelles des comptes
+        values_by_field = {}
+        for field in self._PATRIMOINE_BLOCKS:
+            vals = {a.get(field, '').strip() for a in self.accounts_data}
+            vals.discard('')
+            values_by_field[field] = vals
+
+        for field, (avr_name, header_prefix) in self._PATRIMOINE_BLOCKS.items():
+            # Bulk read col B (1 call UNO au lieu de ~70 par field) — gain Mac ~10x
+            labels_data = ws.getCellRangeByPosition(cB, 0, cB, 69).getDataArray()
+            labels = [str(row[0]).strip() if row[0] not in (None, '') else ''
+                      for row in labels_data]
+
+            # Trouver le header et le TOTAL du bloc
+            header_row = None
+            total_row = None
+            for r, b in enumerate(labels):
+                if header_row is None and b.lower().startswith(header_prefix.lower()):
+                    header_row = r
+                elif header_row is not None and b == 'TOTAL':
+                    total_row = r
+                    break
+
+            if header_row is None or total_row is None:
+                continue
+
+            # Lire les valeurs existantes dans le bloc (réutilise le bulk read)
+            existing = {labels[r] for r in range(header_row + 1, total_row)
+                        if labels[r]}
+
+            # Insérer les valeurs manquantes
+            from inc_uno import copy_row_style
+            for new_val in sorted(values_by_field[field] - existing):
+                # Insérer avant TOTAL
+                ws.Rows.insertByIndex(total_row, 1)
+                # Copier le style de la ligne au-dessus
+                if total_row > header_row + 1:
+                    copy_row_style(ws, total_row - 1, total_row, col_start=cB, col_end=cE)
+                # Écrire les formules (row = total_row + 1 en 1-indexed)
+                row_1 = total_row + 1
+                ws.getCellByPosition(cB, total_row).setString(new_val)
+                ws.getCellByPosition(cC, total_row).setFormula(
+                    f'=COUNTIF({avr_name};${lB}{row_1})')
+                ws.getCellByPosition(cD, total_row).setFormula(
+                    f'=SUMIF({avr_name};${lB}{row_1};AVRmontant_solde_euro)')
+                # Le ratio sera corrigé en bloc après
+                total_row += 1
+
+            # Recalculer TOTAL et ratios si des lignes ont été ajoutées
+            if values_by_field[field] - existing:
+                first_data = header_row + 1
+                last_data = total_row - 1
+                total_1 = total_row + 1  # 1-indexed
+                first_1 = first_data + 1
+
+                # TOTAL SUM
+                ws.getCellByPosition(cC, total_row).setFormula(
+                    f'=SUM({lC}{first_1}:{lC}{total_1 - 1})')
+                ws.getCellByPosition(cD, total_row).setFormula(
+                    f'=ROUND(SUM({lD}{first_1}:{lD}{total_1 - 1});2)')
+
+                # Ratios E
+                for r in range(first_data, total_row):
+                    ws.getCellByPosition(cE, r).setFormula(
+                        f'={lD}{r + 1}/{lD}${total_1}')
+
+    def _cleanup_patrimoine(self, keep_values=None, doc=None):
+        """Supprime les lignes Patrimoine non conservées.
+
+        Inverse de _sync_patrimoine : supprime les lignes de données dont la
+        valeur B n'est pas dans keep_values[field]. Le bloc 'type' est structurel
+        et n'est jamais nettoyé.
+
+        Args:
+            keep_values: dict {field: set(valeurs à conserver)}
+            doc: UnoDocument ouvert (mode batch). Si None, ouvre/ferme automatiquement.
+        """
+        from contextlib import nullcontext
+        from inc_uno import UnoDocument, col_of, letter_of
+
+        keep_values = keep_values or {}
+
+        owned = doc is None
+        ctx = UnoDocument(self.xlsx_path) if owned else nullcontext(doc)
+        with ctx as doc:
+            ws = doc.get_sheet('Patrimoine')
+            xdoc = doc.document
+
+            # Résoudre les colonnes PAT depuis les named ranges
+            cB = col_of(xdoc, 'PATlabel')
+            cC = col_of(xdoc, 'PATnombre')
+            cD = col_of(xdoc, 'PATvaleur')
+            lB = letter_of(xdoc, 'PATlabel')
+            lC = letter_of(xdoc, 'PATnombre')
+            lD = letter_of(xdoc, 'PATvaleur')
+
+            for field, (avr_name, header_prefix) in self._PATRIMOINE_BLOCKS.items():
+                if field == 'type':
+                    continue  # types structurels, jamais supprimés
+                keep = keep_values.get(field, set())
+
+                # Trouver header et TOTAL du bloc
+                header_row = None
+                total_row = None
+                for r in range(0, 70):
+                    b = ws.getCellByPosition(cB, r).getString().strip()
+                    if header_row is None and b.lower().startswith(header_prefix.lower()):
+                        header_row = r
+                    elif header_row is not None and b == 'TOTAL':
+                        total_row = r
+                        break
+
+                if header_row is None or total_row is None:
+                    continue
+
+                # Supprimer les lignes non conservées (de bas en haut)
+                # Préserve : valeurs dans `keep`, ligne placeholder '-' (structurelle).
+                # Supprime : lignes B vide (spacers, formules orphelines) et autres
+                deleted = 0
+                has_dash = False
+                for r in range(total_row - 1, header_row, -1):
+                    val = ws.getCellByPosition(cB, r).getString().strip()
+                    if val == '-':
+                        has_dash = True
+                        continue
+                    if not val or val not in keep:
+                        ws.Rows.removeByIndex(r, 1)
+                        deleted += 1
+                        total_row -= 1
+                # Si pas de '-' présent et bloc vidé : insérer le placeholder
+                if not has_dash and total_row == header_row + 1:
+                    ws.Rows.insertByIndex(total_row, 1)
+                    new_dash_row = total_row
+                    total_row += 1
+                    ws.getCellByPosition(cB, new_dash_row).setString('-')
+                    # Formules COUNTIF/SUMIF pour cohérence avec le template
+                    new_dash_1 = new_dash_row + 1
+                    ws.getCellByPosition(cC, new_dash_row).setFormula(
+                        f'=COUNTIF({avr_name},${lB}{new_dash_1})')
+                    ws.getCellByPosition(cD, new_dash_row).setFormula(
+                        f'=SUMIF({avr_name},${lB}{new_dash_1},AVRmontant_solde_euro)')
+                    deleted += 1  # force recalcul TOTAL ci-dessous
+
+                if deleted:
+                    # Recalculer les formules TOTAL
+                    first_data = header_row + 1
+                    first_1 = first_data + 1
+                    total_1 = total_row + 1
+                    if total_row > first_data:
+                        # Bloc non vide : SUM des lignes restantes
+                        ws.getCellByPosition(cC, total_row).setFormula(
+                            f'=SUM({lC}{first_1}:{lC}{total_1 - 1})')
+                        ws.getCellByPosition(cD, total_row).setFormula(
+                            f'=ROUND(SUM({lD}{first_1}:{lD}{total_1 - 1});2)')
+                    else:
+                        # Bloc vide : TOTAL = 0 (éviter #REF!)
+                        ws.getCellByPosition(cC, total_row).setValue(0)
+                        ws.getCellByPosition(cD, total_row).setValue(0)
+                    print(f"Patrimoine {field}: {deleted} lignes supprimées")
+
+            if owned:
+                doc.save()
+
+        if owned and hasattr(self, '_load_excel_data'):
+            self._load_excel_data()
+
+    def _save_config(self):
+        from cpt_gui import write_config_section_key, _insert_key_in_section
+        raw = self.config_raw
+
+        # Onglet Paramètres
+        for (section, key), (vtype, var) in self.tk_vars.items():
+            if section.startswith('site_'):
+                continue
+            if vtype == 'bool':
+                val = 'true' if var.get() else 'false'
+            elif vtype == 'int':
+                val = str(var.get())
+            else:
+                val = var.get().strip()
+            updated = write_config_section_key(raw, section, key, val)
+            if updated is None:
+                raw = _insert_key_in_section(raw, section, key, val)
+            else:
+                raw = updated
+
+        # Onglet Sites — enabled list
+        enabled = [s for s in self.all_sites if self.site_vars[s].get()]
+        updated = write_config_section_key(raw, 'sites', 'enabled',
+                                          ','.join(enabled))
+        if updated is not None:
+            raw = updated
+
+        # Onglet Sites — paramètres par site (sauf clés readonly)
+        readonly_keys = {'name', 'base_url', 'credential_id'}
+        for (section, key), (vtype, var) in self.tk_vars.items():
+            if section.startswith('site_'):
+                if key in readonly_keys:
+                    continue
+                site = section[5:]  # strip 'site_'
+                val = var.get().strip()
+                if not val:
+                    continue  # champ vide = pas de surcharge
+                updated = write_config_section_key(raw, site, key, val)
+                if updated is None:
+                    # Clé absente du fichier → insérer
+                    raw = _insert_key_in_section(raw, site, key, val)
+                else:
+                    raw = updated
+
+        # Écrire
+        with open(self.config_path, 'w', encoding='utf-8') as f:
+            f.write(raw)
+        self.config_raw = raw
+        # Recharger le ConfigParser pour que _check_coherence voie les nouvelles valeurs
+        self.config.read_string(raw)
+
+    def _load_pipeline_json(self):
+        """Charge config_pipeline.json et retourne le dict."""
+        import json
+        if self.pipeline_json_path.exists():
+            with open(self.pipeline_json_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        return {'linked_operations': {}, 'solde_auto': {}}
+
+    def _save_pipeline_config(self):
+        """Sauvegarde _linked_data et _solde_auto_data dans config_pipeline.json."""
+        import json
+        data = {'linked_operations': {}, 'solde_auto': {}}
+        if hasattr(self, '_linked_data'):
+            for pattern, compte, desc in self._linked_data:
+                data['linked_operations'][pattern] = {
+                    'compte_cible': compte,
+                    'description': desc,
+                }
+        if hasattr(self, '_solde_auto_data'):
+            for compte, cat, devise in self._solde_auto_data:
+                data['solde_auto'][compte] = {
+                    'categorie_trigger': cat,
+                    'devise': devise,
+                }
+        with open(self.pipeline_json_path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=4)
+            f.write('\n')
+
+    def _save_mappings(self):
+        from cpt_gui import write_mappings_json
+        write_mappings_json(self.json_path, self.mappings)
+

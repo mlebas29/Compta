@@ -1,0 +1,79 @@
+__pycache__/
+*.pyc
+dropbox/
+archives/
+logs/
+debug/
+*.bak
+*.gpg
+.~lock.*
+.claude/
+custom/
+
+# Configs runtime perso (gitignored partout, .default versionné)
+comptes.xlsm
+comptes_*.xlsm
+comptes_*.xlsx
+config.ini
+config_credentials.md
+config_account_site_map.json
+config_accounts.json
+config_category_mappings.json
+config_cotations.json
+config_descriptions.json
+config_pipeline.json
+
+# Doc DEV (Marc + Claude)
+CLAUDE.md
+CLAUDE_log.md
+CLAUDE_todo.md
+
+# Sessions / cookies Playwright
+.chrome_profile_*/
+.playwright-mcp/
+
+# TNR — pilotes ouverts publiquement (cohorte à venir avec #63 anonymisation complète)
+tests/*
+!tests/tnr_lib.py
+!tests/tnr_roundtrip.py
+!tests/tnr_fast.py
+!tests/tnr_light_build.py
+!tests/tnr_light_reverse.py
+!tests/tnr_build.py
+!tests/tnr_reverse.py
+!tests/tnr_example.py
+!tests/tnr/
+tests/tnr/*
+!tests/tnr/roundtrip/
+!tests/tnr/fast/
+!tests/tnr/light_build/
+!tests/tnr/light_reverse/
+!tests/tnr/build/
+!tests/tnr/reverse/
+!tests/tnr/example/
+# Fixtures partagées (config.ini + JSON anonymisés) — re-inclure dossier puis fichiers (sinon ignore global des config*)
+!tests/tnr/fixtures/
+!tests/tnr/fixtures/config.ini
+!tests/tnr/fixtures/config_accounts.json
+!tests/tnr/fixtures/config_category_mappings.json
+!tests/tnr/fixtures/config_cotations.json
+!tests/tnr/fixtures/config_pipeline.json
+# Outputs runtime de tous les scénarios (sandbox, result, logs)
+tests/tnr/*/result.xlsm*
+tests/tnr/*/sandbox/
+tests/tnr/*/run.log
+
+# Outils DEV-only — vocation à devenir publics progressivement (#63)
+tool_check_sites.py
+tool_diff_xlsm.py
+tool_rename_site.py
+cpt_gui_export.desktop
+
+# Reconstruction des .git après restauration rsync (lié à ~/bin/sync.sh local)
+rebuild.sh
+
+# Instance DEV imbriquée sous PROD (~/Compta/dev/ — gitignored côté PROD)
+dev/
+
+# macOS
+.DS_Store

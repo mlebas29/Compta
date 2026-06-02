@@ -1,0 +1,7 @@
+{
+  "SOCGEN": {
+    "accounts": [
+      { "name": "Compte chèque commun", "numero": "12345678", "type_sg": "principal" }
+    ]
+  }
+}
