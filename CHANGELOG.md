@@ -7,6 +7,11 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 - 🔄 = re-clonage du dépôt requis (réécriture d'historique git)
 - Détails dans Compta_upgrade.md
 
+## v5.1.2
+| 2026-06-03  |                                                              |
+| ----------- | ------------------------------------------------------------ |
+| Description | **Collecte BoursoBank robuste.** Les comptes peu mouvementés (sans opération sur la période) ne font plus échouer la collecte : l'absence d'opération est gérée comme un cas normal (le solde reste collecté via le PDF). Correction du téléchargement des relevés de comptes bancaires (un export pouvait ramener une page web au lieu du fichier). |
+
 ## v5.1.1
 | 2026-06-03  |                                                              |
 | ----------- | ------------------------------------------------------------ |

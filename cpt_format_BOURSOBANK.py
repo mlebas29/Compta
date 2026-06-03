@@ -50,8 +50,8 @@ ACCOUNT_RESERVE = require_account(_bb_accounts, 'Réserve', SITE)
 ACCOUNT_BASE = ACCOUNT_TITRES.rsplit(' ', 1)[0]
 
 EXPECTED_FILES = [
-    ('export_compte_principal.csv', 'exact', '1'),
-    ('export_livret_bourso.csv', 'exact', '1'),
+    ('export_compte_principal.csv', 'exact', '0-1'),  # vide possible (compte peu mouvementé)
+    ('export_livret_bourso.csv', 'exact', '0-1'),     # vide possible (livret peu mouvementé)
     ('export-operations-*.csv', 'glob', '0+'),
     ('positions.csv', 'exact', '0-1'),
     ('export-positions-instantanees-*.csv', 'glob', '0-1'),

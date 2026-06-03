@@ -794,30 +794,52 @@ class BbFetcher(BaseFetcher):
             self.page.remove_listener("download", on_download)
             self.page.remove_listener("response", on_response)
 
-    def _fetch_download(self, url, target_path, label):
+    def _fetch_download(self, url, target_path, label, post_data=None):
         """Téléchargement via requête HTTP directe (context.request).
 
-        Utilise les cookies du navigateur pour faire une requête GET directe,
-        sans dépendre de la page courante (évite les problèmes de navigation).
+        Utilise les cookies du navigateur pour faire une requête directe, sans
+        dépendre de la page courante (évite les problèmes de navigation et
+        l'event download capricieux sur Mac).
 
         Args:
-            url: URL complète du download (form action + params)
+            url: URL complète du download (form action)
             target_path: Path du fichier de sortie
             label: Label pour les logs
+            post_data: dict des champs de formulaire → requête POST
+                       (application/x-www-form-urlencoded). None → GET.
 
         Returns:
             True si succès, False sinon
         """
         try:
-            response = self.context.request.get(url)
-            self.logger.info(f"  Requête directe {label}: HTTP {response.status}")
+            if post_data is not None:
+                response = self.context.request.post(url, form=post_data)
+            else:
+                response = self.context.request.get(url)
+            method = 'POST' if post_data is not None else 'GET'
+            self.logger.info(f"  Requête directe {label} ({method}): HTTP {response.status}")
 
             if not response.ok:
                 self.logger.error(f"  HTTP {response.status} sur {response.url}")
                 return False
 
-            target_path.parent.mkdir(parents=True, exist_ok=True)
             body = response.body()
+
+            # Garde-fou : BoursoBank renvoie parfois HTTP 200 avec une page HTML
+            # (session expirée, mauvaise URL de formulaire) au lieu du CSV. On
+            # refuse d'enregistrer ce contenu — sinon le format échoue plus tard
+            # sur un cryptique KeyError 'dateOp'.
+            ctype = (response.headers.get('content-type') or '').lower()
+            head = body[:512].lstrip().lower()
+            if ('text/html' in ctype
+                    or head.startswith(b'<!doctype html')
+                    or head.startswith(b'<html')):
+                self.logger.error(
+                    f"  Réponse HTML (pas un CSV) sur {response.url} — "
+                    "session expirée ou mauvais formulaire d'export ?")
+                return False
+
+            target_path.parent.mkdir(parents=True, exist_ok=True)
             with open(target_path, 'wb') as f:
                 f.write(body)
 
@@ -881,29 +903,26 @@ class BbFetcher(BaseFetcher):
             if not csv_radio.is_checked():
                 csv_radio.click(force=True)
 
-            # Intercepter le téléchargement et cliquer sur Exporter
             target_name = f"export_{account_name}.csv"
             target_path = self.dropbox_dir / target_name
 
-            # Construire l'URL de téléchargement depuis le formulaire
-            form_action = self.page.evaluate("""
-                () => {
-                    const form = document.querySelector('form');
-                    return form ? form.action : null;
-                }
-            """)
-            if not form_action:
-                self.logger.error(f"  Formulaire export non trouvé")
-                return False
+            # Dispatch OS-aware (doctrine anti-régression, cf. KRAKEN/YUH) — ne
+            # jamais choisir un chemin CONTRE l'autre :
+            #   • Linux : soumission navigateur (#movementSearch_submit) + capture
+            #     du download. BoursoBank ne sert le CSV (Content-Disposition:
+            #     attachment) qu'à une vraie soumission ; une requête HTTP directe
+            #     (GET/POST) retombe sur du HTML. Chemin validé Linux.
+            #   • Mac : requête HTTP directe — l'event download Playwright ne se
+            #     déclenchait pas sur Chromium Mac (cf. journal portage). Chemin
+            #     INCHANGÉ, donc ce correctif Linux ne peut pas régresser Mac.
+            #     (À revérifier sur Mac : BoursoBank semble avoir basculé l'export
+            #     en POST/redirect, ce qui casserait aussi l'HTTP côté Mac.)
+            if sys.platform == 'darwin':
+                ok = self._export_http(target_path, account_name, start_date, end_date)
+            else:
+                ok = self._export_browser_download(target_path, account_name)
 
-            fetch_url = (
-                f"{form_action}"
-                f"?movementSearch%5BfromDate%5D={start_date}"
-                f"&movementSearch%5BtoDate%5D={end_date}"
-                f"&movementSearch%5Bformat%5D=CSV"
-            )
-
-            if not self._fetch_download(fetch_url, target_path, account_name):
+            if not ok:
                 self._dump_page_debug(f'download_fail_{account_name}', force=True)
                 return False
 
@@ -914,6 +933,69 @@ class BbFetcher(BaseFetcher):
             self.logger.error(f"Erreur export {account_name}: {e}")
             self._dump_page_debug(f'download_fail_{account_name}', force=True)
             return False
+
+    def _export_browser_download(self, target_path, account_name):
+        """[Linux] Soumet le formulaire d'export via le navigateur et sauve le
+        download capturé. Seul chemin fiable : BoursoBank ne sert le CSV qu'à une
+        vraie soumission du form (POST) ; une requête HTTP retombe sur du HTML.
+
+        Gère le cas « compte vide » : si BoursoBank affiche le bandeau « Aucune
+        opération ne correspond à vos filtres de recherche », aucun fichier n'est
+        généré — c'est un succès légitime (rien à exporter), pas un timeout/échec.
+        """
+        submit_btn = self.page.locator("#movementSearch_submit")
+        if submit_btn.count() == 0:
+            self.logger.error("  Bouton submit export (#movementSearch_submit) introuvable")
+            return False
+
+        empty_banner = self.page.locator("text=Aucune opération ne correspond")
+
+        download_obj = [None]
+
+        def on_download(dl):
+            download_obj[0] = dl
+
+        self.page.on("download", on_download)
+        try:
+            submit_btn.click(force=True)
+            deadline = time.time() + 60
+            while time.time() < deadline:
+                if download_obj[0]:
+                    target_path.parent.mkdir(parents=True, exist_ok=True)
+                    download_obj[0].save_as(str(target_path))
+                    self.downloads.append(target_path)
+                    return True
+                if empty_banner.count() > 0 and empty_banner.first.is_visible():
+                    self.logger.info(
+                        f"  Aucune opération sur la période pour {account_name} "
+                        "— rien à exporter (compte sans mouvement)")
+                    return True
+                time.sleep(0.5)
+            self.logger.error(f"  Timeout download {account_name} (60s)")
+            return False
+        finally:
+            self.page.remove_listener("download", on_download)
+
+    def _export_http(self, target_path, account_name, start_date, end_date):
+        """[Mac] Export via requête HTTP directe (GET), l'event download
+        Playwright ne se déclenchait pas sur Chromium Mac (cf. journal portage).
+        Chemin d'origine conservé tel quel pour ne pas régresser Mac. NB : à
+        revérifier — BoursoBank semble avoir basculé l'export en POST/redirect,
+        auquel cas l'HTTP renverra du HTML (capté par le garde-fou de
+        _fetch_download) et il faudra aligner Mac sur le clic navigateur."""
+        form_action = self.page.evaluate("""
+            () => { const f = document.querySelector('form'); return f ? f.action : null; }
+        """)
+        if not form_action:
+            self.logger.error("  Formulaire export non trouvé")
+            return False
+        fetch_url = (
+            f"{form_action}"
+            f"?movementSearch%5BfromDate%5D={start_date}"
+            f"&movementSearch%5BtoDate%5D={end_date}"
+            f"&movementSearch%5Bformat%5D=CSV"
+        )
+        return self._fetch_download(fetch_url, target_path, account_name)
 
     def export_titres_complete(self):
         """Export positions + mouvements titres en une seule visite.
