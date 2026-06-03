@@ -10,32 +10,23 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 ## v5.1.0 🔄
 | 2026-06-02  |                                                              |
 | ----------- | ------------------------------------------------------------ |
-| Description | **Confidentialité & assainissement de l'historique.** Poursuite de l'anonymisation du dépôt public et nettoyage des reliques de nommage. L'historique git a été réécrit (squash) pour en purger le passif → **re-clone requis** si tu as cloné le dépôt. Pas de changement applicatif. |
+| Description | **L'historique git a été réécrit (squash) pour en purger le passif**  → **re-clone requis** pour mise à jour. |
 
 **🔄 Migration de l'historique (re-clone)**
 
-L'historique du dépôt a été réinitialisé (1 commit propre). Un `git pull` classique échoue désormais (`refusing to merge unrelated histories`). Si tu as un clone (mode assisté / contributeur), re-clone proprement :
-
-```bash
-./reclone.sh --reclone --yes
-```
-
-Le script sauvegarde le dossier entier (`…dev.backup-<horodatage>`, conservée), re-clone, et restaure tes fichiers privés ; tes modifs de code locales non poussées restent dans la sauvegarde, à ré-appliquer à la main.
-
-Si la mise à jour a été ratée (`git pull` déjà cassé), récupère le script par son canal de secours :
+L'historique git a été réécrit. Le `git pull` de mise à jour échoue désormais (`refusing to merge unrelated histories`). Récupère et exécute le script de re-clonage par :
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/mlebas29/Compta/main/reclone.sh -o /tmp/reclone.sh && bash /tmp/reclone.sh --reclone --yes
 ```
 
+Le script sauvegarde le dossier entier (`.backup-<horodatage>`), re-clone, et restaure tes fichiers privés (classeur, configuration) 
+
 **Corrections**
 
-- Reliques du rename v3.0.0 : codes courts `SG`/`BB`/`PEE` (CLI `--sites`, noms de scripts, profils Chrome) alignés sur `SOCGEN`/`BOURSOBANK`/`NATIXIS`.
-- Doc : lancement des scripts via `./<script>` (shebang) au lieu de `python3 <script>` — corrige l'échec sur macOS des scripts UNO.
-
-**Interne**
-
-- Anonymisation : retrait de PII résiduelle (auto-tests de catégorisation, profil foyer) ; découplage du connecteur privé et des renommages d'avoirs vers la config privée (config-driven) ; schéma `config_accounts.json` documenté dans `Compta_dev.md`.
+- Harmonisation globale (doc et code) des noms de sites.
+- Doc : lancement des scripts via `./<script>` au lieu de `python3 <script>` — corrige l'échec sur macOS des scripts UNO.
+- Informations privées résiduelles: retrait ou déplacement de python vers fichiers de configuration privé config*.json;  ; schéma `config_accounts.json` documenté dans `Compta_dev.md`.
 
 ## v5.0.4
 | 2026-06-01  |                                                              |
