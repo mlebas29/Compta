@@ -7,6 +7,11 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 - 🔄 = re-clonage du dépôt requis (réécriture d'historique git)
 - Détails dans Compta_upgrade.md
 
+## v5.1.1
+| 2026-06-03  |                                                              |
+| ----------- | ------------------------------------------------------------ |
+| Description | **Corrections de collecte.** eToro : la connexion est désormais maintenue quand le site remplace l'onglet pendant la validation 2FA (la collecte n'échoue plus à ce stade). Kraken : l'export CSV est de nouveau fonctionnel (le sélecteur de dates bloquait la génération du rapport) ; la fenêtre collectée est la plage par défaut Kraken (~30 jours) — lancer la collecte régulièrement pour rester continu. |
+
 ## v5.1.0 🔄
 | 2026-06-02  |                                                              |
 | ----------- | ------------------------------------------------------------ |

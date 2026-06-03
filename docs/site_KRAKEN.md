@@ -29,7 +29,7 @@ Kraken gère 2 comptes séparés dans `comptes.xlsm`:
 cpt_fetch_KRAKEN.py (Playwright Chrome)
     ├─ Login GPG auto-fill + 2FA email (interactif)
     ├─ Navigation vers /c/account-settings/documents
-    ├─ Création/réutilisation exports (Registre 90j + Soldes)
+    ├─ Création/réutilisation exports (Registre + Soldes — plage défaut Kraken ~30 j)
     └─ Téléchargement 2 ZIP → dropbox/KRAKEN/
         ↓
 cpt_update.py (extraction automatique)
@@ -70,9 +70,9 @@ cpt_update.py (extraction automatique)
    - Auto-fill identifiants via GPG (`credential_id = BaKr-M`)
    - 2FA email : l'utilisateur copie le lien de validation dans la fenêtre Chrome
 4. Navigation vers `/c/account-settings/documents`
-5. Pour chaque export (Registre 90j + Soldes) :
+5. Pour chaque export (Registre + Soldes) :
    - Vérification si export existant téléchargeable (réutilisation)
-   - Sinon : création via formulaire (type, dates, format CSV)
+   - Sinon : création via formulaire (type, **plage par défaut Kraken ~30 j**, format CSV)
 6. Téléchargement 2 ZIP → `dropbox/KRAKEN/`
 7. Fermeture navigateur
 
@@ -92,7 +92,7 @@ Kraken exige la validation "nouveau device" par email lors des premières connex
 - **React UI :** `force=True` sur les clics (modal overlay `data-portaled-element` intercepte les events)
 - **Dropdowns React :** `dispatch_event("click")` au lieu de `click()` standard
 - **Scope modale :** locators scopés dans `div[role='dialog']` pour cibler les éléments de la modale
-- **Date picker :** `react-day-picker` avec dropdowns année/mois (`data-testid='datepicker-year/month-dropdown-button'`) + grille `.rdp-table`
+- **Date picker (NON utilisé par défaut) :** `react-day-picker` (rdp mode-range). Le widget **refuse le 2e clic synthétisé par Playwright** (date de fin) : la plage reste collabée sur un seul jour (`rdp-day_range_start` == `rdp-day_range_end`), le picker incomplet ne se ferme pas et bloque ensuite la combobox Format et le bouton Générer. Constaté sur Mac (tout type de clic) **et sur Linux headless** (chemin normal de la collecte). → `_set_date_range` n'ouvre plus le picker du tout : on garde la plage par défaut Kraken (~30 j). `_set_date_range_picker` (90 j, dropdowns année/mois `datepicker-year/month-dropdown-button` + grille `.rdp-table`) est conservé pour référence / usage headed manuel mais n'est plus appelé.
 - **Export readiness :** comptage boutons download avant/après création (pas juste > 0)
 - **Session expirée :** détection de redirection vers `id.kraken.com/sign-in` dans `navigate_to_exports()`
 
@@ -303,13 +303,22 @@ Les fees sont inclus dans le montant de l'opération spend:
 
 Le fetch nécessite une intervention utilisateur pour la 2FA email (copier-coller du lien de validation dans Chrome). Ce n'est pas un fetch 100% automatique comme BTC/XMR.
 
-### Limite temporelle recommandée
+### Limite temporelle : fetch ~30 j vs filtre import
 
-**max_days_back = 90** pour éviter:
-- Import de doublons avec anciennes opérations manuelles
-- Surcharge Excel avec historique trop long
+⚠️ **Deux fenêtres distinctes** depuis l'abandon du picker :
 
-**Ajustable** selon besoin (30, 60, 120 jours).
+- **Fenêtre de collecte (fetch)** : ~30 j (plage par défaut Kraken, le picker
+  90 j n'est plus ouvert — cf. § Particularités techniques). Pour rester
+  continu, **lancer la collecte régulièrement** (≈ mensuellement) ou compléter
+  via la procédure manuelle (export depuis le navigateur + dépôt dans
+  `dropbox/KRAKEN/`).
+- **Filtre à l'import (`max_days_back`)** : `config.ini [KRAKEN] max_days_back`
+  (90 par défaut) borne les opérations effectivement importées dans Excel,
+  pour éviter doublons et surcharge. Ajustable (30, 60, 120 j).
+
+Le fetch ne couvrant plus que ~30 j, `max_days_back = 90` ne « rattrape » pas
+un trou de collecte : seules les opérations présentes dans les ZIP collectés
+sont importables.
 
 ### Format CSV uniquement
 

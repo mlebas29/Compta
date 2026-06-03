@@ -532,24 +532,25 @@ class KrakenFetcher(BaseFetcher):
         return True
 
     def _set_date_range(self):
-        """Configure la plage de dates pour l'export Registre.
+        """Laisse la plage par défaut de Kraken (~30 jours) — picker non ouvert.
 
-        Linux : picker custom (rdp_mode-range), couverture max_days_back jours.
-        Mac : raccourci sidebar 'Le mois dernier', couverture 1 mois calendaire.
+        Le picker custom rdp (mode range) refuse le 2e clic synthétisé par
+        Playwright : la plage reste collabée sur un seul jour (range.from ==
+        range.to), le picker incomplet ne se ferme pas et bloque ensuite la
+        combobox Format puis le bouton Générer. Constaté sur Mac (tout type de
+        clic testé : force, mouse.click, mouse.move progressif) ET sur Linux
+        headless — le chemin normal de la collecte quand la session est valide.
+        Le dump DOM le confirme : `rdp-day_range_start` == `rdp-day_range_end`.
 
-        Le picker custom refuse le 2e clic synthétisé par Playwright sur Mac
-        (testé : click force/sans force, hover+click, mouse.click, mouse.move
-        progressif — le widget reste bloqué sur range.from = range.to). Probable
-        filtre `isTrusted` ou détecteur Kraken propre au Chrome Playwright Mac.
-        Linux n'est pas affecté.
+        On n'ouvre donc plus le picker du tout (alignement Linux sur Mac) :
+        sélectionner 'Registre' propose automatiquement today-30j → today, ce
+        qui suffit en lancement régulier (l'import dédoublonne). Pour une plage
+        plus large ponctuelle, voir la procédure manuelle (DESCRIPTION).
 
-        Conséquence Mac : lancer le fetcher mensuellement pour couvrir l'année
-        en continu, ou compléter via la procédure manuelle (cf. DESCRIPTION).
+        `_set_date_range_picker` (90 j) est conservé pour référence / usage
+        headed manuel, mais n'est plus appelé automatiquement.
         """
-        if sys.platform == 'darwin':
-            self._set_date_range_sidebar()
-        else:
-            self._set_date_range_picker()
+        self.logger.info("Période: plage par défaut Kraken (~30 j, picker non ouvert)")
 
     def _set_date_range_picker(self):
         """[Linux] Sélection via picker custom react-day-picker (rdp_mode-range).
@@ -655,25 +656,44 @@ class KrakenFetcher(BaseFetcher):
 
         time.sleep(0.5)
 
-        # Fermer le date picker en cliquant sur le champ date (toggle)
-        date_input.first.click(force=True)
-        time.sleep(0.5)
+        # Fermer le date picker. ATTENTION : le re-clic sur le champ date
+        # (toggle) le ROUVRE, et ESC est ignoré par le handler keydown propre
+        # à rdp. Le seul geste fiable est le clic sur l'underlay (backdrop) du
+        # popover react-aria — sinon le picker reste monté et bloque la suite
+        # (combobox Format reste aria-expanded=false, bouton Générer inerte).
+        self._dismiss_picker_underlay()
 
         self.logger.info(f"Plage de dates: {start_date.strftime('%d/%m/%Y')} → {end_date.strftime('%d/%m/%Y')}")
 
-    def _set_date_range_sidebar(self):
-        """[Mac] No-op : on garde la plage par défaut de Kraken (30 jours).
+    def _dismiss_picker_underlay(self):
+        """Ferme le date picker react-aria via son underlay (backdrop).
 
-        Toucher au picker custom (ouvrir, naviguer, fermer) provoque des
-        blocages — le widget rdp_mode-range refuse les events Playwright
-        synthétisés et reste ouvert, interceptant ensuite les pointer
-        events sur la modale (combobox Format, bouton Générer).
+        Le picker est un popover portalisé (z-index ~100000) précédé d'un
+        <div data-testid="underlay">. Cliquer cet underlay est le geste de
+        dismiss prévu par react-aria : il referme le picker sans fermer le
+        dialog (dont la fermeture passe par 'dialog-close-button'). Le toggle
+        sur le champ date rouvre le picker et ESC est ignoré par rdp, d'où ce
+        chemin dédié. On vérifie la disparition de .datePicker et on retry.
 
-        En manuel sur Kraken, ne rien faire suffit : sélectionner 'Registre'
-        propose automatiquement la plage 'today-30j → today'. Couverture
-        limitée à 30 jours, à lancer mensuellement pour rester continu.
+        Returns:
+            True si le picker est fermé, False s'il persiste après 3 essais.
         """
-        self.logger.info("Période: 30 jours par défaut Kraken (picker non touché)")
+        picker = self.page.locator(".datePicker")
+        underlay = self.page.locator('[data-testid="underlay"]')
+        for _ in range(3):
+            if picker.count() == 0:
+                return True
+            try:
+                if underlay.count() > 0:
+                    underlay.first.click(force=True)
+                else:
+                    self.page.keyboard.press("Escape")
+            except Exception as e:
+                self.logger.debug(f"Dismiss picker: {e}")
+            time.sleep(0.4)
+        if picker.count() > 0:
+            self.logger.debug("Date picker toujours monté après dismiss underlay")
+        return picker.count() == 0
 
     def _select_csv_format(self):
         """Change le format de PDF vers CSV.
@@ -691,17 +711,43 @@ class KrakenFetcher(BaseFetcher):
             self.logger.warning("Combobox Format introuvable — vérifier manuellement")
             return False
 
-        try:
-            combo.first.click()
-        except Exception as e:
-            self.logger.warning(f"Clic combobox Format échoué: {e}")
-            return False
-        time.sleep(0.5)
+        # Filet de sécurité : si le date picker (path Linux) est encore monté,
+        # il bloque la combobox (qui reste aria-expanded=false). On le ferme
+        # via son underlay avant toute interaction.
+        self._dismiss_picker_underlay()
 
-        # Le listbox est rendu en portail hors du dialog
         csv_option = self.page.locator("[role='option']:has-text('CSV')")
-        if csv_option.count() == 0:
+        opened = False
+        for attempt in range(3):
+            try:
+                combo.first.click(force=True)
+            except Exception as e:
+                self.logger.warning(f"Clic combobox Format échoué: {e}")
+                return False
+            time.sleep(0.7)
+            # Le listbox est rendu en portail hors du dialog
+            if csv_option.count() > 0:
+                opened = True
+                break
+            # Diagnostic : état réel de la combobox après le clic
+            try:
+                expanded = combo.first.get_attribute('aria-expanded')
+                n_listbox = self.page.locator("[role='listbox']").count()
+                n_option = self.page.locator("[role='option']").count()
+            except Exception:
+                expanded, n_listbox, n_option = '?', '?', '?'
+            self.logger.debug(
+                f"Combobox Format pas encore ouverte (tentative {attempt + 1}) — "
+                f"aria-expanded={expanded}, listbox={n_listbox}, option={n_option}")
+
+        if not opened:
             self.logger.warning("Option CSV non trouvée — vérifier manuellement")
+            # Capture le DOM + screenshot pour diagnostic hors-ligne (force=True
+            # → écrit même sans DEBUG). Voir logs/debug/kraken_csv_format_fail.*
+            try:
+                self._dump_page_debug("csv_format_fail", force=True)
+            except Exception as e:
+                self.logger.debug(f"Dump debug échoué: {e}")
             return False
 
         csv_option.first.click()

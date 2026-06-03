@@ -16,7 +16,7 @@ NC='\033[0m'
 
 DEV_DIR="$PWD"
 PRV_DIR="$PWD/custom"
-CO_AUTHOR="Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
+CO_AUTHOR="Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 usage() {
     cat <<EOF

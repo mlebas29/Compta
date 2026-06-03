@@ -165,6 +165,32 @@ class EtoroFetcher(BaseFetcher):
 
         return False
 
+    def _adopt_surviving_page(self):
+        """Adopte un onglet encore vivant si self.page a été fermé.
+
+        eToro peut fermer/remplacer l'onglet courant pendant CAPTCHA+2FA
+        (redirections SSO, popup de défi). Avant d'abandonner le login,
+        on cherche un onglet survivant et responsive dans le contexte.
+
+        Returns:
+            True si un onglet vivant a été adopté (self.page réassigné),
+            False si le contexte n'a plus aucune page exploitable.
+        """
+        try:
+            pages = list(self.context.pages)
+        except Exception:
+            return False
+        for p in pages:
+            try:
+                if p.is_closed():
+                    continue
+                p.evaluate("1")  # confirme que la page répond encore
+            except Exception:
+                continue
+            self.page = p
+            return True
+        return False
+
     def wait_for_login(self):
         """Navigue vers eToro et gère le login si nécessaire.
 
@@ -401,6 +427,15 @@ class EtoroFetcher(BaseFetcher):
                 current_url = self.page.evaluate("window.location.href")
             except Exception as e:
                 if 'closed' in str(e).lower():
+                    # eToro ferme/remplace parfois l'onglet courant pendant
+                    # CAPTCHA+2FA. Avant d'abandonner, basculer sur un onglet
+                    # survivant : la boucle pages ci-dessous y détectera la
+                    # session authentifiée.
+                    if self._adopt_surviving_page():
+                        self.logger.debug(
+                            "Onglet courant fermé — bascule sur un onglet survivant")
+                        time.sleep(2)
+                        continue
                     self.logger.error(
                         "Navigateur fermé pendant la 2FA — relance le script "
                         "et NE FERME PAS le navigateur jusqu'à la fin de la collecte")
