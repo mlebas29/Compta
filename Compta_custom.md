@@ -19,7 +19,7 @@ Deux dépôts **à périmètres disjoints** (*), deux instances physiques **comp
 - **Dépôt GitHub public** (`github.com/mlebas29/Compta`) — **PUB** = code et doc public
 - **Dépôt privé** (avec ou sans `.git` local) — **PRV** = extensions privées
 - **Instance PROD** (`~/Compta/`) — dossier d'utilisation du classeur familial avec PUB + PRV
-- **Instance DEV** (`~/Compta/dev/`) — dossier facultatif pour développement PUB et PRV
+- **Instance DEV** (`~/Compta-dev/`) — dossier facultatif pour développement PUB et PRV
 
 (*) Un fichier versionné vit **à un seul endroit** : soit dans PUB, soit dans PRV.
 
@@ -40,7 +40,7 @@ github.com/mlebas29/Compta              (repo public, .git PUB)
 ├── README.md, Compta_*.md              doc PUB
 │
 ├── custom/                             extensions privées
-│   ├── .git/                           option A : pull depuis remote PRV ou file://~/Compta/dev/custom
+│   ├── .git/                           option A : pull depuis remote PRV ou file://~/Compta-dev/custom
 │   ├── cpt_fetch_<NAME>.py             sites privés
 │   ├── cpt_format_<NAME>.py            (idem)
 │   ├── patch_*.py                      monkeypatches du code public
@@ -101,7 +101,7 @@ cd ~/Compta/custom    && git pull        # PRV (remote privé ou file://)
 
 ```bash
 cd ~/Compta && git pull                                # PUB depuis github
-rsync -a ~/Compta/dev/custom/ ~/Compta/custom/         # si instance DEV maintenue
+rsync -a ~/Compta-dev/custom/ ~/Compta/custom/         # si instance DEV maintenue
 ./cpt_gui.py
 ```
 
@@ -113,19 +113,19 @@ L'instance DEV est où le développeur édite, teste, casse.
 
 ### Option A — deux `.git` cohabitent
 
-`.git` PUB à la racine `~/Compta/dev/`, `.git` PRV sous `~/Compta/dev/custom/`. Le `.gitignore` PUB exclut `custom/` ⇒ les deux dépôts ne se voient jamais.
+`.git` PUB à la racine `~/Compta-dev/`, `.git` PRV sous `~/Compta-dev/custom/`. Le `.gitignore` PUB exclut `custom/` ⇒ les deux dépôts ne se voient jamais.
 
 Mécanique git native — selon le path du fichier modifié, on commit dans le `.git` correspondant :
 
 ```bash
 # fichier PUB
-cd ~/Compta/dev
+cd ~/Compta-dev
 git add cpt_foo.py
 git commit -m "msg"
 git push                              # → github
 
 # fichier PRV
-cd ~/Compta/dev/custom
+cd ~/Compta-dev/custom
 git add cpt_extras_synoe.py
 git commit -m "msg"
 git push                              # → remote PRV si configuré
@@ -152,7 +152,7 @@ Les deux instances sont indépendantes — classeur, config, dropbox, logs sépa
 cd ~/Compta && ./cpt_gui.py
 
 # terminal 2 — dev/test
-cd ~/Compta/dev && ./cpt_gui.py
+cd ~/Compta-dev && ./cpt_gui.py
 ```
 
 Aucune ressource partagée, aucune interférence.

@@ -72,8 +72,5 @@ cpt_gui_export.desktop
 # Reconstruction des .git après restauration rsync (lié à ~/bin/sync.sh local)
 rebuild.sh
 
-# Instance DEV imbriquée sous PROD (~/Compta/dev/ — gitignored côté PROD)
-dev/
-
 # macOS
 .DS_Store

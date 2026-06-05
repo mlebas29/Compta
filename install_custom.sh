@@ -14,7 +14,9 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 
 PROD_DIR="$PWD"
-DEV_DIR="$PWD/dev"
+# Emplacement du clone DEV — découplé du PROD (#87). Override par COMPTA_DEV_DIR
+# (ex. ~/Compta-dev) ; défaut historique = dev/ nesté sous PROD (rétrocompat).
+DEV_DIR="${COMPTA_DEV_DIR:-$PWD/dev}"
 DEV_CUSTOM="$DEV_DIR/custom"
 PROD_CUSTOM="$PROD_DIR/custom"
 

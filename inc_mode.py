@@ -93,8 +93,10 @@ def get_base_dir(mode=None):
 
     Priorité :
     1. Variable d'environnement COMPTA_BASE_DIR (override absolu — sandbox, install custom)
-    2. Mode 'prod' → ~/Compta, 'dev' → ~/Compta/dev (defaults usuels)
-    3. Fallback : répertoire du script (mode 'export' / inconnu)
+    2. Mode 'prod' / 'dev' : auto-localisation = racine du clone qui exécute
+       (inc_mode.py est à la racine). Découple l'emplacement du mode → prod et dev
+       vivent à des chemins arbitraires, indépendants (ni emboîtés ni frères, cf. #87).
+    3. Mode 'export' / inconnu : répertoire du script (symlinks non résolus → sandbox-friendly)
 
     Returns:
         Path: Chemin vers le répertoire de base
@@ -106,13 +108,14 @@ def get_base_dir(mode=None):
     if mode is None:
         mode = get_mode()
 
-    if mode == 'prod':
-        return Path.home() / 'Compta'
-    elif mode == 'dev':
-        return Path.home() / 'Compta' / 'dev'
-    else:
-        # export ou inconnu : répertoire du script (sans résoudre les symlinks → sandbox-friendly)
-        return Path(sys.argv[0]).absolute().parent
+    if mode in ('prod', 'dev'):
+        # Racine du clone, auto-localisée via l'emplacement de ce module. Robuste
+        # au point d'entrée, au cwd et aux fetchers custom/ (qui appellent
+        # get_base_dir et dont sys.argv[0] pointerait dans custom/, pas la racine).
+        return Path(__file__).resolve().parent
+
+    # export ou inconnu : répertoire du script (sans résoudre les symlinks → sandbox-friendly)
+    return Path(sys.argv[0]).absolute().parent
 
 
 def verify_environment(verbose=True):
