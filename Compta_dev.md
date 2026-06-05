@@ -13,11 +13,7 @@ Documentation technique pour le contributeur ou le mainteneur. Décrit l'archite
 | Extensibilité, framework `custom/`, monkeypatches | [`Compta_custom.md`](Compta_custom.md) |
 | Tests de non-régression (TNR) | [`Compta_tests.md`](Compta_tests.md) |
 | Outils maintenance, git (tool_commit/pull) | [`Compta_tools.md`](Compta_tools.md) |
-| Portage macOS (utilisateur) | [`Compta_portage.md`](Compta_portage.md) |
-| Plus-values latentes (doctrine) | [`Compta_pvl.md`](Compta_pvl.md) |
-| Structuration Excel détaillée | [`Compta_plus.md`](Compta_plus.md) |
-| Charte graphique du classeur | [`Compta_charte.md`](Compta_charte.md) |
-| Migration de schéma | [`Compta_upgrade.md`](Compta_upgrade.md) |
+| Guide utilisateur (concepts, PVL, portage, charte, mise à niveau) | [`Compta.md`](Compta.md) |
 
 ## Architecture en 3 tiers
 

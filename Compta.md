@@ -124,9 +124,9 @@ Voir **ANNEXE C** pour le détail de la configuration initiale (identifiants, de
 
 Une fois la configuration faite, elle n'a besoin d'être reprise que lors de l'ouverture ou la fermeture d'un compte, l'ajout d'une devise, etc.
 
-#### Étape 1 - exécution de l'App
+#### Étape 1 - Lancement de l'App
 
-Lancer l'App Comptabilité (Symbole Euro)
+Lancer l'App Comptabilité soit en ligne de commande `cd ~/Compta; ./cpt_gui.py`, soit en cliquant sur son icône (Symbole Euro)
 
 ![](cpt_gui_export.png)
 
@@ -134,13 +134,15 @@ La fenêtre qui s'ouvre présente l'onglet Exécution :
 
 ![](images/Compta.png)
 
+#### Étape 2 - Collecte
+
 Dans l'onglet Exécution, sélectionner les sites voulus puis cliquer sur le bouton "Collecte". L'App demande le mot de passe maitre dans une fenêtre dédiée, puis visite tous les sites sélectionnés pour collecter les données, ce qui peut prendre plusieurs minutes.
 
 > NB : Une présence est nécessaire avec le mobile car certains sites peuvent déclencher une procédure 2FA pendant la collecte.
 
 Quand la collecte est terminée, cliquer sur "Import" pour mettre à jour le fichier **comptes.xlsm** avec les données collectées. On peut aussi attendre pour relancer une collecte avec d'autres sites qui manqueraient.
 
-#### Étape 2 - compléments manuels
+#### Étape 3 - compléments manuels
 
 Le fichier  **comptes.xlsm** peut alors être ouvert sous LibreOffice, pour une session manuelle afin de :
 
@@ -154,22 +156,9 @@ Le fichier  **comptes.xlsm** peut alors être ouvert sous LibreOffice, pour une 
 
 * corriger si nécessaire
 
-#### Étape 3 - finalisation
 
-La dernière étape consiste à publier le classeur via le bouton "Publier Classeur".
 
-# 4. Dépendances
-
-L'app dépend de :
-
-- Linux
-- Python avec plusieurs modules, en particulier PyTk pour l'App graphique
-- Chrome et Playwright pour la collecte et son automatisation
-- LibreOffice pour le tableur
-
-Les collectes Bitcoin sont effectuées directement depuis la blockchain à partir des adresses publiques des portefeuilles
-
-La collecte Monero Wallets exige un nœud local
+# 4. Cotations
 
 Les cotations sont effectuées depuis 3 sites publics :
 
@@ -276,7 +265,11 @@ Créer un compte pour chaque compte bancaire, placement ou portefeuille. Pour ch
 - **Site** : site de collecte rattaché (ou N/A pour les comptes sans collecte)
 - **Domiciliation**, **Titulaire**, **Propriété** : attributs patrimoniaux
 
-Lorsqu'un compte est rattaché à un site, des **champs techniques** supplémentaires apparaissent selon le site. Ils permettent au collecteur d'identifier le compte sur le site bancaire :
+Lorsqu'un compte est rattaché à un site, des **champs techniques** supplémentaires apparaissent selon le site. Ils permettent au collecteur d'identifier le compte sur le site bancaire.
+
+Ces champs sont propres à chaque site et n'apparaissent que pour les comptes rattachés. 
+
+**L'onglet Sites** aide à acquérir la valeur de certains champs techniques
 
 | Site | Champs techniques |
 |------|------------------|
@@ -284,8 +277,6 @@ Lorsqu'un compte est rattaché à un site, des **champs techniques** supplément
 | **BOURSOBANK** | Numéro de compte |
 | **BTC** | Clé wallet, Adresses publiques |
 | **XMR** | Clé, Nom du portefeuille |
-
-Ces champs sont propres à chaque site et n'apparaissent que pour les comptes rattachés.
 
 Les biens matériels (immobilier, mobilier) se créent aussi dans cet onglet (bouton "Bien").
 
@@ -306,11 +297,11 @@ Vous n'activez que les sites correspondant à vos comptes. Pour chacun, le parco
 3. **Activation** — cocher le site dans l'onglet Sites et cliquer sur le bouton **Enregistrer**.
 4. **Collecte** — le sélectionner dans l'onglet Exécution et lancer (intervention 2FA éventuelle selon le site, cf. ANNEXE B).
 
-Chaque site affiche :
+Chaque site affiche une zone descriptive qui indique :
 
 - sa procédure de connexion et les éventuelles interventions 2FA
-- les comptes rattachés
-- les paramètres spécifiques
+- les types de comptes collectables
+- les **paramètres techniques** spécifiques
 
 Certains sites possèdent des paramètres modifiables :
 
@@ -333,6 +324,4 @@ Ajuster si nécessaire :
 - [`Compta_plus.md`](Compta_plus.md) — commandes avancées, structuration Excel, dépannage
 - [`Compta_tools.md`](Compta_tools.md) — outils de maintenance et environnement git
 - [`Compta_upgrade.md`](Compta_upgrade.md) — mise à niveau du classeur
-- [`Compta_custom.md`](Compta_custom.md) — extensibilité (sites privés, monkeypatches)
-- [`Compta_site.md`](Compta_site.md) — ajouter un site
 - [`Compta_dev.md`](Compta_dev.md) — documentation développeur (architecture, contributeur)
