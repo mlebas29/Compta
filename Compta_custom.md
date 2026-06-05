@@ -23,6 +23,21 @@ Deux dépôts **à périmètres disjoints** (*), deux dossiers physiques **compl
 
 (*) Un fichier versionné vit **à un seul endroit** : soit dans PUB, soit dans PRV.
 
+### Rôle git × mode — clarification
+
+Deux notions distinctes se croisent et méritent d'être démêlées :
+
+- **Rôle git** du dossier : **DEV** (on y édite, on *push*) ou **PROD** (on *pull* seulement — consommation, pas d'édition).
+- **Mode** (`config.ini [general] mode`) : `dev` / `prod` / `export` — pilote le thème et le comportement applicatif.
+
+| Mode | Rôle git | Nature | Thème |
+|---|---|---|---|
+| `dev` | **DEV** — édite, push | développement | bleu |
+| `prod` | **PROD** — pull seul | consommateur **autoritaire** (le vrai classeur, publication Seafile) | rouge |
+| `export` | **PROD** — pull seul | consommateur **générique** (copie distribuée : tarball, clone occasionnel) | jaune |
+
+→ Le rôle **PROD** (pull / consommation) recouvre **deux** modes : `prod` (l'instance autoritaire) et `export` (copie générique). Le rôle **DEV** (push / édition) correspond au seul mode `dev`.
+
 ## Schéma
 
 ```
@@ -134,7 +149,7 @@ git push                              # → remote PRV si configuré
 
 #### Édition des fichiers PRV depuis DEV
 
-Le `custom/` côté DEV héberge le `.git` PRV de référence — c'est là que les commits PRV naissent. Quand PROD pull, c'est soit ce répertoire qu'il consulte via `file://`, soit le remote PRV s'il est configuré.
+Les commits PRV naissent dans le dossier d'édition (mode `dev`) et sont publiés sur le **remote PRV** ; les dossiers consommateurs récupèrent leur `custom/` par `git pull` depuis ce remote. Tous les clones `custom/` sont **pairs** vis-à-vis du remote — aucun n'est « de référence ». (Sans remote PRV — option B —, la propagation se fait manuellement par `rsync`/`cp` depuis le dossier d'édition.)
 
 ### Option B — `.git` PUB seul
 
