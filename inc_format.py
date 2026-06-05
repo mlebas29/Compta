@@ -18,8 +18,75 @@ import inc_categorize
 TNR_MODE = False
 
 
+class _LazyStr:
+    """Chaîne résolue paresseusement, au PREMIER usage réel (pas à l'import).
+
+    But (#67) : `require_account` ne doit pas lever de `ValueError` au chargement
+    d'un module `cpt_format_<SITE>.py` quand `config_accounts.json` est incomplet
+    — sinon le module devient inimportable (cascade via `inc_bootstrap`, GUI,
+    `get_all_site_descriptions`…). Avec ce proxy, l'erreur ne surgit qu'au moment
+    où le compte est réellement utilisé (formatage du site).
+
+    Se comporte comme une `str` : f-strings, `==`, clés de dict, méthodes
+    (`rsplit`, `strip`…), concaténation. Construit via `lazy(callable)`.
+    """
+    __slots__ = ("_fn", "_cache")
+
+    def __init__(self, fn):
+        self._fn = fn
+        self._cache = None
+
+    def _value(self):
+        if self._cache is None:
+            self._cache = self._fn()
+        return self._cache
+
+    def __str__(self):
+        return self._value()
+
+    def __repr__(self):
+        return repr(self._value())
+
+    def __format__(self, spec):
+        return format(self._value(), spec)
+
+    def __eq__(self, other):
+        return self._value() == other
+
+    def __ne__(self, other):
+        return self._value() != other
+
+    def __hash__(self):
+        return hash(self._value())
+
+    def __contains__(self, item):
+        return item in self._value()
+
+    def __bool__(self):
+        return bool(self._value())
+
+    def __add__(self, other):
+        return self._value() + other
+
+    def __radd__(self, other):
+        return other + self._value()
+
+    def __getattr__(self, name):
+        # _fn/_cache sont en __slots__ → jamais ici ; on forwarde les méthodes str.
+        return getattr(self._value(), name)
+
+
+def lazy(fn):
+    """Construit une chaîne paresseuse (`_LazyStr`) à partir d'un callable nullaire."""
+    return _LazyStr(fn)
+
+
 def require_account(accounts, keyword, site, ignorecase=False):
-    """Cherche un compte par mot-clé dans la liste. Erreur si absent.
+    """Référence **paresseuse** vers un compte trouvé par mot-clé (#67).
+
+    Retourne un proxy chaîne qui se résout au 1ᵉʳ usage réel : recherche du compte
+    dans `accounts`, `ValueError` si absent. Déféré pour ne PAS planter à l'import
+    quand `config_accounts.json` est incomplet (cf. `_LazyStr`).
 
     Args:
         accounts: liste de noms de comptes (str)
@@ -27,15 +94,17 @@ def require_account(accounts, keyword, site, ignorecase=False):
         site: nom du site pour le message d'erreur (ex: 'BB')
         ignorecase: recherche insensible à la casse
     """
-    if ignorecase:
-        kw = keyword.lower()
-        val = next((n for n in accounts if kw in n.lower()), None)
-    else:
-        val = next((n for n in accounts if keyword in n), None)
-    if val is None:
-        raise ValueError(
-            f'config_accounts.json [{site}] : aucun compte contenant "{keyword}"')
-    return val
+    def _resolve():
+        if ignorecase:
+            kw = keyword.lower()
+            val = next((n for n in accounts if kw in n.lower()), None)
+        else:
+            val = next((n for n in accounts if keyword in n), None)
+        if val is None:
+            raise ValueError(
+                f'config_accounts.json [{site}] : aucun compte contenant "{keyword}"')
+        return val
+    return lazy(_resolve)
 
 
 def site_name_from_file(filepath):

@@ -25,7 +25,7 @@ import re
 from pathlib import Path
 from datetime import datetime
 import inc_categorize
-from inc_format import process_files, lines_to_tuples, log_csv_debug as _log_csv_debug, get_file_date, site_name_from_file, require_account
+from inc_format import process_files, lines_to_tuples, log_csv_debug as _log_csv_debug, get_file_date, site_name_from_file, require_account, lazy
 
 SITE = site_name_from_file(__file__)
 
@@ -47,7 +47,7 @@ ACCOUNT_MAPPING = {
 _bb_accounts = [a['name'] for a in _bb_config.get('accounts', [])]
 ACCOUNT_TITRES = require_account(_bb_accounts, 'Titres', SITE)
 ACCOUNT_RESERVE = require_account(_bb_accounts, 'Réserve', SITE)
-ACCOUNT_BASE = ACCOUNT_TITRES.rsplit(' ', 1)[0]
+ACCOUNT_BASE = lazy(lambda: ACCOUNT_TITRES.rsplit(' ', 1)[0])  # paresseux (#67)
 
 EXPECTED_FILES = [
     ('export_compte_principal.csv', 'exact', '0-1'),  # vide possible (compte peu mouvementé)

@@ -24,7 +24,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 import json
 import inc_categorize
-from inc_format import process_files, lines_to_tuples, log_csv_debug as _log_csv_debug, get_file_date, site_name_from_file, require_account
+from inc_format import process_files, lines_to_tuples, log_csv_debug as _log_csv_debug, get_file_date, site_name_from_file, require_account, lazy
 
 SITE = site_name_from_file(__file__)
 
@@ -36,7 +36,7 @@ _degiro_accounts = [a['name'] for a in _degiro_config.get('accounts', [])]
 ACCOUNT_TITRES = require_account(_degiro_accounts, 'Titres', SITE)
 ACCOUNT_RESERVE = require_account(_degiro_accounts, 'Réserve', SITE)
 # Nom de base pour le relevé (sans suffixe)
-ACCOUNT_BASE = ACCOUNT_TITRES.rsplit(' ', 1)[0]
+ACCOUNT_BASE = lazy(lambda: ACCOUNT_TITRES.rsplit(' ', 1)[0])  # paresseux (#67)
 
 EXPECTED_FILES = [
     ('Account.csv', 'exact', '1'),
