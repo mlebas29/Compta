@@ -528,24 +528,36 @@ INSTALL_DIR="$(pwd)"
 
 if [[ $OS == linux ]]; then
     DESKTOP_DIR="$HOME/.local/share/applications"
-    DESKTOP_FILE="$DESKTOP_DIR/cpt_gui_export.desktop"
-
     mkdir -p "$DESKTOP_DIR"
+
+    # Raccourci entièrement généré (#87) : le CHEMIN vient d'INSTALL_DIR, et le
+    # libellé / icône / nom de fichier viennent du MODE (config.ini > .default >
+    # export). Plus aucun .desktop à chemin codé en dur dans le dépôt.
+    _mode_line=$(grep -hE '^[[:space:]]*mode[[:space:]]*=' \
+        "${INSTALL_DIR}/config.ini" "${INSTALL_DIR}/config.ini.default" 2>/dev/null | head -1)
+    GUI_MODE=$(printf '%s' "$_mode_line" | sed -E 's/.*=[[:space:]]*//; s/[[:space:]].*//' | tr 'A-Z' 'a-z')
+    case "$GUI_MODE" in
+        dev)  _label="[DEV]";  _icon="cpt_gui.png";      _wm="cpt_gui" ;;
+        prod) _label="[PROD]"; _icon="cpt_gui_prod.png"; _wm="cpt_gui" ;;
+        *)    GUI_MODE="export"; _label="[EX]"; _icon="cpt_gui_export.png"; _wm="cpt_gui_export" ;;
+    esac
+    DESKTOP_FILE="$DESKTOP_DIR/cpt_gui_${GUI_MODE}.desktop"
+
     # Exec via sh -c pour ajouter ~/.local/bin au PATH : nécessaire pour que la
     # GUI voie le wrapper python3-uno (shebang des scripts UNO). Le PATH
     # graphique hérité du DE n'inclut pas ~/.local/bin au premier lancement
     # (le dossier vient juste d'être créé par install.sh, ~/.profile non rejoué).
     cat > "$DESKTOP_FILE" <<EOF
 [Desktop Entry]
-Name=Comptabilité [EX]
-Comment=Gestion comptable — version export
+Name=Comptabilité ${_label}
+Comment=Gestion comptable — collecte, import et appariement
 Exec=sh -c 'PATH="\$HOME/.local/bin:\$PATH" exec python3 ${INSTALL_DIR}/cpt_gui.py'
 Path=${INSTALL_DIR}
-Icon=${INSTALL_DIR}/cpt_gui_export.png
+Icon=${INSTALL_DIR}/${_icon}
 Terminal=false
 Type=Application
 Categories=Office;Finance;
-StartupWMClass=cpt_gui_export
+StartupWMClass=${_wm}
 EOF
     update-desktop-database "$DESKTOP_DIR" 2>/dev/null || true
     ok "Raccourci installé (${DESKTOP_FILE}) → clic droit barre des tâches pour épingler"
