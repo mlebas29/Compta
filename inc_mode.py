@@ -43,9 +43,12 @@ def _read_mode_from_config(config_path=None):
 def detect_mode_from_path(script_path=None):
     """
     Détecte le mode depuis le chemin du script (fallback si config.ini absent).
+    Vestigial depuis #87 (le mode vient de config.ini) ; gardé comme dernier
+    recours et corrigé pour la convention découplée `~/Compta-dev`.
 
     Returns:
-        'dev' si dans ~/Compta/dev, 'prod' si dans ~/Compta, 'export' sinon
+        'dev' si dans ~/Compta-dev (ou ~/Compta/dev), 'prod' si dans ~/Compta,
+        'export' sinon
     """
     if script_path is None:
         script_path = Path(sys.argv[0]).absolute().parent
@@ -54,7 +57,10 @@ def detect_mode_from_path(script_path=None):
 
     path_str = str(script_path)
 
-    if '/Compta/dev' in path_str or '\\Compta\\dev' in path_str:
+    # ~/Compta-dev (et l'ancien ~/Compta/dev nesté) → dev. À tester AVANT le
+    # check '/Compta' (qui matcherait '/Compta-dev' comme substring → prod).
+    if ('/Compta-dev' in path_str or '\\Compta-dev' in path_str
+            or '/Compta/dev' in path_str or '\\Compta\\dev' in path_str):
         return 'dev'
     elif '/Compta' in path_str or '\\Compta' in path_str:
         return 'prod'
