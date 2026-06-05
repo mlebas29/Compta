@@ -3,7 +3,8 @@
 # Installation de Compta — portable Linux / macOS / WSL
 #
 # Usage:
-#   cd <racine du clone Compta> && ./install.sh
+#   cd <racine du clone Compta> && ./install.sh [dev|prod|export]
+#   (sans argument : conserve le mode de config.ini, sinon export)
 #
 # (script cwd-relatif : INSTALL_DIR = $PWD)
 #
@@ -31,6 +32,32 @@ warn() { echo -e "${YELLOW}⚠${NC} $1"; }
 fail() { echo -e "${RED}✗${NC} $1"; }
 
 ERRORS=0
+
+# ------------------------------------------------------------------
+# Mode d'installation (argument positionnel, défaut : mode de config.ini
+# existant, sinon export). Découplé du chemin (#87) : config.ini fait foi.
+#   ./install.sh            → conserve le mode existant (ou export)
+#   ./install.sh dev|prod|export → force ce mode dans config.ini
+# ------------------------------------------------------------------
+MODE_ARG=""
+if [[ -n "${1:-}" ]]; then
+    case "$1" in
+        dev|prod|export) MODE_ARG="$1" ;;
+        -h|--help)
+            echo "Usage: ./install.sh [dev|prod|export]   (défaut : mode de config.ini, sinon export)"
+            exit 0 ;;
+        *) fail "Mode invalide : '$1' (attendu : dev | prod | export)"; exit 1 ;;
+    esac
+fi
+
+# Mode effectif : argument > config.ini existant > config.ini.default > export
+if [[ -n "$MODE_ARG" ]]; then
+    INSTALL_MODE="$MODE_ARG"
+else
+    _ml=$(grep -hE '^[[:space:]]*mode[[:space:]]*=' config.ini config.ini.default 2>/dev/null | head -1)
+    INSTALL_MODE=$(printf '%s' "$_ml" | sed -E 's/.*=[[:space:]]*//; s/[[:space:]].*//' | tr 'A-Z' 'a-z')
+fi
+case "$INSTALL_MODE" in dev|prod|export) ;; *) INSTALL_MODE="export" ;; esac
 
 # ------------------------------------------------------------------
 # 0. Détection OS
@@ -530,18 +557,14 @@ if [[ $OS == linux ]]; then
     DESKTOP_DIR="$HOME/.local/share/applications"
     mkdir -p "$DESKTOP_DIR"
 
-    # Raccourci entièrement généré (#87) : le CHEMIN vient d'INSTALL_DIR, et le
-    # libellé / icône / nom de fichier viennent du MODE (config.ini > .default >
-    # export). Plus aucun .desktop à chemin codé en dur dans le dépôt.
-    _mode_line=$(grep -hE '^[[:space:]]*mode[[:space:]]*=' \
-        "${INSTALL_DIR}/config.ini" "${INSTALL_DIR}/config.ini.default" 2>/dev/null | head -1)
-    GUI_MODE=$(printf '%s' "$_mode_line" | sed -E 's/.*=[[:space:]]*//; s/[[:space:]].*//' | tr 'A-Z' 'a-z')
-    case "$GUI_MODE" in
+    # Raccourci entièrement généré (#87) : le CHEMIN vient d'INSTALL_DIR, le
+    # libellé / icône / nom de fichier viennent du MODE résolu en tête de script.
+    case "$INSTALL_MODE" in
         dev)  _label="[DEV]";  _icon="cpt_gui.png";      _wm="cpt_gui" ;;
         prod) _label="[PROD]"; _icon="cpt_gui_prod.png"; _wm="cpt_gui" ;;
-        *)    GUI_MODE="export"; _label="[EX]"; _icon="cpt_gui_export.png"; _wm="cpt_gui_export" ;;
+        *)    _label="[EX]";   _icon="cpt_gui_export.png"; _wm="cpt_gui_export" ;;
     esac
-    DESKTOP_FILE="$DESKTOP_DIR/cpt_gui_${GUI_MODE}.desktop"
+    DESKTOP_FILE="$DESKTOP_DIR/cpt_gui_${INSTALL_MODE}.desktop"
 
     # Exec via sh -c pour ajouter ~/.local/bin au PATH : nécessaire pour que la
     # GUI voie le wrapper python3-uno (shebang des scripts UNO). Le PATH
@@ -678,6 +701,17 @@ elif [[ -f "config.ini" ]]; then
     ok "config.ini déjà présent"
 else
     warn "config.ini.default absent — créer config.ini manuellement"
+fi
+
+# Mode demandé en argument : l'écrire dans config.ini (sinon on respecte
+# le mode existant / celui du .default). #87 : le mode ne vient plus du chemin.
+if [[ -n "$MODE_ARG" && -f "config.ini" ]]; then
+    if grep -qE '^[[:space:]]*mode[[:space:]]*=' config.ini; then
+        sed -i.bak -E "s|^[[:space:]]*mode[[:space:]]*=.*|mode = $MODE_ARG|" config.ini && rm -f config.ini.bak
+    else
+        printf 'mode = %s\n' "$MODE_ARG" >> config.ini
+    fi
+    ok "Mode défini dans config.ini : $MODE_ARG"
 fi
 
 # config_credentials.md : poser la copie de travail depuis le modèle, mais seulement
