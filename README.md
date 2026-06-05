@@ -116,7 +116,7 @@ Les évolutions sont tracées sur GitHub dans :
 La documentation est organisée autour de deux points d'entrée :
 
 - 📘 **Utilisation** → [`Compta.md`](Compta.md) — guide d'utilisation du mode assisté, et **carte de toute la doc utilisateur** (plus-values, structuration Excel, dépannage, portage macOS/Windows, mise à niveau, charte…).
-- 🛠️ **Technique** → [`Compta_dev.md`](Compta_dev.md) — architecture 3-tiers, ajout de site, framework `custom/`, outils, tests.
+- 🛠️ **Technique** → [`Compta_dev.md`](Compta_dev.md) — architecture 3-tiers, ajout de site, mécanisme d'extensions `custom/`, outils, tests.
 
 
 

@@ -1,4 +1,4 @@
-# Compta_custom.md — Architecture du framework `custom/`
+# Compta_custom.md — Architecture du mécanisme d'extensions `custom/`
 
 Document développeur. Décrit l'architecture du projet à partir de **v4.2** afin de pouvoir personnaliser l'application pour y ajouter un ou plusieurs sites privés et/ou modifier son comportement avec des "monkeypatch" privés. 
 
@@ -6,84 +6,83 @@ L'architecture se caractérise par l'ajout d'un dossier **custom** dans l'arbore
 
 L'infrastructure des Tests de non régression **TNR** se conforme au schéma custom pour d'éventuels tests des extensions.
 
-**Option A** — deux dépôts git à périmètres disjoints (PUB public + PRV privé d'extensions), deux instances physiques (PROD usage / DEV édition), et le mécanisme bootstrap qui charge dynamiquement les extensions privées sans qu'aucun fichier public ne les mentionne. Le dépôt PRV peut être hébergé sur un remote git privé (GitHub privé, GitLab, Gitea…) ou rester strictement local (propagation `file://`) — au choix de l'utilisateur.
+**Option A** — deux dépôts git à périmètres disjoints (PUB public + PRV privé d'extensions), deux dossiers physiques (PROD usage / DEV édition), et le mécanisme bootstrap qui charge dynamiquement les extensions privées sans qu'aucun fichier public ne les mentionne. Le dépôt PRV peut être hébergé sur un remote git privé (GitHub privé, GitLab, Gitea…) ou rester strictement local (propagation `file://`) — au choix de l'utilisateur.
 
-**Option B** — un seul dépôt public, `custom/` non versionné. Les instances PROD/DEV restent recommandées ; la propagation `dev/custom/` → `custom/` se fait par copie manuelle (rsync, cp) à défaut de `git pull`. Même mécanisme bootstrap.
+**Option B** — un seul dépôt public, `custom/` non versionné. Les dossiers PROD/DEV restent recommandés ; la propagation `dev/custom/` → `custom/` se fait par copie manuelle (rsync, cp) à défaut de `git pull`. Même mécanisme bootstrap.
 
 > Ce document s'adresse aux contributeurs (cloneurs GitHub qui ajoutent leur propre `custom/`) et aux développeurs du dépôt public GitHub.
 
 ## Principe
 
-Deux dépôts **à périmètres disjoints** (*), deux instances physiques **complètement isolées**. Une instance regroupe un clone du dépôt PUB et un clone du dépôt PRV. Un clone est une copie locale d'un dépôt, susceptible de diverger temporairement de la source.
+Deux dépôts **à périmètres disjoints** (*), deux dossiers physiques **complètement isolés**. Un dossier regroupe un clone du dépôt PUB et un clone du dépôt PRV. Un clone est une copie locale d'un dépôt, susceptible de diverger temporairement de la source.
 
 - **Dépôt GitHub public** (`github.com/mlebas29/Compta`) — **PUB** = code et doc public
 - **Dépôt privé** (avec ou sans `.git` local) — **PRV** = extensions privées
-- **Instance PROD** (`~/Compta/`) — dossier d'utilisation du classeur familial avec PUB + PRV
-- **Instance DEV** (`~/Compta-dev/`) — dossier facultatif pour développement PUB et PRV
+- **Dossier PROD** (`~/Compta/`) — dossier d'utilisation du classeur familial avec PUB + PRV
+- **Dossier DEV** (`~/Compta-dev/`) — dossier facultatif pour développement PUB et PRV
 
 (*) Un fichier versionné vit **à un seul endroit** : soit dans PUB, soit dans PRV.
 
 ## Schéma
 
 ```
-github.com/mlebas29/Compta              (repo public, .git PUB)
-        ▲
-        │ git pull / push
-        │
-~/Compta/                               PROD — instance d'usage quotidien
+github.com/mlebas29/Compta  (PUB)        remote git privé  (PRV)
+        │ git clone / pull / push                │ git clone / pull / push
+        ▼                                        ▼   (chaque custom/ suit ce remote)
+~/Compta/                               PROD — dossier d'usage quotidien
 ├── .git/                               clone PUB
-├── .gitignore                          exclut /dev/, données perso
+├── .gitignore                          exclut custom/, données perso
 ├── cpt_*.py, gui_*.py, inc_*.py        code PUB
 ├── tool_*.py                           outils PUB
 ├── tests/                              TNR (Tests de non régression) PUB
 ├── docs/                               doc dev PUB 
 ├── README.md, Compta_*.md              doc PUB
 │
-├── custom/                             extensions privées
-│   ├── .git/                           option A : pull depuis remote PRV ou file://~/Compta-dev/custom
+├── custom/                             extensions privées (PRV)
+│   ├── .git/                           clone du remote PRV (symétrique au PUB)
 │   ├── cpt_fetch_<NAME>.py             sites privés
 │   ├── cpt_format_<NAME>.py            (idem)
 │   ├── patch_*.py                      monkeypatches du code public
 │
 ├── comptes.xlsm, config.ini            classeur + config locale
 ├── config_*.json                       données de configuration
-├── dropbox/, archives/, logs/          données opérationnelles
+└── dropbox/, archives/, logs/          données opérationnelles
+
+~/Compta-dev/                           DEV — dossier INDÉPENDANT (facultatif ; ni nesté, ni couplé)
+├── .git/                               clone PUB autonome
+├── cpt_*.py, gui_*.py, …               code en cours d'édition
+├── tests/                              TNR (édition + run, public)
+├── docs/                               doc dev
 │
-└── dev/                                DEV — gitignored par PROD
-    ├── .git/                           clone PUB autonome (parallèle)
-    ├── cpt_*.py, gui_*.py, …           code en cours d'édition
-    ├── tests/                          TNR (édition + run, public)
-    ├── docs/                           doc dev
-    │
-    ├── custom/                         dépôt PRV de référence (.git PRV)
-    │   ├── .git/                       option A uniquement
-    │   ├── cpt_fetch_*.py / cpt_format_*.py
-    │   ├── patch_*.py
-    │   ├── tests/                      PRV tests de référence (overlay privé)
-    │   └── docs/                       PRV docs de référence
-    │
-    ├── comptes.xlsm                    sandbox jetable
-    ├── config.ini, config_*.json       sandbox
-    └── dropbox/, archives/, logs/      sandbox
+├── custom/                             extensions privées (PRV) — clone du MÊME remote PRV
+│   ├── .git/                           clone PRV
+│   ├── cpt_fetch_*.py / cpt_format_*.py
+│   ├── patch_*.py
+│   ├── tests/                          overlay PRV (édition)
+│   └── docs/                           doc PRV
+│
+├── comptes.xlsm                        sandbox jetable
+├── config.ini, config_*.json           sandbox
+└── dropbox/, archives/, logs/          sandbox
 ```
 
 `tests/` et `docs/` existent à plusieurs emplacements (PROD/DEV × public/custom). Le code TNR utilise `find_code_root()` pour s'auto-localiser quel que soit le contexte.
 
 ## Répartition des fichiers
 
-| Fichier | Dépôt | Instance | Pourquoi |
+| Fichier | Dépôt | Dossier | Pourquoi |
 |---|---|---|---|
 | `cpt_*.py`, `gui_*.py`, `inc_*.py`, `tool_*.py` | PUB | PROD + DEV | code utilisable par tout cloneur |
 | `tests/`, `install.sh`, `README.md`, `Compta_*.md` | PUB | PROD + DEV | doc + tests utilisateur |
 | `tool_commit.sh`, `tool_pull.sh` | PUB | PROD + DEV | wrappers utiles à tout cloneur qui ajoute son `custom/` |
 | `cpt_fetch_<NAME>.py`, `cpt_format_<NAME>.py` (sites privés) | PRV | `custom/` | sites perso |
 | `patch_*.py` (monkeypatches) | PRV | `custom/` | extensions ponctuelles du code public |
-| `comptes.xlsm`, `config.ini`, `config_*.json`, `dropbox/`, `archives/`, `logs/` | — | PROD + DEV (instances séparées) | données opérationnelles, jamais versionnées |
-| `CLAUDE.md`, `CLAUDE_todo.md`, `CLAUDE_log.md` | — | DEV uniquement | outils session Claude, jamais versionnés |
+| `comptes.xlsm`, `config.ini`, `config_*.json`, `dropbox/`, `archives/`, `logs/` | — | PROD + DEV (dossiers séparés) | données opérationnelles, jamais versionnées |
+| `CLAUDE.md`, `CLAUDE_todo.md`, `CLAUDE_log.md` | PRV (facultatif) | `custom/` (dev) | tooling session Claude — **spécifique développeur, non obligatoire** (versionnage PRV au choix) |
 
 ## Usage côté PROD
 
-L'instance PROD ne fait que **consommer** du code stable. Aucune édition.
+Le dossier PROD ne fait que **consommer** du code stable. Aucune édition.
 
 ### Option A — deux `git pull`
 
@@ -101,7 +100,7 @@ cd ~/Compta/custom    && git pull        # PRV (remote privé ou file://)
 
 ```bash
 cd ~/Compta && git pull                                # PUB depuis github
-rsync -a ~/Compta-dev/custom/ ~/Compta/custom/         # si instance DEV maintenue
+rsync -a ~/Compta-dev/custom/ ~/Compta/custom/         # si dossier DEV maintenu
 ./cpt_gui.py
 ```
 
@@ -109,7 +108,7 @@ rsync -a ~/Compta-dev/custom/ ~/Compta/custom/         # si instance DEV mainten
 
 ## Usage côté DEV
 
-L'instance DEV est où le développeur édite, teste, casse.
+Le dossier DEV est où le développeur édite, teste, casse.
 
 ### Option A — deux `.git` cohabitent
 
@@ -145,7 +144,7 @@ Un seul dépôt (PUB) à la racine de DEV. Les fichiers sous `custom/` sont giti
 
 ## Usage parallèle PROD + DEV
 
-Les deux instances sont indépendantes — classeur, config, dropbox, logs séparés. Lancement simultané supporté :
+Les deux dossiers sont indépendants — classeur, config, dropbox, logs séparés. Lancement simultané supporté :
 
 ```bash
 # terminal 1 — activité quotidienne
@@ -259,7 +258,7 @@ Cf. l'arbo en section [Schéma](#schéma) : `tests/` et `docs/` existent à plus
 
 ### Doctrine sandbox pour les TNR
 
-Le code TNR n'opère **jamais** directement sur l'instance courante (DEV ou PROD). Chaque scénario travaille dans une sandbox jetable :
+Le code TNR n'opère **jamais** directement sur le dossier courant (DEV ou PROD). Chaque scénario travaille dans une sandbox jetable :
 
 ```
 tests/tnr/<scenario>/sandbox/    créée à chaque run par setup_sandbox()

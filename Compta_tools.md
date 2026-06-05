@@ -133,7 +133,7 @@ temporaires qui peuvent rester après un crash du pipeline.
 Cf. `Compta_custom.md` pour la doctrine d'usage (modes A.1 / A.2 / B, routage
 PUB/PRV).
 
-### tool_commit.sh — Commit git par instance
+### tool_commit.sh — Commit git par dossier
 
 Wrapper qui détecte le mode d'installation `custom/` et route les commits
 vers le `.git` adapté selon le path du fichier modifié (`custom/` → PRV,
@@ -171,7 +171,7 @@ L'utilisateur reste maître de l'inclusion (`git add` explicite).
 Codes retour : 0 succès, 1 erreur (cwd, conflit, argument invalide).
 Exécution depuis la racine d'un clone Compta (cwd-relatif).
 
-### tool_pull.sh — Pull git par instance
+### tool_pull.sh — Pull git par dossier
 
 Wrapper qui pull les dépôts disponibles selon le mode détecté. PUB est
 toujours pullé depuis github. PRV est pullé depuis son remote configuré

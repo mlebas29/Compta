@@ -57,7 +57,7 @@ Le résultat est conservé dans `tests/tnr/<scenario>/result.xlsm` pour comparai
 
 Chaque scénario travaille dans une **sandbox jetable** : `tests/tnr/<scenario>/sandbox/`. Le code applicatif est accédé via symlinks ; le classeur `comptes.xlsm` est une copie modifiable du template. Conséquence pratique :
 
-- **Ton instance DEV ou PROD n'est jamais touchée.** Tu peux éditer `comptes.xlsm` dans LibreOffice pendant qu'un TNR tourne (à l'exception de celui-là, qui spawn son propre soffice).
+- **Ton dossier DEV ou PROD n'est jamais touché.** Tu peux éditer `comptes.xlsm` dans LibreOffice pendant qu'un TNR tourne (à l'exception de celui-là, qui spawn son propre soffice).
 - **Debug post-mortem** : si un TNR échoue, la sandbox survit. Tu peux ouvrir `tests/tnr/<scenario>/sandbox/comptes.xlsm` ou `result.xlsm` dans LibreOffice pour comprendre.
 
 ### Options communes

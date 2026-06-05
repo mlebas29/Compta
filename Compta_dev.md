@@ -10,7 +10,7 @@ Documentation technique pour le contributeur ou le mainteneur. Décrit l'archite
 |---|---|
 | Ajouter un site (fetch + format) | [`Compta_site.md`](Compta_site.md) |
 | Internals par connecteur (auth, parsing, gotchas) | [`docs/`](docs/README.md) |
-| Extensibilité, framework `custom/`, monkeypatches | [`Compta_custom.md`](Compta_custom.md) |
+| Extensibilité, mécanisme d'extensions `custom/`, monkeypatches | [`Compta_custom.md`](Compta_custom.md) |
 | Tests de non-régression (TNR) | [`Compta_tests.md`](Compta_tests.md) |
 | Outils maintenance, git (tool_commit/pull) | [`Compta_tools.md`](Compta_tools.md) |
 | Guide utilisateur (concepts, PVL, portage, charte, mise à niveau) | [`Compta.md`](Compta.md) |
@@ -262,7 +262,7 @@ Stockés chiffrés GPG dans le fichier pointé par `config.ini` `[paths] credent
 ## Organisation du dépôt
 
 ```
-~/Compta/                         # PROD — instance d'usage
+~/Compta/                         # PROD — dossier d'usage
 ├── .git/                         # clone PUB (github.com:mlebas29/Compta)
 ├── cpt_*.py                      # pipeline (fetch/update/pair/gui)
 ├── cpt_fetch_<SITE>.py           # 1 par site public
@@ -285,11 +285,10 @@ Stockés chiffrés GPG dans le fichier pointé par `config.ini` `[paths] credent
 │
 ├── comptes.xlsm                  # classeur (non versionné)
 ├── config*.{ini,json}            # config locale (non versionnée)
-├── dropbox/, archives/, logs/    # données opérationnelles
-└── dev/                          # instance DEV facultative (gitignored par PROD)
+└── dropbox/, archives/, logs/    # données opérationnelles
 ```
 
-Détail de l'archi PUB/PRV + DEV : [`Compta_custom.md`](Compta_custom.md).
+Le dossier DEV est **indépendant** (`~/Compta-dev/`, même structure, mode `dev` ; depuis #87 il n'est plus nesté sous PROD). Détail de l'archi PUB/PRV + DEV : [`Compta_custom.md`](Compta_custom.md).
 
 ## Dépendances techniques
 
