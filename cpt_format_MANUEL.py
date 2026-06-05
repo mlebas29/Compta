@@ -21,7 +21,7 @@ from pathlib import Path
 from datetime import datetime, timedelta
 import openpyxl
 import inc_categorize
-from inc_format import process_files, lines_to_tuples, log_csv_debug as _log_csv_debug, site_name_from_file
+from inc_format import process_files, lines_to_tuples, log_csv_debug as _log_csv_debug, site_name_from_file, base_dir
 
 SITE = site_name_from_file(__file__)
 
@@ -31,7 +31,7 @@ EXPECTED_FILES = [
 ]
 
 def _build_devise_lookup():
-    cfg_path = Path(__file__).parent / 'config_cotations.json'
+    cfg_path = base_dir() / 'config_cotations.json'
     with open(cfg_path) as f:
         codes = list(json.load(f).keys())
     codes.append('EUR')

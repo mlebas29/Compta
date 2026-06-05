@@ -19,7 +19,7 @@ import unicodedata
 from pathlib import Path
 from datetime import datetime
 import inc_categorize
-from inc_format import process_files, lines_to_tuples, log_csv_debug as _log_csv_debug, get_file_date, site_name_from_file, require_account
+from inc_format import process_files, lines_to_tuples, log_csv_debug as _log_csv_debug, get_file_date, site_name_from_file, require_account, base_dir
 
 SITE = site_name_from_file(__file__)
 
@@ -34,7 +34,7 @@ except ImportError:
     pdfplumber = None
 
 # Comptes SG : chargés depuis config_accounts.json
-_ACCOUNTS_JSON = Path(__file__).parent / 'config_accounts.json'
+_ACCOUNTS_JSON = base_dir() / 'config_accounts.json'
 with open(_ACCOUNTS_JSON, 'r', encoding='utf-8') as _f:
     _sg_config = json.load(_f).get(SITE, {})
 _sg_accounts_list = _sg_config.get('accounts', [])

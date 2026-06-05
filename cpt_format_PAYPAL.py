@@ -23,12 +23,12 @@ import json
 from pathlib import Path
 
 import inc_categorize
-from inc_format import process_files, log_csv_debug as _log_csv_debug, site_name_from_file
+from inc_format import process_files, log_csv_debug as _log_csv_debug, site_name_from_file, base_dir
 
 SITE = site_name_from_file(__file__)
 
 # Nom du compte : chargé depuis config_accounts.json
-_ACCOUNTS_JSON = Path(__file__).parent / 'config_accounts.json'
+_ACCOUNTS_JSON = base_dir() / 'config_accounts.json'
 with open(_ACCOUNTS_JSON, 'r', encoding='utf-8') as _f:
     _paypal_config = json.load(_f).get(SITE, {})
 _paypal_accounts = _paypal_config.get('accounts', [])

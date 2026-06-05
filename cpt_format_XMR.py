@@ -16,7 +16,7 @@ import json
 from pathlib import Path
 import inc_mode
 import inc_categorize
-from inc_format import process_files, lines_to_tuples, log_csv_debug as _log_csv_debug, parse_french_date_from_iso, site_name_from_file
+from inc_format import process_files, lines_to_tuples, log_csv_debug as _log_csv_debug, parse_french_date_from_iso, site_name_from_file, base_dir
 
 SITE = site_name_from_file(__file__)
 
@@ -25,7 +25,7 @@ BASE_DIR = inc_mode.get_base_dir()
 CONFIG_FILE = BASE_DIR / 'config.ini'
 
 # Comptes XMR : chargés depuis config_accounts.json
-_ACCOUNTS_JSON = Path(__file__).parent / 'config_accounts.json'
+_ACCOUNTS_JSON = base_dir() / 'config_accounts.json'
 with open(_ACCOUNTS_JSON, 'r', encoding='utf-8') as _f:
     _xmr_config = json.load(_f).get(SITE, {})
 XMR_ACCOUNTS = {

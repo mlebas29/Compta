@@ -24,12 +24,12 @@ from datetime import datetime, timedelta
 from pathlib import Path
 import json
 import inc_categorize
-from inc_format import process_files, lines_to_tuples, log_csv_debug as _log_csv_debug, get_file_date, site_name_from_file, require_account, lazy
+from inc_format import process_files, lines_to_tuples, log_csv_debug as _log_csv_debug, get_file_date, site_name_from_file, require_account, lazy, base_dir
 
 SITE = site_name_from_file(__file__)
 
 # Noms de comptes : chargés depuis config_accounts.json
-_ACCOUNTS_JSON = Path(__file__).parent / 'config_accounts.json'
+_ACCOUNTS_JSON = base_dir() / 'config_accounts.json'
 with open(_ACCOUNTS_JSON, 'r', encoding='utf-8') as _f:
     _degiro_config = json.load(_f).get(SITE, {})
 _degiro_accounts = [a['name'] for a in _degiro_config.get('accounts', [])]

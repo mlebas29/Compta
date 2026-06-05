@@ -25,7 +25,7 @@ import re
 from pathlib import Path
 from datetime import datetime
 import inc_categorize
-from inc_format import process_files, lines_to_tuples, log_csv_debug as _log_csv_debug, get_file_date, site_name_from_file, require_account, lazy
+from inc_format import process_files, lines_to_tuples, log_csv_debug as _log_csv_debug, get_file_date, site_name_from_file, require_account, lazy, base_dir
 
 SITE = site_name_from_file(__file__)
 
@@ -36,7 +36,7 @@ except ImportError:
 
 # Mapping numéro → nom compte : chargé depuis config_accounts.json
 import json
-_ACCOUNTS_JSON = Path(__file__).parent / 'config_accounts.json'
+_ACCOUNTS_JSON = base_dir() / 'config_accounts.json'
 with open(_ACCOUNTS_JSON, 'r', encoding='utf-8') as _f:
     _bb_config = json.load(_f).get(SITE, {})
 ACCOUNT_MAPPING = {

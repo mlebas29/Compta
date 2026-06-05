@@ -18,6 +18,22 @@ import inc_categorize
 TNR_MODE = False
 
 
+def base_dir():
+    """Racine du clone (où vivent config_accounts.json, config.ini, logs/…).
+
+    #86 : les `cpt_format_<SITE>.py` doivent lire la config via cette racine, pas
+    via `Path(__file__).parent` (= dossier du code → faux en sandbox TNR où le
+    code est symlinké, et faux pour un module `custom/`). N'importe PAS `inc_mode`
+    (éviterait le cycle inc_mode→inc_bootstrap→patch→cpt_format→inc_format) :
+    `inc_format.py` est lui-même à la racine du clone, d'où `Path(__file__)`.
+    Respecte l'override `COMPTA_BASE_DIR` (sandbox TNR, install custom).
+    """
+    env = os.environ.get('COMPTA_BASE_DIR')
+    if env:
+        return Path(env)
+    return Path(__file__).resolve().parent
+
+
 class _LazyStr:
     """Chaîne résolue paresseusement, au PREMIER usage réel (pas à l'import).
 
@@ -399,7 +415,7 @@ def process_files(site_dir, handlers, verbose=False, site_name=None, logger=None
 
     # Filtrage par date centralisé (si configuré pour ce site)
     if site_name:
-        config_file = Path(__file__).parent / 'config.ini'
+        config_file = base_dir() / 'config.ini'
         max_days_back = inc_categorize.get_max_days_back_from_config(config_file, site_name)
         if max_days_back:
             all_ops = filter_ops_by_date(all_ops, max_days_back, verbose, site_name, logger)
@@ -442,7 +458,7 @@ def log_csv_debug(site_name, operations, positions, logger=None):
         positions: Liste de tuples positions (5 champs)
         logger: Logger optionnel pour messages verbose
     """
-    debug_dir = Path(__file__).parent / 'logs' / 'debug'
+    debug_dir = base_dir() / 'logs' / 'debug'
     debug_dir.mkdir(parents=True, exist_ok=True)
 
     # Opérations

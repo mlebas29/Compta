@@ -19,13 +19,13 @@ from pathlib import Path
 from datetime import datetime, timedelta
 from collections import defaultdict
 import inc_categorize
-from inc_format import process_files, lines_to_tuples, log_csv_debug as _log_csv_debug, get_file_date, site_name_from_file, require_account
+from inc_format import process_files, lines_to_tuples, log_csv_debug as _log_csv_debug, get_file_date, site_name_from_file, require_account, base_dir
 
 SITE = site_name_from_file(__file__)
 
 # Account names : chargés depuis config_accounts.json
 import json
-_ACCOUNTS_JSON = Path(__file__).parent / 'config_accounts.json'
+_ACCOUNTS_JSON = base_dir() / 'config_accounts.json'
 with open(_ACCOUNTS_JSON, 'r', encoding='utf-8') as _f:
     _kraken_config = json.load(_f).get(SITE, {})
 _kraken_accounts = {a['name']: a['name'] for a in _kraken_config.get('accounts', [])}
