@@ -258,13 +258,14 @@ Pour un compte-titre (Réserve cash + Titres securities), créer **deux comptes 
 
 ### Site privé dans `custom/`
 
-Tout ce qui précède s'applique tel quel, en plaçant les scripts dans `custom/` au lieu de la racine. Pour démarrer rapidement, `install_custom.sh` génère les squelettes :
+Tout ce qui précède s'applique tel quel, en plaçant les scripts dans `custom/` au lieu de la racine. Pour démarrer, copier un fetcher/format existant comme gabarit (le code en place est le meilleur modèle, à jour) :
 
 ```bash
-./install_custom.sh --git --py=FOO
+cp cpt_fetch_BTC.py custom/cpt_fetch_FOO.py      # gabarit API ; Playwright → cpt_fetch_KRAKEN.py
+cp cpt_format_BTC.py custom/cpt_format_FOO.py
 ```
 
-Voir [`Compta_custom.md`](Compta_custom.md) pour les détails du framework `custom/` (options A/B, bootstrap, propagation PROD/DEV).
+puis renommer/adapter (cf. étapes ci-dessus). Voir [`Compta_custom.md`](Compta_custom.md) pour le framework `custom/` (bootstrap, options A/B, monkeypatches).
 
 ### Monkeypatch d'un site existant
 

@@ -195,66 +195,9 @@ Si un pull échoue, l'autre est tenté quand même. Résumé final par dépôt.
 Codes retour : 0 succès, 1 échec d'au moins un pull.
 Exécution depuis la racine d'un clone Compta (cwd-relatif).
 
-### install_custom.sh — Mise en place de `custom/` (DEV + PROD)
+### Mise en place de `custom/`
 
-Comble la différence entre l'arborescence cible (décrite dans
-`Compta_custom.md`) et l'état initial de l'utilisateur. Les flags paramètrent
-la cible ; le script crée tout ce qui manque, idempotent.
-
-```bash
-./install_custom.sh                          # statut (diff cible/réel)
-./install_custom.sh --git                    # init .git PRV dans dev/custom/
-./install_custom.sh --git --remote <url>     # idem + remote PRV
-./install_custom.sh --remote <url>           # ajoute remote à .git PRV existant
-./install_custom.sh --py=<NAME>              # squelettes cpt_fetch_<NAME>.py / cpt_format_<NAME>.py
-./install_custom.sh -h | --help
-```
-
-Options avancées (setup multi-machines / branches non-standard) :
-
-| Option | Effet |
-|---|---|
-| `--pub-source <url>` | URL alternative pour cloner PUB (au lieu de l'`origin` du PROD courant) |
-| `--pub-branch <name>` | Branche à checkout dans DEV après le clone PUB |
-| `--prv-source <url>` | URL pour cloner le PRV (peuple `dev/custom/` au lieu de `git init` vide) |
-| `--prv-branch <name>` | Branche à checkout dans `dev/custom/` après le clone PRV |
-
-Cas typique : déployer la même installation sur plusieurs postes (Linux + Mac) avec leurs DEV+PRV peuplés depuis un poste de référence accessible en SSH.
-
-Exécution depuis la racine d'un clone Compta (cwd-relatif). URL du clone PUB
-déduite du remote origin de l'instance courante (sauf si `--pub-source` fourni).
-
-Gestes idempotents enchaînés selon les flags (chemins relatifs au cwd) :
-
-| # | Geste | Pré-condition | Effet |
-|---|---|---|---|
-| 1 | Créer DEV | `dev/` absent | `git clone <origin> dev/` |
-| 2 | Créer DEV custom | `dev/custom/` absent | `mkdir` |
-| 3 | Init `.git` PRV | `--git` et `.git` absent | `git init` + `.gitignore` minimal |
-| 4 | Configurer remote PRV | `--remote <url>` et remote absent | `git remote add origin <url>` |
-| 5 | Poser squelettes | `--py=<NAME>` et fichiers absents | crée `cpt_fetch_<NAME>.py` + `cpt_format_<NAME>.py` |
-| 6 | Commit initial DEV custom | étape 3 ou 5 ont créé des fichiers | `git commit -m "Init custom/"` |
-| 7 | Créer PROD custom | `custom/` absent | clone `file://dev/custom` (mode A) ou rsync (mode B) |
-
-Sans flag, affiche la diff cible/réel et suggère les commandes à lancer.
-
-`.gitignore` PRV minimal posé par étape 3 :
-
-```
-__pycache__/
-*.pyc
-*.bak
-*.bak_*
-
-# Sandboxes TNR jetables
-tests/tnr/*/sandbox/
-```
-
-L'utilisateur reprend ensuite la main : édition des squelettes, configuration
-du site dans `config.ini` (via GUI Configuration ou manuellement), commits
-ultérieurs via `tool_commit.sh`. Cf. [`Compta_site.md`](Compta_site.md) pour
-le workflow complet d'ajout de site (conventions Tier 2, format de pipe,
-catégorisation).
-
-Codes retour : 0 succès, 1 erreur.
-Exécution depuis la racine d'un clone Compta (cwd-relatif).
+`install_custom.sh` a été retiré : la mise en place du dépôt privé `custom/`
+se fait désormais par un simple clone du remote PRV —
+`git clone <remote-PRV> custom`. Détails et alternatives (option B sans `.git`
+PRV) dans [`Compta_custom.md`](Compta_custom.md).

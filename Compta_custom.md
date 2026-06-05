@@ -190,15 +190,17 @@ Tout nouveau hook ponctuel à ajouter doit suivre la même règle : nom neutre, 
 
 Les squelettes Python (`cpt_fetch_FOO.py` / `cpt_format_FOO.py`), la checklist Tier 2 (catégorisation, Equiv/Ref, `EXPECTED_FILES`, `DESCRIPTION`, `MAX_ACCOUNTS`) et la configuration utilisateur sont documentés dans **[`Compta_site.md`](Compta_site.md)**. Tout y est identique au cas public, à ceci près que les fichiers sont placés dans `custom/` au lieu de la racine.
 
-**Démarrage rapide via `install_custom.sh`** (cf. [`Compta_tools.md`](Compta_tools.md)) :
+**Démarrage rapide** — copier un fetcher/format existant comme gabarit (le code en place *est* le meilleur modèle, à jour) :
 
 ```bash
 cd ~/Compta
-./install_custom.sh --git --py=FOO                  # cas A.1 (.git PRV local)
-./install_custom.sh --git --remote <url> --py=FOO   # cas A.2 (avec remote)
+cp cpt_fetch_BTC.py custom/cpt_fetch_FOO.py      # gabarit API ; Playwright → cpt_fetch_KRAKEN.py
+cp cpt_format_BTC.py custom/cpt_format_FOO.py
 ```
 
-Le script crée DEV s'il manque, initialise `.git` PRV, pose les squelettes `cpt_fetch_FOO.py` / `cpt_format_FOO.py` dans `custom/`, fait un commit initial et propage vers `~/Compta/custom/`. Il reste à l'utilisateur d'étoffer les squelettes (cf. Compta_site.md) et de configurer le site via la GUI Configuration.
+Renommer/adapter (cf. [`Compta_site.md`](Compta_site.md)), configurer le site via la GUI Configuration, puis `tool_commit.sh` (route `custom/` → PRV).
+
+> **Mise en place du dépôt `custom/`** : la façon de versionner/sauvegarder `custom/` est **libre** — `inc_bootstrap.py` le charge quelle que soit la méthode. L'approche retenue ici est un **dépôt PRV cloné depuis un remote** (`git clone <remote-PRV> custom`, symétrique au PUB cloné depuis github). Un contributeur peut tout aussi bien le gérer en **option B** (fichiers gitignorés, sauvegarde externe) ou autrement — voir les options A/B ci-dessus.
 
 ### Cas B — installer un patch code
 
