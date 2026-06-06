@@ -79,9 +79,16 @@ EOF
 
     elif [[ $OS == macos ]]; then
         local APPS_DIR="$HOME/Applications"
-        local APP_BUNDLE="$APPS_DIR/Comptabilité.app"
-        local APP_NAME="Comptabilité"
-        local APP_ID="net.labeille.compta"
+        # Nom/ID de bundle par mode (EX = défaut) pour que DEV et PROD coexistent
+        # sur le même Mac — sinon collision sur "Comptabilité.app" (cf. dual).
+        local _suffix="" _idsuffix=""
+        if [[ "$INSTALL_MODE" != EX ]]; then
+            _suffix=" $INSTALL_MODE"
+            _idsuffix=".$(printf '%s' "$INSTALL_MODE" | tr 'A-Z' 'a-z')"
+        fi
+        local APP_NAME="Comptabilité$_suffix"
+        local APP_BUNDLE="$APPS_DIR/${APP_NAME}.app"
+        local APP_ID="net.labeille.compta$_idsuffix"
         mkdir -p "$APPS_DIR"
         rm -rf "$APP_BUNDLE"
         mkdir -p "$APP_BUNDLE/Contents/MacOS" "$APP_BUNDLE/Contents/Resources"
