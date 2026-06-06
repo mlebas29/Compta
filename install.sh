@@ -22,14 +22,9 @@
 
 set -e
 
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m'
-
-ok()   { echo -e "${GREEN}✓${NC} $1"; }
-warn() { echo -e "${YELLOW}⚠${NC} $1"; }
-fail() { echo -e "${RED}✗${NC} $1"; }
+# Fonctions partagées du provisioning : UI, $OS, read_mode/set_mode, setup_desktop
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+. "$SCRIPT_DIR/inc_install.sh"
 
 ERRORS=0
 
@@ -41,22 +36,20 @@ ERRORS=0
 # Casse libre en entrée (normalisée en MAJUSCULE) ; 'export' legacy → EX.
 # ------------------------------------------------------------------
 MODE_ARG=""
-DESKTOP_ONLY=false
-for _arg in "$@"; do
-    case "$_arg" in
+if [[ -n "${1:-}" ]]; then
+    case "$1" in
         -h|--help)
-            echo "Usage: ./install.sh [DEV|PROD|EX] [--desktop-only]   (défaut mode : config.ini, sinon EX)"
+            echo "Usage: ./install.sh [DEV|PROD|EX]   (défaut : mode de config.ini, sinon EX)"
             exit 0 ;;
-        --desktop-only) DESKTOP_ONLY=true ;;      # ne (re)génère que le raccourci
         *)
-            MODE_ARG=$(printf '%s' "$_arg" | tr 'a-z' 'A-Z')
+            MODE_ARG=$(printf '%s' "$1" | tr 'a-z' 'A-Z')
             case "$MODE_ARG" in
                 EXPORT) MODE_ARG="EX" ;;          # compat legacy
                 DEV|PROD|EX) ;;
-                *) fail "Mode invalide : '$_arg' (attendu : DEV | PROD | EX)"; exit 1 ;;
+                *) fail "Mode invalide : '$1' (attendu : DEV | PROD | EX)"; exit 1 ;;
             esac ;;
     esac
-done
+fi
 
 # Mode effectif : argument > config.ini existant > config.ini.default > EX
 if [[ -n "$MODE_ARG" ]]; then
@@ -72,13 +65,9 @@ case "$INSTALL_MODE" in
 esac
 
 # ------------------------------------------------------------------
-# 0. Détection OS
+# 0. OS (détecté par inc_install.sh)
 # ------------------------------------------------------------------
-case "$(uname -s)" in
-    Linux*)  OS=linux ;;
-    Darwin*) OS=macos ;;
-    *)       fail "OS non supporté : $(uname -s)"; exit 1 ;;
-esac
+[[ "$OS" == unknown ]] && { fail "OS non supporté : $(uname -s)"; exit 1; }
 
 # Sous-cas WSL : Linux mais avec délégation possible à Windows pour
 # l'ouverture de fichiers (wslview au lieu de xdg-open).
@@ -98,9 +87,6 @@ if [[ $OS == macos ]]; then
         MACOS_USE_PORTS=true
     fi
 fi
-
-# ===== Dépendances système (sautées en --desktop-only) =====
-if ! $DESKTOP_ONLY; then
 
 # Indication portable d'installation pour un paquet manquant.
 # Args : <apt_pkg> <brew_pkg> [3e_arg]
@@ -561,133 +547,12 @@ else
     fi
 fi
 
-fi  # ===== fin dépendances système =====
-
-# En --desktop-only les deps (qui résolvent PYTHON) sont sautées : fallback.
-PYTHON="${PYTHON:-python3}"
-
 # ------------------------------------------------------------------
 # 6. Raccourci de lancement
 # ------------------------------------------------------------------
 echo
 echo "--- [5/8] Raccourci ---"
-INSTALL_DIR="$(pwd)"
-
-if [[ $OS == linux ]]; then
-    DESKTOP_DIR="$HOME/.local/share/applications"
-    mkdir -p "$DESKTOP_DIR"
-
-    # Raccourci entièrement généré (#87) : le CHEMIN vient d'INSTALL_DIR, le
-    # libellé / icône / nom de fichier viennent du MODE résolu en tête de script.
-    case "$INSTALL_MODE" in
-        DEV)  _label="[DEV]";  _icon="cpt_gui.png";        _wm="cpt_gui" ;;
-        PROD) _label="[PROD]"; _icon="cpt_gui_prod.png";   _wm="cpt_gui" ;;
-        *)    _label="[EX]";   _icon="cpt_gui_export.png"; _wm="cpt_gui_export" ;;
-    esac
-    DESKTOP_FILE="$DESKTOP_DIR/cpt_gui_${INSTALL_MODE}.desktop"
-
-    # Exec via sh -c pour ajouter ~/.local/bin au PATH : nécessaire pour que la
-    # GUI voie le wrapper python3-uno (shebang des scripts UNO). Le PATH
-    # graphique hérité du DE n'inclut pas ~/.local/bin au premier lancement
-    # (le dossier vient juste d'être créé par install.sh, ~/.profile non rejoué).
-    cat > "$DESKTOP_FILE" <<EOF
-[Desktop Entry]
-Name=Comptabilité ${_label}
-Comment=Gestion comptable — collecte, import et appariement
-Exec=sh -c 'PATH="\$HOME/.local/bin:\$PATH" exec python3 ${INSTALL_DIR}/cpt_gui.py'
-Path=${INSTALL_DIR}
-Icon=${INSTALL_DIR}/${_icon}
-Terminal=false
-Type=Application
-Categories=Office;Finance;
-StartupWMClass=${_wm}
-EOF
-    update-desktop-database "$DESKTOP_DIR" 2>/dev/null || true
-    ok "Raccourci installé (${DESKTOP_FILE}) → clic droit barre des tâches pour épingler"
-
-elif [[ $OS == macos ]]; then
-    APPS_DIR="$HOME/Applications"
-    APP_BUNDLE="$APPS_DIR/Comptabilité.app"
-    APP_NAME="Comptabilité"
-    APP_ID="net.labeille.compta"
-
-    mkdir -p "$APPS_DIR"
-    rm -rf "$APP_BUNDLE"
-    mkdir -p "$APP_BUNDLE/Contents/MacOS" "$APP_BUNDLE/Contents/Resources"
-
-    # Script de lancement (binaire principal du bundle)
-    # IMPORTANT : chemin absolu de python3 — quand un .app est lancé via Dock,
-    # le PATH est minimal (/usr/bin:/bin:/usr/sbin:/sbin) et n'inclut pas
-    # /Library/Frameworks/Python.framework/.../bin où python.org installe.
-    # Ajout ~/.local/bin au PATH : permet aux subprocess GUI de trouver le
-    # wrapper python3-uno (shebang des scripts UNO).
-    PYTHON_ABS=$(command -v "$PYTHON")
-    cat > "$APP_BUNDLE/Contents/MacOS/$APP_NAME" <<EOF
-#!/bin/bash
-# PATH augmenté pour les subprocess (UNO / OCR / gpg) lancés depuis la GUI
-# (Dock = PATH minimal /usr/bin:/bin:/usr/sbin:/sbin) :
-# - ~/.local/bin : wrapper python3-uno (cf. install.sh § wrapper)
-# - /opt/local/bin : tesseract via MacPorts (cf. CLAUDE_mac.md § LibreOffice Mac)
-# - /usr/local/bin : Homebrew Intel (gpg, autres outils brew)
-# - /opt/homebrew/bin : Homebrew Apple Silicon
-export PATH="\$HOME/.local/bin:/opt/local/bin:/usr/local/bin:/opt/homebrew/bin:\$PATH"
-cd "${INSTALL_DIR}"
-exec "${PYTHON_ABS}" cpt_gui.py
-EOF
-    chmod +x "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
-
-    # Info.plist (minimal mais complet pour Dock + Finder)
-    cat > "$APP_BUNDLE/Contents/Info.plist" <<EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>CFBundleExecutable</key>      <string>${APP_NAME}</string>
-    <key>CFBundleIdentifier</key>      <string>${APP_ID}</string>
-    <key>CFBundleName</key>            <string>${APP_NAME}</string>
-    <key>CFBundleDisplayName</key>     <string>${APP_NAME}</string>
-    <key>CFBundleVersion</key>         <string>1.0</string>
-    <key>CFBundleShortVersionString</key> <string>1.0</string>
-    <key>CFBundlePackageType</key>     <string>APPL</string>
-    <key>CFBundleIconFile</key>        <string>icon</string>
-    <key>NSHighResolutionCapable</key> <true/>
-</dict>
-</plist>
-EOF
-
-    # Conversion PNG → ICNS si l'icône source est présente
-    if [[ -f "$INSTALL_DIR/cpt_gui_export.png" ]]; then
-        ICONSET=$(mktemp -d)/icon.iconset
-        mkdir -p "$ICONSET"
-        for size in 16 32 128 256 512; do
-            double=$((size * 2))
-            sips -z $size $size "$INSTALL_DIR/cpt_gui_export.png" \
-                --out "$ICONSET/icon_${size}x${size}.png" >/dev/null 2>&1
-            sips -z $double $double "$INSTALL_DIR/cpt_gui_export.png" \
-                --out "$ICONSET/icon_${size}x${size}@2x.png" >/dev/null 2>&1
-        done
-        iconutil -c icns "$ICONSET" -o "$APP_BUNDLE/Contents/Resources/icon.icns" 2>/dev/null \
-            && ok "Icône euro convertie en .icns" \
-            || warn "Conversion icône échouée — icône Python par défaut sera utilisée"
-        rm -rf "$(dirname "$ICONSET")"
-    else
-        warn "cpt_gui_export.png absent — icône Python par défaut sera utilisée"
-    fi
-
-    # Forcer macOS à rafraîchir l'icône (évite l'icône cachée d'un ancien bundle)
-    touch "$APP_BUNDLE"
-
-    ok "Bundle installé ($APP_BUNDLE) → glisser dans le Dock pour épingler"
-    if [[ -f "$APPS_DIR/Comptabilité.command" ]]; then
-        echo "  ⚠ Ancien $APPS_DIR/Comptabilité.command présent — tu peux le supprimer"
-    fi
-fi
-
-# En --desktop-only : raccourci régénéré, on s'arrête (pas de deps/dirs/config).
-if $DESKTOP_ONLY; then
-    ok "Raccourci régénéré (mode $INSTALL_MODE) — desktop-only"
-    exit 0
-fi
+setup_desktop "$(pwd)" "$INSTALL_MODE"
 
 # ------------------------------------------------------------------
 # 7. Répertoires de travail
@@ -732,11 +597,7 @@ fi
 # Mode demandé en argument : l'écrire dans config.ini (sinon on respecte
 # le mode existant / celui du .default). #87 : le mode ne vient plus du chemin.
 if [[ -n "$MODE_ARG" && -f "config.ini" ]]; then
-    if grep -qE '^[[:space:]]*mode[[:space:]]*=' config.ini; then
-        sed -i.bak -E "s|^[[:space:]]*mode[[:space:]]*=.*|mode = $MODE_ARG|" config.ini && rm -f config.ini.bak
-    else
-        printf 'mode = %s\n' "$MODE_ARG" >> config.ini
-    fi
+    set_mode config.ini "$MODE_ARG"
     ok "Mode défini dans config.ini : $MODE_ARG"
 fi
 

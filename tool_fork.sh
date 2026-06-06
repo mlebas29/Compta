@@ -21,11 +21,10 @@
 
 set -euo pipefail
 
-RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
-ok()   { echo -e "${GREEN}✓${NC} $1"; }
-warn() { echo -e "${YELLOW}⚠${NC} $1"; }
-fail() { echo -e "${RED}✗${NC} $1" >&2; }
-die()  { fail "$1"; exit 1; }
+# Fonctions partagées (UI, $OS, read_mode/set_mode, setup_desktop)
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+. "$SCRIPT_DIR/inc_install.sh"
+die() { fail "$1"; exit 1; }
 
 # --- Arguments ---------------------------------------------------------------
 DATA=keep
@@ -47,25 +46,7 @@ done
 EX_DIR="$(pwd)"
 DEV_DIR="${DEV_DIR:-$HOME/Compta-dev}"
 
-# --- Helpers -----------------------------------------------------------------
-read_mode() {  # lit et normalise le mode d'un config.ini ($1) ; '' si absent
-    local f="$1" m
-    [[ -f "$f" ]] || { echo ""; return; }
-    m=$(grep -E '^[[:space:]]*mode[[:space:]]*=' "$f" | head -1 \
-        | sed -E 's/.*=[[:space:]]*//; s/[[:space:]].*//' | tr 'a-z' 'A-Z')
-    [[ "$m" == EXPORT ]] && m=EX        # compat legacy
-    echo "$m"
-}
-
-set_mode() {  # force mode=$2 dans le config.ini $1
-    local f="$1" mode="$2"
-    if grep -qE '^[[:space:]]*mode[[:space:]]*=' "$f"; then
-        sed -i.bak -E "s|^[[:space:]]*mode[[:space:]]*=.*|mode = $mode|" "$f" && rm -f "$f.bak"
-    else
-        printf 'mode = %s\n' "$mode" >> "$f"
-    fi
-}
-
+# --- Helpers (read_mode/set_mode viennent de inc_install.sh) ------------------
 git_clean() {  # 0 si l'arbre git $1 est propre
     [[ -z "$(git -C "$1" status --porcelain)" ]]
 }
@@ -141,8 +122,8 @@ ok "Mode PROD forcé dans $EX_DIR/config.ini"
 # --- 4. Raccourcis (desktop-only, sans réinstaller les deps) -----------------
 echo
 echo "--- Raccourcis ---"
-( cd "$DEV_DIR" && ./install.sh --desktop-only ) || warn "Raccourci DEV à régénérer manuellement"
-( cd "$EX_DIR"  && ./install.sh --desktop-only ) || warn "Raccourci PROD à régénérer manuellement"
+setup_desktop "$DEV_DIR" DEV  || warn "Raccourci DEV à régénérer manuellement"
+setup_desktop "$EX_DIR"  PROD || warn "Raccourci PROD à régénérer manuellement"
 
 # --- Résumé ------------------------------------------------------------------
 echo
