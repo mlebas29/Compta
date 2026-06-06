@@ -10,8 +10,8 @@ Usage:
     cpt.py --fetch-only             # Collecte uniquement (pas d'import)
     cpt.py --update-only            # Import uniquement (pas de collecte)
     cpt.py --reset                  # Réinitialisation complète du système
-    cpt.py --pull                   # Récupérer comptes.xlsm depuis Seafile
-    cpt.py --push                   # Pousser comptes.xlsm vers Seafile
+    cpt.py --pull                   # Récupérer comptes.xlsm depuis le classeur externe
+    cpt.py --push                   # Pousser comptes.xlsm vers le classeur externe
     cpt.py --fallback               # Annuler dernier fetch + import
     cpt.py --status                 # Vérifier l'état du système
 """
@@ -335,39 +335,46 @@ def run_script(script_name, args_list):
         return False
 
 
-def get_seafile_path():
-    """Récupère le chemin Seafile depuis la configuration
+def get_classeur_externe():
+    """Récupère le chemin du classeur externe depuis la configuration.
+
+    Le classeur externe est un stockage partagé/publié du classeur (un dossier
+    synchronisé, un montage réseau… peu importe la techno) ; Compta ne fait qu'y
+    copier/relire `comptes.xlsm`.
 
     Returns:
-        Path: Chemin vers le fichier Excel sur Seafile
+        Path: chemin vers le classeur externe
     """
-    seafile_path = config.get('paths', 'seafile_comptes_file', fallback=None)
-    if not seafile_path:
-        logger.error("Chemin Seafile non configuré dans config.ini [paths] seafile_comptes_file")
+    # shim compat : clé 'classeur_externe' (cible) ou 'seafile_comptes_file' (legacy)
+    classeur_path = config.get('paths', 'classeur_externe',
+                               fallback=config.get('paths', 'seafile_comptes_file',
+                                                    fallback=None))
+    if not classeur_path:
+        logger.error("Classeur externe non configuré dans config.ini [paths] classeur_externe")
         sys.exit(1)
 
     # Expansion du tilde
-    seafile_path = Path(seafile_path).expanduser()
-    return seafile_path
+    classeur_path = Path(classeur_path).expanduser()
+    return classeur_path
 
 
 def do_reset():
     """Réinitialisation complète du système
 
-    Récupère comptes.xlsm depuis Seafile et purge tous les fichiers
+    Récupère comptes.xlsm depuis le classeur externe et purge tous les fichiers
     """
     logger.info("🔄 Réinitialisation complète du système")
 
-    # 1. Récupérer comptes.xlsm depuis Seafile
-    seafile_path = get_seafile_path()
+    # 1. Récupérer comptes.xlsm depuis le classeur externe
+    classeur_path = get_classeur_externe()
     local_path = BASE_DIR / "comptes.xlsm"
 
-    if not seafile_path.exists():
-        logger.error(f"Fichier Seafile introuvable : {seafile_path}")
+    if not classeur_path.exists():
+        logger.error(f"Classeur externe introuvable : {classeur_path}")
         sys.exit(1)
 
-    logger.info(f"  Récupération depuis Seafile : {seafile_path}")
-    shutil.copy2(seafile_path, local_path)
+    logger.info(f"  Récupération depuis le classeur externe : {classeur_path}")
+    shutil.copy2(classeur_path, local_path)
     logger.info(f"  ✓ Copié vers {local_path}")
 
     # 2. Purger tous les fichiers et répertoires dans archives/, dropbox/, logs/
@@ -494,28 +501,28 @@ def do_reset_template():
 
 
 def do_pull():
-    """Récupère comptes.xlsm depuis Seafile"""
-    logger.info("⬇️  Pull comptes.xlsm depuis Seafile")
+    """Récupère comptes.xlsm depuis le classeur externe"""
+    logger.info("⬇️  Pull comptes.xlsm depuis le classeur externe")
 
-    seafile_path = get_seafile_path()
+    classeur_path = get_classeur_externe()
     local_path = BASE_DIR / "comptes.xlsm"
 
-    if not seafile_path.exists():
-        logger.error(f"Fichier Seafile introuvable : {seafile_path}")
+    if not classeur_path.exists():
+        logger.error(f"Classeur externe introuvable : {classeur_path}")
         sys.exit(1)
 
-    shutil.copy2(seafile_path, local_path)
-    logger.info(f"✓ Copié depuis {seafile_path}")
+    shutil.copy2(classeur_path, local_path)
+    logger.info(f"✓ Copié depuis {classeur_path}")
 
 
 def do_push(force=False):
-    """Pousse comptes.xlsm vers Seafile après vérifications
+    """Pousse comptes.xlsm vers le classeur externe après vérifications
 
     Vérifications avant push :
     1. tool_controles.py : COMPTES/CATEGORIES/INCONNUS bloquent (sauf --force)
     2. tool_refs.py --audit : affiche warnings références
     """
-    logger.info("⬆️  Push comptes.xlsm vers Seafile")
+    logger.info("⬆️  Push comptes.xlsm vers le classeur externe")
 
     # Sécurité : bloquer le push depuis l'environnement DEV
     mode = inc_mode.get_mode()
@@ -583,9 +590,9 @@ def do_push(force=False):
             print(f"  {stripped}")
 
     # 4. Push comptes.xlsm
-    seafile_path = get_seafile_path()
-    shutil.copy2(local_path, seafile_path)
-    logger.info(f"✓ Copié vers {seafile_path}")
+    classeur_path = get_classeur_externe()
+    shutil.copy2(local_path, classeur_path)
+    logger.info(f"✓ Copié vers {classeur_path}")
 
 
 def do_fallback():
@@ -693,8 +700,8 @@ Exemples:
   %(prog)s --fetch-only              # Collecte uniquement (pas d'import)
   %(prog)s --update-only             # Import uniquement (pas de collecte)
   %(prog)s --reset                   # Réinitialisation complète du système
-  %(prog)s --pull                    # Récupérer comptes.xlsm depuis Seafile
-  %(prog)s --push                    # Pousser comptes.xlsm vers Seafile
+  %(prog)s --pull                    # Récupérer comptes.xlsm depuis le classeur externe
+  %(prog)s --push                    # Pousser comptes.xlsm vers le classeur externe
   %(prog)s --fallback                # Annuler dernier fetch + import
   %(prog)s --status                  # Vérifier l'état du système
   %(prog)s -v                        # Mode verbeux
@@ -719,16 +726,16 @@ Workflow:
     # Options gestion système
     parser.add_argument('--reset',
                         action='store_true',
-                        help='Réinitialisation complète (pull Seafile + purge archives/dropbox/logs)')
+                        help='Réinitialisation complète (pull classeur externe + purge archives/dropbox/logs)')
     parser.add_argument('--reset-template',
                         action='store_true',
                         help='Réinitialisation template vierge (purge configs/données)')
     parser.add_argument('--pull',
                         action='store_true',
-                        help='Récupérer comptes.xlsm depuis Seafile')
+                        help='Récupérer comptes.xlsm depuis le classeur externe')
     parser.add_argument('--push',
                         action='store_true',
-                        help='Pousser comptes.xlsm vers Seafile (avec vérification)')
+                        help='Pousser comptes.xlsm vers le classeur externe (avec vérification)')
     parser.add_argument('--force',
                         action='store_true',
                         help='Forcer --push malgré erreurs bloquantes')

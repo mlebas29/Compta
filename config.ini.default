@@ -73,7 +73,9 @@ logs = ./logs
 # Fichier Excel principal
 comptes_file = ./comptes.xlsm
 
-# Fichier Excel synchronisé sur Seafile (chemin absolu)
+# Classeur externe : copie partagée/publiée du classeur (chemin absolu).
+# Active « Charger/Publier le classeur externe » (Publier réservé au mode PROD).
+# classeur_externe = /chemin/vers/comptes.xlsm
 
 # Credentials GPG (chemin absolu)
 credentials_file = ./config_credentials.md.gpg

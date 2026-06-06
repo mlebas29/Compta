@@ -79,7 +79,7 @@ def get_credentials_from_gpg(
                         continue
                     
                     if parts[0] == credential_id:
-                        # Nettoyer les caractères parasites ajoutés par Seafile/Markdown
+                        # Nettoyer les caractères parasites ajoutés par la synchro/l'éditeur Markdown
                         login = parts[1].strip('`"\'<>')
                         password = parts[2].strip('`"\'<>')
                         log(f"Credentials trouvés pour {credential_id}")
@@ -89,7 +89,7 @@ def get_credentials_from_gpg(
                 parts = [p.strip() for p in line.split('|')] if '|' in line else line.split()
                 
                 if len(parts) >= 3 and parts[0] == credential_id:
-                    # Nettoyer les caractères parasites ajoutés par Seafile/Markdown
+                    # Nettoyer les caractères parasites ajoutés par la synchro/l'éditeur Markdown
                     login = parts[1].strip('`"\'<>')
                     password = parts[2].strip('`"\'<>')
                     log(f"Credentials trouvés pour {credential_id}")

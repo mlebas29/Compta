@@ -129,15 +129,16 @@ class ExecMixin:
         # Bouton Outils — Button + tk_popup (gère bien le grab Linux, contrairement
         # à Menubutton dont le menu reste posté quand la fenêtre perd le focus).
         outils_menu = tk.Menu(self.root, tearoff=0)
-        # Items Wiki conditionnés à la présence de Seafile en config (cloneur
-        # tiers sans Seafile : ces items disparaissent). Publier reste réservé
-        # au mode PROD (le dossier qui a autorité sur le classeur).
-        has_seafile = bool(self.config.get(
-            'paths', 'seafile_comptes_file', fallback=None))
-        if has_seafile:
-            outils_menu.add_command(label='Charger Wiki', command=self._exec_pull)
-        if has_seafile and self.mode == 'PROD':
-            outils_menu.add_command(label='Publier Wiki', command=self._exec_push)
+        # Items « classeur externe » conditionnés à sa présence en config (cloneur
+        # tiers sans classeur externe : ces items disparaissent). Publier reste
+        # réservé au mode PROD (le dossier qui a autorité sur le classeur).
+        has_classeur = bool(self.config.get(
+            'paths', 'classeur_externe',
+            fallback=self.config.get('paths', 'seafile_comptes_file', fallback=None)))
+        if has_classeur:
+            outils_menu.add_command(label='Charger le classeur externe', command=self._exec_pull)
+        if has_classeur and self.mode == 'PROD':
+            outils_menu.add_command(label='Publier le classeur externe', command=self._exec_push)
         outils_menu.add_command(label='Réinitialiser...', command=self._exec_reset)
         outils_menu.add_command(label='Annuler import', command=self._exec_fallback)
         outils_menu.add_separator()
@@ -348,19 +349,20 @@ class ExecMixin:
 
     def _exec_pull(self):
         cmd = [sys.executable, str(self.config_path.parent / 'cpt.py'), '--pull']
-        self._exec_run(cmd, 'Pull Seafile')
+        self._exec_run(cmd, 'Pull classeur externe')
 
     def _exec_push(self):
         cmd = [sys.executable, str(self.config_path.parent / 'cpt.py'), '--push']
-        self._exec_run(cmd, 'Push Seafile')
+        self._exec_run(cmd, 'Push classeur externe')
 
     def _exec_reset(self):
-        # Seafile présent → reset simple (pull + purge). Sinon → dialogue
-        # template (utilisateur sans Seafile, p.ex. cloneur tiers en mode
+        # Classeur externe présent → reset simple (pull + purge). Sinon → dialogue
+        # template (utilisateur sans classeur externe, p.ex. cloneur tiers en mode
         # classeur).
-        has_seafile = bool(self.config.get(
-            'paths', 'seafile_comptes_file', fallback=None))
-        if not has_seafile:
+        has_classeur = bool(self.config.get(
+            'paths', 'classeur_externe',
+            fallback=self.config.get('paths', 'seafile_comptes_file', fallback=None)))
+        if not has_classeur:
             self._exec_reset_template_dialog()
             return
 
@@ -368,7 +370,7 @@ class ExecMixin:
                 'Confirmation',
                 'Réinitialiser le système ?\n\n'
                 'Cela va :\n'
-                '- Récupérer comptes.xlsm depuis Seafile\n'
+                '- Récupérer comptes.xlsm depuis le classeur externe\n'
                 '- Purger archives, dropbox et logs',
                 parent=self.root):
             return
@@ -377,7 +379,7 @@ class ExecMixin:
         self._exec_run(cmd, 'Réinitialisation')
 
     def _exec_reset_template_dialog(self):
-        """Dialogue de réinitialisation sans Seafile (template + réinstall)."""
+        """Dialogue de réinitialisation sans classeur externe (template + réinstall)."""
         dlg = tk.Toplevel(self.root)
         dlg.title('Réinitialiser')
         dlg.transient(self.root)
