@@ -1,9 +1,9 @@
 #!/bin/bash
 # ============================================================================
-# tool_fork.sh — Passage d'une instance mixte (EX) au dual (PROD + DEV)
+# install_fork.sh — Passage d'une instance mixte (EX) au dual (PROD + DEV)
 #
 # Lancé depuis la racine d'une instance EX (1 dossier, mixte) :
-#   cd ~/Compta && ./tool_fork.sh [--data=keep|erase] [chemin-dev] [--yes]
+#   cd ~/Compta && ./install_fork.sh [--data=keep|erase] [chemin-dev] [--yes]
 #
 # Effet :
 #   1. crée une instance DEV par clone DISTANT (origin GitHub pour PUB,
