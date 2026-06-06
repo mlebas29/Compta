@@ -438,7 +438,7 @@ Ouvrir `comptes.xlsm` et vérifier :
    - Tester sur copie de comptes.xlsm d'abord
    - Vérifier résultats avant appliquer en PROD
 
-4. **Seafile sync** : Pas de `--push` automatique
+4. **Classeur externe** : Pas de `--push` automatique
    - La purge est locale uniquement
    - Push manuel si résultat satisfaisant
 

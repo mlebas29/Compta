@@ -126,7 +126,9 @@ Une fois la configuration faite, elle n'a besoin d'être reprise que lors de l'o
 
 #### Étape 1 - Lancement de l'App
 
-Lancer l'App Comptabilité soit en ligne de commande `cd ~/Compta; ./cpt_gui.py`, soit en cliquant sur son icône (Symbole Euro)
+Lancer l'App Comptabilité soit **en cliquant sur le raccourci** (icône € colorée selon le mode : Or pour EX, rouge pour PROD, bleu pour DEV), soit **en ligne de commande** : `cd ~/Compta && ./cpt_gui.py`.
+
+> En lancement terminal, le Dock (macOS) ou la barre des tâches affiche l'icône de l'interpréteur Python (une « fusée »), pas l'icône € colorée — c'est normal : le raccourci (bundle `.app` / `.desktop`) n'est pas impliqué. L'icône du mode n'apparaît qu'au lancement *via le raccourci*.
 
 ![](cpt_gui_export.png)
 

@@ -10,7 +10,7 @@ Documentation technique pour le contributeur ou le mainteneur. Décrit l'archite
 |---|---|
 | Ajouter un site (fetch + format) | [`Compta_site.md`](Compta_site.md) |
 | Internals par connecteur (auth, parsing, gotchas) | [`docs/`](docs/README.md) |
-| Extensibilité, mécanisme d'extensions `custom/`, monkeypatches | [`Compta_custom.md`](Compta_custom.md) |
+| Étendre Compta (dual, custom/, monkeypatches) | [`Compta_extension.md`](Compta_extension.md) |
 | Tests de non-régression (TNR) | [`Compta_tests.md`](Compta_tests.md) |
 | Outils maintenance, git (tool_commit/pull) | [`Compta_tools.md`](Compta_tools.md) |
 | Guide utilisateur (concepts, PVL, portage, charte, mise à niveau) | [`Compta.md`](Compta.md) |
@@ -288,7 +288,7 @@ Stockés chiffrés GPG dans le fichier pointé par `config.ini` `[paths] credent
 └── dropbox/, archives/, logs/    # données opérationnelles
 ```
 
-Le dossier DEV est **indépendant** (`~/Compta-dev/`, même structure, mode `dev` ; depuis #87 il n'est plus nesté sous PROD). Détail de l'archi PUB/PRV + DEV : [`Compta_custom.md`](Compta_custom.md).
+Le dossier DEV est **indépendant** (`~/Compta-dev/`, même structure, mode `DEV` ; depuis #87 il n'est plus nesté sous PROD). Détail de l'archi PUB/PRV + dual : [`Compta_extension.md`](Compta_extension.md).
 
 ## Dépendances techniques
 

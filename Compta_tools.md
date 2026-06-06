@@ -130,7 +130,7 @@ temporaires qui peuvent rester après un crash du pipeline.
 
 ## Outils environnement git
 
-Cf. `Compta_custom.md` pour la doctrine d'usage (modes A.1 / A.2 / B, routage
+Cf. `Compta_extension.md` pour la doctrine d'usage (dual PROD/DEV, routage
 PUB/PRV).
 
 ### tool_commit.sh — Commit git par dossier
@@ -199,5 +199,15 @@ Exécution depuis la racine d'un clone Compta (cwd-relatif).
 
 `install_custom.sh` a été retiré : la mise en place du dépôt privé `custom/`
 se fait désormais par un simple clone du remote PRV —
-`git clone <remote-PRV> custom`. Détails et alternatives (option B sans `.git`
-PRV) dans [`Compta_custom.md`](Compta_custom.md).
+`git clone <remote-PRV> custom`. Détails et alternatives (sans dépôt PRV git)
+dans [`Compta_extension.md`](Compta_extension.md).
+
+## Provisioning (install)
+
+| Outil | Rôle |
+|---|---|
+| `install.sh` | installe une instance **EX** dans le clone courant (deps + structure + raccourci) |
+| `install_fork.sh [--data=keep\|erase] [chemin-dev]` | passe d'une instance EX au **dual** PROD+DEV (clone distant, bascule EX→PROD, raccourcis) |
+| `install_fix.sh [EX\|PROD\|DEV]` | pose le mode / répare le raccourci, sans réinstaller les dépendances |
+
+Module commun sourcé : `inc_install.sh` (UI, OS, mode, raccourci). Doctrine (mixte EX, dual PROD/DEV) : [`Compta_extension.md`](Compta_extension.md).

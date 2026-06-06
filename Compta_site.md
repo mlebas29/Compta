@@ -16,7 +16,7 @@ Le code est découvert dynamiquement au démarrage (scan glob), sans aucune modi
 | **Site public** | À la racine du projet (`cpt_fetch_FOO.py` + `cpt_format_FOO.py`) | Site générique utile à plusieurs cloneurs — peut être proposé en PR |
 | **Site privé** | Dans `custom/` (`custom/cpt_fetch_FOO.py` + `custom/cpt_format_FOO.py`) | Site spécifique à l'utilisateur — données nominatives, dossier unique, etc. |
 
-Les deux cas suivent **les mêmes squelettes Python**. La différence est purement organisationnelle : où vivent les fichiers, et comment ils sont versionnés (PUB pour la racine, PRV pour `custom/`). Pour les détails du mécanisme d'extensions `custom/` (bootstrap, options A/B, monkeypatches), voir [`Compta_custom.md`](Compta_custom.md).
+Les deux cas suivent **les mêmes squelettes Python**. La différence est purement organisationnelle : où vivent les fichiers, et comment ils sont versionnés (PUB pour la racine, PRV pour `custom/`). Pour les détails du mécanisme d'extensions `custom/` (bootstrap, versionnage, monkeypatches), voir [`Compta_extension.md`](Compta_extension.md).
 
 Le reste de ce document utilise `FOO` comme nom de site générique et place les fichiers à la racine (site public). Pour un site privé, remplacer `FOO` par le nom du site et ajouter le préfixe `custom/` aux chemins.
 
@@ -265,8 +265,8 @@ cp cpt_fetch_BTC.py custom/cpt_fetch_FOO.py      # gabarit API ; Playwright → 
 cp cpt_format_BTC.py custom/cpt_format_FOO.py
 ```
 
-puis renommer/adapter (cf. étapes ci-dessus). Voir [`Compta_custom.md`](Compta_custom.md) pour le mécanisme d'extensions `custom/` (bootstrap, options A/B, monkeypatches).
+puis renommer/adapter (cf. étapes ci-dessus). Voir [`Compta_extension.md`](Compta_extension.md) pour le mécanisme d'extensions `custom/` (bootstrap, versionnage, monkeypatches).
 
 ### Monkeypatch d'un site existant
 
-Si tu veux **modifier** le comportement d'un site public sans changer son code (par exemple regrouper certaines lignes d'un parsing existant), c'est un patch dans `custom/patch_*.py` — voir [`Compta_custom.md`](Compta_custom.md) §Cas B.
+Si tu veux **modifier** le comportement d'un site public sans changer son code (par exemple regrouper certaines lignes d'un parsing existant), c'est un patch dans `custom/patch_*.py` — voir [`Compta_extension.md`](Compta_extension.md) §2 (Monkeypatch).

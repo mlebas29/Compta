@@ -1,7 +1,7 @@
 """inc_bootstrap.py — Charge les extensions privées au démarrage.
 
-Mécanisme du framework `custom/` (cf. Compta_custom.md, section
-« Chargement dynamique du custom/ »). Si un dossier `custom/` existe
+Mécanisme du framework `custom/` (cf. Compta_extension.md, §2 Custom).
+Si un dossier `custom/` existe
 à côté du code public :
 
 1. `custom/` est ajouté à `sys.path` → les modules `cpt_fetch_<NAME>.py`

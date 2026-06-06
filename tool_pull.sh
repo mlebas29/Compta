@@ -1,7 +1,7 @@
 #!/bin/bash
 # tool_pull.sh — Pull PROD (PUB et/ou PRV) avec détection auto du mode
 #
-# Cf. Compta_tools.md pour la spec complète, Compta_custom.md pour la doctrine.
+# Cf. Compta_tools.md pour la spec complète, Compta_extension.md pour la doctrine.
 
 set -e
 

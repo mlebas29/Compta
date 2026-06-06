@@ -1,7 +1,7 @@
 #!/bin/bash
 # tool_commit.sh — Commit DEV (PUB et/ou PRV) avec routage automatique
 #
-# Cf. Compta_tools.md pour la spec complète, Compta_custom.md pour la doctrine.
+# Cf. Compta_tools.md pour la spec complète, Compta_extension.md pour la doctrine.
 #
 # Routage automatique :
 #   - Fichiers sous custom/  → .git PRV

@@ -158,7 +158,7 @@ Hors les sites, l'app reste modifiable, mais `git pull` signalera les conflits a
 
 L'app est livrée avec un environnement de test. Celui-là contient plusieurs scenarii et est lui aussi extensible de manière publique ou privée.
 
-Détails dans la doc **Technique** ([`Compta_dev.md`](Compta_dev.md)).
+Pour aller plus loin — isoler le développement en *dual*, ajouter du code privé, brancher un site : **[`Compta_extension.md`](Compta_extension.md)**. Architecture interne : [`Compta_dev.md`](Compta_dev.md).
 
 ## 9. Vérifications
 
