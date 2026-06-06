@@ -122,23 +122,26 @@ EOF
 </plist>
 EOF
 
-        if [[ -f "$INSTALL_DIR/cpt_gui_export.png" ]]; then
+        # Icône du bundle = celle du MODE (bleu DEV / rouge PROD / jaune EX),
+        # pas systématiquement l'export — cohérent avec le thème runtime.
+        local _png="$INSTALL_DIR/$_icon"
+        if [[ -f "$_png" ]]; then
             local ICONSET; ICONSET=$(mktemp -d)/icon.iconset
             mkdir -p "$ICONSET"
             local size double
             for size in 16 32 128 256 512; do
                 double=$((size * 2))
-                sips -z $size $size "$INSTALL_DIR/cpt_gui_export.png" \
+                sips -z $size $size "$_png" \
                     --out "$ICONSET/icon_${size}x${size}.png" >/dev/null 2>&1
-                sips -z $double $double "$INSTALL_DIR/cpt_gui_export.png" \
+                sips -z $double $double "$_png" \
                     --out "$ICONSET/icon_${size}x${size}@2x.png" >/dev/null 2>&1
             done
             iconutil -c icns "$ICONSET" -o "$APP_BUNDLE/Contents/Resources/icon.icns" 2>/dev/null \
-                && ok "Icône convertie en .icns" \
+                && ok "Icône convertie en .icns ($_icon)" \
                 || warn "Conversion icône échouée — icône Python par défaut"
             rm -rf "$(dirname "$ICONSET")"
         else
-            warn "cpt_gui_export.png absent — icône Python par défaut"
+            warn "$_icon absent — icône Python par défaut"
         fi
         touch "$APP_BUNDLE"   # force macOS à rafraîchir l'icône
         ok "Bundle installé ($APP_BUNDLE)"
