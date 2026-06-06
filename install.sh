@@ -3,8 +3,9 @@
 # Installation de Compta — portable Linux / macOS / WSL
 #
 # Usage:
-#   cd <racine du clone Compta> && ./install.sh [DEV|PROD|EX]
-#   (sans argument : conserve le mode de config.ini, sinon EX)
+#   cd <racine du clone Compta> && ./install.sh
+#   Installe une instance EX (config.ini ← config.ini.default = EX).
+#   Pour spécialiser le mode (PROD/DEV) ou réparer le raccourci : ./install_fix.sh
 #
 # (script cwd-relatif : INSTALL_DIR = $PWD)
 #
@@ -29,40 +30,23 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ERRORS=0
 
 # ------------------------------------------------------------------
-# Mode d'installation (argument positionnel, défaut : mode de config.ini
-# existant, sinon EX). Découplé du chemin (#87) : config.ini fait foi.
-#   ./install.sh            → conserve le mode existant (ou EX)
-#   ./install.sh DEV|PROD|EX → force ce mode dans config.ini
-# Casse libre en entrée (normalisée en MAJUSCULE) ; 'export' legacy → EX.
+# Mode (pour le raccourci) : lu dans config.ini > config.ini.default > EX.
+# install.sh ne GÈRE PAS le mode (plus d'argument) — pour le poser/changer,
+# utiliser ./install_fix.sh [EX|PROD|DEV]. #87 : config.ini fait foi.
 # ------------------------------------------------------------------
-MODE_ARG=""
-if [[ -n "${1:-}" ]]; then
-    case "$1" in
-        -h|--help)
-            echo "Usage: ./install.sh [DEV|PROD|EX]   (défaut : mode de config.ini, sinon EX)"
-            exit 0 ;;
-        *)
-            MODE_ARG=$(printf '%s' "$1" | tr 'a-z' 'A-Z')
-            case "$MODE_ARG" in
-                EXPORT) MODE_ARG="EX" ;;          # compat legacy
-                DEV|PROD|EX) ;;
-                *) fail "Mode invalide : '$1' (attendu : DEV | PROD | EX)"; exit 1 ;;
-            esac ;;
-    esac
+if [[ "${1:-}" == -h || "${1:-}" == --help ]]; then
+    echo "Usage: ./install.sh   (installe le clone courant ; mode/raccourci via ./install_fix.sh)"
+    exit 0
 fi
 
-# Mode effectif : argument > config.ini existant > config.ini.default > EX
-if [[ -n "$MODE_ARG" ]]; then
-    INSTALL_MODE="$MODE_ARG"
-else
-    _ml=$(grep -hE '^[[:space:]]*mode[[:space:]]*=' config.ini config.ini.default 2>/dev/null | head -1)
-    INSTALL_MODE=$(printf '%s' "$_ml" | sed -E 's/.*=[[:space:]]*//; s/[[:space:]].*//' | tr 'a-z' 'A-Z')
+# install.sh crée une instance EX (config.ini hérite de config.ini.default = EX) :
+# il ne pose pas le mode. Anomalie signalée si un config.ini préexistant n'est
+# pas en EX (dossier déjà spécialisé → ./install_fix.sh pour le mode/raccourci).
+INSTALL_MODE=EX
+_pre=$(read_mode config.ini)
+if [[ -n "$_pre" && "$_pre" != EX ]]; then
+    warn "config.ini déjà en mode $_pre — install.sh installe en EX ; pour gérer le mode $_pre : ./install_fix.sh"
 fi
-case "$INSTALL_MODE" in
-    EXPORT)      INSTALL_MODE="EX" ;;            # compat legacy
-    DEV|PROD|EX) ;;
-    *)           INSTALL_MODE="EX" ;;
-esac
 
 # ------------------------------------------------------------------
 # 0. OS (détecté par inc_install.sh)
@@ -592,13 +576,6 @@ elif [[ -f "config.ini" ]]; then
     ok "config.ini déjà présent"
 else
     warn "config.ini.default absent — créer config.ini manuellement"
-fi
-
-# Mode demandé en argument : l'écrire dans config.ini (sinon on respecte
-# le mode existant / celui du .default). #87 : le mode ne vient plus du chemin.
-if [[ -n "$MODE_ARG" && -f "config.ini" ]]; then
-    set_mode config.ini "$MODE_ARG"
-    ok "Mode défini dans config.ini : $MODE_ARG"
 fi
 
 # config_credentials.md : poser la copie de travail depuis le modèle, mais seulement
