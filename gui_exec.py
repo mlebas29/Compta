@@ -131,12 +131,12 @@ class ExecMixin:
         outils_menu = tk.Menu(self.root, tearoff=0)
         # Items Wiki conditionnés à la présence de Seafile en config (cloneur
         # tiers sans Seafile : ces items disparaissent). Publier reste réservé
-        # au mode prod (l'instance qui a autorité sur le classeur).
+        # au mode PROD (le dossier qui a autorité sur le classeur).
         has_seafile = bool(self.config.get(
             'paths', 'seafile_comptes_file', fallback=None))
         if has_seafile:
             outils_menu.add_command(label='Charger Wiki', command=self._exec_pull)
-        if has_seafile and self.mode == 'prod':
+        if has_seafile and self.mode == 'PROD':
             outils_menu.add_command(label='Publier Wiki', command=self._exec_push)
         outils_menu.add_command(label='Réinitialiser...', command=self._exec_reset)
         outils_menu.add_command(label='Annuler import', command=self._exec_fallback)

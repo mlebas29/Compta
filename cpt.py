@@ -517,9 +517,9 @@ def do_push(force=False):
     """
     logger.info("⬆️  Push comptes.xlsm vers Seafile")
 
-    # Sécurité : bloquer le push depuis l'environnement TEST
+    # Sécurité : bloquer le push depuis l'environnement DEV
     mode = inc_mode.get_mode()
-    if mode == 'dev':
+    if mode == 'DEV':
         logger.error("❌ Push interdit depuis l'environnement DEV")
         logger.error("   Synchroniser PROD d'abord : git -C ~/Compta pull")
         logger.error("   Puis lancer le push depuis ~/Compta")

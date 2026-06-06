@@ -167,11 +167,11 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DaemonClientMixin,
 
         # Couleurs selon le mode
         _MODE_THEMES = {
-            'prod':   ('PROD',   '#b91c1c', '#ffffff', '#fef2f2', 'cpt_gui_prod'),
-            'export': ('EX',     '#ca8a04', '#ffffff', '#fefce8', 'cpt_gui_export'),
-            'dev':    ('DEV',    '#1d4ed8', '#ffffff', '#eff6ff', 'cpt_gui'),
+            'PROD': ('PROD', '#b91c1c', '#ffffff', '#fef2f2', 'cpt_gui_prod'),
+            'EX':   ('EX',   '#ca8a04', '#ffffff', '#fefce8', 'cpt_gui_export'),
+            'DEV':  ('DEV',  '#1d4ed8', '#ffffff', '#eff6ff', 'cpt_gui'),
         }
-        label, bg, fg, accent, wm_class = _MODE_THEMES.get(self.mode, _MODE_THEMES['dev'])
+        label, bg, fg, accent, wm_class = _MODE_THEMES.get(self.mode, _MODE_THEMES['DEV'])
         self._mode_label = label
         self._mode_bg = bg
         self._mode_fg = fg
@@ -184,7 +184,7 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DaemonClientMixin,
         self.root.report_callback_exception = self._handle_tk_exception
 
         # Icône fenêtre et barre des tâches (bleu=test, rouge=prod, jaune=export)
-        _ICON_NAMES = {'prod': 'cpt_gui_prod.png', 'export': 'cpt_gui_export.png'}
+        _ICON_NAMES = {'PROD': 'cpt_gui_prod.png', 'EX': 'cpt_gui_export.png'}
         icon_name = _ICON_NAMES.get(self.mode, 'cpt_gui.png')
         icon_path = Path(__file__).parent / icon_name
         if icon_path.exists():

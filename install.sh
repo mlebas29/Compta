@@ -3,8 +3,8 @@
 # Installation de Compta — portable Linux / macOS / WSL
 #
 # Usage:
-#   cd <racine du clone Compta> && ./install.sh [dev|prod|export]
-#   (sans argument : conserve le mode de config.ini, sinon export)
+#   cd <racine du clone Compta> && ./install.sh [DEV|PROD|EX]
+#   (sans argument : conserve le mode de config.ini, sinon EX)
 #
 # (script cwd-relatif : INSTALL_DIR = $PWD)
 #
@@ -35,29 +35,39 @@ ERRORS=0
 
 # ------------------------------------------------------------------
 # Mode d'installation (argument positionnel, défaut : mode de config.ini
-# existant, sinon export). Découplé du chemin (#87) : config.ini fait foi.
-#   ./install.sh            → conserve le mode existant (ou export)
-#   ./install.sh dev|prod|export → force ce mode dans config.ini
+# existant, sinon EX). Découplé du chemin (#87) : config.ini fait foi.
+#   ./install.sh            → conserve le mode existant (ou EX)
+#   ./install.sh DEV|PROD|EX → force ce mode dans config.ini
+# Casse libre en entrée (normalisée en MAJUSCULE) ; 'export' legacy → EX.
 # ------------------------------------------------------------------
 MODE_ARG=""
 if [[ -n "${1:-}" ]]; then
     case "$1" in
-        dev|prod|export) MODE_ARG="$1" ;;
         -h|--help)
-            echo "Usage: ./install.sh [dev|prod|export]   (défaut : mode de config.ini, sinon export)"
+            echo "Usage: ./install.sh [DEV|PROD|EX]   (défaut : mode de config.ini, sinon EX)"
             exit 0 ;;
-        *) fail "Mode invalide : '$1' (attendu : dev | prod | export)"; exit 1 ;;
+        *)
+            MODE_ARG=$(printf '%s' "$1" | tr 'a-z' 'A-Z')
+            case "$MODE_ARG" in
+                EXPORT) MODE_ARG="EX" ;;          # compat legacy
+                DEV|PROD|EX) ;;
+                *) fail "Mode invalide : '$1' (attendu : DEV | PROD | EX)"; exit 1 ;;
+            esac ;;
     esac
 fi
 
-# Mode effectif : argument > config.ini existant > config.ini.default > export
+# Mode effectif : argument > config.ini existant > config.ini.default > EX
 if [[ -n "$MODE_ARG" ]]; then
     INSTALL_MODE="$MODE_ARG"
 else
     _ml=$(grep -hE '^[[:space:]]*mode[[:space:]]*=' config.ini config.ini.default 2>/dev/null | head -1)
-    INSTALL_MODE=$(printf '%s' "$_ml" | sed -E 's/.*=[[:space:]]*//; s/[[:space:]].*//' | tr 'A-Z' 'a-z')
+    INSTALL_MODE=$(printf '%s' "$_ml" | sed -E 's/.*=[[:space:]]*//; s/[[:space:]].*//' | tr 'a-z' 'A-Z')
 fi
-case "$INSTALL_MODE" in dev|prod|export) ;; *) INSTALL_MODE="export" ;; esac
+case "$INSTALL_MODE" in
+    EXPORT)      INSTALL_MODE="EX" ;;            # compat legacy
+    DEV|PROD|EX) ;;
+    *)           INSTALL_MODE="EX" ;;
+esac
 
 # ------------------------------------------------------------------
 # 0. Détection OS
@@ -560,8 +570,8 @@ if [[ $OS == linux ]]; then
     # Raccourci entièrement généré (#87) : le CHEMIN vient d'INSTALL_DIR, le
     # libellé / icône / nom de fichier viennent du MODE résolu en tête de script.
     case "$INSTALL_MODE" in
-        dev)  _label="[DEV]";  _icon="cpt_gui.png";      _wm="cpt_gui" ;;
-        prod) _label="[PROD]"; _icon="cpt_gui_prod.png"; _wm="cpt_gui" ;;
+        DEV)  _label="[DEV]";  _icon="cpt_gui.png";        _wm="cpt_gui" ;;
+        PROD) _label="[PROD]"; _icon="cpt_gui_prod.png";   _wm="cpt_gui" ;;
         *)    _label="[EX]";   _icon="cpt_gui_export.png"; _wm="cpt_gui_export" ;;
     esac
     DESKTOP_FILE="$DESKTOP_DIR/cpt_gui_${INSTALL_MODE}.desktop"

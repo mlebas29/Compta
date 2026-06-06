@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Module de détection du mode COMPTA (dev, prod, export)
+Module de détection du mode COMPTA (DEV, PROD, EX)
 
 Logique de détection :
 1. Si config.ini contient mode= dans [general] → utiliser cette valeur
@@ -16,7 +16,9 @@ from pathlib import Path
 # inc_mode est importé par tous les points d'entrée → 1 seul endroit suffit.
 import inc_bootstrap  # noqa: F401  — side-effect : sys.path + patches privés
 
-VALID_MODES = {'dev', 'prod', 'export'}
+# Canonique en MAJUSCULE : la valeur de config.ini = le label affiché = le terme
+# de doc (un seul token). DEV/PROD = dual ; EX = mixte (ex-« export »).
+VALID_MODES = {'DEV', 'PROD', 'EX'}
 
 # Variable globale pour éviter d'afficher plusieurs fois le warning
 _test_warning_shown = False
@@ -35,9 +37,12 @@ def _read_mode_from_config(config_path=None):
     config = configparser.ConfigParser()
     config.read(config_path)
     mode = config.get('general', 'mode', fallback=None)
-    if mode and mode.strip().lower() in VALID_MODES:
-        return mode.strip().lower()
-    return None
+    if not mode:
+        return None
+    mode = mode.strip().upper()              # insensible à la casse en entrée
+    if mode == 'EXPORT':                      # compat config legacy (export → EX)
+        mode = 'EX'
+    return mode if mode in VALID_MODES else None
 
 
 def detect_mode_from_path(script_path=None):
@@ -47,8 +52,8 @@ def detect_mode_from_path(script_path=None):
     recours et corrigé pour la convention découplée `~/Compta-dev`.
 
     Returns:
-        'dev' si dans ~/Compta-dev (ou ~/Compta/dev), 'prod' si dans ~/Compta,
-        'export' sinon
+        'DEV' si dans ~/Compta-dev (ou ~/Compta/dev), 'PROD' si dans ~/Compta,
+        'EX' sinon
     """
     if script_path is None:
         script_path = Path(sys.argv[0]).absolute().parent
@@ -61,11 +66,11 @@ def detect_mode_from_path(script_path=None):
     # check '/Compta' (qui matcherait '/Compta-dev' comme substring → prod).
     if ('/Compta-dev' in path_str or '\\Compta-dev' in path_str
             or '/Compta/dev' in path_str or '\\Compta\\dev' in path_str):
-        return 'dev'
+        return 'DEV'
     elif '/Compta' in path_str or '\\Compta' in path_str:
-        return 'prod'
+        return 'PROD'
     else:
-        return 'export'
+        return 'EX'
 
 
 def get_mode(verbose=False, config_path=None):
@@ -77,7 +82,7 @@ def get_mode(verbose=False, config_path=None):
     2. Détection depuis PATH (rétrocompatibilité)
 
     Returns:
-        str: 'dev', 'prod' ou 'export'
+        str: 'DEV', 'PROD' ou 'EX'
     """
     # 1. config.ini
     mode = _read_mode_from_config(config_path)
@@ -99,10 +104,10 @@ def get_base_dir(mode=None):
 
     Priorité :
     1. Variable d'environnement COMPTA_BASE_DIR (override absolu — sandbox, install custom)
-    2. Mode 'prod' / 'dev' : auto-localisation = racine du clone qui exécute
-       (inc_mode.py est à la racine). Découple l'emplacement du mode → prod et dev
+    2. Mode 'PROD' / 'DEV' : auto-localisation = racine du clone qui exécute
+       (inc_mode.py est à la racine). Découple l'emplacement du mode → PROD et DEV
        vivent à des chemins arbitraires, indépendants (ni emboîtés ni frères, cf. #87).
-    3. Mode 'export' / inconnu : répertoire du script (symlinks non résolus → sandbox-friendly)
+    3. Mode 'EX' / inconnu : répertoire du script (symlinks non résolus → sandbox-friendly)
 
     Returns:
         Path: Chemin vers le répertoire de base
@@ -114,13 +119,13 @@ def get_base_dir(mode=None):
     if mode is None:
         mode = get_mode()
 
-    if mode in ('prod', 'dev'):
+    if mode in ('PROD', 'DEV'):
         # Racine du clone, auto-localisée via l'emplacement de ce module. Robuste
         # au point d'entrée, au cwd et aux fetchers custom/ (qui appellent
         # get_base_dir et dont sys.argv[0] pointerait dans custom/, pas la racine).
         return Path(__file__).resolve().parent
 
-    # export ou inconnu : répertoire du script (sans résoudre les symlinks → sandbox-friendly)
+    # EX ou inconnu : répertoire du script (sans résoudre les symlinks → sandbox-friendly)
     return Path(sys.argv[0]).absolute().parent
 
 
@@ -155,7 +160,7 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(
-        description='Détecte et vérifie le mode COMPTA (dev, prod, export)'
+        description='Détecte et vérifie le mode COMPTA (DEV, PROD, EX)'
     )
     parser.add_argument('-v', '--verbose',
                         action='store_true',
