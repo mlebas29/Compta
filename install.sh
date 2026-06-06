@@ -41,20 +41,22 @@ ERRORS=0
 # Casse libre en entrée (normalisée en MAJUSCULE) ; 'export' legacy → EX.
 # ------------------------------------------------------------------
 MODE_ARG=""
-if [[ -n "${1:-}" ]]; then
-    case "$1" in
+DESKTOP_ONLY=false
+for _arg in "$@"; do
+    case "$_arg" in
         -h|--help)
-            echo "Usage: ./install.sh [DEV|PROD|EX]   (défaut : mode de config.ini, sinon EX)"
+            echo "Usage: ./install.sh [DEV|PROD|EX] [--desktop-only]   (défaut mode : config.ini, sinon EX)"
             exit 0 ;;
+        --desktop-only) DESKTOP_ONLY=true ;;      # ne (re)génère que le raccourci
         *)
-            MODE_ARG=$(printf '%s' "$1" | tr 'a-z' 'A-Z')
+            MODE_ARG=$(printf '%s' "$_arg" | tr 'a-z' 'A-Z')
             case "$MODE_ARG" in
                 EXPORT) MODE_ARG="EX" ;;          # compat legacy
                 DEV|PROD|EX) ;;
-                *) fail "Mode invalide : '$1' (attendu : DEV | PROD | EX)"; exit 1 ;;
+                *) fail "Mode invalide : '$_arg' (attendu : DEV | PROD | EX)"; exit 1 ;;
             esac ;;
     esac
-fi
+done
 
 # Mode effectif : argument > config.ini existant > config.ini.default > EX
 if [[ -n "$MODE_ARG" ]]; then
@@ -96,6 +98,9 @@ if [[ $OS == macos ]]; then
         MACOS_USE_PORTS=true
     fi
 fi
+
+# ===== Dépendances système (sautées en --desktop-only) =====
+if ! $DESKTOP_ONLY; then
 
 # Indication portable d'installation pour un paquet manquant.
 # Args : <apt_pkg> <brew_pkg> [3e_arg]
@@ -556,6 +561,11 @@ else
     fi
 fi
 
+fi  # ===== fin dépendances système =====
+
+# En --desktop-only les deps (qui résolvent PYTHON) sont sautées : fallback.
+PYTHON="${PYTHON:-python3}"
+
 # ------------------------------------------------------------------
 # 6. Raccourci de lancement
 # ------------------------------------------------------------------
@@ -671,6 +681,12 @@ EOF
     if [[ -f "$APPS_DIR/Comptabilité.command" ]]; then
         echo "  ⚠ Ancien $APPS_DIR/Comptabilité.command présent — tu peux le supprimer"
     fi
+fi
+
+# En --desktop-only : raccourci régénéré, on s'arrête (pas de deps/dirs/config).
+if $DESKTOP_ONLY; then
+    ok "Raccourci régénéré (mode $INSTALL_MODE) — desktop-only"
+    exit 0
 fi
 
 # ------------------------------------------------------------------
