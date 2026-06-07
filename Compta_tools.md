@@ -207,7 +207,25 @@ dans [`Compta_extension.md`](Compta_extension.md).
 | Outil | Rôle |
 |---|---|
 | `install.sh` | installe une instance **EX** dans le clone courant (deps + structure + raccourci) |
-| `install_fork.sh [--data=keep\|erase] [chemin-dev]` | passe d'une instance EX au **dual** PROD+DEV (clone distant, bascule EX→PROD, raccourcis) |
+| `install_fork.sh [--no-data] [chemin-dev]` | passe d'une instance EX au **dual** PROD+DEV (bascule EX→PROD, raccourcis ; volet PRV selon l'état de `custom/`, cf. ci-dessous). Données métier copiées par défaut (sémantique du fork) ; `--no-data` = DEV vierge (config `.default`, classeur template) |
 | `install_fix.sh [EX\|PROD\|DEV]` | pose le mode / répare le raccourci, sans réinstaller les dépendances |
 
 Module commun sourcé : `inc_install.sh` (UI, OS, mode, raccourci). Doctrine (mixte EX, dual PROD/DEV) : [`Compta_extension.md`](Compta_extension.md).
+
+### install_fork.sh — volet PRV selon l'état de `custom/`
+
+Le PUB du DEV est toujours un clone distant de l'origin (GitHub). Pour le PRV,
+le fork détecte l'état de `custom/` (même taxonomie 0/B/A.1/A.2 que
+`tool_commit.sh`) et adapte :
+
+| État de `custom/` | Comportement du fork |
+|---|---|
+| **0** — pas de `custom/` | rien — instance PUB seule |
+| **B** — `custom/` sans `.git` | copie des fichiers vers le DEV (non versionné des deux côtés ; sauvegarde à la charge de l'utilisateur) |
+| **A.1** — `.git` sans remote | crée un hub **bare local** (`~/Compta-hub/custom.git`, override `$COMPTA_HUB`), y rattache l'instance courante (origin + tracking) et y clone le DEV → **les deux instances passent en A.2** |
+| **A.2** — `.git` avec remote | clone distant depuis l'origin — les deux instances partagent le hub existant |
+
+Le cas A.1 exige que le chemin du hub soit libre (erreur explicite sinon).
+Migration ultérieure du hub local vers un distant (VPS, NAS…) : déplacer le
+bare puis `git remote set-url origin <url>` dans chaque clone — aucune autre
+restructuration.

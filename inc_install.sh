@@ -2,8 +2,9 @@
 # ============================================================================
 # inc_install.sh — fonctions partagées du provisioning Compta (à SOURCER)
 #
-# Sourcé par install.sh (configure le clone courant) et tool_fork.sh (passage
-# mixte EX → dual PROD+DEV). Registre SETUP en shell — pendant de inc_mode.py
+# Sourcé par install.sh (configure le clone courant), install_fork.sh (passage
+# mixte EX → dual PROD+DEV) et install_fix.sh. Registre SETUP en shell —
+# pendant de inc_mode.py
 # côté runtime Python (un seul endroit pour le shim legacy export→EX).
 #
 # Usage :  . "$(cd "$(dirname "$0")" && pwd)/inc_install.sh"
