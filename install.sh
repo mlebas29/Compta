@@ -610,9 +610,9 @@ echo " Récapitulatif :"
 echo "  • Dépendances Python (requirements.txt) installées"
 echo "  • Navigateur Playwright installé"
 if [[ $OS == linux ]]; then
-    echo "  • Raccourci créé : $DESKTOP_FILE"
+    echo "  • Raccourci créé : $DESKTOP_TARGET"
 else
-    echo "  • Bundle créé : $APP_BUNDLE"
+    echo "  • Bundle créé : $DESKTOP_TARGET"
 fi
 echo "  • Wrapper python3-uno déposé : $WRAPPER"
 echo "  • Répertoires de travail : dropbox/ archives/ logs/"
@@ -635,7 +635,12 @@ fi
 echo "------------------------------------------------------------"
 echo " Prochaines étapes :"
 echo "------------------------------------------------------------"
-echo "  1. Lancer : $PYTHON cpt_gui.py"
+if [[ $OS == macos ]]; then
+    echo "  1. Lancer : « Comptabilité.app » (~/Applications — Launchpad/Spotlight)"
+    echo "     → préférer le bundle au terminal (PATH/interpréteur gérés), cf. Compta.md § Lancement"
+else
+    echo "  1. Lancer : raccourci « Comptabilité [EX] » — ou en terminal : $PYTHON cpt_gui.py"
+fi
 echo "     → L'interface sert aussi de configurateur (comptes, sites, paramètres)"
 echo "  2. Renseigner les credentials :"
 echo "     → remplir config_credentials.md (créé depuis le modèle — voir README.md)"

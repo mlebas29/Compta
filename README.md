@@ -135,19 +135,15 @@ Le classeur d'exemple contient des données fictives à remplacer par les vôtre
 
 ## 7. Utilisation — mode assisté
 
-### Sécurité
+Le classeur livré est vierge de données personnelles. L'application graphique — à lancer via le raccourci installé (icône €) — guide l'utilisateur à travers les étapes : sélection des sites, collecte, import, vérification. Elle peut aussi être utilisée uniquement pour la gestion du classeur (comptes, catégories, devises, titres) sans activer la collecte. L'app s'utilise également en ligne de commande (collecte, import, appariement, cotations, diagnostics).
 
-Les identifiants de connexion sont stockés chiffrés par GPG. `install.sh` pose une copie de travail `config_credentials.md` ; il reste à la remplir puis à la chiffrer comme détaillé dans la doc **Utilisation** ([`Compta.md`](Compta.md)) avant de la supprimer impérativement.
+Avant la première collecte il s'agit de renseigner :
 
-### Via l'interface graphique
+- les identifiants de connexion via GPG ; ceux-là sont stockés dans un fichier chiffré (la copie en clair est à supprimer après chiffrement) ;
+- tous les autres paramètres via l'application Compta ; ceux-là sont stockés pour la plupart dans le classeur (noms de comptes, devises utilisées, etc.).
 
-L'application graphique guide l'utilisateur à travers les étapes : sélection des sites, collecte, import, vérification. Elle peut aussi être utilisée uniquement pour la gestion du classeur (comptes, catégories, devises, titres) sans activer la collecte.
+La procédure est détaillée dans la doc **Utilisation** ([`Compta.md`](Compta.md)).
 
-Le premier lancement est en ligne de commande : `./cpt_gui.py`. Une fois l'application lancée, elle peut être épinglée dans la barre des tâches.
-
-### En ligne de commande
-
-L'app s'utilise aussi en CLI (collecte, import, appariement, cotations, diagnostics) ; les commandes sont détaillées dans la doc **Utilisation** ([`Compta.md`](Compta.md)).
 
 
 ## 8. Extensibilité
@@ -159,6 +155,8 @@ Hors les sites, l'app reste modifiable, mais `git pull` signalera les conflits a
 L'app est livrée avec un environnement de test. Celui-là contient plusieurs scenarii et est lui aussi extensible de manière publique ou privée.
 
 Pour aller plus loin — isoler le développement en *dual*, ajouter du code privé, brancher un site : **[`Compta_extension.md`](Compta_extension.md)**. Architecture interne : [`Compta_dev.md`](Compta_dev.md).
+
+
 
 ## 9. Vérifications
 

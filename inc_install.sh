@@ -9,6 +9,7 @@
 #
 # Usage :  . "$(cd "$(dirname "$0")" && pwd)/inc_install.sh"
 # Expose : ok/warn/fail, $OS, read_mode, set_mode, setup_desktop
+#          ($DESKTOP_TARGET = chemin du raccourci/bundle après setup_desktop)
 # ============================================================================
 
 # --- UI ----------------------------------------------------------------------
@@ -76,6 +77,7 @@ Categories=Office;Finance;
 StartupWMClass=${_wm}
 EOF
         update-desktop-database "$DESKTOP_DIR" 2>/dev/null || true
+        DESKTOP_TARGET="$DESKTOP_FILE"
         ok "Raccourci installé (${DESKTOP_FILE})"
 
     elif [[ $OS == macos ]]; then
@@ -145,6 +147,7 @@ EOF
             warn "$_icon absent — icône Python par défaut"
         fi
         touch "$APP_BUNDLE"   # force macOS à rafraîchir l'icône
+        DESKTOP_TARGET="$APP_BUNDLE"
         ok "Bundle installé ($APP_BUNDLE)"
     fi
 }

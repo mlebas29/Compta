@@ -57,6 +57,11 @@ done
 
 EX_DIR="$(pwd)"
 DEV_DIR="${DEV_DIR:-$HOME/Compta-dev}"
+# Canonicalisation : une cible relative produirait des Exec/Path/Icon relatifs
+# dans le raccourci (.desktop mort). Résout aussi les « .. ».
+DEV_PARENT="$(cd "$(dirname "$DEV_DIR")" 2>/dev/null && pwd)" \
+    || die "Dossier parent de la cible introuvable : $(dirname "$DEV_DIR")"
+DEV_DIR="$DEV_PARENT/$(basename "$DEV_DIR")"
 HUB_DIR="${COMPTA_HUB:-$HOME/Compta-hub/custom.git}"   # hub bare local (cas A.1)
 
 # --- Helpers (read_mode/set_mode viennent de inc_install.sh) ------------------
@@ -74,6 +79,10 @@ CUR_MODE="$(read_mode "$EX_DIR/config.ini")"
 [[ "$CUR_MODE" == EX ]] || die "Le dossier courant doit être en mode EX (trouvé : '${CUR_MODE:-?}'). Le fork part d'une instance mixte."
 
 [[ -e "$DEV_DIR" ]] && die "La cible existe déjà : $DEV_DIR"
+
+case "$DEV_DIR/" in
+    "$EX_DIR"/*) die "La cible est dans l'arbre EX ($EX_DIR) — le DEV salirait l'arbre PUB ; choisis un chemin extérieur." ;;
+esac
 
 git_clean "$EX_DIR" || die "Arbre PUB non propre ($EX_DIR) — commit/range avant de forker."
 
@@ -180,7 +189,4 @@ ok "Fork terminé."
 echo "  PROD (rouge) : $EX_DIR"
 echo "  DEV  (bleu)  : $DEV_DIR"
 [[ "$PRV_CASE" == A.1 ]] && echo "  Hub PRV      : $HUB_DIR (bare local — déplaçable plus tard via git remote set-url)"
-echo
-echo "Étapes éventuelles :"
-echo "  • remote LAN secondaire de validation cross-platform (cf. Compta_topologie.md) ;"
-echo "  • déclarer le nouveau DEV dans custom/topology.local.json (clé \"instances\")."
+exit 0

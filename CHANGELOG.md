@@ -7,6 +7,22 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 - 🔄 = re-clonage du dépôt requis (réécriture d'historique git)
 - Détails dans Compta_upgrade.md
 
+## v5.2.0
+| 2026-06-07  |                                                              |
+| ----------- | ------------------------------------------------------------ |
+| Description | **Modes et installation refondus.** Les modes s'appellent désormais **EX / PROD / DEV**, chacun avec son raccourci de lancement aux couleurs du mode. Deux nouveaux scripts d'installation : `install_fork.sh` et `install_fix.sh`. |
+
+**Détail :**
+
+- **Modes EX / PROD / DEV** : nouveau nommage (anciennement `export` / `prod` / `dev`) ; les configurations existantes restent comprises, aucune action requise.
+- **Lancement par raccourci** : `install.sh` pose un raccourci (menu Applications sous Linux, `~/Applications` sous macOS) — c'est le lancement recommandé. Un raccourci par mode : plusieurs installations coexistent sur une même machine.
+- **`install_fork.sh`** : double une installation existante en paire PROD + DEV, pour développer ou essayer sans risque à côté de l'installation de tous les jours. Les données y sont copiées (`--no-data` pour partir à vide).
+- **`install_fix.sh`** : change le mode d'une installation ou répare son raccourci.
+- **Dossier d'installation libre** : l'application ne suppose plus d'être dans `~/Compta` — chaque installation se repère d'elle-même, quel que soit son dossier.
+- **« Classeur externe »** : le classeur publié est désormais désigné ainsi partout (interface, journaux, documentation), sans référence au service qui l'héberge.
+- **Robustesse** : une configuration de comptes incomplète n'empêche plus le chargement des sites.
+- **Documentation remaniée** : guide d'utilisation ([`Compta.md`](Compta.md)) restructuré ; pour aller plus loin (code privé, nouveaux sites), [`Compta_extension.md`](Compta_extension.md) remplace l'ancienne `Compta_custom.md` ; le script `install_custom.sh` est supprimé (la mise en place du code privé est décrite dans la nouvelle doc).
+
 ## v5.1.2
 | 2026-06-03  |                                                              |
 | ----------- | ------------------------------------------------------------ |
