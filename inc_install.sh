@@ -25,6 +25,14 @@ case "$(uname -s)" in
     *)       OS=unknown ;;
 esac
 
+# --- Config per-instance non versionnée (gitignorée) -------------------------
+# Liste SOURCE des fichiers propres à chaque clone, à rapatrier vers une nouvelle
+# machine (cf. tool_pullconf.sh) : git transporte le CODE, ceci transporte la
+# config + le classeur. Tous gitignorés (non versionnés). Recoupe ce que
+# reclone.sh restaure (lui : tout le non-tracké, même machine) et ce que
+# .gitignore protège — défini ici une seule fois pour éviter la dérive.
+CONFIG_FILES="config.ini config_credentials.md.gpg config_accounts.json config_category_mappings.json config_cotations.json config_pipeline.json comptes.xlsm"
+
 # --- Mode (config.ini) — pendant shell de inc_mode.py ------------------------
 # Canonique MAJUSCULE ; 'export' legacy → EX.
 read_mode() {  # $1=config.ini ; affiche le mode normalisé ('' si absent/inconnu)

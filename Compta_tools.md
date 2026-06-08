@@ -195,6 +195,34 @@ Si un pull échoue, l'autre est tenté quand même. Résumé final par dépôt.
 Codes retour : 0 succès, 1 échec d'au moins un pull.
 Exécution depuis la racine d'un clone Compta (cwd-relatif).
 
+### tool_pullconf.sh — Pull config depuis une autre machine
+
+Frère de `tool_pull.sh` : là où `tool_pull` rapatrie le **code** (git),
+`tool_pullconf` rapatrie la **config per-instance non versionnée** (gitignorée :
+`config.ini`, credentials, `config_*.json`, classeur) depuis une autre machine —
+utile pour amorcer un nouveau clone (git transporte le code, pas la config).
+
+```bash
+./tool_pullconf.sh <source> [--path DIR] [--dry-run]
+./tool_pullconf.sh marc@autre-machine.local              # apply (avec backup)
+./tool_pullconf.sh marc@autre-machine.local --dry-run    # liste présents/absents
+./tool_pullconf.sh marc@autre-machine.local --path /chemin/instance
+```
+
+`<source>` = adresse SSH ; `--path` = chemin de l'instance distante (défaut :
+`Compta`, relatif au `$HOME` distant ; absolu accepté). Liste des fichiers =
+`$CONFIG_FILES` (source unique dans `inc_install.sh`, partagée conceptuellement
+avec ce que `reclone.sh` restaure et ce que `.gitignore` protège).
+
+Transport par **flux** `tar | ssh` : aucun fichier sensible n'est matérialisé
+sur le disque distant (pas de tar temporaire à nettoyer). Applique par défaut sur
+le clone courant en **sauvegardant** tout fichier existant (`<f>.bak-<horodatage>`)
+avant écrasement ; `--dry-run` n'inspecte que la source. Fichiers absents tolérés,
+joignabilité SSH vérifiée d'abord (fail-loud).
+
+Codes retour : 0 succès, 1 erreur (SSH injoignable, transfert incomplet, argument).
+Exécution depuis la racine d'un clone Compta (cwd-relatif).
+
 ### Mise en place de `custom/`
 
 `install_custom.sh` a été retiré : la mise en place du dépôt privé `custom/`
