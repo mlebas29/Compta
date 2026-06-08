@@ -77,7 +77,10 @@ run "mv \"$REPO_DIR\" \"$backup\""
 run "mv \"${REPO_DIR}.new\" \"$REPO_DIR\""
 # Restaure le privé/non-tracké, SAUF docs/site_BG.md (relique du rename BG→ORCHESTRA :
 # le doc privé vit désormais dans custom/site_ORCHESTRA.md, ne pas le ré-injecter dans le PUB).
-run "rsync -a --ignore-existing --exclude='.git/' --exclude='docs/site_BG.md' \"$backup\"/ \"$REPO_DIR\"/"
+# NB : '/.git/' est ANCRÉ (slash initial) → exclut seulement le .git RACINE du backup
+# (histoire pré-squash, à jeter) ; les .git NICHÉS (custom/ = PRV, dev/) sont préservés.
+# Un motif non-ancré ('.git/') matcherait à toute profondeur et détruirait le dépôt PRV.
+run "rsync -a --ignore-existing --exclude='/.git/' --exclude='docs/site_BG.md' \"$backup\"/ \"$REPO_DIR\"/"
 say ""
 say "✓ Re-clone fait. Sauvegarde conservée : $backup (supprime-la quand validé)."
 say "  (si lancé depuis l'intérieur du repo : 'cd $REPO_DIR' pour revenir dans le clone frais.)"
