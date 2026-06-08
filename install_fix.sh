@@ -20,6 +20,9 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 [[ -f cpt_gui.py ]] || { fail "Pas un clone Compta (cpt_gui.py absent dans $(pwd))"; exit 1; }
 
+# Migre les clés legacy d'un config.ini préexistant (export→EX, seafile→classeur).
+[[ -f config.ini ]] && normalize_config config.ini
+
 mode=""
 if [[ -n "${1:-}" ]]; then
     mode=$(printf '%s' "$1" | tr 'a-z' 'A-Z')

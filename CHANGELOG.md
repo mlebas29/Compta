@@ -5,7 +5,13 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 - 📘 = nouvelle version du classeur exemple (mode classeur)
 - 🔧 = outil de migration du classeur de travail (mode assisté)
 - 🔄 = re-clonage du dépôt requis (réécriture d'historique git)
+- ⚙️ = config à normaliser (lancer `./install_fix.sh`)
 - Détails dans Compta_upgrade.md
+
+## v5.2.1 ⚙️
+| 2026-06-08  |                                                              |
+| ----------- | ------------------------------------------------------------ |
+| Description | **Config plus robuste.** Au démarrage, l'app vérifie que `config.ini` est aligné sur le modèle (`config.ini.default`) et signale les clés obsolètes/manquantes ou un mode invalide, en invitant à lancer `./install_fix.sh` — qui **normalise désormais la config** (renommages hérités : `mode = export`→`EX`, `seafile_comptes_file`→`classeur_externe`). |
 
 ## v5.2.0
 | 2026-06-07  |                                                              |

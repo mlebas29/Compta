@@ -8,7 +8,7 @@
 # côté runtime Python (un seul endroit pour le shim legacy export→EX).
 #
 # Usage :  . "$(cd "$(dirname "$0")" && pwd)/inc_install.sh"
-# Expose : ok/warn/fail, $OS, read_mode, set_mode, setup_desktop
+# Expose : ok/warn/fail, $OS, read_mode, set_mode, normalize_config, setup_desktop
 #          ($DESKTOP_TARGET = chemin du raccourci/bundle après setup_desktop)
 # ============================================================================
 
@@ -43,6 +43,37 @@ set_mode() {  # $1=config.ini  $2=mode : force mode=$2
     else
         printf 'mode = %s\n' "$mode" >> "$f"
     fi
+}
+
+# --- Migration de config (renommages legacy → canonique) ---------------------
+# Applique en place les renommages connus à un config.ini préexistant, en
+# préservant les commentaires (édition ligne à ligne, pas de dump configparser).
+# Idempotent (no-op si déjà à jour). Pendant côté config de la famille
+# tool_migrate_* (classeur) : c'est le chemin de migration qui permet de retirer
+# les read-shims runtime (cf. #89). Renommages couverts :
+#   [general] mode : 'export' (legacy) → EX  (+ casse normalisée DEV/PROD/EX)
+#   [paths]   seafile_comptes_file     → classeur_externe
+normalize_config() {  # $1=config.ini
+    local f="$1" changed=0 raw norm
+    [[ -f "$f" ]] || { fail "normalize_config : $f absent"; return 1; }
+
+    raw=$(grep -E '^[[:space:]]*mode[[:space:]]*=' "$f" | head -1 \
+          | sed -E 's/.*=[[:space:]]*//; s/[[:space:]].*//')
+    if [[ -n "$raw" ]]; then
+        norm=$(read_mode "$f")          # MAJUSCULE + export→EX
+        if [[ "$raw" != "$norm" ]]; then
+            set_mode "$f" "$norm"
+            changed=1; ok "mode : '$raw' → '$norm'"
+        fi
+    fi
+
+    if grep -qE '^[[:space:]]*seafile_comptes_file[[:space:]]*=' "$f"; then
+        sed -i.bak -E 's|^([[:space:]]*)seafile_comptes_file([[:space:]]*=)|\1classeur_externe\2|' "$f" && rm -f "$f.bak"
+        changed=1; ok "clé : seafile_comptes_file → classeur_externe"
+    fi
+
+    [[ $changed -eq 0 ]] && ok "config déjà normalisée (rien à migrer)"
+    return 0
 }
 
 # --- Raccourci de lancement (Linux .desktop / macOS .app) --------------------

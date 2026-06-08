@@ -690,18 +690,100 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DaemonClientMixin,
         if self.xlsx_path:
             self._refresh_status_bar()
 
+    def _check_config_obsolete(self):
+        """Compare config.ini à config.ini.default : clés obsolètes, clés /
+        sections manquantes, mode invalide. Indépendant du classeur.
+
+        - **obsolète** : clé d'une section *connue du modèle* absente de l'univers
+          des clés du modèle (actives OU commentées, toutes sections — une clé
+          documentée quelque part vaut partout). Les sections inconnues du modèle
+          (sites privés) sont ignorées.
+        - **manquante** : section / clé *active* du modèle absente de la config.
+        - **mode** : valeur hors `VALID_MODES`.
+
+        Returns:
+            list[str]: warnings (vide si pas de modèle ou config alignée).
+        """
+        import configparser
+        try:
+            from inc_mode import VALID_MODES
+        except Exception:
+            VALID_MODES = {'DEV', 'PROD', 'EX'}
+
+        default_path = self.config_path.parent / 'config.ini.default'
+        if not self.config_path.exists() or not default_path.exists():
+            return []
+
+        known_global = set()        # clés (actives+commentées), toutes sections
+        default_active = {}         # section -> clés actives
+        default_sections = set()
+        section = None
+        key_re = re.compile(r'^\s*#?\s*([A-Za-z0-9_]+)\s*=')
+        sec_re = re.compile(r'^\s*\[([^\]]+)\]')
+        try:
+            with open(default_path, encoding='utf-8') as fh:
+                for line in fh:
+                    ms = sec_re.match(line)
+                    if ms:
+                        section = ms.group(1)
+                        default_sections.add(section)
+                        default_active.setdefault(section, set())
+                        continue
+                    if section is None:
+                        continue
+                    mk = key_re.match(line)
+                    if mk:
+                        key = mk.group(1).lower()
+                        known_global.add(key)
+                        if not line.lstrip().startswith('#'):
+                            default_active[section].add(key)
+        except OSError:
+            return []
+
+        user = configparser.ConfigParser()
+        try:
+            user.read(self.config_path, encoding='utf-8')
+        except configparser.Error as e:
+            return [f'config.ini illisible ({e}) — vérifier la syntaxe.']
+
+        warnings = []
+        for sec in user.sections():
+            if sec not in default_sections:     # section privée → non jugée
+                continue
+            for key in sorted({o.lower() for o in user.options(sec)} - known_global):
+                warnings.append(
+                    f'config.ini : clé obsolète [{sec}] {key} — absente de '
+                    f'config.ini.default ; lance ./install_fix.sh pour normaliser.')
+        for sec, keys in default_active.items():
+            if not user.has_section(sec):
+                if keys:
+                    warnings.append(
+                        f'config.ini : section [{sec}] manquante (présente dans config.ini.default).')
+                continue
+            for key in sorted(keys - {o.lower() for o in user.options(sec)}):
+                warnings.append(
+                    f'config.ini : clé manquante [{sec}] {key} (active dans config.ini.default).')
+        if user.has_option('general', 'mode'):
+            raw = user.get('general', 'mode', raw=True).strip()
+            if raw.upper() not in VALID_MODES:
+                warnings.append(
+                    f'config.ini : mode « {raw} » invalide (attendu : '
+                    f'{"/".join(sorted(VALID_MODES))}) ; lance ./install_fix.sh.')
+        return warnings
+
     def _check_coherence(self):
         """Vérifie la cohérence entre Excel et les fichiers JSON de config.
 
         Returns:
             tuple(list[str], list[str]): (auto_fixes effectués, warnings à traiter)
         """
+        config_warnings = self._check_config_obsolete()
         if not self._excel_loaded:
             if not self.xlsx_path:
-                return [], ['Classeur comptes.xlsm introuvable — copier comptes_template.xlsm ou un classeur existant']
-            return [], []
+                return [], config_warnings + ['Classeur comptes.xlsm introuvable — copier comptes_template.xlsm ou un classeur existant']
+            return [], config_warnings
         auto_fixes = []
-        warnings = []
+        warnings = list(config_warnings)
         avoirs_names = {a['intitule'] for a in self.accounts_data}
         avoirs_by_row = {a['row']: a for a in self.accounts_data}
 
