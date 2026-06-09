@@ -1,36 +1,44 @@
 # Compta_extension.md — Étendre Compta
 
-> Document développeur (à partir de v4.2). Pour qui veut **isoler son développement**, **ajouter du code privé**, ou **brancher un site**. Architecture interne (3 tiers) : [`Compta_dev.md`](Compta_dev.md).
+> Document développeur (à partir de v4.2). Pour qui veut **isoler son développement**, **ajouter du code privé**, ou **brancher un site**. 
 
 ## Le modèle
 
-Compta s'installe en **mode d'instance EX** (Thème graphique jaune or) avec un seul dossier contenant un dépôt git, le code public, **sans** code privé. Les données privées (`comptes.xlsm`, `config*`) sont initialement vierges. 
+Compta s'installe en **mode d'instance EX** (thème graphique jaune or) avec un seul dossier contenant un dépôt git et le code public. À ce stade il n'y a aucun code privé ni données privées. Ces dernières sont créées ultérieurement via l'app dans ce même dossier.
 
-On l'étend de **trois façons orthogonales et cumulables** :
+On étend le dossier **EX** de **trois façons orthogonales et cumulables** :
 
-1. **Dual** — séparer le développement de la partie utilisation en deux instances isolées **PROD** et **DEV**  (§1) ;
-2. **Custom** — ajouter du code privé : sites, monkeypatches dans un dossier **custom/**  (§2) ;
-3. **Sites** — créer un nouveau connecteur de site public ou privé (un cas d'usage du custom) (§3) ;
+1. **Dual** — pour séparer le développement de la partie utilisation en deux instances isolées **DEV** et **PROD** respectivement (§1) ;
+2. **Custom** — pour ajouter du code privé dans un sous-dossier **custom/**  (§2) ;
+3. **Sites** — pour créer un nouveau connecteur de site, possiblement privé (cas d'usage du custom) (§3) ;
 
-Deux **dépôts git à périmètres disjoints** sous-tendent ces configurations : **PUB** (public, GitHub — réside à la racine code/doc) et **PRV** (privé — extensions ; réside dans `custom/`). Un fichier versionné vit à un seul endroit. Une **instance** Compta = 
+Deux **dépôts git à périmètres disjoints** sous-tendent ces configurations : **PUB** (public — réside à la racine **EX**) et **PRV** (privé ; réside dans le sous-dossier `custom/`). Un fichier versionné vit à un seul endroit. 
 
-- soit un couple (clone PUB + clone PRV) sur une machine 
-- soit un singleton (clone PUB), cas du mode EX initial
+Les trois types d'**instance** Compta :
 
-> Le dépôt PRV n'est pas obligatoire mais son absence implique quelques contraintes
+|                    | EX                                      | PROD                              | DEV                               |
+| ------------------ | --------------------------------------- | --------------------------------- | --------------------------------- |
+| Dépôt git **PUB**  | Clone GitHub créé par install.sh        | Clone EX créé par install_fork.sh | Clone EX créé par install_fork.sh |
+| Dépôt git **PRV**  | Facultatif                              | Facultatif                        | Facultatif                        |
+| Isolation instance | Utilisation et développement non isolés | Utilisation isolée                | Développement isolé               |
+| Thème instance     | Jaune or                                | Rouge                             | Bleu                              |
+
+> Le dépôt git PRV n'est pas obligatoire mais son absence implique quelques contraintes. Créé manuellement dans **EX**, ex-nihilo ou par clonage, il est lui-même cloné au moment de install_fork.sh.
+
+En pratique, pour un classeur donné, il existe soit l'instance EX, soit le couple PROD+DEV.
 
 ## 1. Dual — isoler le développement
 
-**EX** est *mixte* : un seul dossier où l'on consomme **et** édite. Pour des raisons de **sécurité** (le bac à sable de code ne doit pas pouvoir corrompre le vrai classeur), on peut passer en **dual** — deux instances spécialisées sur la même machine :
+**EX** est *mixte* : un seul dossier où l'on consomme **et/ou** édite. Pour des raisons de **sécurité** (bac à sable de code qui ne doit pas pouvoir corrompre le vrai classeur), on peut passer en **dual** — deux instances spécialisées sur la même machine :
 
-- **PROD** (thème rouge) — consommateur : `pull` seulement, détient les vraies données et le `classeur_externe` (publication) ;
+- **PROD** (thème rouge) — consommateur : `git pull` seulement pour la mise à jour de l'app, détient les vraies données et le `classeur_externe` (publication) éventuel ;
 - **DEV** (thème bleu) — développement : `push`, données = copie jetable de bac à sable.
 
 Le **mode** d'une instance — **EX**, **PROD** ou **DEV** — porte d'un seul tenant son **rôle git** (push/pull) et son **thème** : un seul axe, pas de distinction rôle/mode à retenir.
 
 ### Passer de mixte (EX) à dual (PROD+DEV)
 
-`install_fork.sh` (lancé depuis l'instance EX) crée le dossier DEV, bascule l'EX courant en PROD, et régénère les raccourcis. Le PUB du DEV est un clone distant (GitHub) ; le volet PRV s'adapte à l'état de `custom/` (taxonomie 0/B/A.1/A.2, la même que `tool_commit.sh`) :
+`install_fork.sh` (lancé depuis l'instance EX) crée le dossier DEV, bascule l'EX courant en PROD, et régénère les raccourcis. Le PUB du DEV est un clone distant (GitHub) ; le volet PRV s'adapte à l'état de `custom/` (on reprend ici la taxonomie 0/B/A.1/A.2, de `tool_commit.sh`) :
 
 | État de `custom/` au fork | Comportement |
 |---|---|
@@ -55,7 +63,7 @@ Un PRV sans remote sort donc du fork avec un hub — l'outillage (`tool_commit`/
 - **DEV** édite : `tool_commit.sh` route chaque fichier vers son dépôt (`custom/` → PRV, le reste → PUB) — un même message peut produire un commit PUB **et** un commit PRV (`--push`, `--tag`). Spec : [`Compta_tools.md`](Compta_tools.md).
 - Les deux dossiers sont **indépendants** (classeur, config, logs séparés) → lancement simultané sans interférence.
 
-### Sans dépôt PRV git
+### Sans dépôt git PRV
 
 `custom/` peut aussi rester **non versionné** (gitignoré) — le code privé est chargé quelle que soit la méthode. Restrictions : pas de `tool_commit`/`tool_pull` PRV, et la sauvegarde ou la synchronisation de `custom/` est à la charge de l'utilisateur (rsync, backup externe…). Au fork (`install_fork.sh`), un `custom/` non versionné est simplement copié tel quel dans le DEV.
 
@@ -65,7 +73,13 @@ Le code public reste **vierge** : aucune mention de `custom/`. Le chargement du 
 
 ### Mise en place et contenu
 
-`custom/` n'existe pas à l'installation ; on le crée selon l'ambition — `mkdir custom` (non versionné, cas B), `git init` dedans (A.1 — le fork lui créera un hub), ou clone d'un remote PRV existant : `git clone <remote-PRV> custom` (A.2). Étant gitignoré par PUB, `custom/` est le réceptacle naturel de **tout le privé**, pas seulement du code chargé : sites (`cpt_fetch_/cpt_format_<NAME>.py`), monkeypatches (`patch_*.py`), tests miroir (`tests/`), doc privée (`docs/`, `site_<NAME>.md`), outils, notes opérationnelles et config locale (`topology.local.json`).
+`custom/` n'existe pas à l'installation ; on crée le PRV selon l'ambition :
+
+- **Non versionné (cas B)** — `mkdir custom` : le privé est chargé, mais sans git (donc pas de `tool_commit`/`tool_pull`, sauvegarde à la main).
+- **Versionné local (cas A.1)** — `mkdir custom && (cd custom && git init)` : dépôt sans remote ; `install_fork.sh` lui créera un hub bare local au passage en dual.
+- **Versionné distant (cas A.2)** — `git clone <remote-PRV> custom` (ou `git init` puis `git remote add origin <remote-PRV>`) : partagé via un hub privé (VPS, Gitea…).
+
+Étant gitignoré par PUB, `custom/` est le réceptacle naturel de **tout le privé**, pas seulement du code chargé : sites, monkeypatches, tests, doc et outils privés.
 
 ### Hooks publics
 
@@ -98,4 +112,4 @@ Règle stricte : **aucun nom de site privé, jeu de test ou doc privée** dans `
 
 ## 3. Sites — ajouter un connecteur
 
-Ajouter un site = fournir **deux modules** : `cpt_fetch_<NAME>.py` (collecte) et `cpt_format_<NAME>.py` (mise en forme) — en **public** (racine) ou en **privé** (`custom/`, à l'identique). La recette détaillée (squelettes Tier 1/2, interface pipe Tier 3, configuration utilisateur, tests, cas avancés) est dans **[`Compta_site.md`](Compta_site.md)**.
+Ajouter un site = fournir **deux modules** : `cpt_fetch_<NAME>.py` (collecte) et `cpt_format_<NAME>.py` (mise en forme) — en **public** (racine) ou en **privé** (`custom/`, à l'identique). La recette détaillée est dans **[`Compta_site.md`](Compta_site.md)**.
