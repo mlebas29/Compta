@@ -1,29 +1,30 @@
 # Compta_extension.md — Étendre Compta
 
-> Document développeur (à partir de v4.2). Pour qui veut **isoler son développement**, **ajouter du code privé**, ou **brancher un site**. 
+> Document développeur (à partir de v4.2). Pour qui veut **isoler son développement**, **ajouter du code ou des données privées**, **brancher un site**. 
 
 ## Le modèle
 
-Compta s'installe en **mode d'instance EX** (thème graphique jaune or) avec un seul dossier contenant un dépôt git et le code public. À ce stade il n'y a aucun code privé ni données privées. Ces dernières sont créées ultérieurement via l'app dans ce même dossier.
+Compta s'installe en **mode d'instance EX** (thème graphique jaune or) : un seul dossier (habituellement nommé `~/Compta`) portant **deux dépôts git** à périmètres disjoints — **PUB** (code public) à la racine, et **PRV** (privé) dans le sous-dossier `custom/`. 
 
-On étend le dossier **EX** de **trois façons orthogonales et cumulables** :
+Le sous-dossier `custom/` ne contient aucun code ni donnée privés : il est prêt à accueillir les extensions privées et l'usage de son dépôt git PRV reste facultatif. PRV est créé vide en mode Solo (sans hub git remote ou local).
+
+On étend le dossier **EX** de **plusieurs façons orthogonales et cumulables** :
 
 1. **Dual** — pour séparer le développement de la partie utilisation en deux instances isolées **DEV** et **PROD** respectivement (§1) ;
-2. **Custom** — pour ajouter du code privé dans un sous-dossier **custom/**  (§2) ;
+2. **Code** — remplir le sous-dossier **`custom/`** de code privé  (§2) ;
 3. **Sites** — pour créer un nouveau connecteur de site, possiblement privé (cas d'usage du custom) (§3) ;
+4. **Données** — tout fichier privé lié au projet (notes de dev, etc.), **entièrement à ta main** (aucun cadre logiciel, donc aucune section).
 
-Deux **dépôts git à périmètres disjoints** sous-tendent ces configurations : **PUB** (public — réside à la racine **EX**) et **PRV** (privé ; réside dans le sous-dossier `custom/`). Un fichier versionné vit à un seul endroit. 
+Un fichier versionné vit à un seul endroit (PUB **ou** PRV).
 
 Les trois types d'**instance** Compta :
 
 |                    | EX                                      | PROD                              | DEV                               |
 | ------------------ | --------------------------------------- | --------------------------------- | --------------------------------- |
 | Dépôt git **PUB**  | Clone GitHub créé par install.sh        | Clone EX créé par install_fork.sh | Clone EX créé par install_fork.sh |
-| Dépôt git **PRV**  | Facultatif                              | Facultatif                        | Facultatif                        |
+| Dépôt git **PRV**  | **Posé vide par install.sh** (Solo)     | Partagé via hub au fork           | Partagé via hub au fork           |
 | Isolation instance | Utilisation et développement non isolés | Utilisation isolée                | Développement isolé               |
 | Thème instance     | Jaune or                                | Rouge                             | Bleu                              |
-
-> Le dépôt git PRV n'est pas obligatoire mais son absence implique quelques contraintes. Créé manuellement dans **EX**, ex-nihilo ou par clonage, il est lui-même cloné au moment de install_fork.sh.
 
 En pratique, pour un classeur donné, il existe soit l'instance EX, soit le couple PROD+DEV.
 
@@ -38,16 +39,14 @@ Le **mode** d'une instance — **EX**, **PROD** ou **DEV** — porte d'un seul t
 
 ### Passer de mixte (EX) à dual (PROD+DEV)
 
-`install_fork.sh` (lancé depuis l'instance EX) crée le dossier DEV, bascule l'EX courant en PROD, et régénère les raccourcis. Le PUB du DEV est un clone distant (GitHub) ; le volet PRV s'adapte à l'état de `custom/` (on reprend ici la taxonomie 0/B/A.1/A.2, de `tool_commit.sh`) :
+`install_fork.sh` (lancé depuis l'instance EX) crée le dossier DEV, bascule l'EX courant en PROD, et régénère les raccourcis. Le PUB du DEV reste GitHub ; le PRV se partage selon sa **config** :
 
-| État de `custom/` au fork | Comportement |
+| Config PRV (EX) | Comportement au fork |
 |---|---|
-| pas de `custom/` (0) | rien — instance PUB seule |
-| pas de `.git` (B) | copie des fichiers, pas de versionnement |
-| `.git` sans origin (A.1) | création d'un hub bare **local** + les deux instances s'y rattachent (→ A.2) |
-| `.git` avec origin (A.2) | clone distant depuis l'origin — les deux instances partagent le hub |
+| **Solo** (défaut) | création d'un **hub bare local** + rattachement des deux instances → passe en **Hub local** |
+| **Hub distant** | clone depuis le distant — PROD et DEV partagent le hub distant |
 
-Un PRV sans remote sort donc du fork avec un hub — l'outillage (`tool_commit`/`tool_pull`) fonctionne ensuite à l'identique du cas remote. Pour poser/changer le mode ou réparer un raccourci **sans réinstaller** : `install_fix.sh [EX|PROD|DEV]`. Spec détaillée : [`Compta_tools.md`](Compta_tools.md).
+Un PRV **Solo** sort donc du fork en **Hub local** : l'outillage (`tool_commit`/`tool_pull`) fonctionne ensuite à l'identique du Hub distant. Pour poser/changer le mode ou réparer un raccourci **sans réinstaller** : `install_fix.sh [EX|PROD|DEV]`. Spec détaillée : [`Compta_tools.md`](Compta_tools.md).
 
 ### Les deux dépôts
 
@@ -63,23 +62,18 @@ Un PRV sans remote sort donc du fork avec un hub — l'outillage (`tool_commit`/
 - **DEV** édite : `tool_commit.sh` route chaque fichier vers son dépôt (`custom/` → PRV, le reste → PUB) — un même message peut produire un commit PUB **et** un commit PRV (`--push`, `--tag`). Spec : [`Compta_tools.md`](Compta_tools.md).
 - Les deux dossiers sont **indépendants** (classeur, config, logs séparés) → lancement simultané sans interférence.
 
-### Sans dépôt git PRV
-
-`custom/` peut aussi rester **non versionné** (gitignoré) — le code privé est chargé quelle que soit la méthode. Restrictions : pas de `tool_commit`/`tool_pull` PRV, et la sauvegarde ou la synchronisation de `custom/` est à la charge de l'utilisateur (rsync, backup externe…). Au fork (`install_fork.sh`), un `custom/` non versionné est simplement copié tel quel dans le DEV.
-
-## 2. Custom — étendre par le code
+## 2. Code — étendre par le code privé
 
 Le code public reste **vierge** : aucune mention de `custom/`. Le chargement du code privé résidant dans `custom/` est dynamique via **`inc_bootstrap.py`** (importé par tous les points d'entrée) — si `custom/` existe, il est ajouté à `sys.path`, tous les `custom/patch_*.py` sont importés (ordre alphabétique), et les sites privés sont découverts par scan glob. Contrat **fail-fast** : un patch qui lève à l'import bloque le démarrage (traceback explicite) ; un chargement réussi est silencieux.
 
 ### Mise en place et contenu
 
-`custom/` n'existe pas à l'installation ; on crée le PRV selon l'ambition :
+`install.sh` pose un `custom/` **Solo** (versionné, sans remote) — le cadre privé homologue au public, prêt à recevoir du code. On partage ensuite selon le besoin :
 
-- **Non versionné (cas B)** — `mkdir custom` : le privé est chargé, mais sans git (donc pas de `tool_commit`/`tool_pull`, sauvegarde à la main).
-- **Versionné local (cas A.1)** — `mkdir custom && (cd custom && git init)` : dépôt sans remote ; `install_fork.sh` lui créera un hub bare local au passage en dual.
-- **Versionné distant (cas A.2)** — `git clone <remote-PRV> custom` (ou `git init` puis `git remote add origin <remote-PRV>`) : partagé via un hub privé (VPS, Gitea…).
+- **Solo** (défaut) — dépôt privé local, pas de partage. `install_fork.sh` lui crée un hub local au passage en dual. Rien à faire pour démarrer.
+- **Hub distant** — pour synchroniser le PRV **entre machines** : `cd custom && git remote add origin <remote-PRV>` (puis push), ou remplacer le frame par un clone. Hub privé (VPS, Gitea…). Le frame étant à **zéro commit**, l'attache à un hub existant se fait en fast-forward propre.
 
-Étant gitignoré par PUB, `custom/` est le réceptacle naturel de **tout le privé**, pas seulement du code chargé : sites, monkeypatches, tests, doc et outils privés.
+Étant gitignoré par PUB, `custom/` est le **réceptacle naturel de tout le privé**, pas seulement du code chargé : sites, monkeypatches, tests, doc et outils privés — versionnés comme le public.
 
 ### Hooks publics
 

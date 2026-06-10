@@ -548,6 +548,10 @@ for dir in dropbox archives logs; do
 done
 ok "dropbox/ archives/ logs/ créés"
 
+# Cadre privé : dépôt PRV vide (Solo) si absent — homologue du public, inerte
+# tant que vide (cf. inc_install.sh ensure_custom_frame / Compta_extension.md).
+ensure_custom_frame "$(pwd)"
+
 # ------------------------------------------------------------------
 # 8. Classeur initial
 # ------------------------------------------------------------------
@@ -616,6 +620,7 @@ else
 fi
 echo "  • Wrapper python3-uno déposé : $WRAPPER"
 echo "  • Répertoires de travail : dropbox/ archives/ logs/"
+echo "  • Cadre privé : custom/ (dépôt PRV vide, Solo — cf. Compta_extension.md)"
 echo "  • Classeur initial : comptes.xlsm"
 echo "  • Configuration : config.ini"
 echo

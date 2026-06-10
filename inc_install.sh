@@ -8,7 +8,8 @@
 # côté runtime Python (un seul endroit pour le shim legacy export→EX).
 #
 # Usage :  . "$(cd "$(dirname "$0")" && pwd)/inc_install.sh"
-# Expose : ok/warn/fail, $OS, read_mode, set_mode, normalize_config, setup_desktop
+# Expose : ok/warn/fail, $OS, read_mode, set_mode, normalize_config, setup_desktop,
+#          ensure_custom_frame
 #          ($DESKTOP_TARGET = chemin du raccourci/bundle après setup_desktop)
 # ============================================================================
 
@@ -81,6 +82,32 @@ normalize_config() {  # $1=config.ini
     fi
 
     [[ $changed -eq 0 ]] && ok "config déjà normalisée (rien à migrer)"
+    return 0
+}
+
+# --- Cadre privé custom/ (dépôt PRV, homologue du public) --------------------
+# Pose le frame privé : un dépôt git VIDE dans custom/ (mode Solo — sans remote,
+# sans commit, sans contenu). Le PRV est un pair VERSIONNÉ du public (cf.
+# Compta_extension.md § Le modèle) → on garantit le .git, pas seulement le dossier.
+# Invariant « jamais une contrainte » : custom/ vide est inerte (inc_bootstrap
+# no-op), jamais exigé par le code, et son zéro-commit autorise un rattachement
+# ff propre à un hub plus tard. Idempotent :
+#   - custom/.git présent          → no-op (Solo / Hub local / Hub distant déjà posé)
+#   - custom/ sans .git, ou absent → git init (branche main), vide
+# Branche posée via symbolic-ref (HEAD unborn) : portable tout git (pas de -b,
+# absent avant git 2.28). Câblé dans install.sh seul (installs fraîches) ; le
+# rattrapage des installs antérieures relève de l'orchestrateur post-pull (#94).
+ensure_custom_frame() {  # $1=install_dir (défaut: répertoire courant)
+    local dir="${1:-.}/custom"
+    command -v git >/dev/null 2>&1 || { warn "git absent — cadre privé custom/ non posé"; return 0; }
+    if [[ -e "$dir/.git" ]]; then
+        ok "cadre privé custom/ déjà présent"
+        return 0
+    fi
+    mkdir -p "$dir" || { fail "création de custom/ impossible"; return 1; }
+    git init -q "$dir" || { fail "git init custom/ a échoué"; return 1; }
+    git -C "$dir" symbolic-ref HEAD refs/heads/main 2>/dev/null
+    ok "cadre privé custom/ posé (Solo : dépôt git vide, sans remote)"
     return 0
 }
 
