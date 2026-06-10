@@ -1,19 +1,19 @@
 # Compta_extension.md — Étendre Compta
 
-> Document développeur (à partir de v4.2). Pour qui veut **isoler son développement**, **ajouter du code ou des données privées**, **brancher un site**. 
+> Document développeur. Pour qui veut **isoler son développement**, **ajouter du code ou des données privées**, **brancher un site**. 
 
 ## Le modèle
 
 Compta s'installe en **mode d'instance EX** (thème graphique jaune or) : un seul dossier (habituellement nommé `~/Compta`) portant **deux dépôts git** à périmètres disjoints — **PUB** (code public) à la racine, et **PRV** (privé) dans le sous-dossier `custom/`. 
 
-Le sous-dossier `custom/` ne contient aucun code ni donnée privés : il est prêt à accueillir les extensions privées et l'usage de son dépôt git PRV reste facultatif. PRV est créé vide en mode Solo (sans hub git remote ou local).
+> Le sous-dossier `custom/` ne contient aucun code ni donnée privés : il est simplement prêt à accueillir du contenu privé et l'usage de son dépôt PRV reste facultatif ; PRV est créé vide en mode Solo, sans hub git remote ou local.
 
 On étend le dossier **EX** de **plusieurs façons orthogonales et cumulables** :
 
 1. **Dual** — pour séparer le développement de la partie utilisation en deux instances isolées **DEV** et **PROD** respectivement (§1) ;
-2. **Code** — remplir le sous-dossier **`custom/`** de code privé  (§2) ;
-3. **Sites** — pour créer un nouveau connecteur de site, possiblement privé (cas d'usage du custom) (§3) ;
-4. **Données** — tout fichier privé lié au projet (notes de dev, etc.), **entièrement à ta main** (aucun cadre logiciel, donc aucune section).
+2. **Code** — remplir le sous-dossier **`custom/`** de code privé (§2) ;
+3. **Sites** — pour créer un nouveau connecteur de site public (§3) ou privé (§3 et §2) ;
+4. **Données** — tout fichier privé lié au projet (notes de dev, etc.), **entièrement à ta main**.
 
 Un fichier versionné vit à un seul endroit (PUB **ou** PRV).
 
@@ -39,7 +39,7 @@ Le **mode** d'une instance — **EX**, **PROD** ou **DEV** — porte d'un seul t
 
 ### Passer de mixte (EX) à dual (PROD+DEV)
 
-`install_fork.sh` (lancé depuis l'instance EX) crée le dossier DEV, bascule l'EX courant en PROD, et régénère les raccourcis. Le PUB du DEV reste GitHub ; le PRV se partage selon sa **config** :
+`install_fork.sh` (lancé depuis l'instance EX) crée le dossier DEV par duplication de EX, bascule l'EX courant en PROD, et régénère les raccourcis. Le PUB du DEV reste GitHub ; le PRV se partage selon sa **config** :
 
 | Config PRV (EX) | Comportement au fork |
 |---|---|

@@ -26,7 +26,6 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 mode=""
 if [[ -n "${1:-}" ]]; then
     mode=$(printf '%s' "$1" | tr 'a-z' 'A-Z')
-    [[ "$mode" == EXPORT ]] && mode="EX"        # compat legacy
     case "$mode" in
         DEV|PROD|EX) ;;
         *) fail "Mode invalide : '$1' (attendu : DEV | PROD | EX)"; exit 1 ;;

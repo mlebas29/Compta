@@ -5,7 +5,7 @@
 # Sourcé par install.sh (configure le clone courant), install_fork.sh (passage
 # mixte EX → dual PROD+DEV) et install_fix.sh. Registre SETUP en shell —
 # pendant de inc_mode.py
-# côté runtime Python (un seul endroit pour le shim legacy export→EX).
+# côté runtime Python.
 #
 # Usage :  . "$(cd "$(dirname "$0")" && pwd)/inc_install.sh"
 # Expose : ok/warn/fail, $OS, read_mode, set_mode, normalize_config, setup_desktop,
@@ -35,13 +35,13 @@ esac
 CONFIG_FILES="config.ini config_credentials.md.gpg config_accounts.json config_category_mappings.json config_cotations.json config_pipeline.json comptes.xlsm"
 
 # --- Mode (config.ini) — pendant shell de inc_mode.py ------------------------
-# Canonique MAJUSCULE ; 'export' legacy → EX.
+# Canonique MAJUSCULE (insensible à la casse). Pas de shim legacy : seul le
+# migrateur normalize_config (ci-dessous) connaît les noms hérités.
 read_mode() {  # $1=config.ini ; affiche le mode normalisé ('' si absent/inconnu)
     local f="$1" m
     [[ -f "$f" ]] || { echo ""; return; }
     m=$(grep -E '^[[:space:]]*mode[[:space:]]*=' "$f" | head -1 \
         | sed -E 's/.*=[[:space:]]*//; s/[[:space:]].*//' | tr 'a-z' 'A-Z')
-    [[ "$m" == EXPORT ]] && m=EX          # compat legacy
     echo "$m"
 }
 
@@ -69,7 +69,8 @@ normalize_config() {  # $1=config.ini
     raw=$(grep -E '^[[:space:]]*mode[[:space:]]*=' "$f" | head -1 \
           | sed -E 's/.*=[[:space:]]*//; s/[[:space:]].*//')
     if [[ -n "$raw" ]]; then
-        norm=$(read_mode "$f")          # MAJUSCULE + export→EX
+        norm=$(printf '%s' "$raw" | tr 'a-z' 'A-Z')   # casse normalisée
+        [[ "$norm" == EXPORT ]] && norm=EX            # migration legacy (export → EX)
         if [[ "$raw" != "$norm" ]]; then
             set_mode "$f" "$norm"
             changed=1; ok "mode : '$raw' → '$norm'"

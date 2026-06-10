@@ -40,8 +40,6 @@ def _read_mode_from_config(config_path=None):
     if not mode:
         return None
     mode = mode.strip().upper()              # insensible à la casse en entrée
-    if mode == 'EXPORT':                      # compat config legacy (export → EX)
-        mode = 'EX'
     return mode if mode in VALID_MODES else None
 
 
