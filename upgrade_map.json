@@ -1,0 +1,14 @@
+{
+  "_note": "Carte des migrations du classeur — SOURCE UNIQUE (cf. CLAUDE_todo #94 volet C). Liste FACTORISÉE : le lecteur (inc_update.pending_migrations) calcule le chemin entre origine = SCHEMA_VERSION du classeur et cible = SCHEMA_VERSION du code. Plancher = min(schema_from) ; un classeur en deçà (pré-v3.4, outils retirés du repo) relève du manuel (Compta_upgrade.md). Les outils pré-SCHEMA (pvl_*, ctrl*) sont legacy, hors carte. Maintenue à la barrière de release (avec APP_VERSION/CHANGELOG). Validation : max(schema_to) == inc_excel_schema.SCHEMA_VERSION.",
+  "migrations": [
+    { "id": "schema_v2", "tool": "tool_migrate_schema_v2.py", "schema_from": 1, "schema_to": 2,
+      "blocking": true, "idempotent": false, "app_version": "4.0.0",
+      "summary": "drill devise (élimine les colonnes par devise)" },
+    { "id": "schema_v3", "tool": "tool_migrate_v4.1.0.py", "schema_from": 2, "schema_to": 3,
+      "blocking": true, "idempotent": false, "app_version": "4.1.0",
+      "summary": "refonte CTRL2 + alarmes" },
+    { "id": "formules_v5", "tool": "tool_migrate_v5.0.0.py", "schema_from": 3, "schema_to": 3,
+      "blocking": false, "idempotent": true, "app_version": "5.0.0",
+      "summary": "fiabilisation alarmes anti-#REF! orphelines" }
+  ]
+}

@@ -39,6 +39,7 @@ import openpyxl
 from openpyxl.styles import PatternFill
 
 import inc_mode
+import inc_update
 import json
 from inc_uno import check_env
 
@@ -604,27 +605,12 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DaemonClientMixin,
 
         Returns:
             str or None: message d'erreur si incompatible, None si OK.
-        """
-        from inc_excel_schema import SCHEMA_VERSION
-        try:
-            wb = openpyxl.load_workbook(self.xlsx_path, data_only=True, read_only=True)
-            dn = wb.defined_names.get('SCHEMA_VERSION')
-            wb.close()
-        except Exception:
-            return None  # pas bloquant si lecture impossible
 
-        if dn is None:
-            return (f'Classeur sans numéro de version (version {SCHEMA_VERSION} attendue).\n'
-                    f'Voir Compta_upgrade.md pour la procédure de mise à niveau.')
-        try:
-            classeur_version = int(dn.attr_text)
-        except (ValueError, TypeError):
-            return (f'SCHEMA_VERSION invalide : « {dn.attr_text} » (entier attendu).\n'
-                    f'Voir Compta_upgrade.md.')
-        if classeur_version < SCHEMA_VERSION:
-            return (f'Classeur version {classeur_version}, version {SCHEMA_VERSION} attendue.\n'
-                    f'Voir Compta_upgrade.md pour la procédure de mise à niveau.')
-        return None
+        Délègue à inc_update.check_schema_compat (probe partagée avec
+        install_update). Recalculé à chaque démarrage — le GUI ne défère jamais
+        à une sortie figée d'install_update (cf. inc_update).
+        """
+        return inc_update.check_schema_compat(self.xlsx_path)
 
     def _startup_check(self):
         """Check de cohérence au démarrage : charge Excel puis vérifie."""
@@ -703,73 +689,12 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DaemonClientMixin,
 
         Returns:
             list[str]: warnings (vide si pas de modèle ou config alignée).
+
+        Délègue à inc_update.check_config_obsolete (probe partagée avec
+        install_update). Relancé à chaque démarrage : un warning peut naître
+        d'une édition utilisateur du jour, pas seulement d'un pull.
         """
-        import configparser
-        try:
-            from inc_mode import VALID_MODES
-        except Exception:
-            VALID_MODES = {'DEV', 'PROD', 'EX'}
-
-        default_path = self.config_path.parent / 'config.ini.default'
-        if not self.config_path.exists() or not default_path.exists():
-            return []
-
-        known_global = set()        # clés (actives+commentées), toutes sections
-        default_active = {}         # section -> clés actives
-        default_sections = set()
-        section = None
-        key_re = re.compile(r'^\s*#?\s*([A-Za-z0-9_]+)\s*=')
-        sec_re = re.compile(r'^\s*\[([^\]]+)\]')
-        try:
-            with open(default_path, encoding='utf-8') as fh:
-                for line in fh:
-                    ms = sec_re.match(line)
-                    if ms:
-                        section = ms.group(1)
-                        default_sections.add(section)
-                        default_active.setdefault(section, set())
-                        continue
-                    if section is None:
-                        continue
-                    mk = key_re.match(line)
-                    if mk:
-                        key = mk.group(1).lower()
-                        known_global.add(key)
-                        if not line.lstrip().startswith('#'):
-                            default_active[section].add(key)
-        except OSError:
-            return []
-
-        user = configparser.ConfigParser()
-        try:
-            user.read(self.config_path, encoding='utf-8')
-        except configparser.Error as e:
-            return [f'config.ini illisible ({e}) — vérifier la syntaxe.']
-
-        warnings = []
-        for sec in user.sections():
-            if sec not in default_sections:     # section privée → non jugée
-                continue
-            for key in sorted({o.lower() for o in user.options(sec)} - known_global):
-                warnings.append(
-                    f'config.ini : clé obsolète [{sec}] {key} — absente de '
-                    f'config.ini.default ; lance ./install_fix.sh pour normaliser.')
-        for sec, keys in default_active.items():
-            if not user.has_section(sec):
-                if keys:
-                    warnings.append(
-                        f'config.ini : section [{sec}] manquante (présente dans config.ini.default).')
-                continue
-            for key in sorted(keys - {o.lower() for o in user.options(sec)}):
-                warnings.append(
-                    f'config.ini : clé manquante [{sec}] {key} (active dans config.ini.default).')
-        if user.has_option('general', 'mode'):
-            raw = user.get('general', 'mode', raw=True).strip()
-            if raw.upper() not in VALID_MODES:
-                warnings.append(
-                    f'config.ini : mode « {raw} » invalide (attendu : '
-                    f'{"/".join(sorted(VALID_MODES))}) ; lance ./install_fix.sh.')
-        return warnings
+        return inc_update.check_config_obsolete(self.config_path)
 
     def _check_coherence(self):
         """Vérifie la cohérence entre Excel et les fichiers JSON de config.
