@@ -1,17 +1,19 @@
-# Compta [EX]
+# Compta
 
-**Comptabilité familiale — classeur Excel/LibreOffice + application d'assistance**
+**Tout votre patrimoine familial, centralisé et tenu à jour automatiquement — dans un classeur qui reste le vôtre.**
 
 ## 1. Présentation
 
-Compta est un projet de comptabilité familiale ; il a deux composants :
+Compta suit un patrimoine familial **diversifié** (plusieurs banques, titres, crypto, métaux précieux, multi-devises) et lui épargne la saisie manuelle : il **collecte** vos données sur vos sites financiers, les **importe**, les **catégorise** et les **apparie** — pour alimenter des feuilles de synthèse **patrimoine**, **plus-values** et **budget**.
 
-1. Un **classeur** structuré avec des données brutes et de synthèse
-2. Une **application d'assistance** qui
-   - gère les structures du classeur
-   - collecte les données brutes, depuis des sites financiers vers le classeur
+**Vos données ne quittent jamais votre machine.** Tout vit dans un classeur Excel/LibreOffice que *vous* contrôlez : ni cloud, ni abonnement, ni service en ligne à qui confier vos finances. Gratuit et open source (GPL v3).
 
-> Le suffixe **[EX]** désigne la version *export* : le code public d'un projet conçu pour accueillir des extensions de sites (voir [Extensibilité](#8-extensibilité)).
+Deux composants :
+
+1. un **classeur** `comptes.xlsm` — vos données brutes **et** leurs synthèses ;
+2. une **application d'assistance** (optionnelle) — gère la structure du classeur et collecte depuis les sites.
+
+**Pour qui ?** Une famille dont les avoirs sont assez variés pour que le suivi à la main devienne pénible, et qui préfère **garder la main sur ses données** plutôt que de les confier à une app en ligne.
 
 
 | Mode classeur | Mode assisté |
@@ -88,26 +90,25 @@ cd ~/Compta && ./install.sh
 # Compta peut être remplacé par un autre nom
 ```
 
-Pour **Windows 11** c'est la même procédure, après avoir installé WSL2 qui permet de faire tourner Linux sur Windows sans machine virtuelle à gérer : voir [Compta_portage.md](Compta_portage.md)
+Pour **Windows 11** c'est la même procédure, après avoir installé WSL2 qui permet de faire tourner Linux sur Windows sans machine virtuelle à gérer.
 
-Pour **MacOS** la procédure est plus spécifique, avec une installation manuelle de **LibreOffice 24.8** : Voir [Compta_portage.md](Compta_portage.md)
+Pour **MacOS** la procédure est plus spécifique, avec une installation manuelle de **LibreOffice 24.8**.
+
+Pour aller plus loin avec Windows et MacOS :  [Compta_portage.md](Compta_portage.md)
 
 
 
 
 ## 4. Mise à jour
 
-Les évolutions sont tracées sur GitHub dans :
-
-- [`CHANGELOG.md`](https://github.com/mlebas29/Compta/blob/main/CHANGELOG.md) : consigne les changements entre versions
-- [`Compta_upgrade.md`](https://github.com/mlebas29/Compta/blob/main/Compta_upgrade.md) : procédures classeur éventuelles attachées aux versions
+Les évolutions sont tracées sur GitHub dans [`CHANGELOG.md`](https://github.com/mlebas29/Compta/blob/main/CHANGELOG.md), qui consigne les changements entre versions.
 
 |                        Mode classeur                         | Mode assisté |
 | :----------------------------------------------------------: | :-----------: |
-| Télécharger  [`comptes_exemple.xlsx`](https://github.com/mlebas29/Compta/raw/main/comptes_exemple.xlsx) | `./install_upgrade.py` (*) |
-| Consulter la procédure classeur éventuelle | Consulter la procédure classeur éventuelle |
+| Télécharger  [`comptes_exemple.xlsx`](https://github.com/mlebas29/Compta/raw/main/comptes_exemple.xlsx) | Lancer `install_upgrade.py` (*) |
+| Consulter [`Compta_upgrade.md`](https://github.com/mlebas29/Compta/blob/main/Compta_upgrade.md) | Consulter [`Compta_install_upgrade.md`](https://github.com/mlebas29/Compta/blob/main/Compta_install_upgrade.md) |
 
-**(*)**  à exécuter depuis le répertoire d'installation : met à jour le code et **propose** les rattrapages requis (config, classeur…), jamais en silence. Voir [`Compta_upgrade.md`](https://github.com/mlebas29/Compta/blob/main/Compta_upgrade.md).
+> (*) `install_upgrade.py` est **réversible** : il sauvegarde l'état avant toute mise à jour ; en cas de souci, une restauration ramène code, configuration et classeur à un point antérieur.
 
 
 
@@ -115,8 +116,8 @@ Les évolutions sont tracées sur GitHub dans :
 
 La documentation est organisée autour de deux points d'entrée :
 
-- 📘 **Utilisation** → [`Compta.md`](Compta.md) — guide d'utilisation du mode assisté, et **carte de toute la doc utilisateur** (plus-values, structuration Excel, dépannage, portage macOS/Windows, mise à niveau, charte…).
-- 🛠️ **Technique** → [`Compta_dev.md`](Compta_dev.md) — architecture 3-tiers, ajout de site, mécanisme d'extensions `custom/`, outils, tests.
+- 📘 **Utilisation** → [`Compta.md`](Compta.md) — guide d'utilisation du mode assisté, et **index de la doc utilisateur** 
+- 🛠️ **Technique** → [`Compta_dev.md`](Compta_dev.md) — pour les activités de développement
 
 
 
@@ -142,31 +143,37 @@ Avant la première collecte il s'agit de renseigner :
 - les identifiants de connexion via GPG ; ceux-là sont stockés dans un fichier chiffré (la copie en clair est à supprimer après chiffrement) ;
 - tous les autres paramètres via l'application Compta ; ceux-là sont stockés pour la plupart dans le classeur (noms de comptes, devises utilisées, etc.).
 
-La procédure est détaillée dans la doc **Utilisation** ([`Compta.md`](Compta.md)).
+Pour aller plus loin : **Utilisation** ([`Compta.md`](Compta.md))
 
 
 
 ## 8. Extensibilité
 
-L'ajout d'un site bancaire est réalisable par la création de deux modules python (fetch + format) chargés du téléchargement et du formatage. Le nouveau site peut être intégré au code public ou conservé en partie privée sans toucher au code public.
+Il y a plusieurs axes d'extension :
 
-Hors les sites, l'app reste modifiable, mais `git pull` signalera les conflits avec vos modifications locales. Pour s'en affranchir, le dossier `custom/` accepte des **monkeypatches** privés (`patch_*.py`) qui modifient ponctuellement le comportement de l'app sans en altérer le code public.
+- L'ajout d'un site bancaire peut être intégré au code public ou conservé en partie privée sans toucher au code public.
 
-L'app est livrée avec un environnement de test. Celui-là contient plusieurs scenarii et est lui aussi extensible de manière publique ou privée.
+- Hors les sites, il est possible d'ajouter des "monkeypatch" qui modifient le comportement de l'app sans altérer le code public.
 
-Pour aller plus loin — isoler le développement en *dual*, ajouter du code privé, brancher un site : **[`Compta_extension.md`](Compta_extension.md)**. Architecture interne : [`Compta_dev.md`](Compta_dev.md).
+- L'app est livrée avec un environnement de test contenant plusieurs scenarii. Il est lui aussi extensible de manière publique ou privée.
+
+- Le dossier où résident l'application et le classeur peut être cloné pour séparer l'activité développement de l'activité utilisation afin de protéger le classeur.
+
+Pour aller plus loin : **[`Compta_extension.md`](Compta_extension.md)**
 
 
 
 ## 9. Vérifications
 
-Environnements sur lesquels installation, GUI et collecte ont été effectivement vérifiés :
+Environnements sur lesquels installation, GUI et collecte sont effectivement vérifiés :
 
 |    Environnement    |   Vérifications   |
 | :---------------------------------: | :--------------: |
 |       Linux Zorin et Mint (Ubuntu 22)       |     Installation, GUI, Collecte     |
 | MacOS Ventura |     Installation, GUI, Collecte     |
 |      Windows 11 - WSL/Ubuntu 22      | Installation, GUI, Collecte |
+
+Grâce au système WSL de Microsoft qui simule parfaitement Linux, l'App de base Linux tourne quasiment sans adaptation sur Windows. Pour MacOS, le portage demande plus d'attention en raison d'une architecture différente, bien que cousine pour l'OS, notamment avec LibreOffice et Python.
 
 
 

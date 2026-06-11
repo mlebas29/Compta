@@ -3,10 +3,23 @@
 Chronique des versions de l'app, orientée utilisateur. Les changements internes du code ne sont généralement pas décrits.
 
 - 📘 = nouvelle version du classeur exemple (mode classeur)
-- 🔧 = outil de migration du classeur de travail (mode assisté)
+- 🔧 = migration du classeur livrée (mode assisté : `install_upgrade` la propose ; mode classeur : à reporter à la main)
 - 🔄 = re-clonage du dépôt requis (réécriture d'historique git)
 - ⚙️ = config à normaliser (lancer `./install_fix.sh`)
 - Détails dans Compta_upgrade.md
+
+## v5.3.0
+| 2026-06-11  |                                                              |
+| ----------- | ------------------------------------------------------------ |
+| Description | **Outil de mise à jour, et réversible.** `./install_upgrade.py` met à niveau l'installation (code **et** classeur) en une commande : il tire le nouveau code, propose les migrations de classeur nécessaires (sauvegarde + consentement, jamais en silence) et, en cas de souci, permet de **revenir en arrière** (`--restore`). |
+
+**Détail :**
+
+- **`install_upgrade.py`** (mode assisté) — un seul geste pour mettre à jour : tire le code, applique les rattrapages bénins (config, raccourci), **propose** les migrations du classeur (refusé si LibreOffice < 24.8). `--check` montre ce qui serait fait sans rien appliquer.
+- **Réversibilité** — chaque mise à jour prend un snapshot complet (code + config + classeur) avant de toucher quoi que ce soit ; `--liste` / `--restore <date>` ramènent l'installation à un point antérieur (les 10 derniers conservés). Détails : [`Compta_install_upgrade.md`](Compta_install_upgrade.md).
+- **Re-clone proposé, jamais forcé** — si une mise à jour normale est impossible (historique réécrit), `install_upgrade` propose un re-clone sûr au lieu d'échouer.
+- **Cadre privé** — `install.sh` prépare un dossier `custom/` pour les extensions (sites privés, monkeypatches) ; voir [`Compta_extension.md`](Compta_extension.md).
+- **Documentation** — `Compta_upgrade.md` recentré sur les migrations du classeur ; le geste de mise à jour a sa page dédiée [`Compta_install_upgrade.md`](Compta_install_upgrade.md).
 
 ## v5.2.1 ⚙️
 | 2026-06-08  |                                                              |
