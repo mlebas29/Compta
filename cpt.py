@@ -25,6 +25,7 @@ import configparser
 from pathlib import Path
 from datetime import datetime
 import inc_mode
+import inc_update
 from inc_logging import Logger
 from inc_uno import check_env
 
@@ -788,6 +789,16 @@ Workflow:
     if args.status:
         do_status()
         sys.exit(0)
+
+    # Gate de compatibilité schéma — parité avec le GUI (#94) : refuser d'opérer
+    # sur un classeur périmé après un `git pull` nu (install_upgrade oublié).
+    # Probe partagée inc_update.check_schema_compat. Les chemins recovery /
+    # transport / diagnostic (--pull/--push/--reset*/--fallback/--status) sont
+    # déjà sortis plus haut, donc exempts. Classeur absent → None (non bloquant).
+    schema_err = inc_update.check_schema_compat(BASE_DIR / "comptes.xlsm")
+    if schema_err:
+        logger.error(f"Classeur incompatible avec cette version du code :\n{schema_err}")
+        sys.exit(1)
 
     # Vérifications workflow
     if args.fetch_only and args.update_only:

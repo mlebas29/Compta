@@ -57,17 +57,19 @@ def check_schema_compat(xlsx_path, wb=None):
         if own and wb is not None:
             wb.close()
 
+    # Suffixe de routage commun aux trois branches : le geste assisté
+    # (install_upgrade, réversible) d'abord ; la procédure manuelle / mode
+    # classeur (Compta_upgrade.md) en repli.
+    fix = ('→ Mettre à niveau : ./install_upgrade.py (mode assisté, réversible)\n'
+           '  ou Compta_upgrade.md (migration manuelle / mode classeur).')
     if dn is None:
-        return (f'Classeur sans numéro de version (version {SCHEMA_VERSION} attendue).\n'
-                f'Voir Compta_upgrade.md pour la procédure de mise à niveau.')
+        return (f'Classeur sans numéro de version (version {SCHEMA_VERSION} attendue).\n{fix}')
     try:
         classeur_version = int(dn.attr_text)
     except (ValueError, TypeError):
-        return (f'SCHEMA_VERSION invalide : « {dn.attr_text} » (entier attendu).\n'
-                f'Voir Compta_upgrade.md.')
+        return (f'SCHEMA_VERSION invalide : « {dn.attr_text} » (entier attendu).\n{fix}')
     if classeur_version < SCHEMA_VERSION:
-        return (f'Classeur version {classeur_version}, version {SCHEMA_VERSION} attendue.\n'
-                f'Voir Compta_upgrade.md pour la procédure de mise à niveau.')
+        return (f'Classeur version {classeur_version}, version {SCHEMA_VERSION} attendue.\n{fix}')
     return None
 
 

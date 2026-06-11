@@ -8,6 +8,11 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 - ⚙️ = config à normaliser (lancer `./install_fix.sh`)
 - Détails dans Compta_upgrade.md
 
+## v5.3.1
+| 2026-06-11  |                                                              |
+| ----------- | ------------------------------------------------------------ |
+| Description | **Garde-fou de mise à jour étendu.** Si le code a été mis à jour sans `install_upgrade` (un `git pull` manuel), l'application **refuse désormais d'opérer sur un classeur non migré aussi en ligne de commande** — plus seulement dans l'interface — et oriente vers `./install_upgrade.py` (réversible) plutôt que vers la seule procédure manuelle. |
+
 ## v5.3.0
 | 2026-06-11  |                                                              |
 | ----------- | ------------------------------------------------------------ |
