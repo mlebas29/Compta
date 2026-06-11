@@ -10,12 +10,46 @@ Ce document décrit la **procédure** à suivre pour mettre à niveau le classeu
 
 Au démarrage (mode assisté), l'app vérifie la `SCHEMA_VERSION` du classeur ; une incompatibilité bloque l'exécution. Les autres mises à niveau (formules, formats) sont optionnelles à recommandées — elles n'empêchent pas l'app de tourner mais peuvent fausser des calculs.
 
+**Geste recommandé (mode assisté)** : `./install_upgrade.py` — un seul geste qui met à jour le code et **propose** les rattrapages requis (config, classeur…), jamais en silence. Voir « Le geste `install_upgrade` » ci-dessous.
+
 **Lecture du CHANGELOG** — chaque version peut porter deux badges :
 
 - 📘 = nouveau classeur exemple livré → mode classeur : comparer son `comptes.xlsm` à `comptes_exemple.xlsx` sur la zone indiquée ci-dessous.
 - 🔧 = outil de migration livré → mode assisté : exécuter le `tool_migrate_*.py` correspondant.
 
 Une version peut porter l'un, l'autre, ou les deux. Les sections ci-dessous suivent le même découpage.
+
+
+## Le geste `install_upgrade`
+
+`./install_upgrade.py`, lancé à la racine du clone (mode assisté), met à niveau l'installation en **un seul geste**. Principe : il ne fait **jamais rien en silence** — tout ce qui touche vos données est **proposé**, avec sauvegarde et consentement. Idempotent (un 2ᵉ passage ne refait rien d'inutile).
+
+Séquence :
+
+1. **Code** — tire le nouveau code (`git pull` résilient, PUB). Si le clone est trop divergent pour une mise à jour normale (réécriture d'historique, badge 🔄), il **propose** un re-clone sûr (`reclone.sh`, avec sauvegarde) au lieu d'échouer.
+2. **Rattrapages automatiques** (bénins, idempotents) — normalise la configuration, régénère le raccourci, pose le cadre privé `custom/` s'il manque.
+3. **Classeur** — si le classeur est en retard, **propose** la migration : **sauvegarde** automatique, **consentement** explicite, puis exécution de l'outil (`tool_migrate_*`). Refusé si **LibreOffice < 24.8** (qui corromprait les formules). Détail des migrations : table ci-dessous.
+4. **Signalements** — relève les autres écarts (config obsolète…) sans rien forcer.
+
+`./install_upgrade.py --check` : montre ce qui serait fait, **sans rien appliquer** (ni pull, ni rattrapage).
+
+
+## Migrations du classeur automatisables (`SCHEMA_VERSION`)
+
+> Cette section ne concerne que le **classeur** `comptes.xlsm` — sa **structure**, repérée par le named range `SCHEMA_VERSION`. Elle est **dérivée de `upgrade_map.json`** (source unique) ; régénérer via `./tool_render_upgrade_map.py`.
+
+Ce que le geste `install_upgrade` sait **piloter automatiquement** (consentement + sauvegarde + outil), depuis le plancher `SCHEMA_VERSION` 1. Les versions antérieures (pré-v3.4) et les outils legacy relèvent des sections par-version ci-dessous (mise à niveau **manuelle**).
+
+| Version | SCHEMA | Type | Outil | Effet |
+|---|---|---|---|---|
+| v4.0.0 | 1 → 2 | structurel (bloquant) | `tool_migrate_schema_v2.py` | drill devise |
+| v4.1.0 | 2 → 3 | structurel (bloquant) | `tool_migrate_v4.1.0.py` | refonte CTRL2 + alarmes |
+| v5.0.0 | 3 (inchangé) | catch-up (idempotent) | `tool_migrate_v5.0.0.py` | anti-#REF! orphelines |
+
+**Notes :**
+- **SCHEMA** = `SCHEMA_VERSION`, le numéro de **structure** du classeur. Une migration **structurelle** le fait monter (ex. `1 → 2`) et est **bloquante** : l'app refuse de tourner sur un classeur en retard.
+- **catch-up** = mise à niveau qui **ne change pas** la structure (`SCHEMA` inchangé) mais corrige/fiabilise des formules ; **idempotente** (la relancer ne fait rien si déjà appliquée) → non bloquante.
+- **drill (devise)** = modèle « une colonne par devise → colonnes génériques avec menu déroulant » (chantier v4.0.0).
 
 
 ## v5.0.1 📘 — Classeurs avec migration v5.0.0 intégrée + prérequis LibreOffice ≥ 24.8

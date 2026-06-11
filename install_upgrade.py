@@ -181,6 +181,14 @@ def migrate(check=False):
     if not xlsx.exists():
         return 0
     from inc_excel_schema import SCHEMA_VERSION as code_schema
+
+    problems = inc_update.validate_upgrade_map(BASE_DIR, code_schema)
+    if problems:
+        print(f'{RED}✗{NC} Carte de migration incohérente — migration suspendue :')
+        for p in problems:
+            print(f'   - {p}')
+        return 1
+
     classeur_schema = inc_update.read_classeur_schema(xlsx)
     plan = inc_update.pending_migrations(BASE_DIR, classeur_schema, code_schema)
 

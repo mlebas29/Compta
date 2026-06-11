@@ -243,3 +243,41 @@ def pending_migrations(base_dir, classeur_schema, code_schema):
     up_to_date = not path and origin is not None and origin >= code_schema
     return {'structural': path, 'catchup': catchup,
             'below_floor': False, 'up_to_date': up_to_date}
+
+
+def validate_upgrade_map(base_dir, code_schema):
+    """Cohérence de la carte vs le code. Retourne list[str] de problèmes (vide=OK).
+
+    Filet de la barrière de release : détecte une carte désynchronisée (SCHEMA
+    bumpé sans entrée carte, trou dans la chaîne, outil disparu).
+    """
+    problems = []
+    migs = load_upgrade_map(base_dir).get('migrations', [])
+    if not migs:
+        return ['upgrade_map.json absent ou vide.']
+
+    structural = sorted(
+        (m for m in migs if m.get('schema_to', 0) > m.get('schema_from', 0)),
+        key=lambda m: m['schema_from'])
+
+    # chaîne structurelle contiguë (pas de trou)
+    for a, b in zip(structural, structural[1:]):
+        if b['schema_from'] != a['schema_to']:
+            problems.append(
+                f"trou dans la chaîne : {a['id']} (→{a['schema_to']}) puis "
+                f"{b['id']} (depuis {b['schema_from']}).")
+
+    # la carte atteint la version du code
+    max_to = max((m.get('schema_to', 0) for m in migs), default=0)
+    if max_to != code_schema:
+        problems.append(
+            f"max(schema_to)={max_to} ≠ SCHEMA_VERSION code={code_schema} "
+            f"(carte ou code désynchronisé).")
+
+    # les outils référencés existent
+    for m in migs:
+        tool = m.get('tool')
+        if tool and not (Path(base_dir) / tool).exists():
+            problems.append(f"outil absent : {tool} (migration {m.get('id')}).")
+
+    return problems

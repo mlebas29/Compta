@@ -104,10 +104,10 @@ Les évolutions sont tracées sur GitHub dans :
 
 |                        Mode classeur                         | Mode assisté |
 | :----------------------------------------------------------: | :-----------: |
-| Télécharger  [`comptes_exemple.xlsx`](https://github.com/mlebas29/Compta/raw/main/comptes_exemple.xlsx) | `git pull` (*) |
+| Télécharger  [`comptes_exemple.xlsx`](https://github.com/mlebas29/Compta/raw/main/comptes_exemple.xlsx) | `./install_upgrade.py` (*) |
 | Consulter la procédure classeur éventuelle | Consulter la procédure classeur éventuelle |
 
-**(*)**  à exécuter depuis le répertoire d'installation, met à jour l'application mais pas le classeur `comptes.xlsm` (qui contient vos données). En cas d'évolution du classeur, l'application le signale au démarrage
+**(*)**  à exécuter depuis le répertoire d'installation : met à jour le code et **propose** les rattrapages requis (config, classeur…), jamais en silence. Voir [`Compta_upgrade.md`](https://github.com/mlebas29/Compta/blob/main/Compta_upgrade.md).
 
 
 
