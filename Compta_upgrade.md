@@ -22,16 +22,30 @@ Une version peut porter l'un, l'autre, ou les deux. Les sections ci-dessous suiv
 
 ## Le geste `install_upgrade`
 
-`./install_upgrade.py`, lancé à la racine du clone (mode assisté), met à niveau l'installation en **un seul geste**. Principe : il ne fait **jamais rien en silence** — tout ce qui touche vos données est **proposé**, avec sauvegarde et consentement. Idempotent (un 2ᵉ passage ne refait rien d'inutile).
+`./install_upgrade.py`, lancé à la racine du clone (mode assisté), met à niveau l'installation en **un seul geste**. Principe : il ne fait **jamais rien en silence** — tout ce qui touche vos données est **proposé**, avec consentement. Idempotent (un 2ᵉ passage ne refait rien d'inutile).
+
+**Avant toute modification, un snapshot complet est pris** (config, classeur, version du code) : c'est le filet qui rend l'upgrade **réversible** (cf. *Restauration* ci-dessous). Un run qui ne change rien ne laisse pas de snapshot.
 
 Séquence :
 
 1. **Code** — tire le nouveau code (`git pull` résilient, PUB). Si le clone est trop divergent pour une mise à jour normale (réécriture d'historique, badge 🔄), il **propose** un re-clone sûr (`reclone.sh`, avec sauvegarde) au lieu d'échouer.
 2. **Rattrapages automatiques** (bénins, idempotents) — normalise la configuration, régénère le raccourci, pose le cadre privé `custom/` s'il manque.
-3. **Classeur** — si le classeur est en retard, **propose** la migration : **sauvegarde** automatique, **consentement** explicite, puis exécution de l'outil (`tool_migrate_*`). Refusé si **LibreOffice < 24.8** (qui corromprait les formules). Détail des migrations : table ci-dessous.
+3. **Classeur** — si le classeur est en retard, **propose** la migration sous **consentement** explicite, puis exécute l'outil (`tool_migrate_*`). Refusé si **LibreOffice < 24.8** (qui corromprait les formules). Détail des migrations : table ci-dessous.
 4. **Signalements** — relève les autres écarts (config obsolète…) sans rien forcer.
 
-`./install_upgrade.py --check` : montre ce qui serait fait, **sans rien appliquer** (ni pull, ni rattrapage).
+`./install_upgrade.py --check` : montre ce qui serait fait, **sans rien appliquer**.
+
+### Restauration
+
+Chaque upgrade qui modifie quelque chose laisse un **point de restauration** (snapshot). Pour revenir en arrière :
+
+```bash
+./install_upgrade.py --liste                  # liste les points : date + version
+./install_upgrade.py --restore <date>         # restaure ce point (code + config + classeur)
+./install_upgrade.py --restore <date> --only xlsm   # un seul composant : xlsm | config | app
+```
+
+La restauration **sauvegarde l'état courant d'abord** (elle est donc elle-même réversible) et demande confirmation. Les **10 snapshots** les plus récents sont conservés (les plus anciens sont purgés ; le journal `upgrade_log.jsonl`, lui, garde tout l'historique). Restaurer le seul classeur (`--only xlsm`) le ramène à une version antérieure → l'app le signalera au démarrage (re-migration possible).
 
 
 ## Migrations du classeur automatisables (`SCHEMA_VERSION`)

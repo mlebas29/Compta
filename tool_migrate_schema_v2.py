@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3-uno
 """tool_migrate_schema_v2.py — migre un classeur xlsm de SCHEMA_VERSION 1 vers 2.
 
 Chantier « drill devise » (Phase 2) : élimination des colonnes par devise dans

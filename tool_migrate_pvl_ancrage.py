@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3-uno
 """Migration one-shot : ancrage PVL via OPequiv_euro sur #Solde.
 
 Réécrit :

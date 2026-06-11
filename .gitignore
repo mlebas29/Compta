@@ -5,6 +5,9 @@ archives/
 logs/
 debug/
 *.bak
+*.bak-*
+upgrade_log.jsonl
+.upgrade-snapshot-*/
 *.gpg
 .~lock.*
 .claude/

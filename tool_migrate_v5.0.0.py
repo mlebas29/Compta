@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3-uno
 """Migration classeur v5.0.0 — fiabilisation alarmes contre #REF! orphelines.
 
 Sections intégrées :

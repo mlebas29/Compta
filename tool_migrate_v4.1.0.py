@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3-uno
 """Migrations xls en cours d'élaboration (WIP), pour la prochaine release.
 
 Script intégrateur : chaque nouvelle migration vient s'ajouter ici en
