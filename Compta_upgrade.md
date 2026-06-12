@@ -18,17 +18,23 @@ Au démarrage (mode assisté), l'app vérifie la `SCHEMA_VERSION` du classeur ; 
 Une version peut porter l'un, l'autre, ou les deux. Les sections ci-dessous suivent le même découpage.
 
 
-## Migrations du classeur automatisables (`SCHEMA_VERSION`)
+## Mise à niveau en mode classeur — récupérer l'exemple
 
-> Cette section ne concerne que le **classeur** `comptes.xlsm` — sa **structure**, repérée par le named range `SCHEMA_VERSION`. 
+> En **mode classeur**, vous tenez `comptes.xlsm` à la main, **sans** `install_upgrade`. Le geste de mise à niveau y est simple : quand une version livre un **nouveau classeur exemple** (📘), récupérez le plus récent — il intègre déjà la nouvelle structure. _(Mise à niveau **assistée** : [`Compta_install_upgrade.md`](Compta_install_upgrade.md). Détail technique par version — SCHEMA, outil — dans les sections ci-dessous.)_
 
-Ce que [`install_upgrade`](Compta_install_upgrade.md) sait **piloter automatiquement** (consentement + sauvegarde + outil), depuis `SCHEMA_VERSION` 1. Les versions antérieures (pré-v3.4) et les outils legacy relèvent des sections par-version ci-dessous (mise à niveau **manuelle**).
+**Légende des badges** (geste en mode classeur) :
 
-| Version | SCHEMA | Type | Outil | Effet |
-|---|---|---|---|---|
-| v4.0.0 | 1 → 2 | structurel (bloquant) | `tool_migrate_schema_v2.py` | drill devise |
-| v4.1.0 | 2 → 3 | structurel (bloquant) | `tool_migrate_v4.1.0.py` | refonte CTRL2 + alarmes |
-| v5.0.0 | 3 (inchangé) | catch-up (idempotent) | `tool_migrate_v5.0.0.py` | anti-#REF! orphelines |
+- 📘 contenu : nouveau classeur exemple — récupérer le nouveau classeur exemple
+
+### Classeur (structure & contenu)
+
+| Version | Badges | Effet |
+|---|---|---|
+| v4.0.0 | 📘 | drill devise (élimine les colonnes par devise) |
+| v4.1.0 | 📘 | refonte CTRL2 + alarmes |
+| v5.0.1 | 📘 | classeur exemple livré (intègre la migration v5.0.0) |
+
+_Dérivé de `upgrade_map.json` (régénérer : `./tool_render_upgrade_map.py --mode classeur`)._
 
 **Notes :**
 - **SCHEMA** = `SCHEMA_VERSION`, le numéro de **structure** du classeur. Une migration **structurelle** le fait monter (ex. `1 → 2`) et est **bloquante** : l'app refuse de tourner sur un classeur en retard.

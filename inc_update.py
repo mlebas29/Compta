@@ -266,9 +266,13 @@ def validate_upgrade_map(base_dir, code_schema):
     bumpé sans entrée carte, trou dans la chaîne, outil disparu).
     """
     problems = []
-    migs = load_upgrade_map(base_dir).get('migrations', [])
+    cmap = load_upgrade_map(base_dir)
+    migs = cmap.get('migrations', [])
     if not migs:
         return ['upgrade_map.json absent ou vide.']
+    actions = cmap.get('actions', [])
+    legend_entries = cmap.get('badges_legend', [])
+    legend = {e.get('badge') for e in legend_entries}
 
     structural = sorted(
         (m for m in migs if m.get('schema_to', 0) > m.get('schema_from', 0)),
@@ -288,14 +292,38 @@ def validate_upgrade_map(base_dir, code_schema):
             f"max(schema_to)={max_to} ≠ SCHEMA_VERSION code={code_schema} "
             f"(carte ou code désynchronisé).")
 
-    # les outils référencés existent + badges connus (#99)
+    # les outils référencés existent
     for m in migs:
         tool = m.get('tool')
         if tool and not (Path(base_dir) / tool).exists():
             problems.append(f"outil absent : {tool} (migration {m.get('id')}).")
-        for b in (m.get('badges') or []):
-            if b not in KNOWN_BADGES:
-                problems.append(f"badge inconnu : « {b} » (entrée {m.get('id')}).")
+
+    # légende : badge connu + périmètre valide (= SECTION du rendu) + au moins un
+    # geste (= mode-applicabilité). Périmètre et geste sont indépendants (ex. 🔧 :
+    # périmètre classeur, geste assisté seul) → pas de couplage à vérifier.
+    valid_perim = {'classeur', 'config', 'app'}
+    valid_nature = {'cumulatif', 'ponctuel', 'informatif'}
+    valid_geste = {'assiste', 'assiste_avant', 'classeur'}
+    for e in legend_entries:
+        b = e.get('badge')
+        if b not in KNOWN_BADGES:
+            problems.append(f"badge inconnu en légende : « {b} ».")
+        if e.get('perimetre') not in valid_perim:
+            problems.append(f"périmètre invalide « {e.get('perimetre')} » (badge {b}).")
+        if e.get('nature') not in valid_nature:
+            problems.append(f"nature invalide « {e.get('nature')} » (badge {b}).")
+        geste = e.get('geste') or {}
+        if not geste or set(geste) - valid_geste:
+            problems.append(f"geste invalide pour {b} : {sorted(geste)} (attendu ⊆ {sorted(valid_geste)}).")
+        if 'assiste' not in geste and 'assiste_avant' not in geste:
+            problems.append(f"badge {b} sans geste assisté.")
+
+    # badge utilisé (migrations + actions) ⊆ légende
+    for entry in migs + actions:
+        ref = entry.get('id') or entry.get('app_version') or '?'
+        for b in (entry.get('badges') or []):
+            if b not in legend:
+                problems.append(f"badge « {b} » absent de badges_legend (entrée {ref}).")
 
     return problems
 

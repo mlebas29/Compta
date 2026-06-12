@@ -1,16 +1,33 @@
 {
-  "_note": "Carte des migrations du classeur — SOURCE UNIQUE (cf. CLAUDE_todo #94 volet C). Liste FACTORISÉE : le lecteur (inc_update.pending_migrations) calcule le chemin entre origine = SCHEMA_VERSION du classeur et cible = SCHEMA_VERSION du code. Plancher = min(schema_from) ; un classeur en deçà (pré-v3.4, outils retirés du repo) relève du manuel (Compta_upgrade.md). Les outils pré-SCHEMA (pvl_*, ctrl*) sont legacy, hors carte. Maintenue à la barrière de release (avec APP_VERSION/CHANGELOG). Validation : max(schema_to) == inc_excel_schema.SCHEMA_VERSION.",
-  "_note_badges": "Champ 'badges' (#99) : intention de release machine-lisible (légende canonique CHANGELOG.md, univers CLOS = 📘/🔧/🔄/⚙️). Consommé par inc_update.check_honored_version pour l'avis « version badgée non honorée » au démarrage (badges actionnables = 🔧/⚙️). Les versions d'action PURE (⚙️/🔄 sans transition de schéma) vont dans 'actions' (même schéma : app_version + badges, sans tool/schema_*).",
+  "_note": "Carte des migrations du classeur — SOURCE UNIQUE. Liste FACTORISÉE : le lecteur (inc_update.pending_migrations) calcule le chemin entre origine = SCHEMA_VERSION du classeur et cible = SCHEMA_VERSION du code. Plancher = min(schema_from) ; un classeur en deçà (pré-v3.4, outils retirés du repo) relève du manuel (Compta_upgrade.md). Les outils pré-SCHEMA (pvl_*, ctrl*) sont legacy, hors carte. Maintenue à la barrière de release (avec APP_VERSION/CHANGELOG). Validation : max(schema_to) == inc_excel_schema.SCHEMA_VERSION.",
+  "_note_badges": "Une SOURCE, deux objectifs : pilotage (install_upgrade lit migrations + badges actionnables 🔧/⚙️) ET description (tool_render_upgrade_map --mode rend une vue par mode). Chaque badge a deux axes INDÉPENDANTS : 'perimetre' (classeur/config/app) = la SECTION du rendu ; 'geste' = la mode-applicabilité (les clés présentes = modes où le badge est actionnable) + l'instruction. Ex. 🔧 est périmètre 'classeur' mais geste 'assiste' seul : en mode classeur on ne migre pas en place, on récupère le nouvel exemple (📘) — le distingo 📘/🔧 est une notion app. Seul 📘 est dual-mode. Frontière '_install_upgrade_since' : un badge sur une version antérieure dont geste.assiste_avant existe (🔄) était MANUEL (install_upgrade ne pilotait pas encore). Univers CLOS 📘/🔧/🔄/⚙️ (extensible : ajouter une entrée + KNOWN_BADGES).",
+  "_install_upgrade_since": "5.3.0",
+  "badges_legend": [
+    { "badge": "🔧", "perimetre": "classeur", "nature": "cumulatif", "label": "migration de structure du classeur", "geste": {
+        "assiste": "`install_upgrade` la propose (consentement + sauvegarde)" } },
+    { "badge": "📘", "perimetre": "classeur", "nature": "informatif", "label": "contenu : nouveau classeur exemple", "geste": {
+        "assiste": "votre classeur migré reste en place",
+        "classeur": "récupérer le nouveau classeur exemple" } },
+    { "badge": "⚙️", "perimetre": "config", "nature": "cumulatif", "label": "config à normaliser", "geste": {
+        "assiste": "`install_upgrade` la normalise (rattrapage `install_fix`)" } },
+    { "badge": "🔄", "perimetre": "app", "nature": "ponctuel", "label": "re-clonage du dépôt (réécriture d'historique git)", "geste": {
+        "assiste": "`install_upgrade` propose `reclone.sh`",
+        "assiste_avant": "re-cloner manuellement (`install_upgrade` n'existait pas encore)" } }
+  ],
   "migrations": [
     { "id": "schema_v2", "tool": "tool_migrate_schema_v2.py", "schema_from": 1, "schema_to": 2,
-      "blocking": true, "idempotent": false, "app_version": "4.0.0", "badges": ["🔧"],
+      "blocking": true, "idempotent": false, "app_version": "4.0.0", "badges": ["📘", "🔧"],
       "summary": "drill devise (élimine les colonnes par devise)" },
     { "id": "schema_v3", "tool": "tool_migrate_v4.1.0.py", "schema_from": 2, "schema_to": 3,
-      "blocking": true, "idempotent": false, "app_version": "4.1.0", "badges": ["🔧"],
+      "blocking": true, "idempotent": false, "app_version": "4.1.0", "badges": ["📘", "🔧"],
       "summary": "refonte CTRL2 + alarmes" },
     { "id": "formules_v5", "tool": "tool_migrate_v5.0.0.py", "schema_from": 3, "schema_to": 3,
       "blocking": false, "idempotent": true, "app_version": "5.0.0", "badges": ["🔧"],
       "summary": "fiabilisation alarmes anti-#REF! orphelines" }
   ],
-  "actions": []
+  "actions": [
+    { "app_version": "5.0.1", "badges": ["📘"], "summary": "classeur exemple livré (intègre la migration v5.0.0)" },
+    { "app_version": "5.1.0", "badges": ["🔄"], "summary": "historique git réécrit (squash) — re-clone requis" },
+    { "app_version": "5.2.1", "badges": ["⚙️"], "summary": "config normalisée (renommages hérités)" }
+  ]
 }

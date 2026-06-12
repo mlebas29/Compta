@@ -172,6 +172,24 @@ def _run_migration(tool):
     return {'tool': tool, 'result': 'failed'}
 
 
+def _classeur_busy(xlsx):
+    """Raisons rendant la migration UNO du classeur risquée : classeur ouvert
+    (verrou LibreOffice `.~lock.NAME#`) ou appli GUI (`cpt_gui`) en cours.
+    Écrire le `.xlsm` via UNO pendant qu'il est ouvert ailleurs = conflit /
+    corruption. Retourne list[str] (vide = libre). Signaux portables Linux/Mac.
+    """
+    reasons = []
+    lock = xlsx.parent / f'.~lock.{xlsx.name}#'
+    if lock.exists():
+        reasons.append('classeur ouvert dans LibreOffice')
+    # motif `[c]pt_gui` (bracket trick) : matche le vrai process sans matcher le
+    # shell qui porte cette commande pgrep dans sa propre ligne.
+    rc, out = _run_bash("pgrep -f '[c]pt_gui.py'")
+    if rc == 0 and out.strip():
+        reasons.append('application Comptabilité (cpt_gui) en cours')
+    return reasons
+
+
 def migrate(check=False):
     """Volet C — migration classeur pilotée par la CARTE (upgrade_map.json).
 
@@ -201,6 +219,22 @@ def migrate(check=False):
               f'(version {classeur_schema} sous le plancher de la carte).')
         print('   → migration manuelle : voir Compta_upgrade.md.')
         return {'issues': 1, 'migrations': []}
+
+    # Garde : la migration écrit le .xlsm via UNO ; refuser si le classeur est
+    # ouvert (verrou LO) ou l'appli tourne — ne tire QUE s'il y a vraiment une
+    # migration à appliquer (sinon le run pull/config se poursuit normalement).
+    pending = list(plan['structural'])
+    if plan['catchup'] and not plan['structural']:
+        pending.append(plan['catchup'])
+    if pending and not check:
+        busy = _classeur_busy(xlsx)
+        if busy:
+            print(f"{RED}✗{NC} Classeur non migré — {', '.join(busy)}.")
+            print("   → ferme l'application et le classeur (LibreOffice), "
+                  "puis relance ./install_upgrade.py.")
+            # bloqué ≠ décliné : ne PAS avancer le stamp (l'avis #99 doit
+            # persister jusqu'à migration réelle) ni clamer un run OK.
+            return {'issues': len(pending), 'migrations': [], 'blocked': True}
 
     issues = 0
     ran = []
@@ -508,10 +542,10 @@ def main():
         # appliqués ; structurelles déclinées restent gardées par le gate dur
         # check_schema_compat. C'est l'acteur load-bearing du stamp (le self-heal
         # du GUI/CLI n'avance que les pulls sans action due).
-        if not failed:
+        if not failed and not mig.get('blocked'):
             inc_update.write_honored_version(BASE_DIR / 'config.ini', _disk_app_version())
 
-    return 1 if failed else 0
+    return 1 if (failed or mig.get('blocked')) else 0
 
 
 if __name__ == '__main__':

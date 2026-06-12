@@ -8,6 +8,17 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 - ⚙️ = config à normaliser (lancer `./install_fix.sh`)
 - Détails dans Compta_upgrade.md
 
+## v5.4.0
+| 2026-06-12  |                                                              |
+| ----------- | ------------------------------------------------------------ |
+| Description | **Mise à jour plus sûre et mieux expliquée.** Au démarrage, l'application **prévient** si du code a été tiré sans honorer une mise à niveau attendue (migration classeur ou config), et oriente vers le bon geste. `install_upgrade` **refuse désormais de migrer un classeur ouvert** (dans LibreOffice ou l'application) pour éviter tout conflit. La documentation de mise à niveau est **générée par mode d'usage** (assisté / classeur) depuis une source unique. |
+
+**Détail :**
+
+- **Avis au démarrage** — si une version « badgée » (migration classeur 🔧, config ⚙️) a été franchie sans la honorer, l'app le signale (GUI et ligne de commande) et indique le geste ; sinon elle reste silencieuse. Repère mémorisé dans `config.ini` (`honored_version`).
+- **Garde « classeur ouvert »** — `install_upgrade` détecte un classeur verrouillé (LibreOffice) ou l'application en cours, et **refuse la migration** plutôt que de risquer une corruption ; l'avis de mise à jour persiste tant que ce n'est pas fait.
+- **Carte des mises à jour par mode** — `Compta_install_upgrade.md` (assisté) et `Compta_upgrade.md` (classeur) sont dérivés d'une source unique (`upgrade_map.json`), chacun cadré pour son mode.
+
 ## v5.3.1
 | 2026-06-11  |                                                              |
 | ----------- | ------------------------------------------------------------ |

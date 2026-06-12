@@ -15,6 +15,40 @@ Principe : il ne fait **jamais rien en silence** — tout ce qui touche vos donn
 
 `./install_upgrade.py --check` : montre ce qui serait fait, **sans rien appliquer**.
 
+## Carte des mises à jour
+
+Ce que chaque version a réclamé, **dérivé de la carte** `upgrade_map.json` (source unique ; régénérer : `./tool_render_upgrade_map.py --mode assiste`). Le badge dit l'intention ; sa **nature** dit comment `install_upgrade` s'y prend (les badges *cumulatifs* sont rattrapés quel que soit le retard).
+
+**Légende des badges** (geste en mode assiste) :
+
+> *cumulatif* = `install_upgrade` rattrape le retard accumulé · *informatif* = aucune action · *ponctuel* = à traiter au moment (pas de rattrapage)
+
+- 🔧 *(cumulatif)* migration de structure du classeur — `install_upgrade` la propose (consentement + sauvegarde)
+- 📘 *(informatif)* contenu : nouveau classeur exemple — votre classeur migré reste en place
+- ⚙️ *(cumulatif)* config à normaliser — `install_upgrade` la normalise (rattrapage `install_fix`)
+- 🔄 *(ponctuel)* re-clonage du dépôt (réécriture d'historique git) — re-cloner manuellement (`install_upgrade` n'existait pas encore)
+
+### Classeur (structure & contenu)
+
+| Version | Badges | Effet |
+|---|---|---|
+| v4.0.0 | 📘 🔧 | drill devise (élimine les colonnes par devise) |
+| v4.1.0 | 📘 🔧 | refonte CTRL2 + alarmes |
+| v5.0.0 | 🔧 | fiabilisation alarmes anti-#REF! orphelines |
+| v5.0.1 | 📘 | classeur exemple livré (intègre la migration v5.0.0) |
+
+### Config
+
+| Version | Badges | Effet |
+|---|---|---|
+| v5.2.1 | ⚙️ | config normalisée (renommages hérités) |
+
+### Dépôt (git)
+
+| Version | Badges | Effet |
+|---|---|---|
+| v5.1.0 | 🔄 | historique git réécrit (squash) — re-clone requis |
+
 ## Restauration
 
 Chaque upgrade qui modifie quelque chose laisse un **point de restauration** (snapshot). Pour revenir en arrière :
