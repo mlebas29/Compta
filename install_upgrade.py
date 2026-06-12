@@ -503,6 +503,14 @@ def main():
             'snapshot': snapshot,
         })
 
+        # #99 — pose le stamp honored_version = version disque (post-pull). Après
+        # un run OK, l'installation est réputée à jour : rattrapages bénins
+        # appliqués ; structurelles déclinées restent gardées par le gate dur
+        # check_schema_compat. C'est l'acteur load-bearing du stamp (le self-heal
+        # du GUI/CLI n'avance que les pulls sans action due).
+        if not failed:
+            inc_update.write_honored_version(BASE_DIR / 'config.ini', _disk_app_version())
+
     return 1 if failed else 0
 
 

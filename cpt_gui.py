@@ -696,13 +696,27 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DaemonClientMixin,
         """
         return inc_update.check_config_obsolete(self.config_path)
 
+    def _check_honored_version(self):
+        """#99 — avis « version badgée non honorée » au démarrage + self-heal/seed
+        du stamp config.ini [general] honored_version.
+
+        Probe PURE inc_update.check_honored_version (lit config + carte, cheap,
+        ZÉRO classeur) ; CET appelant écrit config.ini (le stamp est un effet, hors
+        probe). Ferme la surface « git pull nu » que le gate dur check_schema_compat
+        laisse passer (pull sans bump de schéma). Relancé à chaque démarrage.
+        """
+        r = inc_update.check_honored_version(self.config_path, self.config_path.parent)
+        if r['stamp_to']:
+            inc_update.write_honored_version(self.config_path, r['stamp_to'])
+        return [r['message']] if r['message'] else []
+
     def _check_coherence(self):
         """Vérifie la cohérence entre Excel et les fichiers JSON de config.
 
         Returns:
             tuple(list[str], list[str]): (auto_fixes effectués, warnings à traiter)
         """
-        config_warnings = self._check_config_obsolete()
+        config_warnings = self._check_config_obsolete() + self._check_honored_version()
         if not self._excel_loaded:
             if not self.xlsx_path:
                 return [], config_warnings + ['Classeur comptes.xlsm introuvable — copier comptes_template.xlsm ou un classeur existant']
