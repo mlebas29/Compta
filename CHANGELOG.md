@@ -8,6 +8,16 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 - ⚙️ = config à normaliser (lancer `./install_fix.sh`)
 - Détails dans Compta_upgrade_classeur.md
 
+## v5.5.0
+| 2026-06-13  |                                                              |
+| ----------- | ------------------------------------------------------------ |
+| Description | **Renommage du geste de mise à jour + carte plus claire.** Le geste s'appelle désormais **`./upgrade.py`** (au lieu de `install_upgrade.py`), et ses deux docs sont nommées par mode d'usage (`Compta_upgrade_assiste.md` / `Compta_upgrade_classeur.md`). La carte des versions devient un **tableau chronologique unique** (récent en premier) couvrant les trois axes — classeur, config, dépôt — avec les **butées** d'automatisation (point où la mise à jour automatique s'arrête) et leur contournement manuel. |
+
+**Détail :**
+
+- **Renommage** — `install_upgrade.py` → **`upgrade.py`** ; docs `Compta_install_upgrade.md` / `Compta_upgrade.md` → **`Compta_upgrade_assiste.md`** / **`Compta_upgrade_classeur.md`**. Seule la commande tapée change ; aucune autre incidence.
+- **Carte des butées** — un tableau unique par version (récent d'abord), trois axes + outil ; une **butée** 🧱 marque la profondeur de rattrapage automatique (préhistoire pré-v3.4 ; reclone v5.1.0) et renvoie au contournement manuel. Documentation régénérée depuis la source unique `upgrade_map.json`.
+
 ## v5.4.0
 | 2026-06-12  |                                                              |
 | ----------- | ------------------------------------------------------------ |
