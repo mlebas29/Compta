@@ -34,8 +34,11 @@ import openpyxl
 # 🔄 (reclone) est self-resolving — exécuter du code au-delà d'une frontière
 # reclone implique d'avoir reclôné ; 📘 (classeur exemple) n'est pas actionnable
 # en mode assisté. Ni l'un ni l'autre ne déclenche d'avis.
-KNOWN_BADGES = {'📘', '🔧', '🔄', '⚙️'}
+# 🧱 (butée d'automatisation) est un MARQUEUR cross-périmètre (profondeur de
+# rattrapage) : pas de 'perimetre' propre — porté par l'entrée ; jamais actionnable.
+KNOWN_BADGES = {'📘', '🔧', '🔄', '⚙️', '🧱'}
 ACTIONABLE_BADGES = {'🔧', '⚙️'}
+MARKER_BADGES = {'🧱'}  # badges sans section propre, routés par le périmètre de l'entrée
 
 
 def check_schema_compat(xlsx_path, wb=None):
@@ -308,7 +311,7 @@ def validate_upgrade_map(base_dir, code_schema):
         b = e.get('badge')
         if b not in KNOWN_BADGES:
             problems.append(f"badge inconnu en légende : « {b} ».")
-        if e.get('perimetre') not in valid_perim:
+        if b not in MARKER_BADGES and e.get('perimetre') not in valid_perim:
             problems.append(f"périmètre invalide « {e.get('perimetre')} » (badge {b}).")
         if e.get('nature') not in valid_nature:
             problems.append(f"nature invalide « {e.get('nature')} » (badge {b}).")

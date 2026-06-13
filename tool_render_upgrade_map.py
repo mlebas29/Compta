@@ -28,9 +28,10 @@ from pathlib import Path
 
 BASE = Path(__file__).resolve().parent
 
-PERIMETRES = [('classeur', 'Classeur (structure & contenu)'),
-              ('config', 'Config'),
-              ('app', 'Dépôt (git)')]
+# axe : (clé périmètre, entête de colonne courte, description longue pour la légende)
+PERIMETRES = [('classeur', 'Classeur', 'structure & contenu'),
+              ('config', 'Config', "paramètres privés de l'app"),
+              ('app', 'Dépôt', 'git, code public')]
 
 # Glossaire des natures — surfacé dans la vue ASSISTÉE seulement (la nature décrit
 # le rapport d'upgrade au badge ; en classeur 📘 est l'action, pas un info).
@@ -84,7 +85,7 @@ def render_legend(legend, used, mode, frontier, badge_versions):
             shown.append((e, geste))
     if not shown:
         return []
-    out = [f'**Légende des badges** (geste en mode {mode}) :', '']
+    out = ['**Légende des badges** :', '']
     if mode == 'assiste':                         # glossaire des natures présentes
         natures = []
         for e, _ in shown:
@@ -99,11 +100,52 @@ def render_legend(legend, used, mode, frontier, badge_versions):
     return out
 
 
-def render_section(label, entries, mode_badges):
-    out = [f'### {label}', '', '| Version | Badges | Effet |', '|---|---|---|']
-    for e in entries:
-        cell = ' '.join(b for b in (e.get('badges') or []) if b in mode_badges) or '—'
-        out.append(f"| v{e.get('app_version', '?')} | {cell} | {e.get('summary', '')} |")
+def _entry_axis(e, badge_perim):
+    """Axe (périmètre) d'une entrée : périmètre explicite, sinon celui de son
+    premier badge porteur de périmètre (les marqueurs comme 🧱 n'en ont pas)."""
+    if e.get('perimetre'):
+        return e['perimetre']
+    for b in (e.get('badges') or []):
+        if badge_perim.get(b):
+            return badge_perim[b]
+    return None
+
+
+def _cell_badges(e, perim, mode_badges, badge_perim, e_axis):
+    """Badges de `e` à afficher dans la colonne `perim` : badge porté par ce
+    périmètre, OU marqueur (sans périmètre propre) si l'axe de l'entrée = perim."""
+    out = [b for b in (e.get('badges') or [])
+           if b in mode_badges
+           and (badge_perim.get(b) == perim
+                or (badge_perim.get(b) is None and e_axis == perim))]
+    return ' '.join(out)
+
+
+def render_matrix(rows, active, mode_badges, badge_perim, frontier, frontier_label, show_tool):
+    """Tableau unique chronologique (récent d'abord) : Version × axes [+ Outil] + Effet.
+    `active` = [(clé, entête, desc)] des axes ayant au moins un badge en ce mode.
+    `show_tool` ajoute la colonne Outil (ce que `upgrade` lance — vue assistée).
+    Insère une ligne-séparateur à la frontière `upgrade` (méta-butée)."""
+    ncol = len(active)
+    nmid = ncol + (1 if show_tool else 0)             # colonnes entre Version et Effet
+    head = ['Version'] + [s for _, s, _ in active] + (['Outil'] if show_tool else []) + ['Effet']
+    sep = ['---'] + [':--:'] * ncol + (['---'] if show_tool else []) + ['---']
+    out = ['| ' + ' | '.join(head) + ' |', '|' + '|'.join(sep) + '|']
+    frontier_done = not frontier
+    for e in rows:
+        v = _pv(e.get('app_version'))
+        if not frontier_done and (not v or v < frontier):
+            cells = [f'⎯ {frontier_label} ⎯'] + [''] * nmid + ['**frontière `upgrade`** : au-dessous, mise à jour **manuelle** (l\'outil n\'existait pas)']
+            out.append('| ' + ' | '.join(cells) + ' |')
+            frontier_done = True
+        e_axis = _entry_axis(e, badge_perim)
+        ver = e.get('version_label') or f"v{e.get('app_version', '?')}"
+        row = [ver] + [_cell_badges(e, k, mode_badges, badge_perim, e_axis) for k, _, _ in active]
+        if show_tool:
+            tool = e.get('tool') or ''
+            row.append(f'`{tool}`' if tool else '')
+        row.append(e.get('summary', ''))
+        out.append('| ' + ' | '.join(row) + ' |')
     return out
 
 
@@ -139,14 +181,25 @@ def main():
             badge_versions.setdefault(b, []).append(v)
 
     lines = render_legend(legend, used, mode, frontier, badge_versions)
-    for perim, label in PERIMETRES:
-        sect = sorted(
+
+    # axes ayant au moins un badge en ce mode = colonnes du tableau (≥1 en classeur)
+    active = [p for p in PERIMETRES if any(
+        _cell_badges(e, p[0], mode_badges, badge_perim, _entry_axis(e, badge_perim))
+        for e in entries)]
+    if active:
+        rows = sorted(
             (e for e in entries
-             if any(badge_perim.get(b) == perim and b in mode_badges
-                    for b in (e.get('badges') or []))),
-            key=lambda e: _pv(e.get('app_version')))
-        if sect:
-            lines += [''] + render_section(label, sect, mode_badges)
+             if any(b in mode_badges for b in (e.get('badges') or []))),
+            key=lambda e: _pv(e.get('app_version')), reverse=True)
+        frontier_label = f"v{cmap.get('_upgrade_since', '')}"
+        # frontière (méta-butée) + colonne Outil = notions du geste `upgrade`
+        # → vue assistée seule (en classeur on récupère l'exemple, sans outil)
+        assiste = mode == 'assiste'
+        fr = frontier if assiste else ()
+        if len(active) > 1:                       # caption des axes utile en multi-axes seulement
+            lines += ['', '_Axes : ' + ' · '.join(f'**{s}** = {d}' for _, s, d in active) + '_']
+        lines += [''] + render_matrix(
+            rows, active, mode_badges, badge_perim, fr, frontier_label, assiste)
     print('\n'.join(lines))
     return 0
 

@@ -22,17 +22,19 @@ Une version peut porter l'un, l'autre, ou les deux. Les sections ci-dessous suiv
 
 > En **mode classeur**, vous tenez `comptes.xlsm` à la main, **sans** `upgrade`. Le geste de mise à niveau y est simple : quand une version livre un **nouveau classeur exemple** (📘), récupérez le plus récent — il intègre déjà la nouvelle structure. _(Mise à niveau **assistée** : [`Compta_upgrade_assiste.md`](Compta_upgrade_assiste.md). Détail technique par version — SCHEMA, outil — dans les sections ci-dessous.)_
 
-**Légende des badges** (geste en mode classeur) :
+<!-- bloc généré : ./tool_render_upgrade_map.py --mode classeur — ne pas éditer à la main -->
+
+**Légende des badges** :
 
 - 📘 contenu : nouveau classeur exemple — récupérer le nouveau classeur exemple
 
-### Classeur (structure & contenu)
-
-| Version | Badges | Effet |
-|---|---|---|
-| v4.0.0 | 📘 | drill devise (élimine les colonnes par devise) |
-| v4.1.0 | 📘 | refonte CTRL2 + alarmes |
+| Version | Classeur | Effet |
+|---|:--:|---|
 | v5.0.1 | 📘 | classeur exemple livré (intègre la migration v5.0.0) |
+| v4.1.0 | 📘 | refonte CTRL2 + alarmes |
+| v4.0.0 | 📘 | drill devise (élimine les colonnes par devise) |
+
+<!-- fin bloc généré -->
 
 _Dérivé de `upgrade_map.json` (régénérer : `./tool_render_upgrade_map.py --mode classeur`)._
 
