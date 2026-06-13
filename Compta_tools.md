@@ -99,7 +99,7 @@ beige, quadrillage, traits de pied) et au gras des cellules contrôlées.
 
 Migre un classeur d'une version structurelle antérieure (v3.4 et plus
 récents) vers la version courante : drill devise, ancres ⚓, charte v4.
-Voir `Compta_upgrade.md` §v4.0.0 pour la procédure complète et les
+Voir `Compta_upgrade_classeur.md` §v4.0.0 pour la procédure complète et les
 versions sources couvertes.
 
 ```

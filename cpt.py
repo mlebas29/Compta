@@ -791,7 +791,7 @@ Workflow:
         sys.exit(0)
 
     # Gate de compatibilité schéma — parité avec le GUI (#94) : refuser d'opérer
-    # sur un classeur périmé après un `git pull` nu (install_upgrade oublié).
+    # sur un classeur périmé après un `git pull` nu (upgrade oublié).
     # Probe partagée inc_update.check_schema_compat. Les chemins recovery /
     # transport / diagnostic (--pull/--push/--reset*/--fallback/--status) sont
     # déjà sortis plus haut, donc exempts. Classeur absent → None (non bloquant).

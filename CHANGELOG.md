@@ -3,39 +3,39 @@
 Chronique des versions de l'app, orientée utilisateur. Les changements internes du code ne sont généralement pas décrits.
 
 - 📘 = nouvelle version du classeur exemple (mode classeur)
-- 🔧 = migration du classeur livrée (mode assisté : `install_upgrade` la propose ; mode classeur : à reporter à la main)
+- 🔧 = migration du classeur livrée (mode assisté : `upgrade` la propose ; mode classeur : à reporter à la main)
 - 🔄 = re-clonage du dépôt requis (réécriture d'historique git)
 - ⚙️ = config à normaliser (lancer `./install_fix.sh`)
-- Détails dans Compta_upgrade.md
+- Détails dans Compta_upgrade_classeur.md
 
 ## v5.4.0
 | 2026-06-12  |                                                              |
 | ----------- | ------------------------------------------------------------ |
-| Description | **Mise à jour plus sûre et mieux expliquée.** Au démarrage, l'application **prévient** si du code a été tiré sans honorer une mise à niveau attendue (migration classeur ou config), et oriente vers le bon geste. `install_upgrade` **refuse désormais de migrer un classeur ouvert** (dans LibreOffice ou l'application) pour éviter tout conflit. La documentation de mise à niveau est **générée par mode d'usage** (assisté / classeur) depuis une source unique. |
+| Description | **Mise à jour plus sûre et mieux expliquée.** Au démarrage, l'application **prévient** si du code a été tiré sans honorer une mise à niveau attendue (migration classeur ou config), et oriente vers le bon geste. `upgrade` **refuse désormais de migrer un classeur ouvert** (dans LibreOffice ou l'application) pour éviter tout conflit. La documentation de mise à niveau est **générée par mode d'usage** (assisté / classeur) depuis une source unique. |
 
 **Détail :**
 
 - **Avis au démarrage** — si une version « badgée » (migration classeur 🔧, config ⚙️) a été franchie sans la honorer, l'app le signale (GUI et ligne de commande) et indique le geste ; sinon elle reste silencieuse. Repère mémorisé dans `config.ini` (`honored_version`).
-- **Garde « classeur ouvert »** — `install_upgrade` détecte un classeur verrouillé (LibreOffice) ou l'application en cours, et **refuse la migration** plutôt que de risquer une corruption ; l'avis de mise à jour persiste tant que ce n'est pas fait.
-- **Carte des mises à jour par mode** — `Compta_install_upgrade.md` (assisté) et `Compta_upgrade.md` (classeur) sont dérivés d'une source unique (`upgrade_map.json`), chacun cadré pour son mode.
+- **Garde « classeur ouvert »** — `upgrade` détecte un classeur verrouillé (LibreOffice) ou l'application en cours, et **refuse la migration** plutôt que de risquer une corruption ; l'avis de mise à jour persiste tant que ce n'est pas fait.
+- **Carte des mises à jour par mode** — `Compta_upgrade_assiste.md` (assisté) et `Compta_upgrade_classeur.md` (classeur) sont dérivés d'une source unique (`upgrade_map.json`), chacun cadré pour son mode.
 
 ## v5.3.1
 | 2026-06-11  |                                                              |
 | ----------- | ------------------------------------------------------------ |
-| Description | **Garde-fou de mise à jour étendu.** Si le code a été mis à jour sans `install_upgrade` (un `git pull` manuel), l'application **refuse désormais d'opérer sur un classeur non migré aussi en ligne de commande** — plus seulement dans l'interface — et oriente vers `./install_upgrade.py` (réversible) plutôt que vers la seule procédure manuelle. |
+| Description | **Garde-fou de mise à jour étendu.** Si le code a été mis à jour sans `upgrade` (un `git pull` manuel), l'application **refuse désormais d'opérer sur un classeur non migré aussi en ligne de commande** — plus seulement dans l'interface — et oriente vers `./upgrade.py` (réversible) plutôt que vers la seule procédure manuelle. |
 
 ## v5.3.0
 | 2026-06-11  |                                                              |
 | ----------- | ------------------------------------------------------------ |
-| Description | **Outil de mise à jour, et réversible.** `./install_upgrade.py` met à niveau l'installation (code **et** classeur) en une commande : il tire le nouveau code, propose les migrations de classeur nécessaires (sauvegarde + consentement, jamais en silence) et, en cas de souci, permet de **revenir en arrière** (`--restore`). |
+| Description | **Outil de mise à jour, et réversible.** `./upgrade.py` met à niveau l'installation (code **et** classeur) en une commande : il tire le nouveau code, propose les migrations de classeur nécessaires (sauvegarde + consentement, jamais en silence) et, en cas de souci, permet de **revenir en arrière** (`--restore`). |
 
 **Détail :**
 
-- **`install_upgrade.py`** (mode assisté) — un seul geste pour mettre à jour : tire le code, applique les rattrapages bénins (config, raccourci), **propose** les migrations du classeur (refusé si LibreOffice < 24.8). `--check` montre ce qui serait fait sans rien appliquer.
-- **Réversibilité** — chaque mise à jour prend un snapshot complet (code + config + classeur) avant de toucher quoi que ce soit ; `--liste` / `--restore <date>` ramènent l'installation à un point antérieur (les 10 derniers conservés). Détails : [`Compta_install_upgrade.md`](Compta_install_upgrade.md).
-- **Re-clone proposé, jamais forcé** — si une mise à jour normale est impossible (historique réécrit), `install_upgrade` propose un re-clone sûr au lieu d'échouer.
+- **`upgrade.py`** (mode assisté) — un seul geste pour mettre à jour : tire le code, applique les rattrapages bénins (config, raccourci), **propose** les migrations du classeur (refusé si LibreOffice < 24.8). `--check` montre ce qui serait fait sans rien appliquer.
+- **Réversibilité** — chaque mise à jour prend un snapshot complet (code + config + classeur) avant de toucher quoi que ce soit ; `--liste` / `--restore <date>` ramènent l'installation à un point antérieur (les 10 derniers conservés). Détails : [`Compta_upgrade_assiste.md`](Compta_upgrade_assiste.md).
+- **Re-clone proposé, jamais forcé** — si une mise à jour normale est impossible (historique réécrit), `upgrade` propose un re-clone sûr au lieu d'échouer.
 - **Cadre privé** — `install.sh` prépare un dossier `custom/` pour les extensions (sites privés, monkeypatches) ; voir [`Compta_extension.md`](Compta_extension.md).
-- **Documentation** — `Compta_upgrade.md` recentré sur les migrations du classeur ; le geste de mise à jour a sa page dédiée [`Compta_install_upgrade.md`](Compta_install_upgrade.md).
+- **Documentation** — `Compta_upgrade_classeur.md` recentré sur les migrations du classeur ; le geste de mise à jour a sa page dédiée [`Compta_upgrade_assiste.md`](Compta_upgrade_assiste.md).
 
 ## v5.2.1 ⚙️
 | 2026-06-08  |                                                              |
@@ -231,7 +231,7 @@ Le script sauvegarde le dossier entier (`.backup-<horodatage>`), re-clone, et re
 | Description        | **Fiabilisation Plus_value et Contrôles** — **refonte des alarmes**. Nouveau **document sur les plus-values** `Compta_pvl.md`. |
 | Migration assistée | oui (`tool_migrate_v4.1.0.py` — `SCHEMA_VERSION` 2 → 3)      |
 
-> **Note pour le mode classeur** — cette version cumule de nombreuses modifications du classeur (insertions de lignes, recopies de formules, poses de mises en forme conditionnelles, renommages). La migration manuelle est laborieuse. Il est recommandé de **basculer ponctuellement en mode assisté** le temps de la migration : `git clone`, exécuter `tool_migrate_v4.1.0.py`, puis revenir au mode classeur si souhaité. Détails dans `Compta_upgrade.md`.
+> **Note pour le mode classeur** — cette version cumule de nombreuses modifications du classeur (insertions de lignes, recopies de formules, poses de mises en forme conditionnelles, renommages). La migration manuelle est laborieuse. Il est recommandé de **basculer ponctuellement en mode assisté** le temps de la migration : `git clone`, exécuter `tool_migrate_v4.1.0.py`, puis revenir au mode classeur si souhaité. Détails dans `Compta_upgrade_classeur.md`.
 
 **Plus_value**
 
@@ -301,7 +301,7 @@ GUI
 - **Catégories** : config patterns créée vide à la 1re exécution si absente. Combobox *Site* dans le dialog d'ajout. Catégorie orpheline → warning détaillé (au lieu de purge silencieuse).
 - **Cohérence** : warnings sans jargon, nom convivial du site, plus d'auto-désactivation (warnings symétriques). Classeur ou fichiers de configuration absents → warnings explicites.
 -  `tool_fix_formats` : résumé audit / corrections distinct, fixes Plus-value (E/K en devise du portefeuille) et CTRL2 (suffix ▼ ignoré).
-- Nouveau **`Compta_charte.md`** ; `CHANGELOG.md` et `Compta_upgrade.md` allégés.
+- Nouveau **`Compta_charte.md`** ; `CHANGELOG.md` et `Compta_upgrade_classeur.md` allégés.
 
 
 ## v4.0.0 📘 🔧

@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """tool_render_upgrade_map.py — rend la carte (upgrade_map.json) en markdown.
 
-UNE source, deux objectifs : pilotage (install_upgrade) ET description (doc).
+UNE source, deux objectifs : pilotage (upgrade) ET description (doc).
 Ce script sert le second : il dérive UNE vue PAR MODE d'usage, pour son doc.
 
-  • --mode assiste (défaut) → Compta_install_upgrade.md (geste `install_upgrade`)
-  • --mode classeur          → Compta_upgrade.md (récupérer le nouvel exemple)
+  • --mode assiste (défaut) → Compta_upgrade_assiste.md (geste `upgrade`)
+  • --mode classeur          → Compta_upgrade_classeur.md (récupérer le nouvel exemple)
 
 Deux axes INDÉPENDANTS portés par `badges_legend` :
   • `perimetre` (classeur/config/app) = la SECTION du rendu.
@@ -14,9 +14,9 @@ Deux axes INDÉPENDANTS portés par `badges_legend` :
 Ainsi 🔧 (périmètre classeur, geste assisté seul) n'apparaît qu'en assisté : en
 mode classeur on ne migre pas en place, on récupère le nouvel exemple (📘). Seul
 📘 est dual-mode. La description ne porte ni schéma ni outil ni idempotence
-(notions de pilotage) ; install_upgrade les lit dans le JSON. La légende est
+(notions de pilotage) ; upgrade les lit dans le JSON. La légende est
 cohérente avec l'usage (seuls les badges présents y figurent) ; frontière
-`_install_upgrade_since` : un geste `assiste_avant` (🔄) rend le manuel d'époque.
+`_upgrade_since` : un geste `assiste_avant` (🔄) rend le manuel d'époque.
 
 Usage : ./tool_render_upgrade_map.py [--mode assiste|classeur]
 """
@@ -33,9 +33,9 @@ PERIMETRES = [('classeur', 'Classeur (structure & contenu)'),
               ('app', 'Dépôt (git)')]
 
 # Glossaire des natures — surfacé dans la vue ASSISTÉE seulement (la nature décrit
-# le rapport d'install_upgrade au badge ; en classeur 📘 est l'action, pas un info).
+# le rapport d'upgrade au badge ; en classeur 📘 est l'action, pas un info).
 NATURE_GLOSS = {
-    'cumulatif': '`install_upgrade` rattrape le retard accumulé',
+    'cumulatif': '`upgrade` rattrape le retard accumulé',
     'ponctuel': 'à traiter au moment (pas de rattrapage)',
     'informatif': 'aucune action',
 }
@@ -64,7 +64,7 @@ def _modes_of(badge_def):
 
 def _gesture(badge_def, mode, used_versions, frontier):
     """Geste d'un badge pour `mode`. En assisté, applique la frontière d'époque :
-    si toutes les occurrences sont antérieures à install_upgrade et que le badge
+    si toutes les occurrences sont antérieures à upgrade et que le badge
     a un `assiste_avant`, on rend le geste manuel d'époque."""
     g = badge_def.get('geste', {})
     if mode == 'assiste' and 'assiste_avant' in g and used_versions \
@@ -124,7 +124,7 @@ def main():
         return 1
     legend = cmap.get('badges_legend', [])
     mode = args.mode
-    frontier = _pv(cmap.get('_install_upgrade_since', '0'))
+    frontier = _pv(cmap.get('_upgrade_since', '0'))
 
     badge_perim = {e['badge']: e.get('perimetre') for e in legend}
     mode_badges = {e['badge'] for e in legend if mode in _modes_of(e)}

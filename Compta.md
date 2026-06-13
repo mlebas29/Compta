@@ -10,8 +10,8 @@ Ce document est le **guide d'utilisation** et le point d'entrée de la documenta
 | Structuration Excel, commandes avancées, dépannage | [`Compta_plus.md`](Compta_plus.md) |
 | Comprendre les plus-values latentes | [`Compta_pvl.md`](Compta_pvl.md) |
 | Charte graphique du classeur | [`Compta_charte.md`](Compta_charte.md) |
-| Mettre à jour l'installation (mode assisté) | [`Compta_install_upgrade.md`](Compta_install_upgrade.md) |
-| Mettre à niveau le classeur | [`Compta_upgrade.md`](Compta_upgrade.md) |
+| Mettre à jour l'installation (mode assisté) | [`Compta_upgrade_assiste.md`](Compta_upgrade_assiste.md) |
+| Mettre à niveau le classeur | [`Compta_upgrade_classeur.md`](Compta_upgrade_classeur.md) |
 | Installer sur macOS ou Windows (WSL) | [`Compta_portage.md`](Compta_portage.md) |
 | Outils de maintenance (CLI) | [`Compta_tools.md`](Compta_tools.md) |
 | Développer / contribuer | [`Compta_dev.md`](Compta_dev.md) (hub développeur) |
@@ -326,6 +326,6 @@ Ajuster si nécessaire :
 
 - [`Compta_plus.md`](Compta_plus.md) — commandes avancées, structuration Excel, dépannage
 - [`Compta_tools.md`](Compta_tools.md) — outils de maintenance et environnement git
-- [`Compta_install_upgrade.md`](Compta_install_upgrade.md) — mettre à jour l'installation (mode assisté)
-- [`Compta_upgrade.md`](Compta_upgrade.md) — migrations du classeur, par version
+- [`Compta_upgrade_assiste.md`](Compta_upgrade_assiste.md) — mettre à jour l'installation (mode assisté)
+- [`Compta_upgrade_classeur.md`](Compta_upgrade_classeur.md) — migrations du classeur, par version
 - [`Compta_dev.md`](Compta_dev.md) — documentation développeur (architecture, contributeur)

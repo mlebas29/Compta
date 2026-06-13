@@ -1,26 +1,26 @@
 # Mise à niveau du classeur
 
-Ce document catalogue les **migrations du classeur** `comptes.xlsm` par version. En **mode assisté**, [`install_upgrade.py`](Compta_install_upgrade.md) les applique ; en **mode classeur**, à reporter à la main. Pour la liste des changements par version : `CHANGELOG.md`.
+Ce document catalogue les **migrations du classeur** `comptes.xlsm` par version. En **mode assisté**, [`upgrade.py`](Compta_upgrade_assiste.md) les applique ; en **mode classeur**, à reporter à la main. Pour la liste des changements par version : `CHANGELOG.md`.
 
 **Rappel** — [modes d'utilisation](README.md#1-points-de-départ)
 
 | Mode classeur | Mode assisté |
 | --- | --- |
-| Seul `comptes.xlsm` est utilisé ; mise à niveau manuelle dans le tableur en s'appuyant sur [`comptes_exemple.xlsx`](https://github.com/mlebas29/Compta/raw/main/comptes_exemple.xlsx) comme référence. | À partir de **5.3.0** : un seul geste, [`./install_upgrade.py`](Compta_install_upgrade.md) (code + classeur).<br />Avant 5.3.0 : `git pull` (procédures éventuelles dans `CHANGELOG`). |
+| Seul `comptes.xlsm` est utilisé ; mise à niveau manuelle dans le tableur en s'appuyant sur [`comptes_exemple.xlsx`](https://github.com/mlebas29/Compta/raw/main/comptes_exemple.xlsx) comme référence. | À partir de **5.3.0** : un seul geste, [`./upgrade.py`](Compta_upgrade_assiste.md) (code + classeur).<br />Avant 5.3.0 : `git pull` (procédures éventuelles dans `CHANGELOG`). |
 
 Au démarrage (mode assisté), l'app vérifie la `SCHEMA_VERSION` du classeur ; une incompatibilité bloque l'exécution. Les autres mises à niveau (formules, formats) sont optionnelles à recommandées — elles n'empêchent pas l'app de tourner mais peuvent fausser des calculs.
 
 **Lecture du CHANGELOG** — chaque version peut porter deux badges :
 
 - 📘 = nouveau classeur exemple livré → mode classeur : comparer son `comptes.xlsm` à `comptes_exemple.xlsx` sur la zone indiquée ci-dessous.
-- 🔧 = migration du classeur livrée (changement de structure/formules) → **mode assisté** : `install_upgrade` la propose (consentement) ; **mode classeur** : à reporter à la main (cf. section par-version).
+- 🔧 = migration du classeur livrée (changement de structure/formules) → **mode assisté** : `upgrade` la propose (consentement) ; **mode classeur** : à reporter à la main (cf. section par-version).
 
 Une version peut porter l'un, l'autre, ou les deux. Les sections ci-dessous suivent le même découpage.
 
 
 ## Mise à niveau en mode classeur — récupérer l'exemple
 
-> En **mode classeur**, vous tenez `comptes.xlsm` à la main, **sans** `install_upgrade`. Le geste de mise à niveau y est simple : quand une version livre un **nouveau classeur exemple** (📘), récupérez le plus récent — il intègre déjà la nouvelle structure. _(Mise à niveau **assistée** : [`Compta_install_upgrade.md`](Compta_install_upgrade.md). Détail technique par version — SCHEMA, outil — dans les sections ci-dessous.)_
+> En **mode classeur**, vous tenez `comptes.xlsm` à la main, **sans** `upgrade`. Le geste de mise à niveau y est simple : quand une version livre un **nouveau classeur exemple** (📘), récupérez le plus récent — il intègre déjà la nouvelle structure. _(Mise à niveau **assistée** : [`Compta_upgrade_assiste.md`](Compta_upgrade_assiste.md). Détail technique par version — SCHEMA, outil — dans les sections ci-dessous.)_
 
 **Légende des badges** (geste en mode classeur) :
 

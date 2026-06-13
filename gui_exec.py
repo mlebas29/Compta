@@ -232,7 +232,7 @@ class ExecMixin:
         doc_menu.add_command(label='Référentiel outils',
                              command=lambda: self._exec_open_doc('Compta_tools.md'))
         doc_menu.add_command(label='Mises à niveau',
-                             command=lambda: self._exec_open_doc('Compta_upgrade.md'))
+                             command=lambda: self._exec_open_doc('Compta_upgrade_classeur.md'))
         doc_menu.add_command(label='Notes de version',
                              command=lambda: self._exec_open_doc('CHANGELOG.md'))
         doc_menu.add_separator()

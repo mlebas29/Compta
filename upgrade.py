@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""install_upgrade.py — point d'entrée UPGRADE consommateur (#94).
+"""upgrade.py — point d'entrée UPGRADE consommateur (#94).
 
 Geste utilisateur « le CHANGELOG annonce une version → je mets à jour mon
 install ». Distinct de tool_pull (synchro dev commit/pull) : ici l'objet est
@@ -22,8 +22,8 @@ Séquence (#94) :
 Idempotent : un second passage ne fait rien si tout est déjà à jour.
 
 Usage :
-  cd <racine du clone> && python3 install_upgrade.py
-  python3 install_upgrade.py --check   # pull + rattrapages sautés, report seul
+  cd <racine du clone> && python3 upgrade.py
+  python3 upgrade.py --check   # pull + rattrapages sautés, report seul
 """
 
 import argparse
@@ -166,7 +166,7 @@ def _run_migration(tool):
         return {'tool': tool, 'result': 'applied'}
     if rc == 2:
         print(f'{RED}✗{NC} LibreOffice < 24.8 — migration refusée par {tool} (classeur inchangé).')
-        print('   → migre depuis une machine LO≥24.8 (cf. Compta_upgrade.md).')
+        print('   → migre depuis une machine LO≥24.8 (cf. Compta_upgrade_classeur.md).')
         return {'tool': tool, 'result': 'refused-lo'}
     print(f'{RED}✗{NC} {tool} a échoué (rc={rc}).')
     return {'tool': tool, 'result': 'failed'}
@@ -217,7 +217,7 @@ def migrate(check=False):
     if plan['below_floor']:
         print(f'{YELLOW}⚠{NC} Classeur trop ancien pour la migration automatique '
               f'(version {classeur_schema} sous le plancher de la carte).')
-        print('   → migration manuelle : voir Compta_upgrade.md.')
+        print('   → migration manuelle : voir Compta_upgrade_classeur.md.')
         return {'issues': 1, 'migrations': []}
 
     # Garde : la migration écrit le .xlsm via UNO ; refuser si le classeur est
@@ -231,7 +231,7 @@ def migrate(check=False):
         if busy:
             print(f"{RED}✗{NC} Classeur non migré — {', '.join(busy)}.")
             print("   → ferme l'application et le classeur (LibreOffice), "
-                  "puis relance ./install_upgrade.py.")
+                  "puis relance ./upgrade.py.")
             # bloqué ≠ décliné : ne PAS avancer le stamp (l'avis #99 doit
             # persister jusqu'à migration réelle) ni clamer un run OK.
             return {'issues': len(pending), 'migrations': [], 'blocked': True}
@@ -358,7 +358,7 @@ def _list_snapshots():
             for k in ('snapshot', 'current_saved'):
                 if e.get(k):
                     ctx[e[k]] = e
-    print(f'{YELLOW}Points de restauration (./install_upgrade.py --restore <ts>) :{NC}')
+    print(f'{YELLOW}Points de restauration (./upgrade.py --restore <ts>) :{NC}')
     for p in snaps:
         meta = json.loads((p / 'meta.json').read_text(encoding='utf-8'))
         frm = meta.get('from', {})
@@ -432,7 +432,7 @@ def _disk_app_version():
 
 def _write_log(record):
     """Journal forensique externe — `upgrade_log.jsonl` (gitignoré, per-instance).
-    Trace l'état from→to et ce qu'install_upgrade a fait (migrations, backups
+    Trace l'état from→to et ce qu'upgrade a fait (migrations, backups
     conservés), pour retrouver/nettoyer après coup. JAMAIS relu pour décider
     (#94 : témoin, pas autorité). Best-effort : une erreur d'écriture n'interrompt rien.
     """
@@ -468,7 +468,7 @@ def main():
     if args.restore:
         return _restore(args.restore, args.only or 'all')
 
-    print(f"{YELLOW}=== install_upgrade — mise à jour de l'installation ==={NC}")
+    print(f"{YELLOW}=== upgrade — mise à jour de l'installation ==={NC}")
 
     # État INITIAL, lu AVANT le pull. from_app = le code qui tourne (pré-pull) ;
     # importer ici fige inc_excel_schema sur la version pré-pull pour tout le run
@@ -498,7 +498,7 @@ def main():
             propose_reclone()
             # Le repo est (ou va être) remplacé → on n'enchaîne pas les rattrapages
             # sur l'ancien arbre, et pas de `to` sensé.
-            print('(re-clone traité — relance install_upgrade dans le clone frais si nécessaire.)')
+            print('(re-clone traité — relance upgrade dans le clone frais si nécessaire.)')
             _write_log({'op': 'up', 'from': from_state, 'pull': 'reclone',
                         'migrations': [], 'issues': None, 'snapshot': None})
             return 0

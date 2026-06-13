@@ -10,7 +10,7 @@ mode = EX
 # ===== VERSION HONORÉE (#99 — géré par l'app, ne pas éditer à la main) =====
 # Dirty-bit du dernier APP_VERSION dont les actions de mise à niveau (migration
 # classeur, normalisation config) ont été honorées. Posé/avancé automatiquement
-# par install_upgrade / install_fix / le démarrage GUI-CLI ; sert l'avis « version
+# par upgrade / install_fix / le démarrage GUI-CLI ; sert l'avis « version
 # badgée non honorée » après un `git pull` nu. Seedé à la 1ʳᵉ ouverture — laissé
 # commenté ici (template) pour que l'install fraîche parte « à jour ».
 #honored_version =

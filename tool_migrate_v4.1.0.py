@@ -4,7 +4,7 @@
 Script intégrateur : chaque nouvelle migration vient s'ajouter ici en
 préparation du tag. Au moment de la release, ce fichier est renommé en
 `tool_migrate_v<X>.<Y>.<Z>.py` et figé tel quel — c'est l'outil unique
-livré à l'utilisateur (cf. convention Compta_upgrade.md « 1 outil par
+livré à l'utilisateur (cf. convention Compta_upgrade_classeur.md « 1 outil par
 version »).
 
 Sections actuellement intégrées :

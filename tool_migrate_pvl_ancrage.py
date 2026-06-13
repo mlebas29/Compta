@@ -205,7 +205,7 @@ def migrate(xlsx_path, dry_run=False):
 
         deltas = _format_delta(before, after)
         if deltas:
-            print("\n⚠️  Écarts PVL détectés (bug latent corrigé — lire Compta_upgrade.md) :")
+            print("\n⚠️  Écarts PVL détectés (bug latent corrigé — lire Compta_upgrade_classeur.md) :")
             for line in deltas:
                 print(line)
         else:

@@ -19,7 +19,7 @@ APP_VERSION = "5.4.0"
 # Version du schéma classeur — incrémentée à chaque changement de structure
 # (named ranges, colonnes, formules). Le classeur doit avoir un named range
 # SCHEMA_VERSION (constante) égal à cette valeur.
-# Voir Compta_upgrade.md pour l'historique et les procédures de migration.
+# Voir Compta_upgrade_classeur.md pour l'historique et les procédures de migration.
 SCHEMA_VERSION = 3
 
 # Noms des 9 champs de base (colonnes Opérations A-I)

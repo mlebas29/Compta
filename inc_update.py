@@ -30,7 +30,7 @@ import openpyxl
 # Univers CLOS, 4 types (légende canonique CHANGELOG.md). Portés par
 # upgrade_map.json (machine-lisible) ; le CHANGELOG en est le rendu humain, jamais
 # parsé. ACTIONABLE = badges qui réclament un geste au démarrage :
-#   🔧 migration classeur (→ install_upgrade) · ⚙️ config à normaliser (→ install_fix).
+#   🔧 migration classeur (→ upgrade) · ⚙️ config à normaliser (→ install_fix).
 # 🔄 (reclone) est self-resolving — exécuter du code au-delà d'une frontière
 # reclone implique d'avoir reclôné ; 📘 (classeur exemple) n'est pas actionnable
 # en mode assisté. Ni l'un ni l'autre ne déclenche d'avis.
@@ -70,10 +70,10 @@ def check_schema_compat(xlsx_path, wb=None):
             wb.close()
 
     # Suffixe de routage commun aux trois branches : le geste assisté
-    # (install_upgrade, réversible) d'abord ; la procédure manuelle / mode
-    # classeur (Compta_upgrade.md) en repli.
-    fix = ('→ Mettre à niveau : ./install_upgrade.py (mode assisté, réversible)\n'
-           '  ou Compta_upgrade.md (migration manuelle / mode classeur).')
+    # (upgrade, réversible) d'abord ; la procédure manuelle / mode
+    # classeur (Compta_upgrade_classeur.md) en repli.
+    fix = ('→ Mettre à niveau : ./upgrade.py (mode assisté, réversible)\n'
+           '  ou Compta_upgrade_classeur.md (migration manuelle / mode classeur).')
     if dn is None:
         return (f'Classeur sans numéro de version (version {SCHEMA_VERSION} attendue).\n{fix}')
     try:
@@ -172,7 +172,7 @@ def check_config_obsolete(config_path):
 
 # --- Migration classeur pilotée par carte (#94 volet C) ----------------------
 # Lecture PURE : lit la carte (upgrade_map.json) + la version du classeur, et
-# calcule le chemin de migration. Consommé par install_upgrade (l'exécuteur) ;
+# calcule le chemin de migration. Consommé par upgrade (l'exécuteur) ;
 # le GUI ne s'en sert pas (il garde son blocage SCHEMA simple). Testable hors LO.
 
 def read_classeur_schema(xlsx_path, wb=None):
@@ -367,7 +367,7 @@ def check_honored_version(config_path, base_dir, app_version=None):
           · aucun actionnable → version réputée honorée → stamp_to = APP_VERSION
             (self-heal : le fast-path O(1) tient ensuite).
           · 🔧 / ⚙️ actionnable → avis, stamp_to = None (n'avance que quand
-            install_upgrade / install_fix a fait le geste).
+            upgrade / install_fix a fait le geste).
       - clé absente (install pré-#99 / fraîche) → seed stamp_to = APP_VERSION,
         silence (on ne nage pas un historique inconnu).
 
@@ -416,7 +416,7 @@ def check_honored_version(config_path, base_dir, app_version=None):
 
     parts = []
     if '🔧' in actionable:
-        parts.append('migration du classeur en attente → lance ./install_upgrade.py')
+        parts.append('migration du classeur en attente → lance ./upgrade.py')
     if '⚙️' in actionable:
         parts.append('config à normaliser → lance ./install_fix.sh')
     msg = (f'Mise à jour du code détectée (version honorée {honored_raw} → '
@@ -431,7 +431,7 @@ def write_honored_version(config_path, version):
     SEUL writer Python de config.ini : édition ligne à ligne préservant les
     commentaires et la mise en page (comme set_mode côté shell), pas de dump
     configparser. Partagé par tous les acteurs qui posent le stamp :
-    install_upgrade (fin de run OK, version disque), GUI / cpt.py (self-heal +
+    upgrade (fin de run OK, version disque), GUI / cpt.py (self-heal +
     seed). EFFET (hors probes) — best-effort : une erreur est silencieuse (le
     stamp n'est pas load-bearing, le gate dur check_schema_compat reste le
     backstop). Retourne True si écrit.
