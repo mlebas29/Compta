@@ -27,13 +27,39 @@ Usage :
 """
 
 import argparse
+import os
 import subprocess
 import sys
 from pathlib import Path
 
-import inc_update
+# Bi-modal (#102). Lancé rapatrié-frais (pipe `python3 - …` ou /tmp), upgrade.py
+# n'a NI son frère `inc_update.py` NI un `BASE_DIR` connu : il tourne en mode
+# STANDALONE (phase A : pull|reclone, inc_-free) puis re-exec la copie du clone
+# frais (mode IN-CLONE : phase B, migration). D'où ces deux globals remplis dans
+# main() au lieu d'être figés au chargement (`__file__` n'existe même pas en stdin).
+inc_update = None          # importé en mode IN-CLONE seulement (sibling du clone)
+BASE_DIR = None            # défini dans main() : --repo (standalone) | dossier du script (in-clone)
 
-BASE_DIR = Path(__file__).resolve().parent
+REPO_URL_RAW = 'https://raw.githubusercontent.com/mlebas29/Compta/main'
+
+
+def _script_dir():
+    """Dossier du script SI lancé depuis un VRAI fichier sur disque, sinon None.
+    Piège : sous `python3 -` (pipe), `__file__` vaut `'<stdin>'` (pas absent) →
+    sa résolution pointerait à tort vers le CWD. On exige un fichier existant."""
+    f = globals().get('__file__')
+    if not f or f == '<stdin>':
+        return None
+    p = Path(f).resolve()
+    return p.parent if p.exists() else None
+
+
+def _detect_in_clone():
+    """IN-CLONE ssi le script tourne depuis un dossier portant son frère
+    `inc_update.py` (un dossier = front + son inc_ côte à côte). Stdin/pipe → faux
+    (toujours standalone, naturel)."""
+    d = _script_dir()
+    return d is not None and (d / 'inc_update.py').exists()
 
 GREEN = '\033[0;32m'; YELLOW = '\033[1;33m'; RED = '\033[0;31m'; NC = '\033[0m'
 
@@ -56,7 +82,8 @@ def resilient_pull():
     """Pull PUB --ff-only, résilient. PUB seul (le PRV custom/ = sync privé).
 
     Retourne 'ok' (avancé ou no-op) | 'reclone' (histoires disjointes) |
-    'diverged' (divergence / commits locaux / conflit — pull bloqué).
+    'diverged' (divergence / commits locaux / conflit — pull bloqué) |
+    'offline' (transport KO : réseau / accès remote — rien de décidable).
     """
     _, head0 = _git('rev-parse', 'HEAD')
     rc, out = _git('pull', '--ff-only')
@@ -65,11 +92,20 @@ def resilient_pull():
         print(f'{GREEN}✓{NC} PUB ' + ('mis à jour.' if head0 != head1 else 'déjà à jour.'))
         return 'ok'
 
-    # Échec ff-only : histoires disjointes (→ reclone) ou divergence (→ signaler) ?
-    _git('fetch', '--quiet')
+    # Échec ff-only : transport KO ? histoires disjointes (→ reclone) ? divergence ?
+    # Le `git fetch` EST le signal de transport : tant qu'il échoue, merge-base
+    # (calculé sur des refs locales possiblement périmées) ne tranche RIEN — un
+    # réseau coupé se ferait passer pour une divergence, voire pour un reclone.
+    rc_fetch, out_fetch = _git('fetch', '--quiet')
+    if rc_fetch != 0:
+        print(f'{RED}✗{NC} PUB : transport impossible (réseau / accès au remote).')
+        last = out_fetch.splitlines()[-1] if out_fetch else (out.splitlines()[-1] if out else '')
+        if last:
+            print(f'   git : {last}')
+        return 'offline'
     rc_mb, mb = _git('merge-base', 'HEAD', 'origin/main')
     if rc_mb != 0 or not mb:
-        # merge-base vide = histoires disjointes (clone fossile d'avant un squash 🔄).
+        # merge-base vide (fetch OK) = histoires disjointes (clone fossile d'avant un squash 🔄).
         print(f'{YELLOW}⚠{NC} PUB : histoires disjointes (clone d\'avant une réécriture 🔄 ?).')
         return 'reclone'
     # merge-base non vide = divergence / commits locaux / conflit. PAS reclone.
@@ -446,9 +482,108 @@ def _write_log(record):
         pass
 
 
+def _load_brain():
+    """Importe `inc_update` (mode IN-CLONE) et le pose en global pour que les
+    fonctions de phase B (report/migrate/snapshots) le voient. No-op si déjà chargé."""
+    global inc_update
+    if inc_update is None:
+        import inc_update as _iu
+        inc_update = _iu
+
+
+def _fetch_reclone(repo):
+    """Rapatrie `reclone.sh` FRAIS depuis GitHub raw dans `repo` quand il y est
+    absent (instance v4/v5.0 antérieure à la butée v5.1.0 : elle n'a jamais reçu
+    le script). On NE le porte PAS en python — `reclone.sh` est le shell maîtrisé
+    (ancrage rsync `/.git/` subtil) ; on le réutilise tel quel. Retourne le Path
+    du script utilisable, ou None si indisponible (pas de réseau)."""
+    local = repo / 'reclone.sh'
+    if local.exists():
+        return local
+    # Hors du clone : reclone.sh mv le clone → backup puis restaure le non-tracké
+    # par rsync ; un .sh déposé DANS le clone se ferait recopier dans le clone frais.
+    fresh = Path('/tmp/compta-reclone-fresh.sh')
+    rc, out = _run_bash(f"curl -fsSL '{REPO_URL_RAW}/reclone.sh' -o '{fresh}' && chmod +x '{fresh}'")
+    if rc == 0 and fresh.exists():
+        print(f'{GREEN}✓{NC} reclone.sh rapatrié frais (absent de ce clone v4/v5.0).')
+        return fresh
+    print(f'{RED}✗{NC} reclone.sh introuvable et fetch impossible (réseau ?).')
+    if out:
+        print(f'   {out.splitlines()[-1] if out else ""}')
+    return None
+
+
+def _standalone(args):
+    """MODE STANDALONE (#102) — lancé rapatrié-frais (pipe/`/tmp`), hors clone.
+    Phase A INC_-FREE : amène le clone `--repo` à l'état courant (pull | reclone
+    self-contained), puis re-exec `<repo>/upgrade.py` (copie fraîche, sibling
+    `inc_update.py` présent) qui exécute la phase B (flux in-clone normal).
+    """
+    global BASE_DIR
+    repo = Path(args.repo).expanduser().resolve() if args.repo \
+        else Path('~/Compta').expanduser().resolve()
+    if not (repo / '.git').is_dir():
+        print(f'{RED}✗{NC} --repo : {repo} n\'est pas un clone git.', file=sys.stderr)
+        print('   (machine nue → install.sh ; sinon précise --repo <dossier du clone>.)')
+        return 1
+    BASE_DIR = repo   # _git/_run_bash/resilient_pull (inc_-free) opèrent sur le clone cible
+
+    print(f"{YELLOW}=== upgrade (rapatrié frais) — cible {repo} ==={NC}")
+    if args.check:
+        print('(--check : phase A sautée — report sur le code en place.)')
+    else:
+        print(f'{YELLOW}--- Phase A : amener le clone à l\'état courant ---{NC}')
+        status = resilient_pull()
+        if status == 'offline':
+            # transport KO → on ne peut PAS amener le clone à l'état courant, donc
+            # pas de re-exec (qui relancerait du code possiblement périmé).
+            print('   → pas de réseau / accès remote ; réessaie une fois connecté.')
+            return 1
+        if status == 'diverged':
+            print('   → résous la divergence (cf. message git) puis relance.')
+            return 1
+        if status == 'reclone':
+            script = _fetch_reclone(repo)
+            if not script:
+                return 1
+            if not sys.stdin.isatty():
+                print(f"   → reclone recommandé : '{script}' --reclone --repo '{repo}' --yes")
+                return 0
+            print(f"{YELLOW}--- Plan de re-clone (simulation) ---{NC}")
+            _run_interactive(f"'{script}' --reclone --repo '{repo}'")
+            try:
+                ans = input('Lancer le re-clone (backup complet + clone frais) ? [oui/non] ').strip().lower()
+            except EOFError:
+                ans = ''
+            if ans != 'oui':
+                print(f"   Re-clone non lancé. Plus tard : '{script}' --reclone --repo '{repo}' --yes")
+                return 0
+            rc = _run_interactive(f"'{script}' --reclone --repo '{repo}' --yes")
+            if rc != 0:
+                return 1
+            # Après reclone, `repo` est le clone frais (même chemin, swap in-place).
+
+    # Phase A faite → re-exec la copie fraîche du clone pour la phase B.
+    fresh = repo / 'upgrade.py'
+    if not fresh.exists():
+        print(f'{RED}✗{NC} {fresh} introuvable (clone v4/v5.0 sans upgrade.py, ou incomplet).',
+              file=sys.stderr)
+        print('   → relance SANS --check pour franchir la butée (pull/reclone).' if args.check
+              else '   → le clone semble incomplet ; vérifie-le.')
+        return 1
+    print(f'{YELLOW}--- Phase B : cervelle du clone frais ---{NC}')
+    passthru = ['--check'] if args.check else []
+    sys.stdout.flush(); sys.stderr.flush()   # execv ne flushe pas le buffer (pipe = block-buffered)
+    os.execv(sys.executable, [sys.executable, str(fresh), *passthru])
+    # execv ne revient pas ; en cas d'échec improbable :
+    return 1
+
+
 def main():
     ap = argparse.ArgumentParser(
-        description="Point d'entrée upgrade consommateur (#94).")
+        description="Point d'entrée upgrade consommateur (#94/#102).")
+    ap.add_argument('--repo', metavar='DIR',
+                    help='clone cible (mode rapatrié-frais hors clone ; défaut ~/Compta)')
     ap.add_argument('--check', action='store_true',
                     help='report seul : pull et rattrapages sautés')
     ap.add_argument('--liste', action='store_true',
@@ -458,6 +593,15 @@ def main():
     ap.add_argument('--only', choices=['config', 'xlsm', 'app'],
                     help='restreint --restore à un composant (défaut : tout)')
     args = ap.parse_args()
+
+    # Bi-modal (#102) : hors clone (pipe/`/tmp`, pas de frère inc_update) → phase A
+    # standalone puis re-exec. Sinon (in-clone) → phase B, flux #94 ci-dessous.
+    if not _detect_in_clone():
+        return _standalone(args)
+
+    global BASE_DIR
+    BASE_DIR = _script_dir()
+    _load_brain()
 
     if not (BASE_DIR / 'cpt_gui.py').exists():
         print(f'{RED}✗{NC} Pas un clone Compta ({BASE_DIR})', file=sys.stderr)
@@ -505,8 +649,8 @@ def main():
         if status == 'ok':
             print(f'{YELLOW}--- Rattrapages ---{NC}')
             failed = apply_benign()
-        # 'diverged' : pull bloqué (à résoudre par l'utilisateur) → rattrapages
-        # sautés, on passe directement au report.
+        # 'diverged'/'offline' : pull bloqué (divergence à résoudre, ou transport
+        # KO) → rattrapages sautés, on passe directement au report (lecture locale).
 
     print(f'{YELLOW}--- État ---{NC}')
     config_issues = report()
