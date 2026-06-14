@@ -8,6 +8,17 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 - ⚙️ = config à normaliser (lancer `./install_fix.sh`)
 - Détails dans Compta_upgrade_classeur.md
 
+## v5.6.0
+| 2026-06-14  |                                                              |
+| ----------- | ------------------------------------------------------------ |
+| Description | **Mise à jour de l'app : doc clarifiée et portée de rattrapage d'installations anciennes.** |
+
+**Détail :**
+
+- **Documentation** — `README` (§ Mise à jour) allégé ; `Compta_upgrade_assiste.md` (méthode, geste, exemple de chemin de mise à jour) et `Compta_upgrade_classeur.md` (couverture par version revue, redondances « mode assisté » retirées) clarifiés.
+- **Geste resserré, plus longue portée** — un seul script à télécharger et lancer ; les installations antérieures à v5.1.0, jusqu'ici réinstallables à la main, sont **remises à niveau automatiquement**.
+- **Avis de démarrage** — l'avertissement « mise à niveau attendue » renvoie désormais à la procédure détaillée ([`Compta_upgrade_assiste.md`](Compta_upgrade_assiste.md)).
+
 ## v5.5.0
 | 2026-06-13  |                                                              |
 | ----------- | ------------------------------------------------------------ |
