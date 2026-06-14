@@ -1,7 +1,6 @@
 {
   "_note": "Carte des migrations du classeur — SOURCE UNIQUE. Liste FACTORISÉE : le lecteur (inc_update.pending_migrations) calcule le chemin entre origine = SCHEMA_VERSION du classeur et cible = SCHEMA_VERSION du code. Plancher = min(schema_from) ; un classeur en deçà (pré-v3.4, outils retirés du repo) relève du manuel (Compta_upgrade_classeur.md). Les outils pré-SCHEMA (pvl_*, ctrl*) sont legacy, hors carte. Maintenue à la barrière de release (avec APP_VERSION/CHANGELOG). Validation : max(schema_to) == inc_excel_schema.SCHEMA_VERSION.",
-  "_note_badges": "Une SOURCE, deux objectifs : pilotage (upgrade lit migrations + badges actionnables 🔧/⚙️) ET description (tool_render_upgrade_map --mode rend une vue par mode). Chaque badge a deux axes INDÉPENDANTS : 'perimetre' (classeur/config/app) = la SECTION du rendu ; 'geste' = la mode-applicabilité (les clés présentes = modes où le badge est actionnable) + l'instruction. Ex. 🔧 est périmètre 'classeur' mais geste 'assiste' seul : en mode classeur on ne migre pas en place, on récupère le nouvel exemple (📘) — le distingo 📘/🔧 est une notion app. Seul 📘 est dual-mode. Frontière '_upgrade_since' : un badge sur une version antérieure dont geste.assiste_avant existe (🔄) était MANUEL (upgrade ne pilotait pas encore). 🧱 (butée d'automatisation) est un MARQUEUR cross-périmètre : pas de 'perimetre' propre — routé par le 'perimetre' explicite de l'entrée (ex. ligne préhistoire ≤v3.x = classeur) ou par un co-badge (ex. 🔄+🧱 reclone = app). Butée VIVANTE (plancher classeur, manuel à vie, seule vraie profondeur de rattrapage) vs HISTORIQUE (reclone, auto-franchie par upgrade) selon qu'un geste auto coexiste. Univers CLOS 📘/🔧/🔄/⚙️/🧱 (extensible : ajouter une entrée + KNOWN_BADGES).",
-  "_upgrade_since": "5.3.0",
+  "_note_badges": "Une SOURCE, deux objectifs : pilotage (upgrade lit migrations + badges actionnables 🔧/⚙️) ET description (tool_render_upgrade_map --mode rend une vue par mode). Chaque badge a deux axes INDÉPENDANTS : 'perimetre' (classeur/config/app) = la SECTION du rendu ; 'geste' = la mode-applicabilité (les clés présentes = modes où le badge est actionnable) + l'instruction. Ex. 🔧 est périmètre 'classeur' mais geste 'assiste' seul : en mode classeur on ne migre pas en place, on récupère le nouvel exemple (📘) — le distingo 📘/🔧 est une notion app. Seul 📘 est dual-mode. 🔄 (re-clone, périmètre app) est AUTOMATIQUE : upgrade le franchit en phase A (plus de frontière ni de geste manuel). 🧱 (butée d'automatisation) est un MARQUEUR cross-périmètre sans 'perimetre' propre, routé par le 'perimetre' explicite de l'entrée ; il ne reste qu'au PLANCHER CLASSEUR (préhistoire ≤v3.x, schéma <1, outils retirés du repo → vraiment manuel). Univers CLOS 📘/🔧/🔄/⚙️/🧱 (extensible : ajouter une entrée + KNOWN_BADGES).",
   "badges_legend": [
     { "badge": "🔧", "perimetre": "classeur", "nature": "cumulatif", "label": "migration de structure du classeur", "geste": {
         "assiste": "`upgrade` la propose (consentement + sauvegarde)" } },
@@ -11,10 +10,9 @@
     { "badge": "⚙️", "perimetre": "config", "nature": "cumulatif", "label": "config à normaliser", "geste": {
         "assiste": "`upgrade` la normalise (rattrapage)" } },
     { "badge": "🔄", "perimetre": "app", "nature": "ponctuel", "label": "re-clonage du dépôt (réécriture d'historique git)", "geste": {
-        "assiste": "`upgrade` propose `reclone.sh`",
-        "assiste_avant": "re-cloner manuellement (`upgrade` n'existait pas encore)" } },
+        "assiste": "`upgrade` re-clone automatiquement (sauvegarde + consentement)" } },
     { "badge": "🧱", "nature": "ponctuel", "label": "butée d'automatisation (profondeur de rattrapage)", "geste": {
-        "assiste": "sous cette ligne le rattrapage automatique s'arrête → contournement manuel (voir la note)" } }
+        "assiste": "profondeur où le rattrapage automatique s'arrête → recréer le classeur depuis le template (cf. Compta_upgrade_classeur.md)" } }
   ],
   "migrations": [
     { "id": "schema_v2", "tool": "tool_migrate_schema_v2.py", "schema_from": 1, "schema_to": 2,
@@ -31,7 +29,7 @@
     { "version_label": "≤ v3.x", "perimetre": "classeur", "badges": ["🧱"],
       "summary": "schéma < 1 (pré-v3.4) : outils de migration retirés du dépôt git → migration manuelle (ancien mode classeur)" },
     { "app_version": "5.0.1", "badges": ["📘"], "summary": "classeur exemple livré (intègre la migration v5.0.0)" },
-    { "app_version": "5.1.0", "badges": ["🔄", "🧱"], "tool": "reclone.sh", "summary": "historique git réécrit (squash) — re-clone requis" },
+    { "app_version": "5.1.0", "badges": ["🔄"], "tool": "reclone.sh", "summary": "historique git réécrit (squash) — re-clone automatique par upgrade" },
     { "app_version": "5.2.1", "badges": ["⚙️"], "tool": "install_fix.sh", "summary": "config normalisée (renommages hérités)" }
   ]
 }

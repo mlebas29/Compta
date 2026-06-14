@@ -21,45 +21,35 @@ Séquence (#94) :
 
 Idempotent : un second passage ne fait rien si tout est déjà à jour.
 
-Usage :
-  cd <racine du clone> && python3 upgrade.py
-  python3 upgrade.py --check   # pull + rattrapages sautés, report seul
+Usage (lancer HORS du clone — cf. en-tête) :
+  curl -fsSL <raw>/upgrade.py -o /tmp/upgrade.py && python3 /tmp/upgrade.py <clone>
+  python3 /tmp/upgrade.py <clone> --check   # pull + rattrapages sautés, report seul
 """
 
 import argparse
-import os
 import subprocess
 import sys
 from pathlib import Path
 
-# Bi-modal (#102). Lancé rapatrié-frais (pipe `python3 - …` ou /tmp), upgrade.py
-# n'a NI son frère `inc_update.py` NI un `BASE_DIR` connu : il tourne en mode
-# STANDALONE (phase A : pull|reclone, inc_-free) puis re-exec la copie du clone
-# frais (mode IN-CLONE : phase B, migration). D'où ces deux globals remplis dans
-# main() au lieu d'être figés au chargement (`__file__` n'existe même pas en stdin).
-inc_update = None          # importé en mode IN-CLONE seulement (sibling du clone)
-BASE_DIR = None            # défini dans main() : --repo (standalone) | dossier du script (in-clone)
+# AMORCEUR-PUR (#102). upgrade.py a UNE seule entrée : il amène TOUJOURS le clone
+# cible (BASE_DIR) à l'état courant (phase A : pull|reclone) PUIS importe le
+# cerveau (inc_update) du clone — désormais frais — et migre. Pas de bi-modal,
+# pas de re-exec.
+#
+# Le clone est un ARGUMENT OBLIGATOIRE (positionnel). Geste prescrit, universel :
+#     curl -fsSL <raw>/upgrade.py -o /tmp/upgrade.py && python3 /tmp/upgrade.py <clone>
+# Hors-clone n'est EXIGÉ que pour le RE-CLONE (vieux clone, butée 🔄) : il swappe le
+# dossier du clone, donc un script qui y tourne se ferait remplacer → refus ciblé
+# dans la phase A. Le pull, la migration (phase B), `--restore`/`--liste` TOLÈRENT
+# l'in-clone (rien n'est swappé) → un restore tardif peut relancer le `upgrade.py`
+# du clone, sans re-curl. Vertus : (a) aucune devinette du clone par cwd/dossier-du-
+# script (GUI-safe : l'appelant DÉSIGNE le clone) ; (b) via /tmp on exécute l'amorce
+# la PLUS FRAÎCHE, en AVANCE sur le code du clone (gère des cas qu'il n'anticipait
+# pas) ; (c) « skip » de la phase A impossible.
+inc_update = None          # importé APRÈS la phase A (cerveau frais), via _load_brain
+BASE_DIR = None            # clone cible = l'argument positionnel, résolu dans main()
 
 REPO_URL_RAW = 'https://raw.githubusercontent.com/mlebas29/Compta/main'
-
-
-def _script_dir():
-    """Dossier du script SI lancé depuis un VRAI fichier sur disque, sinon None.
-    Piège : sous `python3 -` (pipe), `__file__` vaut `'<stdin>'` (pas absent) →
-    sa résolution pointerait à tort vers le CWD. On exige un fichier existant."""
-    f = globals().get('__file__')
-    if not f or f == '<stdin>':
-        return None
-    p = Path(f).resolve()
-    return p.parent if p.exists() else None
-
-
-def _detect_in_clone():
-    """IN-CLONE ssi le script tourne depuis un dossier portant son frère
-    `inc_update.py` (un dossier = front + son inc_ côte à côte). Stdin/pipe → faux
-    (toujours standalone, naturel)."""
-    d = _script_dir()
-    return d is not None and (d / 'inc_update.py').exists()
 
 GREEN = '\033[0;32m'; YELLOW = '\033[1;33m'; RED = '\033[0;31m'; NC = '\033[0m'
 
@@ -121,30 +111,32 @@ def _run_interactive(snippet):
     return subprocess.run(['bash', '-c', snippet], cwd=str(BASE_DIR)).returncode
 
 
-def propose_reclone():
-    """Volet B — propose le re-clone (JAMAIS auto). Montre le plan (dry-run de
-    reclone.sh) puis, sur consentement explicite EN TERMINAL, lance
-    reclone.sh --reclone --yes (qui fait le backup complet + sa propre
-    confirmation « oui »). Sans terminal : propose seulement, n'exécute rien.
-    Retourne True si un re-clone a été lancé.
+def _do_reclone():
+    """Re-clone de BASE_DIR (histoires disjointes / butée 🔄). `reclone.sh` est
+    rapatrié FRAIS de GitHub s'il manque (clone v4/v5.0 antérieur à v5.1.0). Montre
+    le plan (dry-run) puis, sur consentement EN TERMINAL, lance le reclone (backup
+    complet + clone frais préservant custom/+config). Sans terminal : propose
+    seulement. Retourne True si un re-clone a été lancé OK. Toujours ciblé par
+    `--repo BASE_DIR` (marche que le script soit dans le clone ou téléchargé hors).
     """
-    if not (BASE_DIR / 'reclone.sh').exists():
-        print('   → reclone nécessaire mais reclone.sh introuvable ; voir CHANGELOG (procédure 🔄).')
+    script = _fetch_reclone(BASE_DIR)
+    if not script:
         return False
+    cmd = f"'{script}' --reclone --repo '{BASE_DIR}'"
     if not sys.stdin.isatty():
         # non interactif : on PROPOSE, jamais d'exécution destructive sans terminal.
-        print('   → reclone recommandé : ./reclone.sh --reclone --yes (backup + confirmation).')
+        print(f'   → reclone recommandé : {cmd} --yes (backup + confirmation).')
         return False
     print(f"{YELLOW}--- Plan de re-clone (simulation — rien n'est altéré) ---{NC}")
-    _run_interactive('./reclone.sh --reclone')          # dry-run informatif
+    _run_interactive(cmd)                               # dry-run informatif
     try:
         ans = input('Lancer le re-clone maintenant (backup complet + clone frais) ? [oui/non] ').strip().lower()
     except EOFError:
         ans = ''
     if ans == 'oui':
-        rc = _run_interactive('./reclone.sh --reclone --yes')   # backup + gate « oui » + reclone
+        rc = _run_interactive(f'{cmd} --yes')           # backup + gate « oui » + reclone
         return rc == 0
-    print('   Re-clone non lancé. Plus tard : ./reclone.sh --reclone --yes')
+    print(f'   Re-clone non lancé. Plus tard : {cmd} --yes')
     return False
 
 
@@ -267,7 +259,7 @@ def migrate(check=False):
         if busy:
             print(f"{RED}✗{NC} Classeur non migré — {', '.join(busy)}.")
             print("   → ferme l'application et le classeur (LibreOffice), "
-                  "puis relance ./upgrade.py.")
+                  "puis relance upgrade.py sur ce clone.")
             # bloqué ≠ décliné : ne PAS avancer le stamp (l'avis #99 doit
             # persister jusqu'à migration réelle) ni clamer un run OK.
             return {'issues': len(pending), 'migrations': [], 'blocked': True}
@@ -394,7 +386,7 @@ def _list_snapshots():
             for k in ('snapshot', 'current_saved'):
                 if e.get(k):
                     ctx[e[k]] = e
-    print(f'{YELLOW}Points de restauration (./upgrade.py --restore <ts>) :{NC}')
+    print(f'{YELLOW}Points de restauration (relancer avec --restore <ts>) :{NC}')
     for p in snaps:
         meta = json.loads((p / 'meta.json').read_text(encoding='utf-8'))
         frm = meta.get('from', {})
@@ -483,12 +475,21 @@ def _write_log(record):
 
 
 def _load_brain():
-    """Importe `inc_update` (mode IN-CLONE) et le pose en global pour que les
-    fonctions de phase B (report/migrate/snapshots) le voient. No-op si déjà chargé."""
+    """Importe `inc_update` DEPUIS le clone cible `BASE_DIR` (post-phase-A → code
+    frais) et le pose en global pour report/migrate/snapshots. On insère `BASE_DIR`
+    en tête de `sys.path` : indispensable quand le script est lancé HORS du clone
+    (téléchargé) — sinon `import inc_update` échouerait ou viserait le mauvais
+    dossier. Retourne False si le clone ne porte pas `inc_update.py` (trop ancien,
+    < v5.3.0) ; True sinon. No-op si déjà chargé."""
     global inc_update
-    if inc_update is None:
-        import inc_update as _iu
-        inc_update = _iu
+    if inc_update is not None:
+        return True
+    if not (BASE_DIR / 'inc_update.py').exists():
+        return False
+    sys.path.insert(0, str(BASE_DIR))
+    import inc_update as _iu
+    inc_update = _iu
+    return True
 
 
 def _fetch_reclone(repo):
@@ -513,77 +514,11 @@ def _fetch_reclone(repo):
     return None
 
 
-def _standalone(args):
-    """MODE STANDALONE (#102) — lancé rapatrié-frais (pipe/`/tmp`), hors clone.
-    Phase A INC_-FREE : amène le clone `--repo` à l'état courant (pull | reclone
-    self-contained), puis re-exec `<repo>/upgrade.py` (copie fraîche, sibling
-    `inc_update.py` présent) qui exécute la phase B (flux in-clone normal).
-    """
-    global BASE_DIR
-    repo = Path(args.repo).expanduser().resolve() if args.repo \
-        else Path('~/Compta').expanduser().resolve()
-    if not (repo / '.git').is_dir():
-        print(f'{RED}✗{NC} --repo : {repo} n\'est pas un clone git.', file=sys.stderr)
-        print('   (machine nue → install.sh ; sinon précise --repo <dossier du clone>.)')
-        return 1
-    BASE_DIR = repo   # _git/_run_bash/resilient_pull (inc_-free) opèrent sur le clone cible
-
-    print(f"{YELLOW}=== upgrade (rapatrié frais) — cible {repo} ==={NC}")
-    if args.check:
-        print('(--check : phase A sautée — report sur le code en place.)')
-    else:
-        print(f'{YELLOW}--- Phase A : amener le clone à l\'état courant ---{NC}')
-        status = resilient_pull()
-        if status == 'offline':
-            # transport KO → on ne peut PAS amener le clone à l'état courant, donc
-            # pas de re-exec (qui relancerait du code possiblement périmé).
-            print('   → pas de réseau / accès remote ; réessaie une fois connecté.')
-            return 1
-        if status == 'diverged':
-            print('   → résous la divergence (cf. message git) puis relance.')
-            return 1
-        if status == 'reclone':
-            script = _fetch_reclone(repo)
-            if not script:
-                return 1
-            if not sys.stdin.isatty():
-                print(f"   → reclone recommandé : '{script}' --reclone --repo '{repo}' --yes")
-                return 0
-            print(f"{YELLOW}--- Plan de re-clone (simulation) ---{NC}")
-            _run_interactive(f"'{script}' --reclone --repo '{repo}'")
-            try:
-                ans = input('Lancer le re-clone (backup complet + clone frais) ? [oui/non] ').strip().lower()
-            except EOFError:
-                ans = ''
-            if ans != 'oui':
-                print(f"   Re-clone non lancé. Plus tard : '{script}' --reclone --repo '{repo}' --yes")
-                return 0
-            rc = _run_interactive(f"'{script}' --reclone --repo '{repo}' --yes")
-            if rc != 0:
-                return 1
-            # Après reclone, `repo` est le clone frais (même chemin, swap in-place).
-
-    # Phase A faite → re-exec la copie fraîche du clone pour la phase B.
-    fresh = repo / 'upgrade.py'
-    if not fresh.exists():
-        print(f'{RED}✗{NC} {fresh} introuvable (clone v4/v5.0 sans upgrade.py, ou incomplet).',
-              file=sys.stderr)
-        print('   → relance SANS --check pour franchir la butée (pull/reclone).' if args.check
-              else '   → le clone semble incomplet ; vérifie-le.')
-        return 1
-    print(f'{YELLOW}--- Phase B : cervelle du clone frais ---{NC}')
-    passthru = ['--check'] if args.check else []
-    sys.stdout.flush(); sys.stderr.flush()   # execv ne flushe pas le buffer (pipe = block-buffered)
-    os.execv(sys.executable, [sys.executable, str(fresh), *passthru])
-    # execv ne revient pas ; en cas d'échec improbable :
-    return 1
-
-
 def main():
     ap = argparse.ArgumentParser(
         description="Point d'entrée upgrade consommateur (#94/#102).")
-    ap.add_argument('--repo', metavar='DIR',
-                    help='clone cible (mode rapatrié-frais hors clone ; défaut ~/Compta)')
+    ap.add_argument('repo', metavar='CLONE',
+                    help='dossier du clone à mettre à jour (geste : cf. Compta_upgrade_assiste.md)')
     ap.add_argument('--check', action='store_true',
                     help='report seul : pull et rattrapages sautés')
     ap.add_argument('--liste', action='store_true',
@@ -594,33 +529,28 @@ def main():
                     help='restreint --restore à un composant (défaut : tout)')
     args = ap.parse_args()
 
-    # Bi-modal (#102) : hors clone (pipe/`/tmp`, pas de frère inc_update) → phase A
-    # standalone puis re-exec. Sinon (in-clone) → phase B, flux #94 ci-dessous.
-    if not _detect_in_clone():
-        return _standalone(args)
-
+    # AMORCEUR-PUR (#102) : entrée unique, aucun bi-modal. On résout le clone
+    # cible, on l'amène TOUJOURS à l'état courant (phase A) PUIS on importe le
+    # cerveau frais et on migre. Lancé in-clone ou téléchargé hors clone : idem.
     global BASE_DIR
-    BASE_DIR = _script_dir()
-    _load_brain()
-
-    if not (BASE_DIR / 'cpt_gui.py').exists():
-        print(f'{RED}✗{NC} Pas un clone Compta ({BASE_DIR})', file=sys.stderr)
+    BASE_DIR = Path(args.repo).expanduser().resolve()
+    if not (BASE_DIR / '.git').is_dir():
+        print(f'{RED}✗{NC} {BASE_DIR} n\'est pas un clone git.', file=sys.stderr)
+        print('   (machine nue → install.sh ; sinon vérifie le chemin du clone donné en argument.)')
         return 1
 
-    if args.liste:
-        return _list_snapshots()
-    if args.restore:
-        return _restore(args.restore, args.only or 'all')
+    # --liste / --restore opèrent sur des snapshots existants : pas de phase A.
+    if args.liste or args.restore:
+        if not _load_brain():
+            print(f'{RED}✗{NC} Outillage absent ({BASE_DIR}/inc_update.py) — clone trop ancien.',
+                  file=sys.stderr)
+            return 1
+        return _list_snapshots() if args.liste else _restore(args.restore, args.only or 'all')
 
-    print(f"{YELLOW}=== upgrade — mise à jour de l'installation ==={NC}")
+    print(f"{YELLOW}=== upgrade — mise à jour de {BASE_DIR} ==={NC}")
 
-    # État INITIAL, lu AVANT le pull. from_app = le code qui tourne (pré-pull) ;
-    # importer ici fige inc_excel_schema sur la version pré-pull pour tout le run
-    # (cohérent : le nouveau code tiré s'applique au prochain lancement).
-    from inc_excel_schema import APP_VERSION as from_app
-    xlsx = BASE_DIR / 'comptes.xlsm'
-    from_state = {'app_version': from_app,
-                  'classeur_schema': inc_update.read_classeur_schema(xlsx)}
+    # Version AVANT la phase A (subprocess frais : le module en mémoire serait caché).
+    from_app = _disk_app_version()
 
     # Snapshot COMPLET pré-mutation (jeté en fin si le run est NULL) ; head_before
     # pour détecter une avance de code.
@@ -630,6 +560,7 @@ def main():
         snapshot = _take_snapshot()
         _, head_before = _git('rev-parse', 'HEAD')
 
+    # --- Phase A : amener le clone à l'état courant (TOUJOURS) ---
     failed = 0
     status = None
     if args.check:
@@ -637,22 +568,56 @@ def main():
     else:
         print(f'{YELLOW}--- Pull PUB (résilient) ---{NC}')
         status = resilient_pull()
+        if status in ('offline', 'diverged'):
+            # Transport KO ou divergence : on ne peut pas amener le clone à jour →
+            # pas de migration sur un arbre incertain (rien muté → snapshot jeté).
+            print('   → pas de réseau / accès remote ; réessaie une fois connecté.'
+                  if status == 'offline' else
+                  '   → résous la divergence (cf. message git) puis relance.')
+            _discard_snapshot(snapshot)
+            return 1
         if status == 'reclone':
+            # SEUL cas exigeant hors-clone : le re-clone SWAPPE le dossier du clone.
+            # Si ce script y tourne, il se ferait remplacer sous les pieds → refus,
+            # et on indique le geste /tmp (amorce fraîche, hors clone).
+            f = globals().get('__file__')
+            sp = Path(f).resolve() if f and f != '<stdin>' else None
+            if sp and (sp.parent == BASE_DIR or BASE_DIR in sp.parents):
+                print(f'{RED}✗{NC} Re-clone requis, mais ce `upgrade.py` est DANS le clone '
+                      f'(le re-clone swappe {BASE_DIR}). Relance-le hors du clone :', file=sys.stderr)
+                print(f'   curl -fsSL {REPO_URL_RAW}/upgrade.py -o /tmp/upgrade.py')
+                print(f'   python3 /tmp/upgrade.py {args.repo}')
+                _discard_snapshot(snapshot)
+                return 1
             _discard_snapshot(snapshot)   # reclone fait sa propre sauvegarde complète
-            propose_reclone()
-            # Le repo est (ou va être) remplacé → on n'enchaîne pas les rattrapages
-            # sur l'ancien arbre, et pas de `to` sensé.
-            print('(re-clone traité — relance upgrade dans le clone frais si nécessaire.)')
-            _write_log({'op': 'up', 'from': from_state, 'pull': 'reclone',
-                        'migrations': [], 'issues': None, 'snapshot': None})
-            return 0
-        if status == 'ok':
-            print(f'{YELLOW}--- Rattrapages ---{NC}')
-            failed = apply_benign()
-        # 'diverged'/'offline' : pull bloqué (divergence à résoudre, ou transport
-        # KO) → rattrapages sautés, on passe directement au report (lecture locale).
+            if not _do_reclone():
+                print('(re-clone non effectué — relance une fois prêt.)')
+                _write_log({'op': 'up', 'from': {'app_version': from_app},
+                            'pull': 'reclone', 'migrations': [], 'issues': None,
+                            'snapshot': None})
+                return 0
+            # Reclone fait : le clone (même chemin) est frais → on POURSUIT dans le
+            # même run (cerveau frais + migration). Nouveau snapshot pré-migration.
+            status = 'ok'
+            snapshot = _take_snapshot()
+            _, head_before = _git('rev-parse', 'HEAD')
+
+    # --- Cerveau FRAIS (post-phase-A), importé depuis le clone cible ---
+    if not _load_brain():
+        print(f'{RED}✗{NC} Outillage absent ({BASE_DIR}/inc_update.py) — clone trop ancien.',
+              file=sys.stderr)
+        print('   → relance SANS --check : la phase A (pull/reclone) installe l\'outillage.')
+        return 1
+
+    if status == 'ok':
+        print(f'{YELLOW}--- Rattrapages ---{NC}')
+        failed = apply_benign()
 
     print(f'{YELLOW}--- État ---{NC}')
+    xlsx = BASE_DIR / 'comptes.xlsm'
+    # classeur_schema inchangé par la phase A → lu avec le cerveau frais.
+    from_state = {'app_version': from_app,
+                  'classeur_schema': inc_update.read_classeur_schema(xlsx)}
     config_issues = report()
     mig = migrate(check=args.check)
     issues = config_issues + mig['issues']

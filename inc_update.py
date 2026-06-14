@@ -75,8 +75,8 @@ def check_schema_compat(xlsx_path, wb=None):
     # Suffixe de routage commun aux trois branches : le geste assisté
     # (upgrade, réversible) d'abord ; la procédure manuelle / mode
     # classeur (Compta_upgrade_classeur.md) en repli.
-    fix = ('→ Mettre à niveau : ./upgrade.py (mode assisté, réversible)\n'
-           '  ou Compta_upgrade_classeur.md (migration manuelle / mode classeur).')
+    fix = ('→ Mettre à niveau : `upgrade.py` (mode assisté, réversible — geste dans\n'
+           '  Compta_upgrade_assiste.md) ; ou Compta_upgrade_classeur.md (mode classeur).')
     if dn is None:
         return (f'Classeur sans numéro de version (version {SCHEMA_VERSION} attendue).\n{fix}')
     try:
@@ -419,7 +419,7 @@ def check_honored_version(config_path, base_dir, app_version=None):
 
     parts = []
     if '🔧' in actionable:
-        parts.append('migration du classeur en attente → lance ./upgrade.py')
+        parts.append('migration du classeur en attente → mets à niveau (upgrade.py — cf. Compta_upgrade_assiste.md)')
     if '⚙️' in actionable:
         parts.append('config à normaliser → lance ./install_fix.sh')
     msg = (f'Mise à jour du code détectée (version honorée {honored_raw} → '

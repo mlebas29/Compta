@@ -105,10 +105,10 @@ Les évolutions sont tracées sur GitHub dans [`CHANGELOG.md`](https://github.co
 
 |                        Mode classeur                         | Mode assisté |
 | :----------------------------------------------------------: | :-----------: |
-| Télécharger  [`comptes_exemple.xlsx`](https://github.com/mlebas29/Compta/raw/main/comptes_exemple.xlsx) | Lancer `upgrade.py` (*) |
+| Télécharger  [`comptes_exemple.xlsx`](https://github.com/mlebas29/Compta/raw/main/comptes_exemple.xlsx) | Télécharger et lancer `upgrade.py` (*) |
 | Consulter [`Compta_upgrade_classeur.md`](https://github.com/mlebas29/Compta/blob/main/Compta_upgrade_classeur.md) | Consulter [`Compta_upgrade_assiste.md`](https://github.com/mlebas29/Compta/blob/main/Compta_upgrade_assiste.md) |
 
-> (*) `upgrade.py` est **réversible** : il sauvegarde l'état avant toute mise à jour ; en cas de souci, une restauration ramène code, configuration et classeur à un point antérieur.
+> (*) `upgrade.py` est **réversible** : il sauvegarde l'état avant toute mise à jour.
 
 
 

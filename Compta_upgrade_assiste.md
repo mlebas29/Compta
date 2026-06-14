@@ -1,34 +1,43 @@
 # Mise à jour (mode assisté)
 
-Avant v5.3.0 la mise à jour était effectuée avec `git pull` et des scripts ad-hoc éventuels de mise à jour de classeur (`tool_migrate_*`) décrits dans `CHANGELOG.md`. Le chemin d'une mise à jour consistait en une succession de `tool_migrate_*` à enchaîner manuellement.
+> **⚠️ Changement de méthode — depuis v5.3.0.** La mise à jour assistée se fait désormais avec `upgrade.py`. Ce **geste unique** remplace les anciennes procédures (`git pull` + scripts `tool_migrate_*` enchaînés à la main, re-clone manuel) et fonctionne **quelle que soit votre version de départ** — il met à jour automatiquement les versions antérieures à v5.1.0, dont l'historique git a été réécrit. **Si une doc d'une version antérieure décrit une autre procédure, préférez lui celle-ci.**
 
-Depuis v5.3.0 un script automatise le chemin pour ces mises à jour classeur et gère la mise à jour de l'app (`git pull`) et les chemins de mise à jour config (paramètres privés de l'app).
+```bash
+# Depuis un terminal: télécharger puis lancer upgrade.py.
+curl -fsSL https://github.com/mlebas29/Compta/raw/main/upgrade.py -o /tmp/upgrade.py
+python3 /tmp/upgrade.py ~/Compta
+# ~/Compta à remplacer éventuellement par le dossier réellement utilisé
+```
 
-Le script `./upgrade.py` est à lancer à la racine du clone. Tout ce qui touche à vos données est **proposé**, avec consentement. Idempotent (un 2ᵉ passage ne refait rien d'inutile).
+Tout ce qui touche à vos données est **proposé**, avec consentement. Idempotent (un 2ᵉ passage ne refait rien d'inutile).
 
 **Avant toute modification, une sauvegarde est faite** (config, classeur, version du code) : c'est le filet qui rend l'upgrade **réversible** (cf. *Restauration*). Un lancement qui ne change rien ne laisse pas de sauvegarde.
 
+
+
 ## Séquence de mise à jour
 
-1. **Code** — installe le nouveau code (`git pull`). Si le clone est trop divergent pour une mise à jour normale (réécriture d'historique, badge 🔄), il **propose** un re-clone sûr (`reclone.sh`, avec sauvegarde) au lieu d'échouer.
+1. **Code** — `git pull`. Si le clone est trop ancien pour un pull (historique réécrit, clone antérieur à v5.1.0), il **propose** (consentement) un re-clone sûr : sauvegarde complète + clone frais **préservant** `custom/` et la configuration.
 2. **Config** (idempotent) — normalise la configuration, régénère le raccourci, pose le cadre privé `custom/` s'il manque.
 3. **Classeur** (idempotent) — si le classeur est en retard, **propose** la migration sous **consentement** explicite, puis exécute l'outil (`tool_migrate_*`). Refusé si **LibreOffice < 24.8** (qui corromprait les formules).
 4. **Signalements** — relève les autres écarts (config obsolète…) sans rien forcer.
 5. **Marquage** dans la config du passage du script (`honored_version`) — sert l'avis au démarrage qui signale une mise à niveau attendue mais non honorée.
 
-`./upgrade.py --check` : montre ce qui serait fait, **sans rien appliquer**.
+`upgrade.py --check` : montre ce qui serait fait, **sans rien appliquer**.
 
 ## Restauration
 
 Chaque upgrade qui modifie quelque chose laisse un **point de restauration** (snapshot). Pour revenir en arrière :
 
 ```bash
-./upgrade.py --liste                  # liste les points : date + version
-./upgrade.py --restore <date>         # restaure ce point (code + config + classeur)
-./upgrade.py --restore <date> --only xlsm   # un seul composant : xlsm | config | app
+python3 /tmp/upgrade.py ~/Compta --liste              # liste les points : date + version
+python3 /tmp/upgrade.py ~/Compta --restore <date>     # restaure ce point (code + config + classeur)
+python3 /tmp/upgrade.py ~/Compta --restore <date> --only xlsm   # un seul composant : xlsm | config | app
 ```
 
 La restauration **sauvegarde l'état courant d'abord** (elle est donc elle-même réversible) et demande confirmation. Les **10 snapshots** les plus récents sont conservés (les plus anciens sont purgés ; le journal `upgrade_log.jsonl`, lui, garde tout l'historique). Restaurer le seul classeur (`--only xlsm`) le ramène à une version antérieure → l'app le signalera au démarrage (re-migration possible).
+
+> **Restauration tardive.** Si le `/tmp/upgrade.py` téléchargé n'est plus là (reboot), le clone porte aussi le script — `python3 ~/Compta/upgrade.py ~/Compta --restore <date>`. Le restore ne re-clone pas → le lancer depuis le clone est toléré, inutile de re-télécharger.
 
 ## Carte des mises à jour
 
@@ -43,16 +52,15 @@ Ce que chaque version réclame, **dérivé de la carte** `upgrade_map.json` (sou
 - 🔧 *(cumulatif)* migration de structure du classeur — `upgrade` la propose (consentement + sauvegarde)
 - 📘 *(informatif)* contenu : nouveau classeur exemple — votre classeur migré reste en place
 - ⚙️ *(cumulatif)* config à normaliser — `upgrade` la normalise (rattrapage)
-- 🔄 *(ponctuel)* re-clonage du dépôt (réécriture d'historique git) — re-cloner manuellement (`upgrade` n'existait pas encore)
-- 🧱 *(ponctuel)* butée d'automatisation (profondeur de rattrapage) — sous cette ligne le rattrapage automatique s'arrête → contournement manuel (voir la note)
+- 🔄 *(ponctuel)* re-clonage du dépôt (réécriture d'historique git) — `upgrade` re-clone automatiquement (sauvegarde + consentement)
+- 🧱 *(ponctuel)* butée d'automatisation (profondeur de rattrapage) — profondeur où le rattrapage automatique s'arrête → recréer le classeur depuis le template (cf. Compta_upgrade_classeur.md)
 
 _Axes : **Classeur** = structure & contenu · **Config** = paramètres privés de l'app · **Dépôt** = git, code public_
 
 | Version | Classeur | Config | Dépôt | Outil | Effet |
 |---|:--:|:--:|:--:|---|---|
-| ⎯ v5.3.0 ⎯ |  |  |  |  | **frontière `upgrade`** : au-dessous, mise à jour **manuelle** (l'outil n'existait pas) |
 | v5.2.1 |  | ⚙️ |  | `install_fix.sh` | config normalisée (renommages hérités) |
-| v5.1.0 |  |  | 🔄 🧱 | `reclone.sh` | historique git réécrit (squash) — re-clone requis |
+| v5.1.0 |  |  | 🔄 | `reclone.sh` | historique git réécrit (squash) — re-clone automatique par upgrade |
 | v5.0.1 | 📘 |  |  |  | classeur exemple livré (intègre la migration v5.0.0) |
 | v5.0.0 | 🔧 |  |  | `tool_migrate_v5.0.0.py` | fiabilisation alarmes anti-#REF! orphelines |
 | v4.1.0 | 📘 🔧 |  |  | `tool_migrate_v4.1.0.py` | refonte CTRL2 + alarmes |
@@ -74,12 +82,11 @@ Exemple — un classeur en **schéma 1** mis à niveau vers un code en **schéma
 
 Les étapes s'exécutent dans l'ordre, sous consentement et après sauvegarde. Un classeur déjà en schéma 3 n'a aucune étape (rien à faire) ; un classeur en **schéma < 1** est sous la **butée** 🧱 (outils retirés du dépôt git) → migration manuelle, cf. [`Compta_upgrade_classeur.md`](Compta_upgrade_classeur.md).
 
+**2ᵉ exemple — un événement sur un autre axe rallonge le chemin.** Le même classeur en **v4.0.0** est déjà en **schéma 2** : côté classeur, atteindre **v5.3.0** (schéma 3) ne demande qu'**une** migration (2 → 3). Mais le chemin franchit la **réécriture d'historique git de v5.1.0** (axe Dépôt, 🔄) qu'un `git pull` ne traverse pas → `upgrade` **re-clone automatiquement** (sauvegarde + consentement) avant de migrer. Soit **2 étapes, sur deux axes** :
 
-**2ᵉ exemple — une butée sur un autre axe rallonge le chemin.** Le même classeur en **v4.0.0** est déjà en **schéma 2** : côté classeur, atteindre le code **v5.3.0** (schéma 3) ne demande donc qu'**une** migration (2 → 3). Mais le chemin franchit la **butée app v5.1.0** (réécriture d'historique git) — un simple `git pull` ne la traverse pas → il faut **re-cloner d'abord**. Soit **2 étapes, sur deux axes** :
-
-| Étape | Axe | Geste |
+| Étape | Axe | Geste (par `upgrade`) |
 |---|---|---|
-| 1 | Dépôt | `reclone.sh` — franchir la butée app v5.1.0 (sinon `git pull` casse) |
+| 1 | Dépôt | re-clone — réécriture d'historique v5.1.0 qu'un `git pull` ne traverse pas |
 | 2 | Classeur | `tool_migrate_v4.1.0.py` — schéma 2 → 3 |
 
-Le `SCHEMA_VERSION` du classeur ne dit donc pas, à lui seul, tout le chemin : une **butée sur un autre axe** (ici le dépôt) ajoute son propre geste, indépendamment du retard de schéma.
+Le `SCHEMA_VERSION` ne dit donc pas, à lui seul, tout le chemin : un **événement sur un autre axe** (le dépôt) ajoute son geste — `upgrade` enchaîne les deux.
