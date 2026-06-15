@@ -72,7 +72,13 @@ _Axes : **Classeur** = structure & contenu · **Config** = paramètres privés d
 
 ## Comment le script détermine le chemin
 
-`upgrade` ne rejoue pas les versions une à une : il calcule le **chemin de migration du classeur** entre deux numéros de schéma — l'**origine** (le `SCHEMA_VERSION` inscrit dans votre classeur) et la **cible** (celui du code installé) — puis enchaîne les migrateurs qui couvrent l'intervalle.
+Le « chemin » peut toucher trois axes — **classeur**, **config**, **dépôt** — et chacun se détermine différemment.
+
+**Côté classeur**, `upgrade` ne rejoue pas les versions une à une : il calcule le **chemin de migration** entre deux numéros de schéma — l'**origine** (le `SCHEMA_VERSION` inscrit dans votre classeur) et la **cible** (celui du code installé) — puis enchaîne les migrateurs qui couvrent l'intervalle.
+
+**Côté config**, il n'y a pas de numéro de schéma à comparer : `upgrade` ne calcule pas d'intervalle. À la place, chaque migration de config **vérifie l'état réel** de votre `config.ini` et ne le **met en conformité que si besoin** (sinon elle n'y touche pas). Elles sont donc toutes repassées à chaque mise à jour, mais une config déjà à jour reste **intacte**.
+
+**Côté dépôt**, ni numéro de version ni script dédié : c'est l'**état réel du dépôt git** qui tranche. `upgrade` tente un `git pull` ; s'il avance normalement, rien de plus. Mais si l'**historique a été réécrit** (un `git pull` ne peut pas le traverser), il **re-clone** l'installation — sauvegarde + consentement — c'est la 🔄 (ex. v5.1.0).
 
 Exemple — un classeur en **schéma 1** mis à niveau vers un code en **schéma 3** :
 
