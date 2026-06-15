@@ -318,13 +318,14 @@ def _take_snapshot():
         for f in files:
             shutil.copy2(BASE_DIR / f, snap / f)
         _, head = _git('rev-parse', 'HEAD')
-        try:
-            from inc_excel_schema import APP_VERSION
-        except Exception:
-            APP_VERSION = '?'
+        # Métadonnées lues SUR DISQUE via process frais : _take_snapshot tourne
+        # AVANT que le cerveau soit importé in-process (snapshot pré-phase-A) — le
+        # global inc_update y est encore None, et un import in-process cacherait la
+        # version PRÉ-pull (cassant la fraîcheur voulue par l'amorceur). Les helpers
+        # _disk_* lisent le clone tel qu'il est, sans polluer sys.modules.
         meta = {'ts': ts, 'commit': head,
-                'from': {'app_version': APP_VERSION,
-                         'classeur_schema': inc_update.read_classeur_schema(BASE_DIR / 'comptes.xlsm')},
+                'from': {'app_version': _disk_app_version(),
+                         'classeur_schema': _disk_classeur_schema()},
                 'files': files}
         (snap / 'meta.json').write_text(json.dumps(meta), encoding='utf-8')
         return snap.name
@@ -451,11 +452,31 @@ def _restore(ts, target):
 
 def _disk_app_version():
     """APP_VERSION du code SUR DISQUE (post-pull), via un process FRAIS — le
-    process courant a le module inc_excel_schema caché (valeur pré-pull)."""
+    process courant a le module inc_excel_schema caché (valeur pré-pull).
+    `-B` (pas d'écriture .pyc) est CRUCIAL : un appel pré-pull (from_app) écrirait
+    sinon un `__pycache__/inc_excel_schema.pyc` ; le `git pull` réécrit le .py dans
+    la même seconde → CPython compare les mtime À LA SECONDE, juge le cache encore
+    valide, et l'appel POST-pull relirait la version PRÉ-pull (stamp #99 jamais avancé)."""
     p = subprocess.run(
-        ['python3', '-c', 'from inc_excel_schema import APP_VERSION; print(APP_VERSION)'],
+        ['python3', '-B', '-c', 'from inc_excel_schema import APP_VERSION; print(APP_VERSION)'],
         cwd=str(BASE_DIR), capture_output=True, text=True)
     return (p.stdout or '').strip() or '?'
+
+
+def _disk_classeur_schema():
+    """SCHEMA du classeur lu via un process FRAIS (inc_update du clone sur disque).
+    Symétrique de _disk_app_version : robuste quand le cerveau n'est pas encore
+    importé in-process (snapshot pré-phase-A, global inc_update None). None si pas
+    de classeur (ou clone trop ancien sans inc_update)."""
+    xlsx = BASE_DIR / 'comptes.xlsm'
+    if not xlsx.exists():
+        return None
+    p = subprocess.run(
+        ['python3', '-B', '-c',          # -B : pas de .pyc (cf. _disk_app_version)
+         "import inc_update; print(inc_update.read_classeur_schema('comptes.xlsm'))"],
+        cwd=str(BASE_DIR), capture_output=True, text=True)
+    out = (p.stdout or '').strip()
+    return int(out) if out.isdigit() else (out or None)
 
 
 def _write_log(record):
