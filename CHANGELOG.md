@@ -17,7 +17,7 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 - **⚙️ Mise à niveau de la config** — à la mise à jour, le bloc `[XMR]` est migré automatiquement et le site Monero est **désactivé**. Pour le réactiver : renseigner l'accès au nœud (hôte SSH) et **(re)créer un identifiant GPG dédié** au nœud, puis réactiver le site (onglet Sites). Détails dans [`Compta_xmr.md`](Compta_xmr.md).
 
 ## v5.6.0
-| 2026-06-14 | Upgrade (Mise à jour de version) : rattrapage d'installations anciennes. |
+| 2026-06-14 | Upgrade (mise à jour de version) : rattrapage d'installations anciennes. |
 | ---------- | ------------------------------------------------------------ |
 
 **Détail :**
@@ -473,7 +473,8 @@ GUI
 
 ## Versions majeures
 
-- v4 : **classeur** restructuré avec charte graphique
-- v3 : **GUI ** et version **Export** avec exemple et template.
+- v5 : **Portage** MacOS et Windows 11
+- v4 : **Classeur** restructuré avec charte graphique
+- v3 : **GUI** et version **Export** avec exemple et template.
 - v2 : **Collecte sites**  (première pierre app le 11 nov 2025)
 - v1 : **Classeur** initial 
