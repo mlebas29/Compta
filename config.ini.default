@@ -205,25 +205,20 @@ max_days_back = 90
 [XMR]
 name = Monero Wallets
 dossier = XMR
-# Dossier parent des wallets MoneroGUI
-wallet_dir = ~/Monero/wallets
-# Chemin monero-wallet-cli
-wallet_cli_dir = ~/Applications/monero-gui-v0.18.4.0/extras
-# Credential ID pour GPG (passwords)
-# Adresse du nœud Monero (daemon)
-# Options :
-#   - localhost:18081  (nœud local sans auth)
-#   - IP:PORT          (nœud privé distant avec auth)
-daemon_address = localhost:18081
-# Autres nœuds (distant avec auth) :
-#daemon_address = 192.168.1.141:18081
-#daemon_address = monero-node.example.lan:18089
-# Credential ID pour authentification RPC du nœud distant (optionnel)
-# Laisser vide pour nœud local sans auth
-# Format dans credentials.md.gpg : | SiMoNo-M | username | password |
-daemon_credential_id =
+# Collecte via un monero-wallet-rpc DISTANT (cf. Compta_xmr.md).
+# Cible SSH du serveur hébergeant wallet-rpc (clé SSH non-interactive requise) :
+wallet_rpc_ssh_host = user@monero-host.example.lan
+# Port du wallet-rpc côté serveur (bindé localhost là-bas) + port local du tunnel SSH
+wallet_rpc_port = 18083
+wallet_rpc_local_port = 28083
+# Login RPC du wallet-rpc (GPG) — format : | SiWaRpc-M | username | password |
+wallet_rpc_credential_id = SiWaRpc-M
+# Mot de passe du wallet (GPG) — envoyé à open_wallet via le tunnel chiffré
+credential_id = CrMo-M
+# Fenêtre d'historique des opérations + délais (secondes)
 max_days_back = 90
-wallet_timeout = 300
+refresh_timeout = 300
+tunnel_timeout = 15
 
 # ============================================================================
 # MANUEL - Opérations saisies manuellement

@@ -7,6 +7,15 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 - 🔄 = re-clonage du dépôt requis (réécriture d'historique git)
 - ⚙️ = config à normaliser (lancer `./install_fix.sh`)
 
+## v5.7.0 ⚙️
+| 2026-06-15 | Collecte Monero (XMR) par nœud distant — plus de daemon Monero local requis. |
+| ---------- | ------------------------------------------------------------ |
+
+**Détail :**
+
+- **Monero (XMR)** — la collecte passe par un nœud Monero **distant** (machine toujours allumée) au lieu d'un daemon local : fonctionne sur n'importe quel poste (Mac / Linux / WSL), **sans installer ni synchroniser** la blockchain (~250 Go) en local. Mise en place du serveur : `install_xmr_wallet_rpc.sh` (voir [`Compta_xmr.md`](Compta_xmr.md)).
+- **⚙️ Mise à niveau de la config** — à la mise à jour, le bloc `[XMR]` est migré automatiquement et le site Monero est **désactivé**. Pour le réactiver : renseigner l'accès au nœud (hôte SSH) et **(re)créer un identifiant GPG dédié** au nœud, puis réactiver le site (onglet Sites). Détails dans [`Compta_xmr.md`](Compta_xmr.md).
+
 ## v5.6.0
 | 2026-06-14 | Upgrade (Mise à jour de version) : rattrapage d'installations anciennes. |
 | ---------- | ------------------------------------------------------------ |

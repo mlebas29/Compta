@@ -59,6 +59,7 @@ _Axes : **Classeur** = structure & contenu · **Config** = paramètres privés d
 
 | Version | Classeur | Config | Dépôt | Outil | Effet |
 |---|:--:|:--:|:--:|---|---|
+| v5.7.0 |  | ⚙️ |  | `tool_migrate_config_xmr.py` | [XMR] migré vers collecte par nœud distant (wallet-rpc) — site désactivé, reconfiguration + credential GPG requis (cf. Compta_xmr.md) |
 | v5.2.1 |  | ⚙️ |  | `install_fix.sh` | config normalisée (renommages hérités) |
 | v5.1.0 |  |  | 🔄 | `reclone.sh` | historique git réécrit (squash) — re-clone automatique par upgrade |
 | v5.0.1 | 📘 |  |  |  | classeur exemple livré (intègre la migration v5.0.0) |

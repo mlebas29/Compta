@@ -153,6 +153,22 @@ def apply_benign():
         print(f'{RED}✗{NC} install_fix.sh a échoué (rc={rc})')
         failed += 1
 
+    # Migrations de SCHÉMA config — CARTE-DRIVEN (upgrade_map.json config_migrations),
+    # jamais hardcodées. Pas de gating par version : le config n'a pas de schéma de
+    # départ fiable → on les lance TOUTES, chacune idempotente + auto-gated sur l'état
+    # réel du config.ini (vérifier-et-assurer). Distinct de normalize_config
+    # (renommages génériques) ; check_config_obsolete reste le détecteur qui éteint ⚙️.
+    for cm in inc_update.config_migrations(BASE_DIR):
+        tool = cm.get('tool')
+        if not tool:
+            continue
+        rc, out = _run_bash(f'python3 {tool} config.ini')
+        if out:
+            print(out)
+        if rc != 0:
+            print(f'{RED}✗{NC} {tool} a échoué (rc={rc})')
+            failed += 1
+
     # cadre privé custom/ (#93) — rattrapage des installs antérieures à #93.
     # Structurel (pose un .git vide), pas un pull du contenu privé.
     rc, out = _run_bash('. ./inc_install.sh && ensure_custom_frame .')

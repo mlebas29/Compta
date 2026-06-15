@@ -129,11 +129,12 @@ class SitesMixin:
             'dossier': 'Dossier',
             'drive_folder': 'Dossier Drive',
             'drive_account': 'Compte Drive',
-            'wallet_cli_dir': 'CLI Monero',
-            'wallet_dir': 'Dossier wallets',
-            'daemon_address': 'Adresse daemon',
-            'daemon_credential_id': 'Identifiant daemon',
-            'wallet_timeout': 'Timeout wallet',
+            'wallet_rpc_ssh_host': 'Hôte SSH wallet-rpc',
+            'wallet_rpc_port': 'Port wallet-rpc',
+            'wallet_rpc_local_port': 'Port tunnel local',
+            'wallet_rpc_credential_id': 'Identifiant RPC',
+            'refresh_timeout': 'Timeout refresh',
+            'tunnel_timeout': 'Timeout tunnel',
             'api_url': 'URL API',
         }
 
@@ -142,7 +143,7 @@ class SitesMixin:
             'max_days_back': f'(global : {self.config.get("general", "max_days_back", fallback="90")})',
         }
 
-        readonly_keys = {'name', 'base_url', 'credential_id', 'daemon_address', 'dossier'}
+        readonly_keys = {'name', 'base_url', 'credential_id', 'wallet_rpc_credential_id', 'dossier'}
         override_keys = ['max_days_back']
 
         existing_keys = list(self.config.options(site))
@@ -150,15 +151,11 @@ class SitesMixin:
         for key in override_keys:
             if key not in all_keys:
                 all_keys.append(key)
-        # Dossier juste après name, wallet_dir juste après dossier
+        # Dossier juste après name
         if 'dossier' in all_keys:
             all_keys.remove('dossier')
             idx = all_keys.index('name') + 1 if 'name' in all_keys else 0
             all_keys.insert(idx, 'dossier')
-        if 'wallet_dir' in all_keys:
-            all_keys.remove('wallet_dir')
-            idx = all_keys.index('dossier') + 1 if 'dossier' in all_keys else 0
-            all_keys.insert(idx, 'wallet_dir')
 
         for key in all_keys:
             val = self.config.get(site, key, fallback='')
@@ -172,7 +169,8 @@ class SitesMixin:
 
             var = tk.StringVar(value=val)
             self.tk_vars[('site_' + site, key)] = ('str', var)
-            short_keys = ('max_days_back', 'max_reports', 'wallet_timeout')
+            short_keys = ('max_days_back', 'max_reports', 'wallet_rpc_port',
+                          'wallet_rpc_local_port', 'refresh_timeout', 'tunnel_timeout')
             if key in short_keys:
                 width = 10
             elif key == 'dossier':

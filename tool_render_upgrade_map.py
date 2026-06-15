@@ -153,7 +153,9 @@ def main():
     mode = args.mode
     badge_perim = {e['badge']: e.get('perimetre') for e in legend}
     mode_badges = {e['badge'] for e in legend if mode in _modes_of(e)}
-    entries = list(cmap.get('migrations', [])) + list(cmap.get('actions', []))
+    entries = (list(cmap.get('migrations', []))
+               + list(cmap.get('config_migrations', []))
+               + list(cmap.get('actions', [])))
 
     # badges réellement utilisés en ce mode → légende
     used = set()

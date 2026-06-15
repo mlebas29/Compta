@@ -218,6 +218,18 @@ def load_upgrade_map(base_dir):
         return {}
 
 
+def config_migrations(base_dir):
+    """Migrations de schéma config carte-décrites (pendant config des migrations classeur).
+
+    PAS de gating par version : le config n'a pas de schéma de départ fiable
+    (honored_version est une croyance, pas l'état réel — cf. upgrade_map.json
+    _note_config_migrations). L'appelant (upgrade) les lance TOUTES ; chaque outil
+    est idempotent + auto-gated sur l'état réel du config.ini (vérifier-et-assurer).
+    Retourne la liste des entrées dans l'ordre de la carte.
+    """
+    return load_upgrade_map(base_dir).get('config_migrations', [])
+
+
 def pending_migrations(base_dir, classeur_schema, code_schema):
     """Calcule le chemin de migration d'un classeur depuis la carte.
 
@@ -321,8 +333,8 @@ def validate_upgrade_map(base_dir, code_schema):
         if 'assiste' not in geste and 'assiste_avant' not in geste:
             problems.append(f"badge {b} sans geste assisté.")
 
-    # badge utilisé (migrations + actions) ⊆ légende
-    for entry in migs + actions:
+    # badge utilisé (migrations + config_migrations + actions) ⊆ légende
+    for entry in migs + actions + cmap.get('config_migrations', []):
         ref = entry.get('id') or entry.get('app_version') or '?'
         for b in (entry.get('badges') or []):
             if b not in legend:
@@ -350,7 +362,7 @@ def _badged_versions(base_dir):
     """[(version_tuple, set(badges)), ...] depuis la carte (entrées avec badges)."""
     m = load_upgrade_map(base_dir)
     out = []
-    for entry in (m.get('migrations', []) + m.get('actions', [])):
+    for entry in (m.get('migrations', []) + m.get('actions', []) + m.get('config_migrations', [])):
         av, badges = entry.get('app_version'), entry.get('badges')
         if av and badges:
             out.append((_parse_version(av), set(badges)))
