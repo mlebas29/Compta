@@ -79,6 +79,8 @@ et aussi :
 
 (1) Doit supporter les nouvelles fonctions XLOOKUP.
 
+La documentation est au format Markdown (`.md`) : lisible sur GitHub, ou localement avec un éditeur Markdown (Typora…).
+
 Le principe est de télécharger via `git` et d'utiliser un outil d'installation idempotent, c'est-à-dire réutilisable plusieurs fois jusqu'à installation complète au cas où une intervention manuelle serait requise.
 
 Pour **Linux**, le shell script `install.sh` installe les dépendances Python, le navigateur Playwright/Chrome, et le raccourci bureau. Il installe ou met à niveau automatiquement **LibreOffice ≥ 24.8**. En cas de prérequis manquant, il indique la commande d'installation de package correspondante. Après quoi il suffira de relancer le script.

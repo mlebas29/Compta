@@ -1,25 +1,18 @@
 # Mise à niveau du classeur (mode classeur)
 
-Ce document décrit la mise à niveau de `comptes.xlsm` en **mode classeur** — vous tenez le classeur à la main, **sans** `upgrade`. Pour le **mode assisté** (`./upgrade.py`, un seul geste), voir [`Compta_upgrade_assiste.md`](Compta_upgrade_assiste.md). Pour la liste des changements par version : `CHANGELOG.md`.
+Vous tenez le classeur à la main, sans `upgrade` (pour le mode assisté en un geste, voir [`Compta_upgrade_assiste.md`](Compta_upgrade_assiste.md)). **Deux chemins :**
 
-Le geste de mise à niveau a **deux chemins équivalents** :
-
-- **récupérer le classeur exemple le plus récent** ([`comptes_exemple.xlsx`](https://github.com/mlebas29/Compta/raw/main/comptes_exemple.xlsx)) — il intègre déjà toutes les évolutions ; **ou**
-- **reporter à la main** les évolutions décrites ci-dessous, en s'aidant de l'exemple comme référence.
-
-Au démarrage, l'app vérifie la `SCHEMA_VERSION` du classeur : une incompatibilité de **structure** bloque l'exécution (mise à niveau obligatoire). Les autres mises à niveau (formules, formats) n'empêchent pas l'app de tourner mais peuvent fausser des calculs.
+- soit **partir du classeur exemple le plus récent** ([`comptes_exemple.xlsx`](https://github.com/mlebas29/Compta/raw/main/comptes_exemple.xlsx)) et y reporter **vos propres données** ;
+- soit **partir de votre classeur** et y reporter à la main les évolutions décrites ci-dessous (en vous aidant de l'exemple au besoin).
 
 **Lecture du CHANGELOG** — deux badges concernent le classeur :
 
-- 📘 = nouveau classeur exemple livré → récupérer le plus récent (il intègre la nouvelle structure).
-- 🔧 = migration de structure/formules → la reporter à la main (cf. section par-version), ou repartir de l'exemple récent qui l'intègre.
+- 📘 = nouveau classeur exemple livré.
+- 🔧 = migration de formules/structure ; l'outil n'existe qu'en mode assisté → en mode classeur, repars de l'exemple récent ou reporte à la main.
 
-Une version peut porter l'un, l'autre, ou les deux.
+Souvent une version porte les deux, mais pas toujours : un 🔧 peut précéder le 📘 qui l'intègre (ex. v5.0.0 puis v5.0.1).
 
 
-## Récupérer l'exemple
-
-Le geste le plus simple : quand une version livre un **nouveau classeur exemple** (📘), récupérez le plus récent — il intègre déjà la nouvelle structure et toutes les corrections antérieures.
 
 <!-- bloc généré : ./tool_render_upgrade_map.py --mode classeur — ne pas éditer à la main -->
 

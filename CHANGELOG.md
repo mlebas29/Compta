@@ -6,12 +6,10 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 - 🔧 = migration du classeur livrée (mode assisté : `upgrade` la propose ; mode classeur : à reporter à la main)
 - 🔄 = re-clonage du dépôt requis (réécriture d'historique git)
 - ⚙️ = config à normaliser (lancer `./install_fix.sh`)
-- Détails dans Compta_upgrade_classeur.md
 
 ## v5.6.0
-| 2026-06-14  |                                                              |
-| ----------- | ------------------------------------------------------------ |
-| Description | **Mise à jour de l'app : doc clarifiée et portée de rattrapage d'installations anciennes.** |
+| 2026-06-14 | Upgrade (Mise à jour de version) : rattrapage d'installations anciennes. |
+| ---------- | ------------------------------------------------------------ |
 
 **Détail :**
 
@@ -20,9 +18,10 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 - **Avis de démarrage** — l'avertissement « mise à niveau attendue » renvoie désormais à la procédure détaillée ([`Compta_upgrade_assiste.md`](Compta_upgrade_assiste.md)).
 
 ## v5.5.0
-| 2026-06-13  |                                                              |
-| ----------- | ------------------------------------------------------------ |
-| Description | **Renommage du geste de mise à jour + carte plus claire.** Le geste s'appelle désormais **`./upgrade.py`** (au lieu de `install_upgrade.py`), et ses deux docs sont nommées par mode d'usage (`Compta_upgrade_assiste.md` / `Compta_upgrade_classeur.md`). La carte des versions devient un **tableau chronologique unique** (récent en premier) couvrant les trois axes — classeur, config, dépôt — avec les **butées** d'automatisation (point où la mise à jour automatique s'arrête) et leur contournement manuel. |
+| 2026-06-13 | Renommage du geste de mise à jour + carte des versions plus claire. |
+| ---------- | ------------------------------------------------------------ |
+
+Le geste s'appelle désormais `./upgrade.py` (au lieu de `install_upgrade.py`), et ses deux docs sont nommées par mode d'usage (`Compta_upgrade_assiste.md` / `Compta_upgrade_classeur.md`). La carte des versions devient un **tableau chronologique unique** (récent en premier) couvrant les trois axes — classeur, config, dépôt — avec les **butées** d'automatisation (point où la mise à jour automatique s'arrête) et leur contournement manuel.
 
 **Détail :**
 
@@ -30,9 +29,10 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 - **Carte des butées** — un tableau unique par version (récent d'abord), trois axes + outil ; une **butée** 🧱 marque la profondeur de rattrapage automatique (préhistoire pré-v3.4 ; reclone v5.1.0) et renvoie au contournement manuel. Documentation régénérée depuis la source unique `upgrade_map.json`.
 
 ## v5.4.0
-| 2026-06-12  |                                                              |
-| ----------- | ------------------------------------------------------------ |
-| Description | **Mise à jour plus sûre et mieux expliquée.** Au démarrage, l'application **prévient** si du code a été tiré sans honorer une mise à niveau attendue (migration classeur ou config), et oriente vers le bon geste. `upgrade` **refuse désormais de migrer un classeur ouvert** (dans LibreOffice ou l'application) pour éviter tout conflit. La documentation de mise à niveau est **générée par mode d'usage** (assisté / classeur) depuis une source unique. |
+| 2026-06-12 | Mise à jour plus sûre et mieux expliquée. |
+| ---------- | ------------------------------------------------------------ |
+
+Au démarrage, l'application **prévient** si du code a été tiré sans honorer une mise à niveau attendue (migration classeur ou config), et oriente vers le bon geste. `upgrade` **refuse désormais de migrer un classeur ouvert** (dans LibreOffice ou l'application) pour éviter tout conflit. La documentation de mise à niveau est **générée par mode d'usage** (assisté / classeur) depuis une source unique.
 
 **Détail :**
 
@@ -41,14 +41,16 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 - **Carte des mises à jour par mode** — `Compta_upgrade_assiste.md` (assisté) et `Compta_upgrade_classeur.md` (classeur) sont dérivés d'une source unique (`upgrade_map.json`), chacun cadré pour son mode.
 
 ## v5.3.1
-| 2026-06-11  |                                                              |
-| ----------- | ------------------------------------------------------------ |
-| Description | **Garde-fou de mise à jour étendu.** Si le code a été mis à jour sans `upgrade` (un `git pull` manuel), l'application **refuse désormais d'opérer sur un classeur non migré aussi en ligne de commande** — plus seulement dans l'interface — et oriente vers `./upgrade.py` (réversible) plutôt que vers la seule procédure manuelle. |
+| 2026-06-11 | Garde-fou de mise à jour étendu. |
+| ---------- | ------------------------------------------------------------ |
+
+Si le code a été mis à jour sans `upgrade` (un `git pull` manuel), l'application **refuse désormais d'opérer sur un classeur non migré aussi en ligne de commande** — plus seulement dans l'interface — et oriente vers `./upgrade.py` (réversible) plutôt que vers la seule procédure manuelle.
 
 ## v5.3.0
-| 2026-06-11  |                                                              |
-| ----------- | ------------------------------------------------------------ |
-| Description | **Outil de mise à jour, et réversible.** `./upgrade.py` met à niveau l'installation (code **et** classeur) en une commande : il tire le nouveau code, propose les migrations de classeur nécessaires (sauvegarde + consentement, jamais en silence) et, en cas de souci, permet de **revenir en arrière** (`--restore`). |
+| 2026-06-11 | Outil de mise à jour, et réversible. |
+| ---------- | ------------------------------------------------------------ |
+
+`./upgrade.py` met à niveau l'installation (code **et** classeur) en une commande : il tire le nouveau code, propose les migrations de classeur nécessaires (sauvegarde + consentement, jamais en silence) et, en cas de souci, permet de **revenir en arrière** (`--restore`).
 
 **Détail :**
 
@@ -59,14 +61,16 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 - **Documentation** — `Compta_upgrade_classeur.md` recentré sur les migrations du classeur ; le geste de mise à jour a sa page dédiée [`Compta_upgrade_assiste.md`](Compta_upgrade_assiste.md).
 
 ## v5.2.1 ⚙️
-| 2026-06-08  |                                                              |
-| ----------- | ------------------------------------------------------------ |
-| Description | **Config plus robuste.** Au démarrage, l'app vérifie que `config.ini` est aligné sur le modèle (`config.ini.default`) et signale les clés obsolètes/manquantes ou un mode invalide, en invitant à lancer `./install_fix.sh` — qui **normalise désormais la config** (renommages hérités : `mode = export`→`EX`, `seafile_comptes_file`→`classeur_externe`). |
+| 2026-06-08 | Config plus robuste. |
+| ---------- | ------------------------------------------------------------ |
+
+Au démarrage, l'app vérifie que `config.ini` est aligné sur le modèle (`config.ini.default`) et signale les clés obsolètes/manquantes ou un mode invalide, en invitant à lancer `./install_fix.sh` — qui **normalise désormais la config** (renommages hérités : `mode = export`→`EX`, `seafile_comptes_file`→`classeur_externe`).
 
 ## v5.2.0
-| 2026-06-07  |                                                              |
-| ----------- | ------------------------------------------------------------ |
-| Description | **Modes et installation refondus.** Les modes s'appellent désormais **EX / PROD / DEV**, chacun avec son raccourci de lancement aux couleurs du mode. Deux nouveaux scripts d'installation : `install_fork.sh` et `install_fix.sh`. |
+| 2026-06-07 | Modes et installation refondus. |
+| ---------- | ------------------------------------------------------------ |
+
+Les modes s'appellent désormais **EX / PROD / DEV**, chacun avec son raccourci de lancement aux couleurs du mode. Deux nouveaux scripts d'installation : `install_fork.sh` et `install_fix.sh`.
 
 **Détail :**
 
@@ -80,19 +84,20 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 - **Documentation remaniée** : guide d'utilisation ([`Compta.md`](Compta.md)) restructuré ; pour aller plus loin (code privé, nouveaux sites), [`Compta_extension.md`](Compta_extension.md) remplace l'ancienne `Compta_custom.md` ; le script `install_custom.sh` est supprimé (la mise en place du code privé est décrite dans la nouvelle doc).
 
 ## v5.1.2
-| 2026-06-03  |                                                              |
-| ----------- | ------------------------------------------------------------ |
-| Description | **Collecte BoursoBank robuste.** Les comptes peu mouvementés (sans opération sur la période) ne font plus échouer la collecte : l'absence d'opération est gérée comme un cas normal (le solde reste collecté via le PDF). Correction du téléchargement des relevés de comptes bancaires (un export pouvait ramener une page web au lieu du fichier). |
+| 2026-06-03 | Collecte BoursoBank robuste. |
+| ---------- | ------------------------------------------------------------ |
+
+Les comptes peu mouvementés (sans opération sur la période) ne font plus échouer la collecte : l'absence d'opération est gérée comme un cas normal (le solde reste collecté via le PDF). Correction du téléchargement des relevés de comptes bancaires (un export pouvait ramener une page web au lieu du fichier).
 
 ## v5.1.1
-| 2026-06-03  |                                                              |
-| ----------- | ------------------------------------------------------------ |
-| Description | **Corrections de collecte.** eToro : la connexion est désormais maintenue quand le site remplace l'onglet pendant la validation 2FA (la collecte n'échoue plus à ce stade). Kraken : l'export CSV est de nouveau fonctionnel (le sélecteur de dates bloquait la génération du rapport) ; la fenêtre collectée est la plage par défaut Kraken (~30 jours) — lancer la collecte régulièrement pour rester continu. |
+| 2026-06-03 | Corrections de collecte. |
+| ---------- | ------------------------------------------------------------ |
+
+eToro : la connexion est désormais maintenue quand le site remplace l'onglet pendant la validation 2FA (la collecte n'échoue plus à ce stade). Kraken : l'export CSV est de nouveau fonctionnel (le sélecteur de dates bloquait la génération du rapport) ; la fenêtre collectée est la plage par défaut Kraken (~30 jours) — lancer la collecte régulièrement pour rester continu.
 
 ## v5.1.0 🔄
-| 2026-06-02  |                                                              |
-| ----------- | ------------------------------------------------------------ |
-| Description | **L'historique git a été réécrit (squash) pour en purger le passif**  → **re-clone requis** pour mise à jour. |
+| 2026-06-02 | Historique git réécrit (squash) pour en purger le passif → re-clone requis pour la mise à jour. |
+| ---------- | ------------------------------------------------------------ |
 
 **🔄 Migration de l'historique (re-clone)**
 
@@ -108,12 +113,13 @@ Le script sauvegarde le dossier entier (`.backup-<horodatage>`), re-clone, et re
 
 - Harmonisation globale (doc et code) des noms de sites.
 - Doc : lancement des scripts via `./<script>` au lieu de `python3 <script>` — corrige l'échec sur macOS des scripts UNO.
-- Informations privées résiduelles: retrait ou déplacement de python vers fichiers de configuration privé config*.json;  ; schéma `config_accounts.json` documenté dans `Compta_dev.md`.
+- Informations privées résiduelles — retrait ou déplacement du Python vers des fichiers de configuration privés `config*.json` ; schéma `config_accounts.json` documenté dans `Compta_dev.md`.
 
 ## v5.0.4
-| 2026-06-01  |                                                              |
-| ----------- | ------------------------------------------------------------ |
-| Description | **Documentation & confidentialité.** Documentation développeur par connecteur publiée (`docs/`). Correction des dossiers de dépôt dans les procédures de collecte manuelle. Pas de changement applicatif. |
+| 2026-06-01 | Documentation & confidentialité. |
+| ---------- | ------------------------------------------------------------ |
+
+Documentation développeur par connecteur publiée (`docs/`). Correction des dossiers de dépôt dans les procédures de collecte manuelle. Pas de changement applicatif.
 
 **Corrections**
 
@@ -125,9 +131,10 @@ Le script sauvegarde le dossier entier (`.backup-<horodatage>`), re-clone, et re
 - `Compta.md` : l'adaptation d'un connecteur bancaire à un autre profil client se règle via les paramètres techniques des comptes (GUI) ; les restrictions éventuelles figurent dans la description de chaque site.
 
 ## v5.0.3
-| 2026-05-29  |                                                              |
-| ----------- | ------------------------------------------------------------ |
-| Description | **Portage WSL** — Collecte validée. Affinements `install.sh`, corrections GUI et collecte SOCGEN. Pas de changement applicatif. |
+| 2026-05-29 | Portage WSL — collecte validée. |
+| ---------- | ------------------------------------------------------------ |
+
+Affinements `install.sh`, corrections GUI et collecte SOCGEN. Pas de changement applicatif.
 
 **Portage Linux / WSL**
 
@@ -153,9 +160,10 @@ Le script sauvegarde le dossier entier (`.backup-<horodatage>`), re-clone, et re
 
 
 ## v5.0.2
-| 2026-05-23  |                                                              |
-| ----------- | ------------------------------------------------------------ |
-| Description | **Portage macOS Ventura** — affinements `install.sh` et doc. Pas de changement applicatif. |
+| 2026-05-23 | Portage macOS Ventura. |
+| ---------- | ------------------------------------------------------------ |
+
+Affinements `install.sh` et doc. Pas de changement applicatif.
 
 **Portage macOS Ventura**
 
@@ -173,9 +181,8 @@ Le script sauvegarde le dossier entier (`.backup-<horodatage>`), re-clone, et re
 
 
 ## v5.0.1 📘
-| 2026-05-22  |                                                              |
-| ----------- | ------------------------------------------------------------ |
-| Description | **Portage Windows** (corrections et améliorations d'installation). **GUI** (correction Ajout biens matériels). **Classeurs livrés** (template + exemple) intégrant la migration v5.0.0. |
+| 2026-05-22 | Portage Windows, correction GUI (ajout biens matériels), classeurs livrés intégrant la migration v5.0.0. |
+| ---------- | ------------------------------------------------------------ |
 
 **Portage Windows**
 
@@ -204,12 +211,10 @@ Le script sauvegarde le dossier entier (`.backup-<horodatage>`), re-clone, et re
 
 
 ## v5.0.0 🔧
-| 2026-05-19         |                                                              |
-| ------------------ | ------------------------------------------------------------ |
-| Description        | **Portage macOS**. **Environnement de test** (TNR). **Extensibilité**. **Fiabilisation CRUD devises + alarmes anti-`#REF!`**. |
-| Migration assistée | `tool_migrate_v5.0.0.py` (idempotent, `SCHEMA_VERSION` inchangé) |
+| 2026-05-19 | Portage macOS, environnement de test (TNR), extensibilité, fiabilisation CRUD devises + alarmes anti-`#REF!`. |
+| ---------- | ------------------------------------------------------------ |
 
-
+**Migration assistée** — `tool_migrate_v5.0.0.py` (idempotent, `SCHEMA_VERSION` inchangé)
 
 **Portage macOS**
 
@@ -247,10 +252,10 @@ Le script sauvegarde le dossier entier (`.backup-<horodatage>`), re-clone, et re
 
 
 ## v4.1.0 📘 🔧
-| 2026-05-08         |                                                              |
-| ------------------ | ------------------------------------------------------------ |
-| Description        | **Fiabilisation Plus_value et Contrôles** — **refonte des alarmes**. Nouveau **document sur les plus-values** `Compta_pvl.md`. |
-| Migration assistée | oui (`tool_migrate_v4.1.0.py` — `SCHEMA_VERSION` 2 → 3)      |
+| 2026-05-08 | Fiabilisation Plus_value et Contrôles — refonte des alarmes. Nouveau document sur les plus-values `Compta_pvl.md`. |
+| ---------- | ------------------------------------------------------------ |
+
+**Migration assistée** — oui (`tool_migrate_v4.1.0.py` — `SCHEMA_VERSION` 2 → 3)
 
 > **Note pour le mode classeur** — cette version cumule de nombreuses modifications du classeur (insertions de lignes, recopies de formules, poses de mises en forme conditionnelles, renommages). La migration manuelle est laborieuse. Il est recommandé de **basculer ponctuellement en mode assisté** le temps de la migration : `git clone`, exécuter `tool_migrate_v4.1.0.py`, puis revenir au mode classeur si souhaité. Détails dans `Compta_upgrade_classeur.md`.
 
@@ -282,10 +287,8 @@ Le script sauvegarde le dossier entier (`.backup-<horodatage>`), re-clone, et re
 
 
 ## v4.0.5
-| 2026-04-30           |                                                              |
-| -------------------- | ------------------------------------------------------------ |
-| Description          | **Polissage GUI + fix_formats** — verrouillages, défauts cohérents avec Patrimoine, format devise CTRL1, pied POSTES multi-devise. |
-| Migration assistée   | non                                                          |
+| 2026-04-30 | Polissage GUI + fix_formats — verrouillages, défauts cohérents avec Patrimoine, format devise CTRL1, pied POSTES multi-devise. |
+| ---------- | ------------------------------------------------------------ |
 
 GUI
 
@@ -300,10 +303,8 @@ GUI
 
 
 ## v4.0.4
-| 2026-04-30           |                                                              |
-| -------------------- | ------------------------------------------------------------ |
-| Description          | **Robustesse à la 1re utilisation** — démarrage propre même sans configuration préalable. |
-| Migration assistée   | non                                                          |
+| 2026-04-30 | Robustesse à la 1re utilisation — démarrage propre même sans configuration préalable. |
+| ---------- | ------------------------------------------------------------ |
 
 - Fichiers de configuration manquants (`config_accounts`, `config_cotations`, `config_pipeline`, `config_category_mappings`) : créés vides au premier lancement au lieu de faire échouer l'app.
 - Site mal configuré (compte attendu absent du classeur) : site désactivé avec un message d'avertissement, au lieu d'un arrêt brutal.
@@ -311,10 +312,8 @@ GUI
 
 
 ## v4.0.1
-| 2026-04-28           |                                                              |
-| -------------------- | ------------------------------------------------------------ |
-| Description          | **Polissage v4** — ergonomie GUI, robustesse 1re install, documentation. |
-| Migration assistée   | non                                                          |
+| 2026-04-28 | Polissage v4 — ergonomie GUI, robustesse 1re install, documentation. |
+| ---------- | ------------------------------------------------------------ |
 
 - **Barre d'état** détaillée : 6 contrôles individuels en plus de la synthèse.
 - **Menu Outils ▾** refondu, bouton **📖 Doc ▴** dédié. Menus et combobox ferment proprement.
@@ -326,10 +325,10 @@ GUI
 
 
 ## v4.0.0 📘 🔧
-| 2026-04-27           |                                                              |
-| -------------------- | ------------------------------------------------------------ |
-| Description          | **Refonte** structurelle du classeur, correctifs (app + classeur). |
-| Migration assistée   | oui (toutes les feuilles)                                  |
+| 2026-04-27 | Refonte structurelle du classeur, correctifs (app + classeur). |
+| ---------- | ------------------------------------------------------------ |
+
+**Migration assistée** — oui (toutes les feuilles)
 
 **Une seule colonne devise par tableau** — Budget *CATÉGORIES* et Contrôles *CTRL2* passent de plusieurs colonnes (une par devise) à une colonne unique où la devise se choisit dans une liste déroulante en en-tête, plus une colonne Total EUR. Cours inversés (1/cours) conservés dans une nouvelle colonne *COTcours2* (Cotations), utile aux formules de conversion EUR → devise.
 
@@ -350,19 +349,19 @@ GUI
 
 
 ## v3.5.8 🔧
-| 2026-04-19           |                                                              |
-| -------------------- | ------------------------------------------------------------ |
-| Description          | **Balance non-EUR** — correction formule basée sur cours d'époque. |
-| Migration assistée   | oui (utilisateurs multi-devise)                            |
+| 2026-04-19 | Balance non-EUR — correction formule basée sur cours d'époque. |
+| ---------- | ------------------------------------------------------------ |
+
+**Migration assistée** — oui (utilisateurs multi-devise)
 
 - Contrôle balances non-EUR : correction formule de calcul — maintenant basée sur cours d'époque au lieu de cours du jour.
 - **`tool_migrate_ctrl2_balances.py`** pour mettre à niveau un classeur existant.
 
 ## v3.5.7 📘 🔧
-| 2026-04-18           |                                                              |
-| -------------------- | ------------------------------------------------------------ |
-| Description          | **Plus-value en EUR** — affichage cohérent et ancrage PVL dynamique. |
-| Migration assistée   | oui (comptes métaux / crypto / devises)                    |
+| 2026-04-18 | Plus-value en EUR — affichage cohérent et ancrage PVL dynamique. |
+| ---------- | ------------------------------------------------------------ |
+
+**Migration assistée** — oui (comptes métaux / crypto / devises)
 
 - Plus-value métaux / crypto / devises : colonnes *PVL* et *Solde* affichées en EUR (cohérent avec les formules, auparavant symbole de la devise du compte).
 - Ancrage PVL dynamique — usage détaillé dans `Compta_plus.md` §*Eq. EUR*.
@@ -370,10 +369,8 @@ GUI
 - **`tool_migrate_pvl_ancrage.py`** pour mettre à niveau un classeur existant (valeurs manuelles préservées).
 
 ## v3.5.6 📘
-| 2026-04-17           |                                                              |
-| -------------------- | ------------------------------------------------------------ |
-| Description          | **Import & Budget** — fixes divers (#Solde double, Total épargne, formules pied). |
-| Migration assistée   | non                                                          |
+| 2026-04-17 | Import & Budget — fixes divers (#Solde double, Total épargne, formules pied). |
+| ---------- | ------------------------------------------------------------ |
 
 - Import : deux `#Solde` à dates différentes pour un même compte sont désormais conservés tous les deux (ancrage + relevé final).
 - Budget : ajout de plusieurs postes en une fois — Total épargne désormais correct (auparavant seul le premier poste était sommé).
@@ -381,57 +378,51 @@ GUI
 - Classeur exemple : fond des colonnes devise du tableau CATÉGORIES assorti aux lignes.
 
 ## v3.5.5
-| 2026-04-17           |                                                              |
-| -------------------- | ------------------------------------------------------------ |
-| Description          | **Fix cotations** — `NameError` lors de la mise à jour des cours. |
-| Migration assistée   | non                                                          |
+| 2026-04-17 | Fix cotations — `NameError` lors de la mise à jour des cours. |
+| ---------- | ------------------------------------------------------------ |
 
 - Correction `cpt_fetch_quotes.py` : `NameError: name 'cr' is not defined` lors de la mise à jour des cotations.
 
 ## v3.5.4 🔧
-| 2026-04-17           |                                                             |
-| -------------------- | ----------------------------------------------------------- |
-| Description          | **Outil migration CTRL2 multi-devise** — rattrapage v3.5.2. |
-| Migration assistée   | oui (utilisateurs multi-devise)                           |
+| 2026-04-17 | Outil migration CTRL2 multi-devise — rattrapage v3.5.2. |
+| ---------- | ------------------------------------------------------------ |
+
+**Migration assistée** — oui (utilisateurs multi-devise)
 
 - **`tool_migrate_ctrl2_formulas.py`** pour mettre à niveau les formules CTRL2 sur un classeur existant multi-devise (outil v3.5.2 livré en v3.5.4).
 - Documentation de mise à niveau enrichie (rappel modes classeur / assisté, section v3.5.2).
 
 ## v3.5.3 📘 🔧
-| 2026-04-16           |                                                              |
-| -------------------- | ------------------------------------------------------------ |
-| Description          | **PVL multi-devise** — formules génériques, fix double comptage. |
-| Migration assistée   | oui (portefeuille non-EUR avec titres autre devise)        |
+| 2026-04-16 | PVL multi-devise — formules génériques, fix double comptage. |
+| ---------- | ------------------------------------------------------------ |
+
+**Migration assistée** — oui (portefeuille non-EUR avec titres autre devise)
 
 - Plus-value : correction du double comptage de cours sur portefeuille non-EUR pivot contenant un titre dans une autre devise.
 - Formules PVL génériques : plus de regénération à l'ajout/suppression d'une devise.
 - **`tool_migrate_pvl_totals.py`** pour mettre à niveau un classeur existant.
 
 ## v3.5.2 📘
-| 2026-04-16           |                                                              |
-| -------------------- | ------------------------------------------------------------ |
-| Description          | **Détection erreur Comptes multi-devises** — CTRL2 K/L, formats Opérations exemple. |
-| Migration assistée   | non — outil livré en v3.5.4                                  |
+| 2026-04-16 | Détection erreur Comptes multi-devises — CTRL2 K/L, formats Opérations exemple. |
+| ---------- | ------------------------------------------------------------ |
+
+**Migration assistée** — non (outil livré en v3.5.4).
 
 - Détection d'erreur Comptes : les écarts non-EUR sont désormais remontés dans le tableau de contrôle 2.
 - Formats devise (symbole, fond gris) appliqués aux opérations du classeur exemple.
 -  **`tool_migrate_ctrl2_formulas.py`** pour mettre à niveau un classeur existant (outil livré en v3.5.4).
 
 ## v3.5.1
-| 2026-04-15           |                                                              |
-| -------------------- | ------------------------------------------------------------ |
-| Description          | **Compatibilité Ubuntu 24.04 / WSL2** — install.sh PEP 668, portage Windows 11. |
-| Migration assistée   | non                                                          |
+| 2026-04-15 | Compatibilité Ubuntu 24.04 / WSL2 — install.sh PEP 668, portage Windows 11. |
+| ---------- | ------------------------------------------------------------ |
 
 - Installation compatible Ubuntu 24.04 et Windows 11 (WSL2) — correction pip PEP 668.
 - Documentation portage Windows 11, raccourci bureau Windows.
 - Images README corrigées pour l'export GitHub.
 
 ## v3.5.0
-| 2026-04-13           |                                                              |
-| -------------------- | ------------------------------------------------------------ |
-| Description          | **Versionnage** — numéro de version, historique, robustesse GUI. |
-| Migration assistée   | non                                                          |
+| 2026-04-13 | Versionnage — numéro de version, historique, robustesse GUI. |
+| ---------- | ------------------------------------------------------------ |
 
 - Numéro de version affiché dans le titre de la fenêtre.
 - Historique des versions (ce fichier).
@@ -441,18 +432,16 @@ GUI
 - Documentation alignée entre les installations (README, Changelog, guides).
 
 ## v3.4.0
-| 2026-04-10           |                                                              |
-| -------------------- | ------------------------------------------------------------ |
-| Description          | **Documentation** — mise à jour.                             |
-| Migration assistée   | non                                                          |
+| 2026-04-10 | Documentation — mise à jour. |
+| ---------- | ------------------------------------------------------------ |
 
 - Documentation mise à jour
 
 ## v3.3.0 📘 🔧
-| 2026-04-08           |                                                              |
-| -------------------- | ------------------------------------------------------------ |
-| Description          | **Refonte CTRL1** — multi-soldes par compte, cohérence GUI, corrections collecte/import. |
-| Migration assistée   | oui (obsolète — voir §v4 via template + réimport)          |
+| 2026-04-08 | Refonte CTRL1 — multi-soldes par compte, cohérence GUI, corrections collecte/import. |
+| ---------- | ------------------------------------------------------------ |
+
+**Migration assistée** — oui (obsolète — voir §v4 via template + réimport)
 
 - Refonte des contrôles de solde (CTRL1) : gestion de plusieurs soldes par compte
 - Colonnes Famille et Décimales ajoutées aux Cotations
@@ -462,10 +451,8 @@ GUI
 - **`tool_migrate_ctrl1.py`** pour porter le tableau CTRL1 d'un classeur v3.2 vers la nouvelle structure.
 
 ## v3.2.0
-| 2026-04-01           |                                                              |
-| -------------------- | ------------------------------------------------------------ |
-| Description          | **Colonnes dynamiques + Module Budget GUI** — installateur Linux, doc complète. |
-| Migration assistée   | non                                                          |
+| 2026-04-01 | Colonnes dynamiques + Module Budget GUI — installateur Linux, doc complète. |
+| ---------- | ------------------------------------------------------------ |
 
 - Colonnes du classeur résolues dynamiquement (insertion/suppression de colonnes sans casser les scripts).
 - Configuration centralisée dans config.ini.
