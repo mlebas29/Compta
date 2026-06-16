@@ -2,7 +2,7 @@
 """upgrade.py — point d'entrée UPGRADE consommateur (#94).
 
 Geste utilisateur « le CHANGELOG annonce une version → je mets à jour mon
-install ». Distinct de tool_pull (synchro dev commit/pull) : ici l'objet est
+install ». Distinct du `git pull` de synchro train-train : ici l'objet est
 l'UPGRADE — tirer le nouveau CODE et amener l'install à l'état qu'il attend.
 
 PUB seulement : le contenu du dépôt privé (custom/) relève du sync PRIVÉ, hors

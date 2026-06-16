@@ -30,7 +30,7 @@ import openpyxl
 # Univers CLOS, 4 types (légende canonique CHANGELOG.md). Portés par
 # upgrade_map.json (machine-lisible) ; le CHANGELOG en est le rendu humain, jamais
 # parsé. ACTIONABLE = badges qui réclament un geste au démarrage :
-#   🔧 migration classeur (→ upgrade) · ⚙️ config à normaliser (→ install_fix).
+#   🔧 migration classeur (→ upgrade) · ⚙️ config à mettre à niveau (→ upgrade).
 # 🔄 (reclone) est self-resolving — exécuter du code au-delà d'une frontière
 # reclone implique d'avoir reclôné ; 📘 (classeur exemple) n'est pas actionnable
 # en mode assisté. Ni l'un ni l'autre ne déclenche d'avis.
@@ -433,7 +433,7 @@ def check_honored_version(config_path, base_dir, app_version=None):
     if '🔧' in actionable:
         parts.append('migration du classeur en attente → mets à niveau (upgrade.py — cf. Compta_upgrade_assiste.md)')
     if '⚙️' in actionable:
-        parts.append('config à normaliser → lance ./install_fix.sh')
+        parts.append('config à mettre à niveau → mets à niveau (upgrade.py — cf. Compta_upgrade_assiste.md)')
     msg = (f'Mise à jour du code détectée (version honorée {honored_raw} → '
            f'{app_version}). Action requise :\n  ' + '\n  '.join(parts))
     return {'verdict': 'advise', 'stamp_to': None, 'message': msg,
@@ -488,3 +488,32 @@ def write_honored_version(config_path, version):
     except OSError:
         return False
     return True
+
+
+def startup_config_advice(config_path, base_dir, app_version=None):
+    """Avis config au démarrage (#105) — ordre canonique partagé CLI + GUI, pour
+    que les deux appelants ne divergent JAMAIS (1 seule source pour l'ordre).
+
+    Gating mutuellement exclusif (fin de la double détection #99) :
+      1. check_honored_version D'ABORD (badge 🔧/⚙️ en attente ?) ; self-heal/seed
+         du stamp honored_version au passage (write_honored_version — seul writer
+         Python de config.ini).
+      2. badge en attente → cet avis SEUL : upgrade honore 🔧 ET ⚙️ (il lance
+         install_fix normalize ET les config_migrations via apply_benign) → citer
+         le générique check_config_obsolete (qui ne renvoie qu'à install_fix)
+         serait faux et redondant.
+         sinon → check_config_obsolete (filet générique) : il ne reste alors que
+         du générique à normaliser, donc son renvoi vers install_fix est juste.
+
+    La sonde ⚙️ INTERNE à check_honored_version (« ⚙️ encore actionnable ? ») reste
+    intacte ; ce gating ne vise que le check_config_obsolete AUTONOME des appelants.
+
+    Returns:
+        list[str]: avertissements à afficher, dans l'ordre (déjà dédupliqués).
+    """
+    r = check_honored_version(config_path, base_dir, app_version)
+    if r['stamp_to']:
+        write_honored_version(config_path, r['stamp_to'])
+    if r['message']:
+        return [r['message']]
+    return check_config_obsolete(config_path)

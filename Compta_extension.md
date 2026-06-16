@@ -46,7 +46,7 @@ Le **mode** d'une instance — **EX**, **PROD** ou **DEV** — porte d'un seul t
 | **Solo** (défaut) | création d'un **hub bare local** + rattachement des deux instances → passe en **Hub local** |
 | **Hub distant** | clone depuis le distant — PROD et DEV partagent le hub distant |
 
-Un PRV **Solo** sort donc du fork en **Hub local** : l'outillage (`tool_commit`/`tool_pull`) fonctionne ensuite à l'identique du Hub distant. Pour poser/changer le mode ou réparer un raccourci **sans réinstaller** : `install_fix.sh [EX|PROD|DEV]`. Spec détaillée : [`Compta_tools.md`](Compta_tools.md).
+Un PRV **Solo** sort donc du fork en **Hub local** : l'outillage (`tool_commit` au push, `git pull` à la synchro) fonctionne ensuite à l'identique du Hub distant. Pour poser/changer le mode ou réparer un raccourci **sans réinstaller** : `install_fix.sh [EX|PROD|DEV]`. Spec détaillée : [`Compta_tools.md`](Compta_tools.md).
 
 ### Les deux dépôts
 
@@ -58,7 +58,7 @@ Un PRV **Solo** sort donc du fork en **Hub local** : l'outillage (`tool_commit`/
 
 ### Usage
 
-- **PROD** consomme : `tool_pull.sh` (combine pull PUB + PRV). Aucune édition.
+- **PROD** consomme : `git pull` par dépôt (`git pull` à la racine pour PUB, `git -C custom pull` pour PRV). Aucune édition. `tool_audit_git.py` (sans option) signale le retard à l'ouverture.
 - **DEV** édite : `tool_commit.sh` route chaque fichier vers son dépôt (`custom/` → PRV, le reste → PUB) — un même message peut produire un commit PUB **et** un commit PRV (`--push`, `--tag`). Spec : [`Compta_tools.md`](Compta_tools.md).
 - Les deux dossiers sont **indépendants** (classeur, config, logs séparés) → lancement simultané sans interférence.
 

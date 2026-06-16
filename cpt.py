@@ -800,17 +800,13 @@ Workflow:
         logger.error(f"Classeur incompatible avec cette version du code :\n{schema_err}")
         sys.exit(1)
 
-    # Parité GUI (#99) : avis « version badgée non honorée » (pull de code sans
-    # bump de schéma — non couvert par le gate dur ci-dessus) + normalisation
-    # config (check_config_obsolete, que le GUI fait déjà). Non bloquant ; self-heal
-    # du stamp honored_version. Cheap (texte + carte JSON, zéro classeur).
-    for w in inc_update.check_config_obsolete(CONFIG_FILE):
+    # Parité GUI (#99/#105) : avis config au démarrage via le helper partagé.
+    # Gating mutuellement exclusif (honored D'ABORD ; badge en attente → avis
+    # upgrade SEUL, sinon filet générique check_config_obsolete) → fin de la
+    # double détection. Non bloquant ; self-heal du stamp honored_version.
+    # Cheap (texte + carte JSON, zéro classeur).
+    for w in inc_update.startup_config_advice(CONFIG_FILE, BASE_DIR):
         logger.warning(w)
-    honored = inc_update.check_honored_version(CONFIG_FILE, BASE_DIR)
-    if honored['stamp_to']:
-        inc_update.write_honored_version(CONFIG_FILE, honored['stamp_to'])
-    if honored['message']:
-        logger.warning(honored['message'])
 
     # Vérifications workflow
     if args.fetch_only and args.update_only:

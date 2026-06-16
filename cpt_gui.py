@@ -676,47 +676,18 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DaemonClientMixin,
         if self.xlsx_path:
             self._refresh_status_bar()
 
-    def _check_config_obsolete(self):
-        """Compare config.ini à config.ini.default : clés obsolètes, clés /
-        sections manquantes, mode invalide. Indépendant du classeur.
-
-        - **obsolète** : clé d'une section *connue du modèle* absente de l'univers
-          des clés du modèle (actives OU commentées, toutes sections — une clé
-          documentée quelque part vaut partout). Les sections inconnues du modèle
-          (sites privés) sont ignorées.
-        - **manquante** : section / clé *active* du modèle absente de la config.
-        - **mode** : valeur hors `VALID_MODES`.
-
-        Returns:
-            list[str]: warnings (vide si pas de modèle ou config alignée).
-
-        Délègue à inc_update.check_config_obsolete (probe partagée avec
-        install_update). Relancé à chaque démarrage : un warning peut naître
-        d'une édition utilisateur du jour, pas seulement d'un pull.
-        """
-        return inc_update.check_config_obsolete(self.config_path)
-
-    def _check_honored_version(self):
-        """#99 — avis « version badgée non honorée » au démarrage + self-heal/seed
-        du stamp config.ini [general] honored_version.
-
-        Probe PURE inc_update.check_honored_version (lit config + carte, cheap,
-        ZÉRO classeur) ; CET appelant écrit config.ini (le stamp est un effet, hors
-        probe). Ferme la surface « git pull nu » que le gate dur check_schema_compat
-        laisse passer (pull sans bump de schéma). Relancé à chaque démarrage.
-        """
-        r = inc_update.check_honored_version(self.config_path, self.config_path.parent)
-        if r['stamp_to']:
-            inc_update.write_honored_version(self.config_path, r['stamp_to'])
-        return [r['message']] if r['message'] else []
-
     def _check_coherence(self):
         """Vérifie la cohérence entre Excel et les fichiers JSON de config.
 
         Returns:
             tuple(list[str], list[str]): (auto_fixes effectués, warnings à traiter)
         """
-        config_warnings = self._check_config_obsolete() + self._check_honored_version()
+        # Avis config au démarrage (#99/#105) : helper partagé avec cpt.py — 1
+        # seule source pour l'ordre, gating mutuellement exclusif (honored
+        # D'ABORD ; badge en attente → avis upgrade SEUL, sinon filet générique
+        # check_config_obsolete). Self-heal/seed du stamp honored_version inclus.
+        config_warnings = inc_update.startup_config_advice(
+            self.config_path, self.config_path.parent)
         if not self._excel_loaded:
             if not self.xlsx_path:
                 return [], config_warnings + ['Classeur comptes.xlsm introuvable — copier comptes_template.xlsm ou un classeur existant']

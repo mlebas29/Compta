@@ -171,34 +171,20 @@ L'utilisateur reste maître de l'inclusion (`git add` explicite).
 Codes retour : 0 succès, 1 erreur (cwd, conflit, argument invalide).
 Exécution depuis la racine d'un clone Compta (cwd-relatif).
 
-### tool_pull.sh — Pull git par dossier
+### Synchro git (pull) — git nu, par dépôt
 
-Wrapper qui pull les dépôts disponibles selon le mode détecté. PUB est
-toujours pullé depuis github. PRV est pullé depuis son remote configuré
-(option A.2) ou depuis le `file://` source local (option A.1).
-
-```bash
-./tool_pull.sh                               # pull PUB + PRV (selon mode)
-./tool_pull.sh --pub                         # restreint PUB
-./tool_pull.sh --prv                         # restreint PRV
-./tool_pull.sh --status                      # affichage état (pas de pull)
-./tool_pull.sh -h | --help
-```
-
-Détection mode : identique à `tool_commit.sh`.
-
-Cas 0 et B : `--prv` retourne une erreur explicite (pas de `.git` PRV à
-pull ; propagation manuelle requise en option B).
-
-Si un pull échoue, l'autre est tenté quand même. Résumé final par dépôt.
-
-Codes retour : 0 succès, 1 échec d'au moins un pull.
-Exécution depuis la racine d'un clone Compta (cwd-relatif).
+Plus de wrapper `tool_pull` : les deux dépôts se pullent en **git direct**, par
+dossier — `git pull` à la racine pour PUB, `git -C custom pull` pour PRV (cf.
+modèle de portée). À l'ouverture, `tool_audit_git.py` (sans option) **signale**
+le retard sur le clone courant — et l'avis badge → `upgrade` si une migration
+est en attente ; à la clôture, `tool_audit_git.py --align` pull `--ff-only`
+**tous** les clones joignables. La correction reste git ; l'audit est le
+détecteur.
 
 ### tool_pullconf.sh — Pull config depuis une autre machine
 
-Frère de `tool_pull.sh` : là où `tool_pull` rapatrie le **code** (git),
-`tool_pullconf` rapatrie la **config per-instance non versionnée** (gitignorée :
+Là où **git** rapatrie le **code**, `tool_pullconf` rapatrie la **config
+per-instance non versionnée** (gitignorée :
 `config.ini`, credentials, `config_*.json`, classeur) depuis une autre machine —
 utile pour amorcer un nouveau clone (git transporte le code, pas la config).
 

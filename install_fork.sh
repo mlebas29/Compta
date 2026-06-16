@@ -89,7 +89,7 @@ git_clean "$EX_DIR" || die "Arbre PUB non propre ($EX_DIR) — commit/range avan
 PUB_ORIGIN="$(git -C "$EX_DIR" remote get-url origin 2>/dev/null)" \
     || die "Pas d'origin PUB sur $EX_DIR"
 
-# État PRV — taxonomie 0/B/A.1/A.2 (la même que tool_commit.sh/tool_pull.sh)
+# État PRV — taxonomie 0/B/A.1/A.2 (la même que tool_commit.sh)
 PRV_CASE="" PRV_ORIGIN="" PRV_PLAN=""
 if [[ ! -d "$EX_DIR/custom" ]]; then
     PRV_CASE="0"
