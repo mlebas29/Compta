@@ -7,6 +7,14 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 - 🔄 = re-clonage du dépôt requis (réécriture d'historique git)
 - ⚙️ = config à normaliser (lancer `./install_fix.sh`)
 
+## v5.8.1
+| 2026-06-17 | Outillage interne (git) — sans effet sur l'utilisation. |
+| ---------- | ------------------------------------------------------------ |
+
+**Détail :**
+
+- **Workflow git (développeurs)** — le wrapper `tool_commit` est retiré : commit/push se font en `git` standard, par dépôt. Doc et taxonomie d'extension (`custom/`) mises à jour. Aucun changement de comportement de l'application ni du classeur.
+
 ## v5.8.0
 | 2026-06-17 | Interface simplifiée : les réglages s'appliquent tout seuls (plus de bouton Enregistrer). |
 | ---------- | ------------------------------------------------------------ |
