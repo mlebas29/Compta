@@ -107,3 +107,38 @@ Deux entrées dans `config_credentials.md.gpg` :
   et nom public selon l'emplacement du poste.
 - **`0 operations` mais solde non nul** → aucun mouvement dans `max_days_back` jours
   (nominal). Élargir `max_days_back` ponctuellement pour vérifier l'historique.
+
+## Annexe — installer monerod (le nœud)
+
+Tout ce qui précède suppose un `monerod` déjà installé et **synchronisé** (le prérequis
+du § « Mise en place côté serveur »). Rappel bref pour le poser sur le serveur :
+
+1. **Binaires officiels** — télécharger le tarball CLI depuis
+   [getmonero.org/downloads](https://www.getmonero.org/downloads/) (vérifier le hash / la
+   signature), le décompresser : il contient **`monerod` ET `monero-wallet-rpc`** (même
+   archive — d'où le prérequis « binaire wallet-rpc présent »). Mettre les binaires dans
+   le `PATH` (p.ex. `/usr/local/bin`).
+
+2. **Config** `~/.bitmonero/bitmonero.conf` (ou via `--config-file`) :
+   ```
+   data-dir=/chemin/vers/la/blockchain
+   prune-blockchain=1          # ~1/3 de l'espace disque, suffisant pour un wallet
+   rpc-bind-ip=127.0.0.1       # RPC complet en local — c'est là que se connecte wallet-rpc
+   rpc-bind-port=18081
+   rpc-login=<user>:<pass>     # = le rpc-login que lit install_xmr_wallet_rpc.sh
+   ```
+   monerod peut rester **public** sur son port p2p (18080) sans risque (il n'a aucune
+   clé) ; on garde seulement le **RPC** en local + `rpc-login`.
+
+3. **Service systemd** — une unit qui lance `monerod --config-file <conf> --non-interactive`,
+   activée au boot (même esprit que le service wallet-rpc posé par
+   `install_xmr_wallet_rpc.sh`). Démarrer, puis **attendre la synchro initiale** : longue
+   (heures à jours selon réseau / disque) ; la blockchain pèse des centaines de Go, bien
+   moins en mode `prune`.
+
+4. **Vérifier** : `monerod status` (ou RPC `get_info`) → `Height` qui rattrape la cible et
+   `synchronized: true`. Une fois synchronisé, enchaîner sur le § « Mise en place côté
+   serveur ».
+
+Options avancées (Tor/i2p, nœud distant tiers au lieu d'un nœud à soi, ZMQ) : doc
+officielle Monero.

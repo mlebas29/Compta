@@ -490,6 +490,50 @@ def write_honored_version(config_path, version):
     return True
 
 
+def _catchup_unstamped_config_migrations(config_path, base_dir):
+    """#108 — TRANSITOIRE (à ôter quand l'amorçage à l'install posera honored_version
+    dès la création du config.ini ; cf. CLAUDE_todo #108).
+
+    Rattrapage des installs NON STAMPÉES (code arrivé par `--align` sans ré-`upgrade`,
+    ou install pré-#99). Pour elles, la mécanique de boot ci-dessous prend le chemin
+    seed de check_honored_version, qui stampe APP_VERSION SANS jouer les migrations
+    config carte-driven → les `config_migrations` ne passent jamais (trou découvert
+    s.167 sur PROD : la migration XMR config restait non appliquée).
+
+    AVANT cette mécanique (qu'on ne touche pas) et UNIQUEMENT si le stamp est absent,
+    on exécute l'axe config carte (`config_migrations`) : chaque outil est idempotent,
+    gaté sur l'état réel du .ini, zéro-classeur → toujours sûr. Le stamp est ensuite
+    posé par la mécanique existante. Une fois stampé, ce pré-pas est inerte (return).
+    """
+    import subprocess
+    config_path = Path(config_path)
+    if not config_path.exists():
+        return
+    cp = configparser.ConfigParser()
+    try:
+        cp.read(config_path, encoding='utf-8')
+    except configparser.Error:
+        return
+    honored = (cp.get('general', 'honored_version', fallback='')
+               if cp.has_section('general') else '').strip()
+    if honored:                              # déjà stampé → rien à rattraper
+        return
+    for cm in config_migrations(base_dir):
+        tool = cm.get('tool')
+        if not tool:
+            continue
+        try:
+            r = subprocess.run(['python3', str(Path(base_dir) / tool), str(config_path)],
+                               cwd=str(base_dir), capture_output=True, text=True)
+        except OSError:
+            continue                         # best-effort : ne jamais casser le boot
+        if r.stdout.strip():
+            print(r.stdout.rstrip())
+        if r.returncode != 0:
+            err = f': {r.stderr.strip()}' if r.stderr.strip() else ''
+            print(f'⚠ #108 rattrapage config {tool} (rc={r.returncode}){err}')
+
+
 def startup_config_advice(config_path, base_dir, app_version=None):
     """Avis config au démarrage (#105) — ordre canonique partagé CLI + GUI, pour
     que les deux appelants ne divergent JAMAIS (1 seule source pour l'ordre).
@@ -511,6 +555,7 @@ def startup_config_advice(config_path, base_dir, app_version=None):
     Returns:
         list[str]: avertissements à afficher, dans l'ordre (déjà dédupliqués).
     """
+    _catchup_unstamped_config_migrations(config_path, base_dir)  # #108 (transitoire)
     r = check_honored_version(config_path, base_dir, app_version)
     if r['stamp_to']:
         write_honored_version(config_path, r['stamp_to'])

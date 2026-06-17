@@ -11,8 +11,11 @@ mode = EX
 # Dirty-bit du dernier APP_VERSION dont les actions de mise à niveau (migration
 # classeur, normalisation config) ont été honorées. Posé/avancé automatiquement
 # par upgrade / install_fix / le démarrage GUI-CLI ; sert l'avis « version
-# badgée non honorée » après un `git pull` nu. Seedé à la 1ʳᵉ ouverture — laissé
-# commenté ici (template) pour que l'install fraîche parte « à jour ».
+# badgée non honorée » après un `git pull` nu. Amorcé à APP_VERSION par install.sh
+# à la création du config (install fraîche née « à jour ») ; sinon rattrapé au 1er
+# boot. Laissé COMMENTÉ ici (template) à dessein : la clé reste « connue mais non
+# requise » de check_config_obsolete → un réel qui la porte n'est pas « obsolète »,
+# un réel sans elle pas « manquant » (cf. #108).
 #honored_version =
 
 # ===== MODE DEBUG =====

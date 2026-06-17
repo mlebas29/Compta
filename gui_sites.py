@@ -64,19 +64,6 @@ class SitesMixin:
             self._site_lb.selection_set(0)
             self._on_site_selected(None)
 
-        # Bouton Enregistrer (après _on_site_selected pour éviter un segfault Tk)
-        save_frame = ttk.Frame(right)
-        save_frame.pack(fill='x', side='bottom', pady=(8, 0))
-        ttk.Button(save_frame, text='\U0001f4be Enregistrer',
-                   command=self._save_sites).pack(side='right')
-
-    def _save_sites(self):
-        """Sauvegarde config.ini (sites) depuis l'onglet Sites."""
-        self._save_config()
-        self._set_status('Configuration sites enregistrée')
-        if self.xlsx_path:
-            self._refresh_status_bar()
-
     def _get_selected_site(self):
         """Retourne le site sélectionné, ou None."""
         sel = self._site_lb.curselection()
@@ -85,6 +72,11 @@ class SitesMixin:
         return None
 
     def _on_site_selected(self, event):
+        # #107 édite-et-pars : persister le site SORTANT avant de jeter ses champs
+        # (corrige le piège « changer de site sans sauver perd les params »).
+        # No-op si rien changé ; any(site_) → saute la toute 1ʳᵉ sélection.
+        if any(k[0].startswith('site_') for k in self.tk_vars):
+            self._save_config()
         # Nettoyer les widgets précédents
         for w in self.site_detail_widgets:
             w.destroy()

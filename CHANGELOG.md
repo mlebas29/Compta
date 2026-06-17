@@ -7,6 +7,17 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 - 🔄 = re-clonage du dépôt requis (réécriture d'historique git)
 - ⚙️ = config à normaliser (lancer `./install_fix.sh`)
 
+## v5.8.0
+| 2026-06-17 | Interface simplifiée : les réglages s'appliquent tout seuls (plus de bouton Enregistrer). |
+| ---------- | ------------------------------------------------------------ |
+
+**Détail :**
+
+- **Interface (onglets Sites & Paramètres)** — plus de bouton « Enregistrer » : les modifications (activation d'un site, paramètres, opérations liées) s'appliquent **automatiquement** quand on change de site, change d'onglet ou ferme l'application. Activer ou désactiver un site le fait **apparaître ou disparaître** de l'onglet Collecte.
+- **Mise à jour (workflow git)** — le wrapper `tool_pull` est retiré : la mise à jour se fait par `git pull` standard, et l'audit (`tool_audit_git.py`) signale si une instance est en retard. L'avis de démarrage oriente vers `upgrade` y compris pour la config.
+- **Robustesse des installations anciennes** — une installation dont le code est arrivé sans passer par `upgrade` rattrape automatiquement les migrations de config au démarrage ; une installation fraîche naît « à jour ».
+- **Documentation Monero (XMR)** — `Compta_xmr.md` gagne une annexe « installer le nœud monerod » ; la description du site (onglet Sites) y renvoie.
+
 ## v5.7.0 ⚙️
 | 2026-06-15 | Collecte Monero (XMR) par nœud distant — plus de daemon Monero local requis. |
 | ---------- | ------------------------------------------------------------ |

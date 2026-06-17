@@ -19,6 +19,51 @@ from inc_uno import check_env
 class ExecMixin:
     """Onglet Exécution (collecte, import, fetch)."""
 
+    def _dropbox_file_count(self, site):
+        """Suffixe « (N) » = nb de fichiers en attente dans dropbox/<dossier>."""
+        dossier = self.config.get(site, 'dossier', fallback=site)
+        site_dir = self._dropbox_dir / dossier
+        if not site_dir.exists():
+            return ''
+        count = sum(1 for f in site_dir.iterdir() if f.is_file())
+        return f' ({count})' if count else ''
+
+    def _exec_enabled_sites(self):
+        """Sites présents en collecte = activés (site_vars, LIVE) hors MANUEL."""
+        return [s for s in self.all_sites
+                if self.site_vars[s].get() and s != 'MANUEL']
+
+    def _rebuild_exec_site_list(self):
+        """(Re)construit les cases « Sites » de l'onglet collecte depuis l'état
+        activé LIVE (site_vars). #107 : décocher « Actif » (onglet Sites) → le
+        site disparaît de la collecte ; recocher → réapparaît. Idempotent — ne
+        reconstruit que si l'ensemble activé a changé (préserve sinon la sélection
+        par-run). Appelé au build et à l'entrée de l'onglet (_on_tab_changed)."""
+        want = self._exec_enabled_sites()
+        if set(want) == set(self._exec_site_vars):
+            return                          # rien n'a bougé → préserve la sélection
+        prev = {s: v.get() for s, v in self._exec_site_vars.items()}
+        for w in self._exec_sites_grid.winfo_children():
+            w.destroy()
+        self._exec_site_vars.clear()
+        self._exec_site_widgets.clear()
+        self._exec_site_names.clear()
+        col = row = 0
+        max_cols = 7
+        for site in want:
+            site_name = self.config.get(site, 'name', fallback=site)
+            self._exec_site_names[site] = site_name
+            var = tk.BooleanVar(value=prev.get(site, True))
+            self._exec_site_vars[site] = var
+            cb = ttk.Checkbutton(self._exec_sites_grid,
+                                 text=site_name + self._dropbox_file_count(site),
+                                 variable=var)
+            cb.grid(row=row, column=col, sticky='w', padx=(0, 10), pady=1)
+            self._exec_site_widgets[site] = cb
+            col += 1
+            if col >= max_cols:
+                col, row = 0, row + 1
+
     def _build_tab_execution(self):
         tab = ttk.Frame(self.notebook)
         self._tab_execution = tab
@@ -51,44 +96,15 @@ class ExecMixin:
                              / self.config.get('paths', 'dropbox',
                                                fallback='./dropbox'))
 
-        enabled_str = self.config.get('sites', 'enabled', fallback='')
-        enabled_list = [s.strip() for s in enabled_str.split(',') if s.strip()]
-
-        # Sites enabled (MANUEL exclu du GUI)
-        exec_sites = [s for s in self.all_sites
-                      if s in enabled_list and s != 'MANUEL']
-
-        def _dropbox_file_count(site):
-            dossier = self.config.get(site, 'dossier', fallback=site)
-            site_dir = self._dropbox_dir / dossier
-            if not site_dir.exists():
-                return ''
-            count = sum(1 for f in site_dir.iterdir() if f.is_file())
-            return f' ({count})' if count else ''
-
         # --- Sites (checkboxes) ---
         sites_lf = ttk.LabelFrame(sites_frame, text='Sites', padding=4)
         sites_lf.pack(side='left', fill='both', expand=True)
 
-        sites_grid = ttk.Frame(sites_lf)
-        sites_grid.pack(fill='x')
-
-        col = 0
-        row = 0
-        max_cols = 7
-        for site in exec_sites:
-            site_name = self.config.get(site, 'name', fallback=site)
-            self._exec_site_names[site] = site_name
-            var = tk.BooleanVar(value=True)
-            self._exec_site_vars[site] = var
-            label_text = site_name + _dropbox_file_count(site)
-            cb = ttk.Checkbutton(sites_grid, text=label_text, variable=var)
-            cb.grid(row=row, column=col, sticky='w', padx=(0, 10), pady=1)
-            self._exec_site_widgets[site] = cb
-            col += 1
-            if col >= max_cols:
-                col = 0
-                row += 1
+        # Grille reconstruite par _rebuild_exec_site_list (#107 : suit l'état
+        # « Actif » des sites, rafraîchi à l'entrée de l'onglet).
+        self._exec_sites_grid = ttk.Frame(sites_lf)
+        self._exec_sites_grid.pack(fill='x')
+        self._rebuild_exec_site_list()
 
         sel_frame = ttk.Frame(sites_lf)
         sel_frame.pack(pady=(4, 0))
@@ -816,6 +832,10 @@ class ExecMixin:
 
     def _on_close(self):
         """Fermeture fenêtre : confirmation si exécution en cours."""
+        # #107 « édite-et-pars » : persister l'onglet config courant (no-op si
+        # rien changé) — l'utilisateur peut fermer sans avoir quitté l'onglet.
+        if hasattr(self, '_autosave_config_tab'):
+            self._autosave_config_tab(getattr(self, '_prev_tab_text', None))
         self._stop_file_watcher()
         if self._active_tooltip:
             self._active_tooltip.destroy()

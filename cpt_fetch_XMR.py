@@ -55,6 +55,7 @@ ATOMIC = 10 ** 12
 # ============================================================================
 
 DESCRIPTION = """Monero — wallets auto-hébergés, lus via un nœud distant.
+Setup du nœud serveur (wallet-rpc) + dépannage : voir Compta_xmr.md.
 
 ══════ Configuration ══════
 

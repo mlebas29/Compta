@@ -12,13 +12,6 @@ class ParamsMixin:
             tab = ttk.Frame(self.notebook)
             self.notebook.add(tab, text='Paramètres')
 
-        # Bouton Enregistrer fixe en bas
-        save_frame = ttk.Frame(tab)
-        save_frame.pack(side='bottom', fill='x', padx=10, pady=(5, 5))
-        ttk.Button(save_frame, text='\U0001f4be Enregistrer',
-                   command=self._save_params).pack(side='right')
-        ttk.Separator(tab, orient='horizontal').pack(side='bottom', fill='x', padx=10)
-
         canvas = tk.Canvas(tab)
         scrollbar = ttk.Scrollbar(tab, orient='vertical', command=canvas.yview)
         scroll_frame = ttk.Frame(canvas)
@@ -255,11 +248,6 @@ class ParamsMixin:
                                   if d[0] != str(vals[0])]
         self.solde_auto_tree.delete(sel[0])
 
-    def _save_params(self):
-        """Sauvegarde config.ini et config_pipeline.json depuis l'onglet Paramètres."""
-        self._save_config()
-        self._save_pipeline_config()
-        self._set_status('Paramètres enregistrés')
 
     def _add_checkbox(self, parent, label, section, key, tooltip=''):
         frame = ttk.Frame(parent)

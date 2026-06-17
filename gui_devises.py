@@ -2122,12 +2122,18 @@ class DevisesMixin:
                 else:
                     raw = updated
 
+        # Garde anti-I/O (#107 édite-et-pars) : rien changé → ne pas toucher le
+        # disque. Une transition d'onglet sans édition = zéro écriture. Retourne
+        # True ssi un changement a été persisté (l'appelant gère le feedback).
+        if raw == self.config_raw:
+            return False
         # Écrire
         with open(self.config_path, 'w', encoding='utf-8') as f:
             f.write(raw)
         self.config_raw = raw
         # Recharger le ConfigParser pour que _check_coherence voie les nouvelles valeurs
         self.config.read_string(raw)
+        return True
 
     def _load_pipeline_json(self):
         """Charge config_pipeline.json et retourne le dict."""
@@ -2153,9 +2159,16 @@ class DevisesMixin:
                     'categorie_trigger': cat,
                     'devise': devise,
                 }
+        text = json.dumps(data, ensure_ascii=False, indent=4) + '\n'
+        try:                                 # bon marché : pas de réécriture si inchangé
+            if (self.pipeline_json_path.exists()
+                    and self.pipeline_json_path.read_text(encoding='utf-8') == text):
+                return False
+        except OSError:
+            pass
         with open(self.pipeline_json_path, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=4)
-            f.write('\n')
+            f.write(text)
+        return True
 
     def _save_mappings(self):
         from cpt_gui import write_mappings_json

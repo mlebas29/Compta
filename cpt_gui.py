@@ -298,6 +298,13 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DaemonClientMixin,
         self.notebook = ttk.Notebook(self.root)
         self.notebook.pack(fill='both', expand=True, padx=8, pady=(4, 8))
 
+        # site_vars AVANT _build_tab_execution : l'onglet collecte (#107) lit
+        # l'état activé depuis site_vars (live) pour construire ses cases sites.
+        enabled_str = self.config.get('sites', 'enabled', fallback='')
+        enabled_list = [s.strip() for s in enabled_str.split(',') if s.strip()]
+        for site in self.all_sites:
+            self.site_vars[site] = tk.BooleanVar(value=site in enabled_list)
+
         # Construction lazy des onglets : seul l'onglet visible est construit
         # immédiatement, les autres sont construits au premier affichage
         self._build_tab_execution()
@@ -317,12 +324,6 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DaemonClientMixin,
                 self._deferred_tabs[str(tab)] = builder
 
         self.notebook.bind('<<NotebookTabChanged>>', self._on_tab_changed)
-
-        # Initialiser site_vars tôt (utilisé par l'exécution)
-        enabled_str = self.config.get('sites', 'enabled', fallback='')
-        enabled_list = [s.strip() for s in enabled_str.split(',') if s.strip()]
-        for site in self.all_sites:
-            self.site_vars[site] = tk.BooleanVar(value=site in enabled_list)
 
         # Barre de statut — packée side='bottom' before notebook pour réserver
         # l'espace AVANT que le notebook (expand=True) ne consomme tout le cavity.
@@ -970,8 +971,33 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DaemonClientMixin,
             tab_text = self.notebook.tab(tab_id, 'text')
         except tk.TclError:
             tab_text = ''
+        # #107 « édite-et-pars » : persister l'onglet config QUITTÉ (plus de bouton
+        # Enregistrer). Avant le refresh collecte ci-dessous → enabled est à jour.
+        prev = getattr(self, '_prev_tab_text', None)
+        if prev != tab_text:
+            self._autosave_config_tab(prev)
+        self._prev_tab_text = tab_text
         if tab_text == 'Catégories' and hasattr(self, '_refresh_cat_groups'):
             self._refresh_cat_groups()
+        # #107 : l'onglet collecte suit l'état « Actif » des sites (toggles faits
+        # dans l'onglet Sites depuis le dernier passage). Idempotent si rien changé.
+        if tab_text == 'Exécution' and hasattr(self, '_rebuild_exec_site_list'):
+            self._rebuild_exec_site_list()
+
+    def _autosave_config_tab(self, tab_text):
+        """#107 « édite-et-pars » : persiste l'onglet config quitté, sans bouton.
+        LEAN — réécriture config.ini (+ petit JSON pipeline pour Paramètres), AUCUNE
+        relecture du classeur ; les save sont no-op si rien n'a changé (garde
+        interne) → une transition sans édition ne touche pas le disque. Statut
+        affiché seulement si une écriture a réellement eu lieu."""
+        wrote = False
+        if tab_text == 'Sites':
+            wrote = self._save_config()
+        elif tab_text == 'Paramètres':
+            wrote = self._save_config()
+            wrote = self._save_pipeline_config() or wrote
+        if wrote:
+            self._set_status('Configuration enregistrée')
 
     def _ensure_excel_loaded(self):
         """Charge les données Excel une seule fois, au premier besoin."""
