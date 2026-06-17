@@ -2,12 +2,29 @@
 
 ## Vue d'ensemble
 
-Collecte automatique des transactions et soldes d'un wallet Monero via monero-wallet-cli (commandes directes).
+Collecte automatique des soldes et transactions de wallets Monero via un
+**`monero-wallet-rpc` distant**, lu en **client JSON-RPC sur tunnel SSH**. Aucune
+dépendance Monero locale sur le poste de collecte (ni `monerod`, ni
+`monero-wallet-cli`, ni fichiers wallet) → fonctionne identiquement sur Mac / Linux / WSL.
 
-**Type:** Mode automatique (fetch complet)
-**Source:** monero-wallet-cli (subprocess local)
-**Wallets:** 1 wallet (Cake Wallet XMR)
-**Unité:** XMR (Monero, 12 décimales)
+**Type :** Mode automatique (fetch complet)
+**Source :** `monero-wallet-rpc` distant (service systemd), via tunnel SSH + JSON-RPC
+**Wallets :** N wallets (1 compte par wallet), déclarés dans `config_accounts.json`
+**Unité :** XMR (Monero, 12 décimales ; 1 XMR = 1e12 piconero)
+
+> **Setup côté serveur (le nœud) + modèle de sécurité détaillé : voir `Compta_xmr.md`**
+> (doc canonique). Le présent fichier décrit la **collecte côté poste**.
+
+### Pourquoi un nœud distant
+
+Monero sépare deux rôles : `monerod` (la blockchain, sert les blocs, ne connaît aucune
+clé) et le **wallet** (`monero-wallet-rpc`, détient les clés, **télécharge et scanne**
+les blocs lui-même). Le scan est ce qui coûte. Faire tourner le wallet sur le poste de
+collecte (surtout un portable) est fragile : le retard s'accumule, les resyncs sont
+longues. La solution retenue : `monero-wallet-rpc` tourne **en service sur la machine
+qui héberge déjà monerod** (toujours allumée) ; le scan y est local au nœud (rapide) et
+continu. Le poste n'est plus qu'un **client JSON-RPC** qui ouvre un tunnel SSH et lit le
+résultat déjà calculé.
 
 ## Configuration
 
@@ -16,300 +33,174 @@ Collecte automatique des transactions et soldes d'un wallet Monero via monero-wa
 ```ini
 [XMR]
 name = Monero Wallets
-# Chemin wallet
-wallet_cake = ~/Monero/wallets/cake/cake
-# Chemin monero-wallet-cli
-wallet_cli_dir = ~/Applications/monero-gui-v0.18.4.0/extras
-# Credential ID pour GPG (passwords wallets)
-credential_id = CrMo-DE-M
-# Adresse du nœud Monero (daemon)
-# Options :
-#   - localhost:18081  (nœud local sans auth)
-#   - IP:PORT          (nœud privé distant avec auth, ex: 18089 pour RPC restreint)
-daemon_address = localhost:18081
-# Credential ID pour authentification RPC du nœud distant (optionnel)
-# Laisser vide pour nœud local sans auth
-# Format dans credentials.md.gpg : | SiMoNo-M | username | password |
-daemon_credential_id =
+dossier = XMR
+# Cible SSH du serveur hébergeant wallet-rpc (clé SSH non-interactive requise) :
+wallet_rpc_ssh_host = user@monero-host.example.lan
+# Port du wallet-rpc côté serveur (bindé localhost là-bas) + port local du tunnel SSH
+wallet_rpc_port = 18083
+wallet_rpc_local_port = 28083
+# Login RPC du wallet-rpc (GPG) — auth HTTP Digest
+wallet_rpc_credential_id = SiWaRpc-M
+# Mot de passe du wallet (GPG) — envoyé à open_wallet via le tunnel chiffré
+credential_id = CrMo-M
+# Fenêtre d'historique des opérations + délais (secondes)
 max_days_back = 90
+refresh_timeout = 300
+tunnel_timeout = 15
 ```
 
-**Deux configurations supportées :**
+| Clé | Rôle |
+|---|---|
+| `wallet_rpc_ssh_host` | cible SSH du serveur (`user@hote`), LAN ou public — le « choix d'accès » |
+| `wallet_rpc_port` | port du wallet-rpc côté serveur (bindé localhost), défaut 18083 |
+| `wallet_rpc_local_port` | port local du tunnel SSH, défaut 28083 |
+| `wallet_rpc_credential_id` | ID GPG du **login RPC** (HTTP Digest) |
+| `credential_id` | ID GPG du **mot de passe wallet** |
+| `max_days_back` | fenêtre d'historique des opérations collectées (jours) |
+| `refresh_timeout` / `tunnel_timeout` | délais (s) — voir dépannage « refresh long » |
 
-1. **Nœud local (sans authentification) :**
-   ```ini
-   daemon_address = localhost:18081
-   daemon_credential_id =
-   ```
+### config_accounts.json
 
-2. **Nœud distant (avec authentification) :**
-   ```ini
-   daemon_address = monero-node.example.lan:18089
-   daemon_credential_id = SiMoNo-M
-   ```
+Les wallets (clé, nom de fichier côté serveur, libellé) sont déclarés dans la section
+`XMR` de `config_accounts.json` :
 
-### credentials.md.gpg
+```json
+{
+  "XMR": {
+    "accounts": [
+      { "wallet_key": "<clé>", "wallet_name": "<nom du fichier wallet côté serveur>", "name": "<libellé du compte>" }
+    ]
+  }
+}
+```
 
-**Format :**
+- `wallet_key` : identifiant court (sert au nom des fichiers raw : `xmr_<wallet_key>_operations.csv`).
+- `wallet_name` : nom du fichier wallet **côté serveur**, sous `~/Monero/wallets/` (à plat — voir dépannage).
+- `name` : libellé du compte dans le classeur (feuille Opérations).
+
+### config_credentials.md.gpg
+
+Deux entrées :
+
 ```markdown
 | ID | Login | Password |
 |----|-------|----------|
-| CrMo-DE-M | | <password_wallets> |
-| SiMoNo-M | <username_rpc> | <password_rpc> |
+| SiWaRpc-M | <username RPC> | <password RPC>      |
+| CrMo-M    |                | <mot de passe wallet> |
 ```
 
-**Entrées :**
-
-1. **CrMo-DE-M** (obligatoire) :
-   - Password du wallet Monero
-   - Champ Login vide (non utilisé)
-
-2. **SiMoNo-M** (optionnel) :
-   - Authentification RPC du nœud distant
-   - Login = username RPC
-   - Password = password RPC
-   - Non nécessaire pour nœud local
+1. **`SiWaRpc-M`** (login RPC du wallet-rpc, HTTP Digest) — Login = username, Password =
+   password. Reporté depuis la sortie de `install_xmr_wallet_rpc.sh` lors du
+   provisionnement serveur.
+2. **`CrMo-M`** (mot de passe du wallet) — Login vide, Password = mot de passe du wallet.
+   Envoyé à `open_wallet` via le tunnel chiffré ; les `.keys` restent chiffrées au repos
+   côté serveur.
 
 ## Prérequis
 
-### Monero Node
+### Côté serveur
 
-**Deux configurations supportées :**
+`monerod` synchronisé + service `monero-wallet-rpc` actif (bindé `127.0.0.1`), provisionné
+par **`install_xmr_wallet_rpc.sh`**. Wallets déposés **à plat** dans `~/Monero/wallets/`.
+Procédure complète (install monerod, sécurité, install_xmr_wallet_rpc.sh) : **`Compta_xmr.md`**.
 
-#### 1. Nœud local (sans authentification)
+### Côté poste (collecte)
 
-**Setup :**
-- Monero GUI ou daemon monérod actif sur localhost
-- Port 18081 (RPC standard)
-- Pas d'authentification requise
+- **Accès SSH non-interactif** vers `[XMR] wallet_rpc_ssh_host` (auth par clé SSH).
+  Tester : `ssh <wallet_rpc_ssh_host>`.
+- Bibliothèque Python `requests` (dépendance standard du projet).
+- Les credentials GPG `SiWaRpc-M` + `CrMo-M` renseignés (voir ci-dessus).
 
-**Configuration :**
-```ini
-daemon_address = localhost:18081
-daemon_credential_id =
-```
-
-**Démarrage :**
-```bash
-# Option 1: Via Monero GUI (recommandé)
-monero-wallet-gui
-
-# Option 2: Via ligne de commande
-~/Applications/monero-gui-v0.18.4.0/extras/monerod --detach
-
-# Vérifier
-curl http://localhost:18081/get_info
-monerod status
-```
-
-#### 2. Nœud privé distant (avec authentification)
-
-**Setup :**
-- Nœud Monero configuré avec RPC authentifié
-- Port 18089 (RPC restreint, recommandé) ou 18081
-- Authentification HTTP Digest requise
-
-**Configuration :**
-```ini
-daemon_address = monero-node.example.lan:18089
-daemon_credential_id = SiMoNo-M
-```
-
-**Vérifier :**
-```bash
-# Test RPC avec auth
-curl --digest -u username:password http://IP:18089/get_info
-```
-
-**Pourquoi port 18089 ?**
-- **18081** : RPC complet (lecture + écriture)
-- **18089** : RPC restreint (lecture seule, plus sécurisé)
-- Pour ce script (lecture balance + transactions), **18089 est recommandé**
-
-### Wallets
-
-**Prérequis :**
-- Wallets déjà créés/restaurés dans Monero GUI
-- Chemins corrects dans config.ini
-- Wallets synchronisés avec la blockchain
-
-**Vérification manuelle :**
-```bash
-cd ~/Applications/monero-gui-v0.18.4.0/extras/
-
-# Nœud local
-./monero-wallet-cli --wallet-file ~/Monero/wallets/cake/cake \
-                     --password <password> \
-                     --daemon-address localhost:18081 \
-                     --trusted-daemon \
-                     --command balance
-
-# Nœud distant
-./monero-wallet-cli --wallet-file ~/Monero/wallets/cake/cake \
-                     --password <password> \
-                     --daemon-address monero-node.example.lan:18089 \
-                     --daemon-login username:password \
-                     --trusted-daemon \
-                     --command balance
-```
-
-### monero-wallet-cli
-
-**Installation :**
-- Inclus dans Monero GUI (extras/)
-- Version testée : 0.18.4.0
-- Compatible : toutes versions >= 0.17
+Aucune installation Monero locale (le poste ne fait que parler JSON-RPC dans le tunnel).
 
 ## Architecture technique
 
-### Pre-check Daemon
+### Flux d'une collecte (`cpt_fetch_XMR.py`)
 
-**Avant toute opération, le script teste la connexion au daemon via RPC HTTP.**
+1. Résolution config + lecture des credentials GPG.
+2. **Ouverture d'un tunnel SSH** `localhost:<wallet_rpc_local_port>` →
+   `<wallet_rpc_ssh_host>:<wallet_rpc_port>` (wallet-rpc bindé localhost côté serveur).
+3. Pour chaque wallet déclaré : `open_wallet` (mot de passe via le tunnel) → `refresh`
+   (resynchro — voir « refresh long ») → `get_balance` → `get_transfers` → `close_wallet`.
+4. Écriture des CSV bruts dans `dropbox/XMR/`, fermeture du tunnel.
 
-**Endpoint :** `http://{daemon_address}/get_info`
+### Modèle de sécurité (résumé)
 
-**Authentification :**
-- **Nœud local :** Aucune
-- **Nœud distant :** HTTP Digest Auth (username:password depuis GPG)
+- wallet-rpc **bindé `127.0.0.1`** côté serveur → jamais exposé ; seul accès = tunnel SSH.
+- Mot de passe wallet dans le coffre GPG du poste, transmis **via le tunnel chiffré** ;
+  `.keys` chiffrées au repos sur le serveur → un serveur compromis seul ne suffit pas.
+- Login RPC dédié (HTTP Digest) en plus du bind localhost + SSH.
 
-**Avantages :**
-- Détection immédiate si daemon inaccessible
-- Vérification de la hauteur de bloc (synchronisation)
-- Évite de lancer wallet-cli inutilement
-- Message d'erreur clair si échec
-
-**Exemple log :**
-```
-Checking daemon connection: localhost:18081
-✗ Connection refused: localhost:18081
-✗ Daemon not accessible - aborting
-```
-
-### CLI Commands
-
-**Commandes utilisées :**
-
-1. **balance** - Récupérer le solde
-   ```
-   Balance: 10.780241990000, unlocked balance: 10.780241990000
-   ```
-
-2. **show_transfers** - Lister les transactions
-   ```
-   0      in 2024-12-01 10:23:45  3.500000000000 <txid> <payment_id> 0 0.000000000000 1
-   1     out 2024-12-05 15:30:12  1.000000000000 <txid> <payment_id> 0.000500000000 0.000000000000 2
-   ```
-
-**Format show_transfers (colonnes) :**
-- [0] Index
-- [1] Type (in/out/pending/failed/pool)
-- [2] Date (YYYY-MM-DD)
-- [3] Heure (HH:MM:SS)
-- [4] Montant (XMR, 12 décimales)
-- [5] Txid
-- [6] Payment ID
-- [7] Fee (XMR, pour outgoing)
-- [8] ??? (toujours 0)
-- [9] Confirmations
-
-### Sécurité Password
-
-**Méthode : Fichier temporaire (--password-file)**
-
-```python
-# Créer fichier temporaire
-pass_fd, pass_file = tempfile.mkstemp(mode='w', suffix='.pwd', text=True)
-os.write(pass_fd, password.encode('utf-8'))
-os.close(pass_fd)
-os.chmod(pass_file, 0o600)  # Permissions 600
-
-# Utiliser CLI
-subprocess.run([
-    './monero-wallet-cli',
-    '--password-file', pass_file,
-    ...
-])
-
-# Supprimer fichier
-os.unlink(pass_file)
-```
-
-**Avantages :**
-- Pas de password en clair dans les arguments (visible via ps)
-- Permissions 600 (lisible uniquement par l'utilisateur)
-- Suppression automatique après usage
+Détail complet : `Compta_xmr.md` § « Modèle de sécurité ».
 
 ## Flux de données
 
-### Tier 1 - Fetch (cpt_fetch_XMR.py)
+### Tier 1 - Fetch (`cpt_fetch_XMR.py`)
 
-**Input :** Chemins wallets + passwords depuis credentials.md.gpg
-**Output :** CSV bruts dans dropbox/XMR/
+**Input :** config `[XMR]` + credentials GPG.
+**Output :** CSV bruts dans `dropbox/XMR/` (un fichier operations par wallet + un fichier
+balances global).
 
 ```
 dropbox/XMR/
-├── xmr_cake_operations.csv  (raw)
-└── xmr_balances.csv         (raw)
+├── xmr_<wallet_key>_operations.csv  (raw, 1 par wallet)
+└── xmr_balances.csv                 (raw, global)
 ```
 
 **Format raw operations :**
 ```csv
 Date,Label,Amount,Currency,Wallet
-2024-12-01 10:23:45,Incoming transfer,3.500000000000,XMR,cake
-2024-12-05 15:30:12,Outgoing transfer,-1.000000000000,XMR,cake
-2024-12-05 15:30:12,Transaction fee,-0.000500000000,XMR,cake
+2024-12-01 10:23:45,Incoming transfer,3.500000000000,XMR,<wallet_key>
+2024-12-05 15:30:12,Outgoing transfer,-1.000000000000,XMR,<wallet_key>
+2024-12-05 15:30:12,Transaction fee,-0.000500000000,XMR,<wallet_key>
 ```
 
 **Format raw balances :**
 ```csv
 Wallet,Balance,Currency,Date
-Cake Wallet XMR,10.780241990000,XMR,2025-01-12 16:30:00
+<libellé compte>,10.780241990000,XMR,2025-01-12 16:30:00
 ```
 
-### Tier 2 - Format (cpt_format_XMR.py)
+### Tier 2 - Format (`cpt_format_XMR.py`)
 
-**Monoscript :** Gère operations + balances
+**Monoscript** (operations + balances). Le compte est détecté depuis le nom de fichier
+(`xmr_<wallet_key>_operations.csv` → libellé via `XMR_ACCOUNTS`, **chargé depuis
+`config_accounts.json`**).
 
-**Input :** CSV bruts
-**Output :** CSV standardisés (9 ou 4 colonnes) vers stdout
+**Input :** CSV bruts.
+**Output :** CSV standardisés vers stdout (9 colonnes operations, 4 colonnes balances).
 
 **Format operations (9 colonnes) :**
 ```csv
 Date;Libellé;Montant;Devise;Equiv;Réf;Catégorie;Compte;Commentaire
-01/12/2024;Incoming transfer;3.500000000000;XMR;;;Change;Cake Wallet XMR;
-05/12/2024;Outgoing transfer;-1.000000000000;XMR;;-;Virement;Cake Wallet XMR;
-05/12/2024;Transaction fee;-0.000500000000;XMR;;;Frais bancaires;Cake Wallet XMR;
-12/01/2026;Solde XMR;10.780241990000;XMR;;;#Solde;Cake Wallet XMR;
+01/12/2024;Incoming transfer;3.500000000000;XMR;;;Change;<libellé compte>;
+05/12/2024;Outgoing transfer;-1.000000000000;XMR;;-;Virement;<libellé compte>;
+05/12/2024;Transaction fee;-0.000500000000;XMR;;;Frais bancaires;<libellé compte>;
+12/01/2026;Solde XMR;10.780241990000;XMR;;;#Solde;<libellé compte>;
 ```
 
 **Format balances (4 colonnes) :**
 ```csv
 Date;Ligne;Montant;Compte
-12/01/2026;#Solde Cake Wallet XMR;10.780241990000;Cake Wallet XMR
+12/01/2026;#Solde <libellé compte>;10.780241990000;<libellé compte>
 ```
 
-**Mappings comptes :**
-```python
-XMR_ACCOUNTS = {
-    'xmr_cake': 'Cake Wallet XMR',
-}
-```
+### Tier 3 - Update (`cpt_update.py`)
 
-### Tier 3 - Update (cpt_update.py)
+**Input :** CSV temporaires formatés.
+**Output :** classeur `comptes.xlsm` (feuille Opérations).
 
-**Input :** CSV temporaires formatés
-**Output :** Excel comptes.xlsm (feuille Opérations)
-
-- Import operations avec duplicate detection
-- Archive des fichiers raw avec HDS
-- Génération des #Solde par wallet
+- Import operations avec détection de doublons (Date + Compte + Montant + Libellé).
+- Archive des fichiers raw avec HDS.
+- Génération des `#Solde` par wallet.
 
 ## Catégorisation automatique
 
-Patterns définis dans `inc_category_mappings.py` (section `XMR_PATTERNS`). Voir le code source pour les regex.
+Patterns définis dans `inc_category_mappings.py` (section `XMR_PATTERNS`). Voir le code
+source pour les regex.
 
 **Appariements automatiques :**
-- Virements : ref='-' → recherche opération symétrique via MESH_TRANSFERS
+- Virements : `ref='-'` → recherche d'opération symétrique via `MESH_TRANSFERS`.
 
 ## Usage
 
@@ -320,7 +211,7 @@ Patterns définis dans `inc_category_mappings.py` (section `XMR_PATTERNS`). Voir
 ./cpt.py --sites XMR
 
 # Étapes séparées
-./cpt_fetch_XMR.py          # Collecte (demande passphrase GPG)
+./cpt_fetch_XMR.py          # Collecte (tunnel SSH + JSON-RPC ; demande passphrase GPG)
 ./cpt_update.py             # Import
 ```
 
@@ -329,10 +220,10 @@ Patterns définis dans `inc_category_mappings.py` (section `XMR_PATTERNS`). Voir
 ```bash
 # Test fetch seul
 ./cpt_fetch_XMR.py
-ls -lh dropbox/XMR/         # Vérifier 2 CSV
+ls -lh dropbox/XMR/         # Vérifier les CSV (operations par wallet + balances)
 
 # Test format
-./cpt_format_XMR.py dropbox/XMR/xmr_cake_operations.csv
+./cpt_format_XMR.py dropbox/XMR/xmr_<wallet_key>_operations.csv
 ./cpt_format_XMR.py dropbox/XMR/xmr_balances.csv
 
 # Test workflow
@@ -340,153 +231,72 @@ ls -lh dropbox/XMR/         # Vérifier 2 CSV
 ./cpt.py --sites XMR --update-only
 ```
 
-### Vérifications
-
-```bash
-# Vérifier balances
-cat dropbox/XMR/xmr_balances.csv
-
-# Vérifier une opération
-cat dropbox/XMR/xmr_cake_operations.csv
-
-# Statut système
-./cpt.py --status
-```
-
 ## Troubleshooting
 
-### Erreur : "Wallet file not found"
+### Erreur : souci SSH (tunnel impossible)
 
-**Cause :** Chemin incorrect dans config.ini
-
-**Solution :**
-1. Vérifier le chemin :
-   ```bash
-   ls -l ~/Monero/wallets/cake/cake
-   ```
-2. Corriger config.ini si nécessaire
-
-### Erreur : "CLI command failed (exit 1)"
-
-**Cause :** Password incorrect ou wallet verrouillé
+**Cause :** accès SSH non-interactif vers `wallet_rpc_ssh_host` indisponible.
 
 **Solution :**
-1. Tester password manuellement :
-   ```bash
-   cd ~/Applications/monero-gui-v0.18.4.0/extras/
-   ./monero-wallet-cli --wallet-file ~/Monero/wallets/cake/cake \
-                        --password <password> \
-                        --daemon-address localhost:18081 \
-                        --trusted-daemon \
-                        --command balance
-   ```
-2. Vérifier credentials.md.gpg
-3. Ouvrir wallet dans Monero GUI pour déverrouiller
+1. Tester `ssh <wallet_rpc_ssh_host>` (doit ouvrir sans demander de mot de passe).
+2. Basculer entre nom **LAN** et nom **public** du serveur selon l'emplacement du poste
+   (le `wallet_rpc_ssh_host` est le « choix d'accès »).
+3. Vérifier la clé SSH (agent, `~/.ssh/config`).
 
-### Erreur : "✗ Connection refused"
+### Erreur : `Invalid filename` à l'ouverture du wallet
 
-**Cause :** Daemon Monero non accessible
+**Cause :** le wallet n'est pas **à plat** dans `~/Monero/wallets/` côté serveur.
+MoneroGUI range chaque wallet dans un sous-dossier homonyme (`wallets/<nom>/<nom>`), or
+wallet-rpc **refuse tout `/` dans un nom de wallet** (anti-traversée).
 
-**Solution nœud local :**
-1. Démarrer Monero GUI (lance le daemon automatiquement)
-2. Ou démarrer monerod manuellement :
-   ```bash
-   ~/Applications/monero-gui-v0.18.4.0/extras/monerod --detach
-   ```
-3. Vérifier avec `monerod status`
-4. Attendre synchronisation complète
+**Solution :** aplatir côté serveur (sortir `<nom>` et `<nom>.keys` du sous-dossier pour
+qu'ils soient directement sous `--wallet-dir`). Cf. `Compta_xmr.md`.
 
-**Solution nœud distant :**
-1. Vérifier IP et port dans config.ini
-2. Vérifier que le nœud distant est actif
-3. Vérifier la connectivité réseau :
-   ```bash
-   ping monero-node.example.lan
-   telnet monero-node.example.lan 18089
-   curl http://monero-node.example.lan:18089/get_info
-   ```
-4. Vérifier firewall/NAT
+### Erreur : `file not found "<dir>/<nom>.keys"`
 
-### Erreur : "✗ Daemon authentication failed (401 Unauthorized)"
+**Cause :** le `.keys` n'est pas au bon endroit / mauvais `wallet_name`.
 
-**Cause :** Identifiants RPC incorrects pour nœud distant
+**Solution :** vérifier `wallet_name` dans `config_accounts.json` vs le fichier réel côté
+serveur (à plat sous `~/Monero/wallets/`).
 
-**Solution :**
-1. Vérifier `daemon_credential_id` dans config.ini
-2. Vérifier credentials.md.gpg (SiMoNo-M)
-3. Vérifier config du nœud distant (monerod --rpc-login)
-4. Tester avec curl :
-   ```bash
-   curl --digest -u username:password http://monero-node.example.lan:18089/get_info
-   ```
+### Le `refresh` est long ou timeoute
 
-### Erreur : "Daemon responded but unexpected JSON format"
+**Cause :** rattrapage **ponctuel** du delta de blocs (scan local au nœud), typiquement à
+la 1ʳᵉ synchro ou après une longue coupure du nœud.
 
-**Cause :** Version Monero incompatible ou endpoint incorrect
+**Solution :** le rattrapage est **monotone** — même en timeout, wallet-rpc continue de
+scanner en tâche de fond côté serveur et persiste sa progression. Il suffit de
+**relancer** (chaque run repart plus haut), ou de monter `refresh_timeout` le temps de la
+1ʳᵉ synchro. Ensuite les runs sont quasi instantanés.
 
-**Solution :**
-1. Vérifier version Monero (>= 0.17)
-2. Tester endpoint manuellement :
-   ```bash
-   curl http://localhost:18081/get_info | jq
-   ```
-3. Activer DEBUG=true pour voir structure JSON
+### Authentification RPC refusée (401)
 
-### Erreur : "CLI command timed out"
+**Cause :** identifiants RPC incorrects (login `SiWaRpc-M`).
 
-**Cause :** Wallet en cours de synchronisation ou noeud lent
+**Solution :** vérifier `wallet_rpc_credential_id` (config.ini) + l'entrée `SiWaRpc-M`
+dans `config_credentials.md.gpg` vs le `rpc-login` posé par `install_xmr_wallet_rpc.sh`.
 
-**Solution :**
-1. Attendre fin de synchronisation
-2. Augmenter `wallet_timeout` dans config.ini (défaut: 300s)
+### `0 operations` mais solde non nul
 
-### Daemon zombie (données périmées sans erreur)
-
-**Symptôme :** Le fetch retourne `✓` mais les opérations récentes sont absentes. Le daemon répond à `get_info` mais ne sert pas le wallet sync.
-
-**Cause :** Le daemon distant est dans un état instable (processus vivant, RPC intermittent). `monero-wallet-cli` retourne exit code 0 avec les données **cachées** du dernier refresh réussi.
-
-**Détection :** Le script vérifie stderr de `monero-wallet-cli` pour les messages `failed to connect` / `no connection to daemon`, même quand exit code = 0.
-
-**Solution :**
-1. Utiliser un noeud local (détection d'erreur fiable)
-2. Vérifier le daemon : `systemctl status monerod`
-3. Si distant : `curl --digest -u user:pass http://IP:PORT/get_info`
-
-### Wallet désynchronisé (opérations manquantes)
-
-**Symptôme :** Le daemon est synchronisé mais le wallet ne voit pas les transactions récentes.
-
-**Cause :** Le wallet n'a pas scanné les blocs récents (changement de daemon, daemon HS prolongé).
-
-**Solution :** Rescan complet du wallet :
-```bash
-monero-wallet-cli --wallet-file ~/Monero/wallets/cake/cake \
-                   --daemon-address localhost:18081 \
-                   --trusted-daemon \
-                   --command rescan_bc
-```
-**Note :** Le rescan est lent via un daemon distant ou sur partition NTFS. Avec un daemon local sur ext4, c'est beaucoup plus rapide.
+**Normal :** aucun mouvement dans la fenêtre `max_days_back` jours. Élargir `max_days_back`
+ponctuellement pour vérifier l'historique.
 
 ### Balance = 0 mais opérations présentes
 
-**Normal :** Le wallet a été vidé (outgoing transfer)
-
-### Pas d'opérations récentes
-
-**Normal :** Filtrage `max_days_back` exclut les anciennes transactions
+**Normal :** le wallet a été vidé (outgoing transfer).
 
 ### Transactions "pending" ignorées
 
-**Normal :** Seules les transactions confirmées sont collectées
+**Normal :** seules les transactions confirmées sont collectées.
 
 ## Limites et notes
 
-- **Nœud local vs distant :** Configurable dans config.ini, basculement sans modification de code
-- **Ports Monero :** 18080 (P2P), 18081 (RPC complet), 18089 (RPC restreint, recommandé pour distant)
-- **Unité XMR :** 12 décimales (pas en atomic units)
-- **Confidentialité :** Adresses non visibles sur la blockchain (scan local requis)
-- **Synchronisation :** Nœud + wallets doivent être synchronisés (peut prendre du temps)
-- **Filtrage temporel :** `max_days_back = 90` (configurable)
-- **Duplicate detection :** Date + Compte + Montant + Libellé
-- **Password :** Fichier temporaire 600 (plus sécurisé que --password en clair dans ps)
+- **Aucune dépendance Monero locale** sur le poste (Mac / Linux / WSL identiques).
+- **Accès SSH non-interactif obligatoire** vers le serveur wallet-rpc.
+- **Unité XMR :** 12 décimales (pas en atomic units côté CSV ; conversion depuis le
+  piconero faite par le fetcher).
+- **Confidentialité :** adresses non visibles sur la blockchain (scan côté wallet requis).
+- **Filtrage temporel :** `max_days_back` (configurable).
+- **Duplicate detection :** Date + Compte + Montant + Libellé.
+</content>
+</invoke>
