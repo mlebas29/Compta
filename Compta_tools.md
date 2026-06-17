@@ -133,43 +133,25 @@ temporaires qui peuvent rester après un crash du pipeline.
 Cf. `Compta_extension.md` pour la doctrine d'usage (dual PROD/DEV, routage
 PUB/PRV).
 
-### tool_commit.sh — Commit git par dossier
+### Commit / push — git nu, par dépôt
 
-Wrapper qui détecte le mode d'installation `custom/` et route les commits
-vers le `.git` adapté selon le path du fichier modifié (`custom/` → PRV,
-reste → PUB). Permet de produire en une invocation un commit PUB et un commit
-PRV avec le même message.
-
-La sémantique du script est le commit local. Push et tag sont des options
-explicites.
+Plus de wrapper (`tool_commit` retiré #110) : commit et push en `git` nu, par
+dépôt. Routage **par chemin** : `custom/` → dépôt **privé** (PRV), le reste →
+dépôt **public** (PUB).
 
 ```bash
-./tool_commit.sh "message"                   # commit local (PUB + PRV selon ce qui existe)
-./tool_commit.sh "message" --push            # commit + push (PUB → github ; PRV → remote si configuré)
-./tool_commit.sh "message" --push --tag vX   # commit + push + tag PUB
-./tool_commit.sh "message" --pub             # restreint PUB
-./tool_commit.sh "message" --prv             # restreint PRV
-./tool_commit.sh --status                    # affichage état (pas de commit)
-./tool_commit.sh -h | --help
+git -C .      commit -am "msg"  &&  git -C .      push    # PUB
+git -C custom commit -am "msg"  &&  git -C custom push    # PRV (si présent)
 ```
 
-Détection automatique du mode (lecture du filesystem, aucune config externe) :
-
-| Mode | État physique | Comportement |
-|---|---|---|
-| **0** | pas de `custom/` | PUB seul |
-| **B** | `custom/` sans `.git` | PUB seul, PRV signalé sans `.git` |
-| **A.1** | `custom/.git` sans remote | PUB push, PRV commit local |
-| **A.2** | `custom/.git` avec remote | PUB et PRV push |
-
-Tag : `--tag vX.Y.Z` taggue PUB uniquement (jamais PRV — un tag invisible
-n'a pas de sens) et implique `--push`.
-
-Fichiers non trackés : avertissement listant chaque fichier, sans auto-ajout.
-L'utilisateur reste maître de l'inclusion (`git add` explicite).
-
-Codes retour : 0 succès, 1 erreur (cwd, conflit, argument invalide).
-Exécution depuis la racine d'un clone Compta (cwd-relatif).
+- L'`origin` de chaque dépôt — et d'éventuels **remotes additionnels** (publication,
+  synchro) — dépendent de l'**installation** : un poste simple pousse PUB vers
+  GitHub ; une topologie multi-instances peut router autrement (propre à l'install).
+- **Avant push** : `git status` + `git ls-files --others --exclude-standard`
+  (un fichier neuf oublié ?). `tool_audit_git.py` signale arbre, non-trackés et
+  état de publication.
+- **Tag** : `git tag vX.Y.Z` (local), poussé à la publication. **Jamais**
+  `git push --force` ; pas de commit/push sans accord.
 
 ### Synchro git (pull) — git nu, par dépôt
 
@@ -229,17 +211,18 @@ Module commun sourcé : `inc_install.sh` (UI, OS, mode, raccourci). Doctrine (mi
 ### install_fork.sh — volet PRV selon l'état de `custom/`
 
 Le PUB du DEV est toujours un clone distant de l'origin (GitHub). Pour le PRV,
-le fork détecte l'état de `custom/` (même taxonomie 0/B/A.1/A.2 que
-`tool_commit.sh`) et adapte :
+le fork détecte l'état de `custom/` (taxonomie **Absent / Fichiers / Solo / Hub** :
+Absent = pas de `custom/` ; Fichiers = sans `.git` ; Solo = `.git` sans remote ;
+Hub = `.git` avec remote) et adapte :
 
 | État de `custom/` | Comportement du fork |
 |---|---|
-| **0** — pas de `custom/` | rien — instance PUB seule |
-| **B** — `custom/` sans `.git` | copie des fichiers vers le DEV (non versionné des deux côtés ; sauvegarde à la charge de l'utilisateur) |
-| **A.1** — `.git` sans remote | crée un hub **bare local** (`~/Compta-hub/custom.git`, override `$COMPTA_HUB`), y rattache l'instance courante (origin + tracking) et y clone le DEV → **les deux instances passent en A.2** |
-| **A.2** — `.git` avec remote | clone distant depuis l'origin — les deux instances partagent le hub existant |
+| **Absent** — pas de `custom/` | rien — instance PUB seule |
+| **Fichiers** — `custom/` sans `.git` | copie des fichiers vers le DEV (non versionné des deux côtés ; sauvegarde à la charge de l'utilisateur) |
+| **Solo** — `.git` sans remote | crée un hub **bare local** (`~/Compta-hub/custom.git`, override `$COMPTA_HUB`), y rattache l'instance courante (origin + tracking) et y clone le DEV → **les deux instances passent en Hub** |
+| **Hub** — `.git` avec remote | clone distant depuis l'origin — les deux instances partagent le hub existant |
 
-Le cas A.1 exige que le chemin du hub soit libre (erreur explicite sinon).
+Le cas Solo exige que le chemin du hub soit libre (erreur explicite sinon).
 Migration ultérieure du hub local vers un distant (VPS, NAS…) : déplacer le
 bare puis `git remote set-url origin <url>` dans chaque clone — aucune autre
 restructuration.
