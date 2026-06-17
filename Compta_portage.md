@@ -108,9 +108,11 @@ cd ~/Compta && ./cpt_gui.py
 
   Recharger avec `source ~/.zshrc` (resp. `.bash_profile`) ou ouvrir un nouveau terminal.
 
+  NB : le **lancement via le Dock** (`~/Applications/Comptabilité.app`) n'est **pas** concerné — le launcher du bundle injecte déjà ce PATH. La note ci-dessus ne vaut que pour le lancement en ligne de commande (CLI / shebangs `python3-uno`).
+
 **Usage quotidien :**
 
-- **Ouverture des `.md` depuis la GUI** — si aucune application n'est associée à `.md` dans LaunchServices, les liens vers la doc depuis la GUI échouent silencieusement (`open` renvoie `LSApplicationNotFoundErr`). Geste utilisateur unique : Finder → clic droit sur un `.md` → **Lire les informations** → section **Ouvrir avec :** → choisir l'app (TextEdit, VS Code, BBEdit…) → bouton **Tout modifier…** → confirmer.
+- **Ouverture des `.md` depuis la GUI** — si aucune application n'est associée à `.md` dans LaunchServices, `open` renvoie `LSApplicationNotFoundErr`. La GUI le détecte et **se rabat automatiquement sur TextEdit** (toujours présent), donc les liens vers la doc fonctionnent sans configuration. Pour utiliser un éditeur préféré (VS Code, BBEdit…), associer `.md` une fois : Finder → clic droit sur un `.md` → **Lire les informations** → section **Ouvrir avec :** → choisir l'app → bouton **Tout modifier…** → confirmer.
 - **Perfs UNO** — certaines opérations sont 2× à 10× plus lentes qu'en Linux (bridge socket sur Mac vs appel C natif sur Linux). Acceptable pour l'usage courant ; à éviter pour scans denses type `tool_fix_formats --charter` (~400 s vs 37 s).
 - **Clipboard** — `pyperclip` natif (utilise `pbcopy`/`pbpaste`), aucune dépendance externe (pas de `xclip` requis).
 - **MacPorts sudo** — `sudo` ignore le PATH utilisateur sur Mac. Utiliser le chemin absolu : `sudo /opt/local/bin/port ...`.

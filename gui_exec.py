@@ -522,7 +522,12 @@ class ExecMixin:
         """
         path_str = str(path)
         if sys.platform == 'darwin':
-            subprocess.Popen(['open', path_str])
+            # `open` délègue à LaunchServices ; sur un Mac sans app par défaut
+            # pour le type (fréquent pour .md), il échoue (LSApplicationNotFoundErr
+            # -10814) sans rien ouvrir. Repli sur TextEdit, toujours présent.
+            res = subprocess.run(['open', path_str], capture_output=True)
+            if res.returncode != 0:
+                subprocess.Popen(['open', '-a', 'TextEdit', path_str])
         elif sys.platform == 'win32':
             os.startfile(path_str)
         elif os.environ.get('WSL_DISTRO_NAME'):

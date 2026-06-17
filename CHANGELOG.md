@@ -7,6 +7,15 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 - 🔄 = re-clonage du dépôt requis (réécriture d'historique git)
 - ⚙️ = config à normaliser (lancer `./install_fix.sh`)
 
+## v5.8.2
+| 2026-06-17 | macOS : ouverture des docs `.md` fiabilisée ; documentation du site Monero (XMR) corrigée. |
+| ---------- | ------------------------------------------------------------ |
+
+**Détail :**
+
+- **macOS** — quand aucune application n'est associée aux fichiers `.md`, les liens vers la documentation depuis la GUI se rabattent désormais **automatiquement sur TextEdit** au lieu d'échouer silencieusement. Sans effet sur les autres systèmes.
+- **Documentation Monero (XMR)** — `docs/site_XMR.md` est remis à jour pour refléter l'architecture **nœud distant** introduite en v5.7.0 (collecte via `monero-wallet-rpc` distant sur tunnel SSH) ; il décrivait encore l'ancien mode `monero-wallet-cli` local.
+
 ## v5.8.1
 | 2026-06-17 | Outillage interne (git) — sans effet sur l'utilisation. |
 | ---------- | ------------------------------------------------------------ |
