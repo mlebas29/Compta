@@ -392,9 +392,9 @@ def setup_batch():
             next_0 += 1
 
         # Appliquer formats devise + fond gris pour les lignes non-EUR
-        from inc_formats import FORMATS_DEVISE, FORMAT_EUR, GRIS_BLANC
+        from inc_formats import formats_devise_uno, FORMAT_EUR, GRIS_BLANC
         fmt_cache = {}
-        for devise_code, fmt_str in FORMATS_DEVISE.items():
+        for devise_code, fmt_str in formats_devise_uno(doc.document).items():
             fmt_cache[devise_code] = doc.register_number_format(fmt_str)
         fmt_eur = doc.register_number_format(FORMAT_EUR)
 

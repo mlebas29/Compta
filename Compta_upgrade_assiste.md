@@ -44,7 +44,6 @@ La restauration **sauvegarde l'état courant d'abord** (elle est donc elle-même
 Ce que chaque version réclame, **dérivé de la carte** `upgrade_map.json` (source unique). Le badge dit l'intention ; sa **nature** dit comment `upgrade` s'y prend (les *cumulatifs* sont rattrapés quel que soit le retard) ; une **butée** 🧱 marque la profondeur où le rattrapage automatique s'arrête (en deçà : manuel).
 
 <!-- bloc généré : ./tool_render_upgrade_map.py --mode assiste — ne pas éditer à la main -->
-
 **Légende des badges** :
 
 > *cumulatif* = `upgrade` rattrape le retard accumulé · *informatif* = aucune action · *ponctuel* = à traiter au moment (pas de rattrapage)
@@ -59,6 +58,7 @@ _Axes : **Classeur** = structure & contenu · **Config** = paramètres privés d
 
 | Version | Classeur | Config | App | Outil | Effet |
 |---|:--:|:--:|:--:|---|---|
+| v5.8.3 |  | ⚙️ |  | `tool_migrate_config_cotations.py` | config_cotations.json dépollué : famille/décimales retirées (source unique = feuille Cotations) |
 | v5.7.0 |  | ⚙️ |  | `tool_migrate_config_xmr.py` | [XMR] migré vers collecte par nœud distant (wallet-rpc) — site désactivé, reconfiguration + credential GPG requis (cf. Compta_xmr.md) |
 | v5.2.1 |  | ⚙️ |  | `install_fix.sh` | config normalisée (renommages hérités) |
 | v5.1.0 |  |  | 🔄 | `reclone.sh` | historique git réécrit (squash) — re-clone automatique par upgrade |
@@ -67,7 +67,6 @@ _Axes : **Classeur** = structure & contenu · **Config** = paramètres privés d
 | v4.1.0 | 📘 🔧 |  |  | `tool_migrate_v4.1.0.py` | refonte CTRL2 + alarmes |
 | v4.0.0 | 📘 🔧 |  |  | `tool_migrate_schema_v2.py` | drill devise (élimine les colonnes par devise) |
 | ≤ v3.x | 🧱 |  |  |  | schéma < 1 (pré-v3.4) : outils de migration retirés du dépôt git → migration manuelle (ancien mode classeur) |
-
 <!-- fin bloc généré -->
 
 ## Comment le script détermine le chemin

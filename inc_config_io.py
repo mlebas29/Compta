@@ -100,7 +100,7 @@ def site_map_to_accounts(site_map, existing_accounts=None):
 # ============================================================================
 
 def read_cotations_json(path):
-    """Lit config_cotations.json → dict {code: {famille, source1, source2}}."""
+    """Lit config_cotations.json → dict {code: {source1, source2}} (route de fetch ; famille/décimales = classeur)."""
     if not Path(path).exists():
         return {}
     with open(path, 'r', encoding='utf-8') as f:

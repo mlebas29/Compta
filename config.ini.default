@@ -18,6 +18,17 @@ mode = EX
 # un réel sans elle pas « manquant » (cf. #108).
 #honored_version =
 
+# ===== SCHÉMA CONFIG (#98 — géré par l'app, ne pas éditer à la main) =====
+# Marqueur d'ANCRAGE de l'axe config : jusqu'où les migrations config (carte
+# upgrade_map.json → config_migrations) ont été portées sur cette instance.
+# Entier d'axe, distinct d'APP_VERSION et du SCHEMA_VERSION classeur. N'affirme
+# PAS l'état réel (rôle des sondes idempotentes) : il borne seulement le chemin
+# de migration à considérer. Mécanique de pose/avance encore en débat (#98) —
+# la clé est réservée dès maintenant. Laissée COMMENTÉE ici (template) à dessein :
+# « connue mais non requise » de check_config_obsolete (ni « obsolète » si
+# présente, ni « manquante » si absente — cf. #108 / honored_version).
+#config_schema_version =
+
 # ===== MODE DEBUG =====
 # Active les traces de debug détaillées (true/false)
 #

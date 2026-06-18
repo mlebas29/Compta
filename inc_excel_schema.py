@@ -14,7 +14,7 @@ from typing import Optional
 
 
 # Version de l'application — incrémentée à chaque livraison
-APP_VERSION = "5.8.2"
+APP_VERSION = "5.8.3"
 
 # Version du schéma classeur — incrémentée à chaque changement de structure
 # (named ranges, colonnes, formules). Le classeur doit avoir un named range
@@ -313,3 +313,87 @@ class ColResolver:
             letters[dn.name] = col_str
             rows[dn.name] = (start_row, end_row)
         return cls(cols, letters, rows)
+
+
+# ============================================================================
+# Lecteurs métadonnées Cotations (famille / décimales) — SOURCE = classeur
+# ============================================================================
+# famille et décimales vivent dans la feuille Cotations (COTfamille/COTdecimales),
+# source unique de vérité. config_cotations.json ne porte plus que la route de
+# fetch (source1/source2), consommée par cpt_fetch_quotes. Ces lecteurs alimentent
+# la couche format (inc_formats.build_formats_devise) au point d'application, où
+# le classeur est déjà ouvert (zéro lecture classeur à l'import).
+
+_COT_DEFAULT_DECIMALS = 2
+
+
+def _cot_decimals(value):
+    """Normalise une valeur de cellule COTdecimales en int (fallback défaut)."""
+    if value is None or str(value).strip() == '':
+        return _COT_DEFAULT_DECIMALS
+    try:
+        return int(round(float(value)))
+    except (TypeError, ValueError):
+        return _COT_DEFAULT_DECIMALS
+
+
+def read_cotations_meta(wb):
+    """{code: {'famille': str, 'decimals': int}} depuis la feuille Cotations (openpyxl).
+
+    Source unique de vérité = classeur. Retourne {} si feuille/colonnes absentes
+    (classeur trop ancien) → les appelants retombent sur les défauts.
+    """
+    if SHEET_COTATIONS not in wb.sheetnames:
+        return {}
+    ws = wb[SHEET_COTATIONS]
+    cr = ColResolver.from_openpyxl(wb)
+    if 'COTcode' not in cr._cols:
+        return {}
+    code_col = cr.col('COTcode')
+    fam_col = cr._cols.get('COTfamille')
+    dec_col = cr._cols.get('COTdecimales')
+    start, end = cr.rows('COTcode')
+    start = start or 3
+    end = end or ws.max_row
+    meta = {}
+    for row in range(start + 1, end + 1):
+        code = ws.cell(row=row, column=code_col).value
+        if not code:
+            continue
+        code = str(code).strip()
+        if not code or code in ('✓', '⚓'):
+            continue
+        fam = ws.cell(row=row, column=fam_col).value if fam_col is not None else ''
+        dec = ws.cell(row=row, column=dec_col).value if dec_col is not None else None
+        meta[code] = {
+            'famille': str(fam).strip() if fam else '',
+            'decimals': _cot_decimals(dec),
+        }
+    return meta
+
+
+def read_cotations_meta_uno(doc):
+    """{code: {'famille': str, 'decimals': int}} depuis la feuille Cotations (UNO)."""
+    sheets = doc.Sheets
+    if not sheets.hasByName(SHEET_COTATIONS):
+        return {}
+    ws = sheets.getByName(SHEET_COTATIONS)
+    cr = ColResolver.from_uno(doc)
+    if 'COTcode' not in cr._cols:
+        return {}
+    code_col = cr.col('COTcode')
+    fam_col = cr._cols.get('COTfamille')
+    dec_col = cr._cols.get('COTdecimales')
+    start, end = cr.rows('COTcode')
+    if not start:
+        return {}
+    meta = {}
+    for r_1 in range(start + 1, end + 1):
+        r0 = r_1 - 1
+        code = ws.getCellByPosition(code_col, r0).getString().strip()
+        if not code or code in ('✓', '⚓'):
+            continue
+        fam = ws.getCellByPosition(fam_col, r0).getString().strip() if fam_col is not None else ''
+        dec = ws.getCellByPosition(dec_col, r0).getValue() if dec_col is not None else None
+        meta[code] = {'famille': fam, 'decimals': _cot_decimals(dec)}
+    return meta

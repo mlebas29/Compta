@@ -25,24 +25,38 @@ from inc_format import process_files, lines_to_tuples, log_csv_debug as _log_csv
 
 SITE = site_name_from_file(__file__)
 
-# Lookup case-insensitive des devises connues (config_cotations.json + EUR)
+# Lookup case-insensitive des devises connues (COTcode du classeur + EUR)
 EXPECTED_FILES = [
     ('*.xlsx', 'glob', '0-1'),
 ]
 
 def _build_devise_lookup():
-    cfg_path = base_dir() / 'config_cotations.json'
-    with open(cfg_path) as f:
-        codes = list(json.load(f).keys())
+    """Devises connues = COTcode du classeur (source unique) + EUR."""
+    from inc_excel_schema import read_cotations_meta
+    wb_path = base_dir() / 'comptes.xlsm'
+    codes = []
+    if wb_path.exists():
+        wb = openpyxl.load_workbook(wb_path, data_only=True)
+        try:
+            codes = list(read_cotations_meta(wb).keys())
+        finally:
+            wb.close()
     codes.append('EUR')
     return {c.lower(): c for c in codes}
 
-_DEVISE_LOOKUP = _build_devise_lookup()
+_DEVISE_LOOKUP = None
+
+
+def _devise_lookup():
+    global _DEVISE_LOOKUP
+    if _DEVISE_LOOKUP is None:
+        _DEVISE_LOOKUP = _build_devise_lookup()
+    return _DEVISE_LOOKUP
 
 def normalize_devise(devise_str):
     """Normalise la casse d'une devise contre les devises connues.
     Retourne la forme canonique si trouvée, sinon la valeur originale."""
-    canonical = _DEVISE_LOOKUP.get(devise_str.lower())
+    canonical = _devise_lookup().get(devise_str.lower())
     if canonical:
         return canonical
     print(f"⚠ [MANUEL] devise inconnue '{devise_str}'", file=sys.stderr)

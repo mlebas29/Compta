@@ -51,7 +51,7 @@ logger = None
 
 
 def _load_cotations_json():
-    """Lit config_cotations.json → dict {code: {famille, source1, source2}}."""
+    """Lit config_cotations.json → dict {code: {source1, source2}} (route de fetch)."""
     if not COTATIONS_JSON.exists():
         return {}
     with open(COTATIONS_JSON, 'r', encoding='utf-8') as f:
@@ -76,33 +76,39 @@ def load_cotations_config():
     cot_start = cot_start or 3
     config = []
     excel_codes = set()
+    primaire_codes = set()  # codes 'primaire' (devraient avoir une source de fetch)
+    nat_col = cr._cols.get('COTnature')
     for row in range(cot_start + 1, ws.max_row + 1):
         code = ws.cell(row=row, column=cr.col('COTcode')).value
         if not code:
             continue
         code = str(code).strip()
         excel_codes.add(code)
+        nature = ws.cell(row=row, column=nat_col).value if nat_col else ''
+        if str(nature).strip().lower().startswith('primaire'):
+            primaire_codes.add(code)
         info = meta.get(code, {})
         source_1 = info.get('source1', '')
         if not source_1:
             continue
+        famille = ws.cell(row=row, column=cr.col('COTfamille')).value
         config.append({
             'code': code,
-            'type': info.get('famille', ''),
+            'type': str(famille).strip() if famille else '',
             'source_1': source_1,
             'source_2': info.get('source2', ''),
             'row': row,
         })
 
     # Vérification cohérence JSON ↔ Excel
-    # Exclure formules (dérivés) et immobilier (clé = label, pas un code court)
+    # Exclure les sources 'formule' (cours dérivés calculés par Excel).
     json_codes = {k for k, v in meta.items()
-                  if v.get('source1') and v['source1'] != 'formule'
-                  and v.get('famille') != 'immobilier'}
+                  if v.get('source1') and v['source1'] != 'formule'}
     in_json_not_excel = json_codes - excel_codes
-    # EUR exclu : devise pivot, jamais à coter (présente comme ligne d'amorce
-    # dans la feuille Cotations sans source de fetch).
-    in_excel_not_json = (excel_codes - set(meta.keys())) - {'EUR'}
+    # Avertir seulement pour les cotations PRIMAIRES sans source : les codes
+    # 'dérivée' (OrPr/SAT…) n'ont légitimement pas de route de fetch. EUR exclu
+    # (devise pivot, jamais cotée).
+    in_excel_not_json = (primaire_codes - set(meta.keys())) - {'EUR'}
     if in_excel_not_json and logger:
         logger.warning(f"Source de cotation non configurée pour : {', '.join(sorted(in_excel_not_json))} — voir onglet Cotations")
     if in_json_not_excel and logger:

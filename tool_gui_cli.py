@@ -76,7 +76,6 @@ class HeadlessGUI(DevisesMixin, AccountsMixin, BudgetMixin, CategoriesMixin):
         self.SOUS_TYPES_BASE = _schema.SOUS_TYPES_BASE
         self.PV_SECTION_TOTALS = _schema.PV_SECTION_TOTALS
         self.PV_SECTION_LABELS = _schema.PV_SECTION_LABELS
-        self.AVOIRS_K_FORMATS = _schema.AVOIRS_K_FORMATS
         self.cours_name = _schema.cours_name
 
         # Charger les données Excel

@@ -28,7 +28,9 @@
   "_note_config_migrations": "Pendant config des migrations classeur. PAS de schéma de départ fiable (honored_version est une CROYANCE — badges honorés —, pas l'état réel du config.ini, qui peut diverger : édition main, restore, migration partielle). Donc PAS de gating par version : on lance TOUTES les entrées à chaque upgrade ; chacune VÉRIFIE l'état réel (auto-gate sur le marqueur de l'ancien schéma) et ASSURE la cible. Contrat DUR : tout outil ici est idempotent + auto-gated sur l'état-AVANT (jamais l'état-cible, sinon une reconfig manuelle ultérieure serait re-clobbée) ; valider en le lançant 2×. app_version sert au rendu + à l'avis #99, jamais à gater l'exécution.",
   "config_migrations": [
     { "id": "xmr_remote", "tool": "tool_migrate_config_xmr.py", "app_version": "5.7.0", "badges": ["⚙️"],
-      "summary": "[XMR] migré vers collecte par nœud distant (wallet-rpc) — site désactivé, reconfiguration + credential GPG requis (cf. Compta_xmr.md)" }
+      "summary": "[XMR] migré vers collecte par nœud distant (wallet-rpc) — site désactivé, reconfiguration + credential GPG requis (cf. Compta_xmr.md)" },
+    { "id": "cotations_dejson", "tool": "tool_migrate_config_cotations.py", "app_version": "5.8.3", "badges": ["⚙️"],
+      "summary": "config_cotations.json dépollué : famille/décimales retirées (source unique = feuille Cotations)" }
   ],
   "actions": [
     { "version_label": "≤ v3.x", "perimetre": "classeur", "badges": ["🧱"],

@@ -258,10 +258,8 @@ class DevisesMixin:
                 if row_label in ('✓', '⚓') or row_code in ('✓', '⚓'):
                     continue  # model row / ancre — ne pas inclure dans la zone de données
                 cot_last_data = row_idx
-                # Lookup famille via JSON meta (par code ou par label)
-                row_famille = self.cotations_meta.get(row_code, {}).get('famille', '')
-                if not row_famille:
-                    row_famille = self.cotations_meta.get(row_label, {}).get('famille', '')
+                # Famille lue de la feuille (source unique = classeur)
+                row_famille = ws_cot.getCellByPosition(cr.col('COTfamille'), uno_row(row_idx)).getString().strip()
                 if row_famille == famille:
                     cot_insert_pos = row_idx  # on continue pour trouver le dernier du groupe
                 elif cot_insert_pos is not None:
@@ -390,7 +388,9 @@ class DevisesMixin:
         # Persister les métadonnées dans config_cotations.json. Pour une devise
         # dérivée (derived_from), on n'écrit pas les sources externes (la valeur
         # est calculée depuis sa source mère via la formule Excel).
-        meta = {'famille': famille, 'decimals': decimals}
+        # JSON cotations = route de fetch seule (source1/source2) ; famille/décimales
+        # vivent dans le classeur (COTfamille/COTdecimales, écrits plus haut).
+        meta = {}
         if source1 and not derived_from:
             meta['source1'] = source1
         if source2 and not derived_from:
@@ -647,7 +647,7 @@ class DevisesMixin:
     # HELPERS PLUS_VALUE
     # ----------------------------------------------------------------
 
-    def _get_pv_section_for_account(self, acct_type, devise):
+    def _get_pv_section_for_account(self, acct_type, devise, doc=None):
         """Détermine si/où créer une entrée Plus_value pour un nouveau compte.
 
         Returns: ('portfolio', None) | ('line', 'TOTAL métaux') | (None, None)
@@ -656,9 +656,18 @@ class DevisesMixin:
             return ('portfolio', None)
         if not devise or devise == 'EUR':
             return (None, None)
-        # Chercher la famille de la devise dans config_cotations.json
-        meta = self.cotations_meta.get(devise, {})
-        famille = meta.get('famille', 'fiat')  # défaut fiat pour devises inconnues
+        # Famille de la devise : source = classeur (feuille Cotations). En batch UNO
+        # les cotations ne sont pas encore sur disque → lire le doc ouvert ; sinon disque.
+        from inc_excel_schema import read_cotations_meta, read_cotations_meta_uno
+        if doc is not None:
+            famille = read_cotations_meta_uno(doc.document).get(devise, {}).get('famille', 'fiat')
+        else:
+            import openpyxl
+            wb = openpyxl.load_workbook(self.xlsx_path, data_only=True)
+            try:
+                famille = read_cotations_meta(wb).get(devise, {}).get('famille', 'fiat')
+            finally:
+                wb.close()
         total_label = self.PV_SECTION_TOTALS.get(famille)
         if total_label:
             return ('line', total_label)
@@ -824,7 +833,7 @@ class DevisesMixin:
         from inc_excel_schema import uno_row
         cr = doc.cr
         from inc_formats import (
-            FORMATS_DEVISE, FORMAT_EUR, FORMAT_EUR_RED,
+            formats_devise_uno, FORMAT_EUR, FORMAT_EUR_RED,
             GRIS_BLANC, GRIS_BEIGE, PIED_FILL,
         )
 
@@ -837,7 +846,7 @@ class DevisesMixin:
         # (sections métaux/crypto/devises ont SIGMA en equiv_euro et
         # SOLDE en AVRmontant_solde_euro → valeurs déjà en EUR).
         if is_portefeuille:
-            devise_fmt_str = FORMATS_DEVISE.get(devise, FORMAT_EUR)
+            devise_fmt_str = formats_devise_uno(doc.document).get(devise, FORMAT_EUR)
             fmt_ek = doc.register_number_format(
                 f'{devise_fmt_str};[RED]\\-{devise_fmt_str}' if is_non_eur
                 else FORMAT_EUR_RED)
@@ -1336,6 +1345,9 @@ class DevisesMixin:
             ws = doc.get_sheet(SHEET_AVOIRS)
             ws_ctrl = doc.get_sheet(SHEET_CONTROLES)
             ws_ops = doc.get_sheet(SHEET_OPERATIONS)
+            # Formats devise (source unique = classeur) — construit une fois
+            from inc_formats import formats_devise_uno
+            formats_devise = formats_devise_uno(doc.document)
 
             # --- Trouver la ligne Total actuelle (1-indexed) ---
             # Scanner au-delà de _end_avr : Total est après la dernière donnée
@@ -1470,12 +1482,12 @@ class DevisesMixin:
                         cell_i.setValue(acct['montant_anter'])
                         cell_i.NumberFormat = doc.register_number_format(FORMAT_EUR)
                     elif acct.get('devise'):
-                        from inc_formats import FORMATS_DEVISE, FORMAT_EUR
+                        from inc_formats import FORMAT_EUR
                         cell_i = ws.getCellByPosition(cr.col('AVRmontant_anter'), r0)
                         cell_i.setFormula(
                             f'=SUMIFS(OPmontant;OPcompte;$A{r};OPdevise;$E{r};'
                             f'OPcatégorie;Solde;OPdate;$H{r})')
-                        fmt_str = FORMATS_DEVISE.get(acct['devise'], FORMAT_EUR)
+                        fmt_str = formats_devise.get(acct['devise'], FORMAT_EUR)
                         cell_i.NumberFormat = doc.register_number_format(fmt_str)
 
                     # Formules J/K/L (UNO : pas de préfixe _xlfn.)
@@ -1510,7 +1522,7 @@ class DevisesMixin:
                     j_cell.NumberFormat = doc.register_number_format('DD/MM/YY')
 
                     # Format nombre sur K si devise spécifique
-                    k_fmt_str = self.AVOIRS_K_FORMATS.get(devise)
+                    k_fmt_str = formats_devise.get(devise)
                     if k_fmt_str:
                         k_cell = ws.getCellByPosition(cr.col('AVRmontant_solde'), r0)
                         k_cell.NumberFormat = doc.register_number_format(k_fmt_str)
@@ -1637,7 +1649,7 @@ class DevisesMixin:
                     'Oui' if entry['controle'] else 'Non')
 
                 # Format nombre sur E/F/G/H si devise spécifique
-                k_fmt_str = self.AVOIRS_K_FORMATS.get(devise)
+                k_fmt_str = formats_devise.get(devise)
                 if k_fmt_str:
                     fmt_key = doc.register_number_format(k_fmt_str)
                     for c in (cr.col('CTRL1montant_ancrage'), cr.col('CTRL1solde_calc'),
@@ -1721,7 +1733,7 @@ class DevisesMixin:
             if new_pv_accounts and ws_pv:
                 for acct in new_pv_accounts:
                     pv_type, pv_total = self._get_pv_section_for_account(
-                        acct['type'], acct.get('devise'))
+                        acct['type'], acct.get('devise'), doc=doc)
 
                     if pv_type == 'portfolio':
                         self._create_pv_portfolio_block(ws_pv, doc, acct)

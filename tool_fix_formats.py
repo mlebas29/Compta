@@ -24,8 +24,8 @@ from inc_excel_schema import (
 # inc_uno imports done locally where needed
 from inc_check_integrity import validate_structure
 from inc_formats import (
-    devise_format, _load_decimals, _DEFAULT_DECIMALS,
-    FORMATS_DEVISE, FORMAT_EUR, FORMAT_EUR_RED, FORMAT_DATE,
+    devise_format, formats_devise_uno,
+    FORMAT_EUR, FORMAT_EUR_RED, FORMAT_DATE,
     GRIS, GRIS_LEGACY_D5, GRIS_BLANC, GRIS_BEIGE, BLANC, BEIGE_CLAIR,
     TETE_FILL, PIED_FILL, COL_REF_FILL, DATA_FILL, JAUNE,
     HAIR_COLOR, PIED_BORDER_COLOR,
@@ -87,7 +87,7 @@ def fix_avoirs(doc, apply, cr=None):
     fmt_date = doc.register_number_format(FORMAT_DATE)
     fmt_eur = doc.register_number_format(FORMAT_EUR)
     fmt_cache = {}
-    for devise, fmt_str in FORMATS_DEVISE.items():
+    for devise, fmt_str in formats_devise_uno(doc.document).items():
         fmt_cache[devise] = doc.register_number_format(fmt_str)
 
     for r in range(first_row, end_row + 1):
@@ -192,7 +192,7 @@ def fix_budget(doc, apply):
     for c in range(cat_col_0 + 1, cat_col_0 + 30):
         val = ws.getCellByPosition(c, header_row_0).getString().strip()
         code = val.split()[0] if val else ''
-        if code not in FORMATS_DEVISE:
+        if code not in formats_devise_uno(doc.document):
             break
         devises.append((c, code))
 
@@ -209,7 +209,7 @@ def fix_budget(doc, apply):
 
     formats = doc.document.getNumberFormats()
     fmt_cache = {}
-    for d, fmt_str in FORMATS_DEVISE.items():
+    for d, fmt_str in formats_devise_uno(doc.document).items():
         fmt_cache[d] = doc.register_number_format(fmt_str)
     fmt_eur = doc.register_number_format(FORMAT_EUR)
 
@@ -324,7 +324,7 @@ def fix_plus_value(doc, apply, cr=None):
     fmt_eur_red = doc.register_number_format(FORMAT_EUR_RED)
     fmt_cache = {}
     fmt_cache_red = {'EUR': fmt_eur_red}
-    for devise, fmt_str in FORMATS_DEVISE.items():
+    for devise, fmt_str in formats_devise_uno(doc.document).items():
         fmt_cache[devise] = doc.register_number_format(fmt_str)
         if devise != 'EUR':
             fmt_cache_red[devise] = doc.register_number_format(f'{fmt_str};[RED]\\-{fmt_str}')
@@ -496,7 +496,7 @@ def fix_ctrl1(doc, apply, cr=None):
     formats = doc.document.getNumberFormats()
     fmt_eur = doc.register_number_format(FORMAT_EUR)
     fmt_cache = {}
-    for d, fmt_str in FORMATS_DEVISE.items():
+    for d, fmt_str in formats_devise_uno(doc.document).items():
         fmt_cache[d] = doc.register_number_format(fmt_str)
 
     for r in range(ctrl_s, ctrl_e + 1):
@@ -613,7 +613,7 @@ def fix_ctrl2(doc, apply):
 
     formats = doc.document.getNumberFormats()
     fmt_cache = {}
-    for devise, fmt_str in FORMATS_DEVISE.items():
+    for devise, fmt_str in formats_devise_uno(doc.document).items():
         fmt_cache[devise] = doc.register_number_format(fmt_str)
     fmt_eur = doc.register_number_format(FORMAT_EUR)
     fmt_eur_red = doc.register_number_format(FORMAT_EUR_RED)
@@ -621,7 +621,7 @@ def fix_ctrl2(doc, apply):
 
     # Formats rouge négatif par devise (pour Virements h+7)
     fmt_red_cache = {'EUR': fmt_eur_red}
-    for devise, fmt_str in FORMATS_DEVISE.items():
+    for devise, fmt_str in formats_devise_uno(doc.document).items():
         if devise == 'EUR':
             continue
         # Pattern : positif;[RED]\-négatif
@@ -734,8 +734,9 @@ def fix_operations(doc, apply, cr=None):
     ws = doc.get_sheet(SHEET_OPERATIONS)
 
     formats = doc.document.getNumberFormats()
+    formats_devise = formats_devise_uno(doc.document)
     fmt_cache = {}
-    for devise, fmt_str in FORMATS_DEVISE.items():
+    for devise, fmt_str in formats_devise.items():
         fmt_cache[devise] = doc.register_number_format(fmt_str)
     fmt_eur = doc.register_number_format(FORMAT_EUR)
 
@@ -760,7 +761,7 @@ def fix_operations(doc, apply, cr=None):
             continue
 
         # Détection devise inconnue (typo probable) — warn et skip
-        if devise not in FORMATS_DEVISE:
+        if devise not in formats_devise:
             unknown_devises.append((r, devise))
             continue
 

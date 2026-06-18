@@ -9,6 +9,14 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 
 Les trois derniers sont spécifiques au mode assisté ; 📘 concerne le mode classeur.
 
+## v5.8.3 ⚙️
+| 2026-06-18 | Réglages internes des cotations réorganisés (source unique = classeur) ; mise à niveau config automatique, sans effet visible. |
+| ---------- | ------------------------------------------------------------ |
+
+**Détail :**
+
+- **Cotations (interne)** — la famille et le nombre de décimales de chaque devise ne sont plus dupliqués dans `config_cotations.json` : ils proviennent désormais **uniquement de la feuille Cotations** du classeur (source unique). La mise à niveau (`upgrade`) **nettoie automatiquement** l'ancien fichier ⚙️. Aucun changement d'utilisation visible.
+
 ## v5.8.2
 | 2026-06-17 | macOS : ouverture des docs `.md` fiabilisée ; documentation du site Monero (XMR) corrigée. |
 | ---------- | ------------------------------------------------------------ |

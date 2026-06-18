@@ -1683,10 +1683,10 @@ class AccountsMixin:
         epoch = datetime(1899, 12, 30)
         if date_debut is None:
             date_debut = datetime.today()
-        from inc_formats import FORMATS_DEVISE, FORMAT_EUR, GRIS_BLANC
+        from inc_formats import formats_devise_uno, FORMAT_EUR, GRIS_BLANC
         is_non_eur = devise and devise != 'EUR'
         if doc is not None:
-            fmt_devise = doc.register_number_format(FORMATS_DEVISE.get(devise, FORMAT_EUR)) if devise else None
+            fmt_devise = doc.register_number_format(formats_devise_uno(doc.document).get(devise, FORMAT_EUR)) if devise else None
             fmt_eur = doc.register_number_format(FORMAT_EUR)
         else:
             fmt_devise = None

@@ -7,7 +7,7 @@ CLI, TNR).
 Constantes :
   - ACCOUNT_TYPES, BIEN_TYPES, SOUS_TYPES_BASE
   - PV_SECTION_LABELS, PV_SECTION_TOTALS
-  - AVOIRS_K_FORMATS (alias de FORMATS_DEVISE de inc_formats)
+  (formats devise : inc_formats.formats_devise_uno/openpyxl — décimales/famille lues du classeur)
 
 Fonctions :
   - cours_name(code) : nom du named range cours pour une devise
@@ -20,7 +20,6 @@ HeadlessGUI) qui doit exposer : xlsx_path, cr (ColResolver), _start_pvl.
 
 import openpyxl
 
-from inc_formats import FORMATS_DEVISE as AVOIRS_K_FORMATS
 from inc_excel_schema import SHEET_BUDGET, SHEET_CONTROLES, SHEET_PLUS_VALUE
 
 

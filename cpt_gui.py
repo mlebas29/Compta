@@ -791,14 +791,18 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DaemonClientMixin,
                 warnings.append(
                     f'Site « {_site_label(s)} » a des comptes mais est désactivé')
 
-        # --- Devises Avoirs sans cotation (hors EUR) ---
+        # --- Devises Avoirs sans cotation (hors EUR) — réf = feuille Cotations (classeur) ---
         devises_avoirs = {a['devise'] for a in self.accounts_data if a['devise']}
         devises_avoirs.discard('EUR')
         devises_avoirs.discard('-')
-        if self.cotations_meta:
-            cotations_codes = set(self.cotations_meta.keys())
-            devises_sans_cotation = devises_avoirs - cotations_codes
-            for d in sorted(devises_sans_cotation):
+        if devises_avoirs:
+            from inc_excel_schema import read_cotations_meta
+            wb_cot = openpyxl.load_workbook(self.xlsx_path, data_only=True)
+            try:
+                cotations_codes = set(read_cotations_meta(wb_cot).keys())
+            finally:
+                wb_cot.close()
+            for d in sorted(devises_avoirs - cotations_codes):
                 warnings.append(f'Devise « {d} » utilisée dans Avoirs mais absente des cotations')
 
         # --- Catégories Budget ↔ règles de catégorisation : warning si orphelins ---
@@ -1012,7 +1016,6 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DaemonClientMixin,
     # Schéma métier — constantes et helpers extraits dans inc_compta_schema
     # (module neutre, sans dépendance tkinter, partagé avec HeadlessGUI/TNR)
     cours_name = staticmethod(_schema.cours_name)
-    AVOIRS_K_FORMATS = _schema.AVOIRS_K_FORMATS
     ACCOUNT_TYPES = _schema.ACCOUNT_TYPES
     BIEN_TYPES = _schema.BIEN_TYPES
     SOUS_TYPES_BASE = _schema.SOUS_TYPES_BASE

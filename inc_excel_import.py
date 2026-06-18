@@ -36,19 +36,10 @@ from inc_excel_schema import (
 # ============================================================================
 # FORMATS DE NOMBRE PAR DEVISE (pour opérations multi-devises)
 # ============================================================================
-# Appliqués à la colonne Montant — générés depuis config_cotations.json (style openpyxl/US)
-from inc_formats import devise_format, _load_decimals, _DEFAULT_DECIMALS
-
-def _build_currency_formats():
-    """Construit les formats openpyxl depuis config_cotations.json."""
-    decimals = _load_decimals()
-    result = {'EUR': devise_format('EUR', _DEFAULT_DECIMALS, style='openpyxl')}
-    for code, dec in decimals.items():
-        result[code] = devise_format(code, dec, style='openpyxl')
-    return result
-
-CURRENCY_NUMBER_FORMATS = _build_currency_formats()
-EQUIV_EUR_FORMAT = CURRENCY_NUMBER_FORMATS['EUR']
+# Appliqués à la colonne Montant — construits PAR INSTANCE depuis le classeur ouvert
+# (self.currency_number_formats, cf. ComptaExcelImport.__init__). Décimales/famille
+# = feuille Cotations (COTdecimales/COTfamille), source unique de vérité.
+from inc_formats import formats_devise_openpyxl
 
 # Couleur de fond grise pour les devises non-EUR (colonnes Montant et Devise)
 NON_EUR_FILL = PatternFill(start_color='FFDCDCDC', end_color='FFDCDCDC', fill_type='solid')  # Gris clair (0xDCDCDC)
@@ -216,6 +207,15 @@ class ComptaExcelImport(ComptaExcel):
         }
         self.comptes_avec_operations = set()
         self.comptes_valorisations = {}
+        # Formats devise openpyxl — peuplés à l'ouverture du classeur (source unique
+        # = feuille Cotations, COTdecimales/COTfamille). Voir open_workbook.
+        self.currency_number_formats = {}
+
+    def open_workbook(self):
+        ok = super().open_workbook()
+        if ok:
+            self.currency_number_formats = formats_devise_openpyxl(self.wb)
+        return ok
 
     # ====================================================================
     # Lectures
@@ -805,8 +805,8 @@ class ComptaExcelImport(ComptaExcel):
                 if template_cells:
                     copy_cell_formatting(template_cells[self.cr.col('OPmontant') - 1], cell)
                 devise = op.devise
-                if devise in CURRENCY_NUMBER_FORMATS:
-                    cell.number_format = CURRENCY_NUMBER_FORMATS[devise]
+                if devise in self.currency_number_formats:
+                    cell.number_format = self.currency_number_formats[devise]
                 if devise != 'EUR':
                     cell.fill = NON_EUR_FILL
 
@@ -830,7 +830,7 @@ class ComptaExcelImport(ComptaExcel):
                     cell.value = None
                 if template_cells:
                     copy_cell_formatting(template_cells[self.cr.col('OPequiv_euro') - 1], cell)
-                cell.number_format = EQUIV_EUR_FORMAT
+                cell.number_format = self.currency_number_formats['EUR']
 
                 # Ref
                 cell = self.ws_operations.cell(next_row, self.cr.col('OPréf'))
@@ -1001,9 +1001,9 @@ class ComptaExcelImport(ComptaExcel):
                                 ws_operations.cell(target_row, self.cr.col('OPdate')).number_format = template_date_format
 
                             devise = extract_currency_from_account(compte)
-                            if devise in CURRENCY_NUMBER_FORMATS:
-                                ws_operations.cell(target_row, self.cr.col('OPmontant')).number_format = CURRENCY_NUMBER_FORMATS[devise]
-                            ws_operations.cell(target_row, self.cr.col('OPequiv_euro')).number_format = EQUIV_EUR_FORMAT
+                            if devise in self.currency_number_formats:
+                                ws_operations.cell(target_row, self.cr.col('OPmontant')).number_format = self.currency_number_formats[devise]
+                            ws_operations.cell(target_row, self.cr.col('OPequiv_euro')).number_format = self.currency_number_formats['EUR']
                             if devise != 'EUR':
                                 ws_operations.cell(target_row, self.cr.col('OPmontant')).fill = NON_EUR_FILL
                                 ws_operations.cell(target_row, self.cr.col('OPdevise')).fill = NON_EUR_FILL
@@ -1152,8 +1152,8 @@ class ComptaExcelImport(ComptaExcel):
             cell.value = round(solde_calc, 2)
             if template_cells:
                 copy_cell_formatting(template_cells[self.cr.col('OPmontant') - 1], cell)
-            if devise in CURRENCY_NUMBER_FORMATS:
-                cell.number_format = CURRENCY_NUMBER_FORMATS[devise]
+            if devise in self.currency_number_formats:
+                cell.number_format = self.currency_number_formats[devise]
             if devise != 'EUR':
                 cell.fill = NON_EUR_FILL
 
@@ -1168,7 +1168,7 @@ class ComptaExcelImport(ComptaExcel):
             cell.value = None
             if template_cells:
                 copy_cell_formatting(template_cells[self.cr.col('OPequiv_euro') - 1], cell)
-            cell.number_format = EQUIV_EUR_FORMAT
+            cell.number_format = self.currency_number_formats['EUR']
 
             cell = self.ws_operations.cell(next_row, self.cr.col('OPréf'))
             cell.value = None
