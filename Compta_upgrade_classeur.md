@@ -5,15 +5,6 @@ Vous tenez le classeur à la main, sans `upgrade` (pour le mode assisté en un g
 - soit **partir du classeur exemple le plus récent** ([`comptes_exemple.xlsx`](https://github.com/mlebas29/Compta/raw/main/comptes_exemple.xlsx)) et y reporter **vos propres données** ;
 - soit **partir de votre classeur** et y reporter à la main les évolutions décrites ci-dessous (en vous aidant de l'exemple au besoin).
 
-**Lecture du CHANGELOG** — deux badges concernent le classeur :
-
-- 📘 = nouveau classeur exemple livré.
-- 🔧 = migration de formules/structure ; l'outil n'existe qu'en mode assisté → en mode classeur, repars de l'exemple récent ou reporte à la main.
-
-Souvent une version porte les deux, mais pas toujours : un 🔧 peut précéder le 📘 qui l'intègre (ex. v5.0.0 puis v5.0.1).
-
-
-
 <!-- bloc généré : ./tool_render_upgrade_map.py --mode classeur — ne pas éditer à la main -->
 
 **Légende des badges** :
@@ -28,11 +19,8 @@ Souvent une version porte les deux, mais pas toujours : un 🔧 peut précéder 
 
 <!-- fin bloc généré -->
 
-_Dérivé de `upgrade_map.json` (régénérer : `./tool_render_upgrade_map.py --mode classeur`)._
-
 **Notes :**
-- **SCHEMA** = `SCHEMA_VERSION`, le numéro de **structure** du classeur. Une migration **structurelle** le fait monter (ex. `1 → 2`) et est **bloquante** : l'app refuse de tourner sur un classeur en retard.
-- **catch-up** = mise à niveau qui **ne change pas** la structure (`SCHEMA` inchangé) mais corrige/fiabilise des formules ; **idempotente** (la relancer ne fait rien si déjà appliquée) → non bloquante.
+
 - **drill (devise)** = modèle « une colonne par devise → colonnes génériques avec menu déroulant » (chantier v4.0.0).
 
 
@@ -48,7 +36,7 @@ _Dérivé de `upgrade_map.json` (régénérer : `./tool_render_upgrade_map.py --
 **Mise à niveau** — récupérer le nouvel exemple `comptes_exemple.xlsx` (il intègre déjà les 2 améliorations), ou les reporter à la main. Vérifier que LibreOffice est ≥ 24.8 avant de sauvegarder le classeur.
 
 
-## v5.0.0 🔧 — Fiabilisation alarmes (anti-`#REF!` orphelines)
+## v5.0.0 — Fiabilisation alarmes (anti-`#REF!` orphelines)
 
 `SCHEMA_VERSION` inchangé (reste à 3) : pas de bump structurel, 2 améliorations de formules **idempotentes**. L'exemple **v5.0.1** (📘) les intègre — le récupérer suffit. Sinon, à reporter à la main :
 
@@ -61,7 +49,7 @@ _Dérivé de `upgrade_map.json` (régénérer : `./tool_render_upgrade_map.py --
 - Cellule `K{Synthèse}` (ligne 'Synthèse des contrôles') : wrapper `IFERROR(K{section};"⚠")` sur chaque token (COMPTES, CATÉGORIES, DIVERS, APPARIEMENTS, BALANCES, INCONNUS, FORMULES). Sans ce wrapper, une section déjà en erreur (`#REF!` propagé) faisait tomber la synthèse à ✓ silencieusement.
 
 
-## v4.1.0 📘🔧 — Fiabilisation Plus_value + refonte alarmes Contrôles
+## v4.1.0 📘 — Fiabilisation Plus_value + refonte alarmes Contrôles
 
 Schéma `SCHEMA_VERSION 2 → 3`.
 
@@ -103,7 +91,7 @@ Schéma `SCHEMA_VERSION 2 → 3`.
 - `SCHEMA_VERSION` 2 → 3.
 
 
-## v4.0.0 📘🔧 — Devises N→1 colonne + charte graphique
+## v4.0.0 📘 — Devises N→1 colonne + charte graphique
 
 Schéma `SCHEMA_VERSION 1 → 2`. Migration **structurelle** lourde (drill devise).
 
