@@ -55,9 +55,9 @@ Ce que chaque version réclame, **dérivé de la carte** `upgrade_map.json` (sou
 - 🔄 *(ponctuel)* re-clonage du dépôt (réécriture d'historique git) — `upgrade` re-clone automatiquement (sauvegarde + consentement)
 - 🧱 *(ponctuel)* butée d'automatisation (profondeur de rattrapage) — profondeur où le rattrapage automatique s'arrête → recréer le classeur depuis le template (cf. Compta_upgrade_classeur.md)
 
-_Axes : **Classeur** = structure & contenu · **Config** = paramètres privés de l'app · **Dépôt** = git, code public_
+_Axes : **Classeur** = structure & contenu · **Config** = paramètres privés de l'app · **App** = code public (dépôt git)_
 
-| Version | Classeur | Config | Dépôt | Outil | Effet |
+| Version | Classeur | Config | App | Outil | Effet |
 |---|:--:|:--:|:--:|---|---|
 | v5.7.0 |  | ⚙️ |  | `tool_migrate_config_xmr.py` | [XMR] migré vers collecte par nœud distant (wallet-rpc) — site désactivé, reconfiguration + credential GPG requis (cf. Compta_xmr.md) |
 | v5.2.1 |  | ⚙️ |  | `install_fix.sh` | config normalisée (renommages hérités) |
@@ -72,13 +72,13 @@ _Axes : **Classeur** = structure & contenu · **Config** = paramètres privés d
 
 ## Comment le script détermine le chemin
 
-Le « chemin » peut toucher trois axes — **classeur**, **config**, **dépôt** — et chacun se détermine différemment.
+Le « chemin » peut toucher trois axes — **classeur**, **config**, **app** — et chacun se détermine différemment.
 
 **Côté classeur**, `upgrade` ne rejoue pas les versions une à une : il calcule le **chemin de migration** entre deux numéros de schéma — l'**origine** (le `SCHEMA_VERSION` inscrit dans votre classeur) et la **cible** (celui du code installé) — puis enchaîne les migrateurs qui couvrent l'intervalle.
 
 **Côté config**, il n'y a pas de numéro de schéma à comparer : `upgrade` ne calcule pas d'intervalle. À la place, chaque migration de config **vérifie l'état réel** de votre `config.ini` et ne le **met en conformité que si besoin** (sinon elle n'y touche pas). Elles sont donc toutes repassées à chaque mise à jour, mais une config déjà à jour reste **intacte**.
 
-**Côté dépôt**, ni numéro de version ni script dédié : c'est l'**état réel du dépôt git** qui tranche. `upgrade` tente un `git pull` ; s'il avance normalement, rien de plus. Mais si l'**historique a été réécrit** (un `git pull` ne peut pas le traverser), il **re-clone** l'installation — sauvegarde + consentement — c'est la 🔄 (ex. v5.1.0).
+**Côté app**, ni numéro de version ni script dédié : c'est l'**état réel du dépôt git** qui tranche. `upgrade` tente un `git pull` ; s'il avance normalement, rien de plus. Mais si l'**historique a été réécrit** (un `git pull` ne peut pas le traverser), il **re-clone** l'installation — sauvegarde + consentement — c'est la 🔄 (ex. v5.1.0).
 
 Exemple — un classeur en **schéma 1** mis à niveau vers un code en **schéma 3** :
 
@@ -89,11 +89,11 @@ Exemple — un classeur en **schéma 1** mis à niveau vers un code en **schéma
 
 Les étapes s'exécutent dans l'ordre, sous consentement et après sauvegarde. Un classeur déjà en schéma 3 n'a aucune étape (rien à faire) ; un classeur en **schéma < 1** est sous la **butée** 🧱 (outils retirés du dépôt git) → migration manuelle, cf. [`Compta_upgrade_classeur.md`](Compta_upgrade_classeur.md).
 
-**2ᵉ exemple — un événement sur un autre axe rallonge le chemin.** Le même classeur en **v4.0.0** est déjà en **schéma 2** : côté classeur, atteindre **v5.3.0** (schéma 3) ne demande qu'**une** migration (2 → 3). Mais le chemin franchit la **réécriture d'historique git de v5.1.0** (axe Dépôt, 🔄) qu'un `git pull` ne traverse pas → `upgrade` **re-clone automatiquement** (sauvegarde + consentement) avant de migrer. Soit **2 étapes, sur deux axes** :
+**2ᵉ exemple — un événement sur un autre axe rallonge le chemin.** Le même classeur en **v4.0.0** est déjà en **schéma 2** : côté classeur, atteindre **v5.3.0** (schéma 3) ne demande qu'**une** migration (2 → 3). Mais le chemin franchit la **réécriture d'historique git de v5.1.0** (axe App, 🔄) qu'un `git pull` ne traverse pas → `upgrade` **re-clone automatiquement** (sauvegarde + consentement) avant de migrer. Soit **2 étapes, sur deux axes** :
 
 | Étape | Axe | Geste (par `upgrade`) |
 |---|---|---|
-| 1 | Dépôt | re-clone — réécriture d'historique v5.1.0 qu'un `git pull` ne traverse pas |
+| 1 | App | re-clone — réécriture d'historique v5.1.0 qu'un `git pull` ne traverse pas |
 | 2 | Classeur | `tool_migrate_v4.1.0.py` — schéma 2 → 3 |
 
-Le `SCHEMA_VERSION` ne dit donc pas, à lui seul, tout le chemin : un **événement sur un autre axe** (le dépôt) ajoute son geste — `upgrade` enchaîne les deux.
+Le `SCHEMA_VERSION` ne dit donc pas, à lui seul, tout le chemin : un **événement sur un autre axe** (l'app) ajoute son geste — `upgrade` enchaîne les deux.

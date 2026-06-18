@@ -2,10 +2,12 @@
 
 Chronique des versions de l'app, orientée utilisateur. Les changements internes du code ne sont généralement pas décrits.
 
-- 📘 = nouvelle version du classeur exemple (mode classeur)
-- 🔧 = migration du classeur livrée (mode assisté : `upgrade` la propose ; mode classeur : à reporter à la main)
-- 🔄 = re-clonage du dépôt requis (réécriture d'historique git)
-- ⚙️ = config à normaliser (lancer `./install_fix.sh`)
+- 📘 = nouvelle version du classeur exemple
+- 🔧 = mise à niveau du Classeur
+- 🔄 = reconstruction de la copie locale de l'App (re-clonage du dépôt git, après réécriture d'historique)
+- ⚙️ = mise à niveau de la Config (réglages de l'App)
+
+Les trois derniers sont spécifiques au mode assisté ; 📘 concerne le mode classeur.
 
 ## v5.8.2
 | 2026-06-17 | macOS : ouverture des docs `.md` fiabilisée ; documentation du site Monero (XMR) corrigée. |

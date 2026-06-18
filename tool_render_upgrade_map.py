@@ -30,7 +30,7 @@ BASE = Path(__file__).resolve().parent
 # axe : (clé périmètre, entête de colonne courte, description longue pour la légende)
 PERIMETRES = [('classeur', 'Classeur', 'structure & contenu'),
               ('config', 'Config', "paramètres privés de l'app"),
-              ('app', 'Dépôt', 'git, code public')]
+              ('app', 'App', 'code public (dépôt git)')]
 
 # Glossaire des natures — surfacé dans la vue ASSISTÉE seulement (la nature décrit
 # le rapport d'upgrade au badge ; en classeur 📘 est l'action, pas un info).
