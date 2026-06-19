@@ -21,7 +21,7 @@ Tout ce qui touche à vos données est **proposé**, avec consentement. Idempote
 2. **Config** (idempotent) — normalise la configuration, régénère le raccourci, pose le cadre privé `custom/` s'il manque.
 3. **Classeur** (idempotent) — si le classeur est en retard, **propose** la migration sous **consentement** explicite, puis exécute l'outil (`tool_migrate_*`). Refusé si **LibreOffice < 24.8** (qui corromprait les formules).
 4. **Signalements** — relève les autres écarts (config obsolète…) sans rien forcer.
-5. **Marquage** dans la config du passage du script (`honored_version`) — sert l'avis au démarrage qui signale une mise à niveau attendue mais non honorée.
+5. **Marquage** du niveau atteint, par périmètre (marqueurs de schéma — classeur et config) — sert l'avis au démarrage, qui signale (ou bloque) une mise à niveau en attente.
 
 `upgrade.py --check` : montre ce qui serait fait, **sans rien appliquer**.
 
@@ -41,7 +41,7 @@ La restauration **sauvegarde l'état courant d'abord** (elle est donc elle-même
 
 ## Carte des mises à jour
 
-Ce que chaque version réclame, **dérivé de la carte** `upgrade_map.json` (source unique). Le badge dit l'intention ; sa **nature** dit comment `upgrade` s'y prend (les *cumulatifs* sont rattrapés quel que soit le retard) ; une **butée** 🧱 marque la profondeur où le rattrapage automatique s'arrête (en deçà : manuel).
+**Inventaire** de ce que chaque version apporte, par périmètre (**dérivé de `upgrade_map.json`**, source unique) — c'est le **catalogue**, *pas votre chemin* : celui-ci dépend de votre instance, `upgrade.py --check` le montre. Le badge dit l'intention ; une **butée** 🧱 marque la profondeur où le rattrapage automatique s'arrête (en deçà : manuel).
 
 <!-- bloc généré : ./tool_render_upgrade_map.py --mode assiste — ne pas éditer à la main -->
 **Légende des badges** :
@@ -67,6 +67,7 @@ _Axes : **Classeur** = structure & contenu · **Config** = paramètres privés d
 | v4.1.0 | 📘 🔧 |  |  | `tool_migrate_v4.1.0.py` | refonte CTRL2 + alarmes |
 | v4.0.0 | 📘 🔧 |  |  | `tool_migrate_schema_v2.py` | drill devise (élimine les colonnes par devise) |
 | ≤ v3.x | 🧱 |  |  |  | schéma < 1 (pré-v3.4) : outils de migration retirés du dépôt git → migration manuelle (ancien mode classeur) |
+
 <!-- fin bloc généré -->
 
 ## Comment le script détermine le chemin
