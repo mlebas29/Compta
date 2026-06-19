@@ -176,8 +176,8 @@ def main():
         # colonne Outil = notion du geste `upgrade` → vue assistée seule
         # (en classeur on récupère l'exemple, sans outil)
         assiste = mode == 'assiste'
-        if len(active) > 1:                       # caption des axes utile en multi-axes seulement
-            lines += ['', '_Axes : ' + ' · '.join(f'**{s}** = {d}' for _, s, d in active) + '_']
+        if len(active) > 1:                       # caption des composants utile en multi-composants seulement
+            lines += ['', '_Composants : ' + ' · '.join(f'**{s}** = {d}' for _, s, d in active) + '_']
         lines += [''] + render_matrix(rows, active, mode_badges, badge_perim, assiste)
     print('\n'.join(lines))
     return 0
