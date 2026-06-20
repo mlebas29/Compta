@@ -47,6 +47,7 @@ read_mode() {  # $1=config.ini ; affiche le mode normalisé ('' si absent/inconn
 
 set_mode() {  # $1=config.ini  $2=mode : force mode=$2
     local f="$1" mode="$2"
+    if [[ -n "${DRY_RUN:-}" ]]; then return 0; fi   # dry-run : pas d'écriture (le caller cite)
     if grep -qE '^[[:space:]]*mode[[:space:]]*=' "$f"; then
         sed -i.bak -E "s|^[[:space:]]*mode[[:space:]]*=.*|mode = $mode|" "$f" && rm -f "$f.bak"
     else
@@ -78,7 +79,9 @@ normalize_config() {  # $1=config.ini
     fi
 
     if grep -qE '^[[:space:]]*seafile_comptes_file[[:space:]]*=' "$f"; then
-        sed -i.bak -E 's|^([[:space:]]*)seafile_comptes_file([[:space:]]*=)|\1classeur_externe\2|' "$f" && rm -f "$f.bak"
+        if [[ -z "${DRY_RUN:-}" ]]; then
+            sed -i.bak -E 's|^([[:space:]]*)seafile_comptes_file([[:space:]]*=)|\1classeur_externe\2|' "$f" && rm -f "$f.bak"
+        fi
         changed=1; ok "clé : seafile_comptes_file → classeur_externe"
     fi
 
@@ -105,6 +108,10 @@ ensure_custom_frame() {  # $1=install_dir (défaut: répertoire courant)
         ok "cadre privé custom/ déjà présent"
         return 0
     fi
+    if [[ -n "${DRY_RUN:-}" ]]; then
+        ok "cadre privé custom/ : serait posé (git init vide)"
+        return 0
+    fi
     mkdir -p "$dir" || { fail "création de custom/ impossible"; return 1; }
     git init -q "$dir" || { fail "git init custom/ a échoué"; return 1; }
     git -C "$dir" symbolic-ref HEAD refs/heads/main 2>/dev/null
@@ -125,6 +132,14 @@ setup_desktop() {  # $1=install_dir  $2=mode (EX|PROD|DEV)
         PROD) _label="[PROD]"; _icon="cpt_gui_prod.png";   _wm="cpt_gui" ;;
         *)    _label="[EX]";   _icon="cpt_gui_export.png"; _wm="cpt_gui_export" ;;
     esac
+
+    # Régénère TOUJOURS le raccourci → en dry-run, la détermination est triviale
+    # (« serait régénéré ») : on cite et on sort avant toute écriture, sans toucher
+    # aux branches Linux/macOS (#111 parité --check).
+    if [[ -n "${DRY_RUN:-}" ]]; then
+        ok "Raccourci : serait (re)généré (mode $INSTALL_MODE)"
+        return 0
+    fi
 
     if [[ $OS == linux ]]; then
         local DESKTOP_DIR="$HOME/.local/share/applications"

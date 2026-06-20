@@ -35,11 +35,12 @@ fi
 if [[ -n "$mode" ]]; then
     [[ -f config.ini ]] || { fail "config.ini absent — lance d'abord ./install.sh"; exit 1; }
     set_mode config.ini "$mode"
-    ok "Mode défini dans config.ini : $mode"
+    if [[ -n "${DRY_RUN:-}" ]]; then ok "Mode serait défini : $mode"; else ok "Mode défini dans config.ini : $mode"; fi
 else
     mode=$(read_mode config.ini)
     mode=${mode:-EX}
 fi
 
 setup_desktop "$(pwd)" "$mode"
-ok "Raccourci régénéré (mode $mode)"
+# En dry-run, setup_desktop a déjà cité « serait régénéré » → pas de second message.
+if [[ -z "${DRY_RUN:-}" ]]; then ok "Raccourci régénéré (mode $mode)"; fi

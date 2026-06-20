@@ -135,13 +135,21 @@ def _do_reclone():
     return rc == 0
 
 
-def apply_benign():
-    """Étapes bénignes idempotentes. Retourne le nombre d'échecs."""
+def apply_benign(check=False):
+    """Étapes bénignes idempotentes. Retourne le nombre d'échecs.
+
+    `check=True` (depuis `upgrade --check`) : parité simulé/réel SANS duplication
+    (#111) — chaque étape CITE sa détermination sans muter. Les étapes shell sont
+    lancées avec `DRY_RUN=1` (elles possèdent leur propre dry-run : citent + sautent
+    l'écriture) ; les migrations config pending (déterminées read-only par le marqueur)
+    sont citées sans être lancées ; le marqueur n'est PAS avancé.
+    """
     failed = 0
+    env = 'DRY_RUN=1 ' if check else ''
 
     # config (normalize_config) + raccourci (setup_desktop) → délégués à
     # install_fix.sh : #94 « délègue à install_fix pour la config ».
-    rc, out = _run_bash('./install_fix.sh')
+    rc, out = _run_bash(f'{env}./install_fix.sh')
     if out:
         print(out)
     if rc != 0:
@@ -162,6 +170,9 @@ def apply_benign():
         tool = cm.get('tool')
         if not tool:
             continue
+        if check:
+            print(f'{YELLOW}ℹ{NC} Migration config en attente : {tool} (serait appliquée).')
+            continue
         rc, out = _run_bash(f'python3 {tool} config.ini')
         if out:
             print(out)
@@ -172,12 +183,12 @@ def apply_benign():
     # Avance le marqueur config — UPGRADE SEUL résout puis pose la note
     # (Compta_coherence.md) ; uniquement si aucune migration config n'a échoué (sinon
     # l'avis ⚙️ doit persister) et seulement si le relevé diffère (écriture évitée si inchangé).
-    if config_failed == 0 and releve != CONFIG_SCHEMA_VERSION:
+    if not check and config_failed == 0 and releve != CONFIG_SCHEMA_VERSION:
         inc_update.write_config_schema(config_path, CONFIG_SCHEMA_VERSION)
 
     # cadre privé custom/ (#93) — rattrapage des installs antérieures à #93.
     # Structurel (pose un .git vide), pas un pull du contenu privé.
-    rc, out = _run_bash('. ./inc_install.sh && ensure_custom_frame .')
+    rc, out = _run_bash(f'{env}. ./inc_install.sh && ensure_custom_frame .')
     if out:
         print(out)
     if rc != 0:
@@ -190,9 +201,12 @@ def apply_benign():
 def report():
     """Report config (inc_update, par import). Retourne le nb de warnings.
 
-    Le classeur n'est plus traité ici mais dans migrate() (volet C carte-driven).
+    Source canonique `startup_config_advice` (check_config_schema gaté PUIS
+    check_config_obsolete) — la MÊME que le démarrage GUI/CLI, pour que `--check`
+    prévisualise l'avance de marqueur config (#98) que l'apply posera, au lieu de
+    ne montrer que le générique obsolete. Le classeur est traité dans migrate().
     """
-    warns = inc_update.check_config_obsolete(BASE_DIR / 'config.ini')
+    warns = inc_update.startup_config_advice(BASE_DIR / 'config.ini', BASE_DIR)
     for w in warns:
         print(f'{YELLOW}⚠{NC} {w}')
     return len(warns)
@@ -245,7 +259,7 @@ def migrate(check=False):
 
     Origine = SCHEMA du classeur, cible = SCHEMA du code → chemin via la carte
     (inc_update.pending_migrations). `upgrade` APPLIQUE automatiquement le chemin
-    (structurelles puis catch-up idempotent) — PAS de consentement : la sauvegarde
+    (structurelles puis rattrapage idempotent) — PAS de consentement : la sauvegarde
     (snapshot pris avant toute mutation) est le filet, réversible via --restore. Qui
     veut garder la main pas à pas utilise le mode manuel (git pull + scripts). Garde-
     fous conservés (≠ consentement) : --check = report seul ; classeur ouvert / GUI
@@ -305,12 +319,23 @@ def migrate(check=False):
         if r['result'] in ('failed', 'refused-lo'):
             issues += 1
 
-    # --- catch-up idempotent (seulement si structurellement à jour) ---
+    # --- rattrapage (catch-up) idempotent (seulement si structurellement à jour) ---
     c = plan['catchup']
     if c and not plan['structural']:
-        print(f"{YELLOW}ℹ{NC} Catch-up classeur : {c['summary']} ({c['tool']}, idempotent).")
+        print(f"{YELLOW}ℹ{NC} Rattrapage classeur : {c['summary']} ({c['tool']}, idempotent).")
         if check:
-            print('   → (--check) non appliqué.')
+            # Parité simulé/réel (#111) : le rattrapage n'a pas de marqueur → pour le
+            # PRÉDIRE en --check, on lance son `--dry-run` (détection openpyxl read-only,
+            # SANS LibreOffice ; code 3 = des changements seraient posés, 0 = rien).
+            rc, _ = _run_bash(f"./{c['tool']} comptes.xlsm --dry-run")
+            if rc == 3:
+                issues += 1
+                print('   → des alarmes orphelines seraient fiabilisées '
+                      '(relance sans --check pour appliquer).')
+            elif rc == 0:
+                print('   → déjà fiabilisé, rien à faire.')
+            else:
+                print(f'   → dry-run indéterminé (code {rc}).')
         else:
             ran.append(_run_migration(c['tool']))
 
@@ -607,7 +632,18 @@ def main():
     failed = 0
     status = None
     if args.check:
-        print('(--check : pull et rattrapages sautés, report seul)')
+        # Parité --check (#111) : on CITE le pull sans l'exécuter. `git fetch` met à
+        # jour les refs distantes (n'altère pas l'arbre, comme tool_audit_git) → on
+        # peut prédire « déjà à jour / N à tirer » read-only ; le merge ff n'est PAS fait.
+        print(f'{YELLOW}--- Pull PUB (simulé) ---{NC}')
+        _git('fetch', '--quiet')
+        rc_b, behind = _git('rev-list', '--count', 'HEAD..@{u}')
+        if rc_b != 0:
+            print('   ⚠ pas de remote suivi / hors-ligne — pull non simulable.')
+        elif behind in ('', '0'):
+            print(f'{GREEN}✓{NC} PUB déjà à jour (rien à tirer).')
+        else:
+            print(f'   {behind} commit(s) à tirer — l\'apply ferait le pull ff.')
     else:
         print(f'{YELLOW}--- Pull PUB (résilient) ---{NC}')
         status = resilient_pull()
@@ -652,9 +688,9 @@ def main():
         print('   → relance SANS --check : la phase A (pull/reclone) installe l\'outillage.')
         return 1
 
-    if status == 'ok':
+    if status == 'ok' or args.check:
         print(f'{YELLOW}--- Rattrapages ---{NC}')
-        failed = apply_benign()
+        failed = apply_benign(check=args.check)
 
     print(f'{YELLOW}--- État ---{NC}')
     xlsx = BASE_DIR / 'comptes.xlsm'
