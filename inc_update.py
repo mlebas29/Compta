@@ -516,9 +516,11 @@ def check_config_schema(config_path, base_dir=None, code_marker=None):
         return silent
     severity = 'block' if code[0] > releve[0] else 'warn'
     lead = 'BLOQUANT — ' if severity == 'block' else ''
-    msg = (f'{lead}Configuration à mettre à niveau (schéma {releve[0]}.{releve[1]} '
-           f'→ {code[0]}.{code[1]}) → mets à niveau : upgrade.py '
-           f'(cf. Compta_upgrade_assiste.md).')
+    # Message GÉNÉRIQUE (le boot ALERTE, ne sonde pas — pas de numéros de schéma
+    # cryptiques qui sous-vendraient le changement) ; le DÉTAIL effectif (quoi sera
+    # migré) est à un `upgrade.py --check` près. Cf. Compta_coherence.md.
+    msg = (f'{lead}Configuration à mettre à niveau → lance upgrade.py '
+           f'(détail : upgrade.py --check ; cf. Compta_upgrade_assiste.md).')
     return {'verdict': 'advise', 'severity': severity, 'message': msg}
 
 
