@@ -9,13 +9,18 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 
 Les trois derniers sont spécifiques au mode assisté ; 📘 concerne le mode classeur.
 
-## v5.8.3 ⚙️
-| 2026-06-18 | Réglages internes des cotations réorganisés (source unique = classeur) ; mise à niveau config automatique, sans effet visible. |
+## v5.9.0 ⚙️
+| 2026-06-20 | Révision et améliorations majeures de la mise à niveau (upgrade) |
 | ---------- | ------------------------------------------------------------ |
 
 **Détail :**
 
-- **Cotations (interne)** — la famille et le nombre de décimales de chaque devise ne sont plus dupliqués dans `config_cotations.json` : ils proviennent désormais **uniquement de la feuille Cotations** du classeur (source unique). La mise à niveau (`upgrade`) **nettoie automatiquement** l'ancien fichier ⚙️. Aucun changement d'utilisation visible.
+- **Généralité** — la mécanique de mise à niveau (`upgrade`) est étendue au composant Configuration.
+- **Flexibilité** — l'outil `upgrade.py` offre deux usages : un mode automatique (plus de confirmation à chaque étape) et un mode manuel, assisté par une carte des outils et mises à niveau disponibles.
+- **Sécurité** (1) — la mise à niveau automatique est précédée d'une sauvegarde, réversible à tout moment (`--restore`) — c'est elle qui remplace les confirmations.
+- **Sécurité** (2) — au démarrage, l'application signale les mises à niveau en attente et bloque celles qui sont impératives.
+- **Documentation** — le guide de mise à jour assistée ([`Compta_upgrade_assiste.md`](Compta_upgrade_assiste.md)) est réécrit, complété par un document d'architecture ([`Compta_coherence.md`](Compta_coherence.md)).
+- **Cotations (interne)** — la famille et le nombre de décimales de chaque devise ne sont plus dupliqués dans `config_cotations.json` : ils proviennent désormais uniquement de la feuille Cotations du classeur (source unique). La mise à niveau (`upgrade`) nettoie automatiquement l'ancien fichier ⚙️. Aucun changement d'utilisation visible.
 
 ## v5.8.2
 | 2026-06-17 | macOS : ouverture des docs `.md` fiabilisée ; documentation du site Monero (XMR) corrigée. |

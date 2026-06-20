@@ -800,11 +800,10 @@ Workflow:
         logger.error(f"Classeur incompatible avec cette version du code :\n{schema_err}")
         sys.exit(1)
 
-    # Parité GUI (#99/#105) : avis config au démarrage via le helper partagé.
-    # Gating mutuellement exclusif (honored D'ABORD ; badge en attente → avis
-    # upgrade SEUL, sinon filet générique check_config_obsolete) → fin de la
-    # double détection. Non bloquant ; self-heal du stamp honored_version.
-    # Cheap (texte + carte JSON, zéro classeur).
+    # Parité GUI (#98/#105) : avis config au démarrage via le helper partagé.
+    # Gating mutuellement exclusif (marqueur config en retard → avis upgrade SEUL,
+    # sinon filet générique check_config_obsolete). Le démarrage ALERTE, ne mute
+    # jamais (upgrade SEUL résout). Non bloquant ; cheap (texte + carte JSON, zéro classeur).
     for w in inc_update.startup_config_advice(CONFIG_FILE, BASE_DIR):
         logger.warning(w)
 

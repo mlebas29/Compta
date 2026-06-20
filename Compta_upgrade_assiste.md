@@ -9,17 +9,19 @@ python3 /tmp/upgrade.py ~/Compta
 # ~/Compta à remplacer éventuellement par le dossier réellement utilisé
 ```
 
-Tout ce qui touche à vos données est **proposé**, avec consentement. Idempotent (un 2ᵉ passage ne refait rien d'inutile).
+Tout ce que la carte prévoit est **appliqué automatiquement** — `upgrade.py` fait le nécessaire sans rien vous demander. Idempotent (un 2ᵉ passage ne refait rien d'inutile).
 
-**Avant toute modification, une sauvegarde est faite** (config, classeur, version du code) : c'est le filet qui rend l'upgrade **réversible** (cf. *Restauration*). Un lancement qui ne change rien ne laisse pas de sauvegarde.
+**Avant toute modification, une sauvegarde est faite** (config, classeur, version du code) : c'est le **filet** qui rend l'upgrade **réversible** (cf. *Restauration*) — il remplace toute demande de confirmation. Un lancement qui ne change rien ne laisse pas de sauvegarde.
+
+> **Vous préférez garder la main ?** Faites la mise à jour **manuellement** : un `git pull` (ou un re-clone si l'historique a été réécrit), puis lancez vous-même les outils de la colonne **Outil** de la *Carte* ci-dessous. `upgrade.py` n'est que le geste **automatique** de ce même chemin.
 
 
 
 ## Séquence de mise à jour
 
-1. **Code** — `git pull`. Si le clone est trop ancien pour un pull (historique réécrit, clone antérieur à v5.1.0), il **propose** (consentement) un re-clone sûr : sauvegarde complète + clone frais **préservant** `custom/` et la configuration.
+1. **Code** — `git pull`. Si le clone est trop ancien pour un pull (historique réécrit, clone antérieur à v5.1.0), il **re-clone automatiquement** : sauvegarde complète conservée + clone frais **préservant** `custom/` et la configuration. (Seule contrainte : lancer `upgrade.py` **hors** du dossier mis à jour — cf. le geste `/tmp` en tête.)
 2. **Config** (idempotent) — applique les migrations de config en attente, normalise la configuration, régénère le raccourci, pose le cadre privé `custom/` s'il manque.
-3. **Classeur** (idempotent) — si le classeur est en retard, **propose** la migration sous **consentement** explicite, puis exécute l'outil (`tool_migrate_*`). Refusé si **LibreOffice < 24.8** (qui corromprait les formules).
+3. **Classeur** (idempotent) — si le classeur est en retard, **applique automatiquement** la migration (`tool_migrate_*`) après sauvegarde. Refusé si le classeur est **ouvert** (ou l'application en cours), ou si **LibreOffice < 24.8** (qui corromprait les formules).
 4. **Signalements** — relève les autres écarts (config obsolète…) sans rien forcer.
 5. **Marquage** du niveau atteint, par composant (marqueurs de schéma — classeur et config) — sert l'avis au démarrage, qui signale (ou bloque) une mise à niveau en attente.
 
@@ -48,24 +50,26 @@ La restauration **sauvegarde l'état courant d'abord** (elle est donc elle-même
 
 > *cumulatif* = `upgrade` rattrape le retard accumulé · *informatif* = aucune action · *ponctuel* = à traiter au moment (pas de rattrapage)
 
-- 🔧 *(cumulatif)* migration de structure du classeur — `upgrade` la propose (consentement + sauvegarde)
+- 🔧 *(cumulatif)* migration de structure du classeur — `upgrade` l'applique automatiquement (sauvegarde préalable → réversible)
 - 📘 *(informatif)* contenu : nouveau classeur exemple — votre classeur migré reste en place
 - ⚙️ *(cumulatif)* config à normaliser — `upgrade` la normalise (rattrapage)
-- 🔄 *(ponctuel)* re-clonage du dépôt (réécriture d'historique git) — `upgrade` re-clone automatiquement (sauvegarde + consentement)
+- 🔄 *(ponctuel)* re-clonage du dépôt (réécriture d'historique git) — `upgrade` re-clone automatiquement (sauvegarde complète → réversible)
 - 🧱 *(ponctuel)* butée d'automatisation (profondeur de rattrapage) — profondeur où le rattrapage automatique s'arrête → recréer le classeur depuis le template (cf. Compta_upgrade_classeur.md)
 
 _Composants : **Classeur** = structure & contenu · **Config** = paramètres privés de l'app · **App** = code public (dépôt git)_
 
+_Le **nombre** dans la colonne d’un composant = le marqueur de schéma que la mise à jour pose pour CE composant (Classeur ou Config). Sa **forme** porte la gravité au démarrage — **entier** (`3`) bloque (structure incompatible), **décimal** (`0.2`) avertit ; **aucun** = silencieux (rejoué, sans alerte). Cf. `Compta_coherence.md`._
+
 | Version | Classeur | Config | App | Outil | Effet |
 |---|:--:|:--:|:--:|---|---|
-| v5.8.3 |  | ⚙️ |  | `tool_migrate_config_cotations.py` | config_cotations.json dépollué : famille/décimales retirées (source unique = feuille Cotations) |
-| v5.7.0 |  | ⚙️ |  | `tool_migrate_config_xmr.py` | [XMR] migré vers collecte par nœud distant (wallet-rpc) — site désactivé, reconfiguration + credential GPG requis (cf. Compta_xmr.md) |
+| v5.9.0 |  | ⚙️ `0.2` |  | `tool_migrate_config_cotations.py` | config_cotations.json dépollué : famille/décimales retirées (source unique = feuille Cotations) |
+| v5.7.0 |  | ⚙️ `0.1` |  | `tool_migrate_config_xmr.py` | [XMR] migré vers collecte par nœud distant (wallet-rpc) — site désactivé, reconfiguration + credential GPG requis (cf. Compta_xmr.md) |
 | v5.2.1 |  | ⚙️ |  | `install_fix.sh` | config normalisée (renommages hérités) |
 | v5.1.0 |  |  | 🔄 | `reclone.sh` | historique git réécrit (squash) — re-clone automatique par upgrade |
 | v5.0.1 | 📘 |  |  |  | classeur exemple livré (intègre la migration v5.0.0) |
-| v5.0.0 | 🔧 |  |  | `tool_migrate_v5.0.0.py` | fiabilisation alarmes anti-#REF! orphelines |
-| v4.1.0 | 📘 🔧 |  |  | `tool_migrate_v4.1.0.py` | refonte CTRL2 + alarmes |
-| v4.0.0 | 📘 🔧 |  |  | `tool_migrate_schema_v2.py` | drill devise (élimine les colonnes par devise) |
+| v5.0.0 | 🔧 `3` |  |  | `tool_migrate_v5.0.0.py` | fiabilisation alarmes anti-#REF! orphelines |
+| v4.1.0 | 📘 🔧 `3` |  |  | `tool_migrate_v4.1.0.py` | refonte CTRL2 + alarmes |
+| v4.0.0 | 📘 🔧 `2` |  |  | `tool_migrate_schema_v2.py` | drill devise (élimine les colonnes par devise) |
 | ≤ v3.x | 🧱 |  |  |  | schéma < 1 (pré-v3.4) : outils de migration retirés du dépôt git → migration manuelle (ancien mode classeur) |
 
 <!-- fin bloc généré -->
@@ -78,7 +82,7 @@ Le « chemin » peut toucher trois composants — **classeur**, **config**, **ap
 
 **Côté config**, même principe : un marqueur de schéma (`config_schema_version`, inscrit dans votre `config.ini`) donne l'**origine**, le code donne la **cible**, et `upgrade` joue les migrations de config qui couvrent l'intervalle. S'y ajoute une **vérification générique**, toujours active, qui remet en conformité les réglages obsolètes (renommages hérités…) sans dépendre du marqueur — une config déjà à jour reste **intacte**.
 
-**Côté app**, ni numéro de version ni script dédié : c'est l'**état réel du dépôt git** qui tranche. `upgrade` tente un `git pull` ; s'il avance normalement, rien de plus. Mais si l'**historique a été réécrit** (un `git pull` ne peut pas le traverser), il **re-clone** l'installation — sauvegarde + consentement — c'est la 🔄 (ex. v5.1.0).
+**Côté app**, ni numéro de version ni script dédié : c'est l'**état réel du dépôt git** qui tranche. `upgrade` tente un `git pull` ; s'il avance normalement, rien de plus. Mais si l'**historique a été réécrit** (un `git pull` ne peut pas le traverser), il **re-clone automatiquement** l'installation — sauvegarde complète conservée — c'est la 🔄 (ex. v5.1.0).
 
 Exemple — un classeur en **schéma 1** mis à niveau vers un code en **schéma 3** :
 
@@ -87,9 +91,9 @@ Exemple — un classeur en **schéma 1** mis à niveau vers un code en **schéma
 | 1 | `tool_migrate_schema_v2.py` | 1 → 2 |
 | 2 | `tool_migrate_v4.1.0.py` | 2 → 3 |
 
-Les étapes s'exécutent dans l'ordre, sous consentement et après sauvegarde. Un classeur déjà en schéma 3 n'a aucune étape (rien à faire) ; un classeur en **schéma < 1** est sous la **butée** 🧱 (outils retirés du dépôt git) → migration manuelle, cf. [`Compta_upgrade_classeur.md`](Compta_upgrade_classeur.md).
+Les étapes s'exécutent dans l'ordre, automatiquement, après sauvegarde. Un classeur déjà en schéma 3 n'a aucune étape (rien à faire) ; un classeur en **schéma < 1** est sous la **butée** 🧱 (outils retirés du dépôt git) → migration manuelle, cf. [`Compta_upgrade_classeur.md`](Compta_upgrade_classeur.md).
 
-**2ᵉ exemple — un événement sur un autre composant rallonge le chemin.** Le même classeur en **v4.0.0** est déjà en **schéma 2** : côté classeur, atteindre **v5.3.0** (schéma 3) ne demande qu'**une** migration (2 → 3). Mais le chemin franchit la **réécriture d'historique git de v5.1.0** (composant App, 🔄) qu'un `git pull` ne traverse pas → `upgrade` **re-clone automatiquement** (sauvegarde + consentement) avant de migrer. Soit **2 étapes, sur deux composants** :
+**2ᵉ exemple — un événement sur un autre composant rallonge le chemin.** Le même classeur en **v4.0.0** est déjà en **schéma 2** : côté classeur, atteindre **v5.3.0** (schéma 3) ne demande qu'**une** migration (2 → 3). Mais le chemin franchit la **réécriture d'historique git de v5.1.0** (composant App, 🔄) qu'un `git pull` ne traverse pas → `upgrade` **re-clone automatiquement** (sauvegarde complète conservée) avant de migrer. Soit **2 étapes, sur deux composants** :
 
 | Étape | Composant | Geste (par `upgrade`) |
 |---|---|---|

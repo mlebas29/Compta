@@ -51,7 +51,9 @@ REPO_DIR="$(cd "$REPO_DIR" && pwd)"
 
 say()     { printf '%s\n' "$*"; }
 run()     { if [ "$DO_IT" = 1 ]; then eval "$@"; else say "  [dry-run] $*"; fi; }
-confirm() { [ "$DO_IT" = 1 ] || return 0; read -r -p "$1 [tape 'oui'] " a; [ "$a" = oui ] || { echo Abandon.; exit 1; }; }
+# Pas de prompt de confirmation : --yes = exécute (la sauvegarde COMPLÈTE est le
+# filet, réversible) ; sans --yes = DRY-RUN (aperçu). Cohérent avec upgrade.py qui
+# applique automatiquement (modèle « auto + sauvegarde »).
 
 URL="$(git -C "$REPO_DIR" remote get-url "$REMOTE")"
 BR="$(git -C "$REPO_DIR" branch --show-current)"
@@ -71,7 +73,6 @@ say "  1. git clone (frais) dans ${REPO_DIR}.new"
 say "  2. mv $REPO_DIR → $backup   (sauvegarde COMPLÈTE)"
 say "  3. mv ${REPO_DIR}.new → $REPO_DIR"
 say "  4. restaurer fichiers privés/non-trackés depuis la sauvegarde"
-confirm "Re-cloner $REPO_DIR ?"
 run "git clone \"$URL\" \"${REPO_DIR}.new\""
 run "mv \"$REPO_DIR\" \"$backup\""
 run "mv \"${REPO_DIR}.new\" \"$REPO_DIR\""

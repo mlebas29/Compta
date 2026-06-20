@@ -7,26 +7,23 @@
 # DEV  = développement du dual, push (thème bleu)
 mode = EX
 
-# ===== VERSION HONORÉE (#99 — géré par l'app, ne pas éditer à la main) =====
-# Dirty-bit du dernier APP_VERSION dont les actions de mise à niveau (migration
-# classeur, normalisation config) ont été honorées. Posé/avancé automatiquement
-# par upgrade / install_fix / le démarrage GUI-CLI ; sert l'avis « version
-# badgée non honorée » après un `git pull` nu. Amorcé à APP_VERSION par install.sh
-# à la création du config (install fraîche née « à jour ») ; sinon rattrapé au 1er
-# boot. Laissé COMMENTÉ ici (template) à dessein : la clé reste « connue mais non
-# requise » de check_config_obsolete → un réel qui la porte n'est pas « obsolète »,
-# un réel sans elle pas « manquant » (cf. #108).
+# ===== VERSION HONORÉE — RETIRÉE (#98) =====
+# Ancien marqueur d'app (#99), remplacé par le marqueur de schéma config ci-dessous
+# (modèle de cohérence — cf. Compta_coherence.md). Le code ne la lit plus. Pierre
+# tombale laissée COMMENTÉE à dessein : une vieille install qui porte encore une
+# clé honored_version active ne doit pas être signalée « obsolète » → la garder
+# « connue » de check_config_obsolete (regex #?) la rend inoffensive.
 #honored_version =
 
 # ===== SCHÉMA CONFIG (#98 — géré par l'app, ne pas éditer à la main) =====
-# Marqueur d'ANCRAGE de l'axe config : jusqu'où les migrations config (carte
-# upgrade_map.json → config_migrations) ont été portées sur cette instance.
-# Entier d'axe, distinct d'APP_VERSION et du SCHEMA_VERSION classeur. N'affirme
-# PAS l'état réel (rôle des sondes idempotentes) : il borne seulement le chemin
-# de migration à considérer. Mécanique de pose/avance encore en débat (#98) —
-# la clé est réservée dès maintenant. Laissée COMMENTÉE ici (template) à dessein :
-# « connue mais non requise » de check_config_obsolete (ni « obsolète » si
-# présente, ni « manquante » si absente — cf. #108 / honored_version).
+# Marqueur du composant Configuration : jusqu'où les migrations config (carte
+# upgrade_map.json → config_migrations) ont été portées sur cette instance. Forme
+# `major.minor` (cf. Compta_coherence.md : la forme porte la gravité au démarrage —
+# major en retard → bloque, minor → avertit). Distinct d'APP_VERSION et du
+# SCHEMA_VERSION classeur. Avancé par UPGRADE SEUL (le démarrage alerte, ne mute
+# pas) ; amorcé par install.sh à la création du config. Laissé COMMENTÉ ici
+# (template) à dessein : « connu mais non requis » de check_config_obsolete (ni
+# « obsolète » si présent, ni « manquant » si absent).
 #config_schema_version =
 
 # ===== MODE DEBUG =====

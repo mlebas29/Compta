@@ -12,6 +12,7 @@ Documentation technique pour le contributeur ou le mainteneur. Décrit l'archite
 | Internals par connecteur (auth, parsing, gotchas) | [`docs/`](docs/README.md) |
 | Étendre Compta (dual, custom/, monkeypatches) | [`Compta_extension.md`](Compta_extension.md) |
 | Tests de non-régression (TNR) | [`Compta_tests.md`](Compta_tests.md) |
+| Cohérence install / upgrade / démarrage (marqueurs par composant) | [`Compta_coherence.md`](Compta_coherence.md) |
 | Outils maintenance, git (git nu, `tool_audit_git` status/align) | [`Compta_tools.md`](Compta_tools.md) |
 | Guide utilisateur (concepts, PVL, portage, charte, mise à niveau) | [`Compta.md`](Compta.md) |
 

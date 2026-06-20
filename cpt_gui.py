@@ -608,8 +608,8 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DaemonClientMixin,
             str or None: message d'erreur si incompatible, None si OK.
 
         Délègue à inc_update.check_schema_compat (probe partagée avec
-        install_update). Recalculé à chaque démarrage — le GUI ne défère jamais
-        à une sortie figée d'install_update (cf. inc_update).
+        upgrade.py). Recalculé à chaque démarrage — le GUI ne défère jamais
+        à une sortie figée d'upgrade (cf. inc_update).
         """
         return inc_update.check_schema_compat(self.xlsx_path)
 
@@ -683,10 +683,10 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DaemonClientMixin,
         Returns:
             tuple(list[str], list[str]): (auto_fixes effectués, warnings à traiter)
         """
-        # Avis config au démarrage (#99/#105) : helper partagé avec cpt.py — 1
-        # seule source pour l'ordre, gating mutuellement exclusif (honored
-        # D'ABORD ; badge en attente → avis upgrade SEUL, sinon filet générique
-        # check_config_obsolete). Self-heal/seed du stamp honored_version inclus.
+        # Avis config au démarrage (#98/#105) : helper partagé avec cpt.py — 1
+        # seule source pour l'ordre, gating mutuellement exclusif (marqueur config
+        # en retard → avis upgrade SEUL, sinon filet générique check_config_obsolete).
+        # Le démarrage ALERTE, ne mute jamais (upgrade SEUL résout — pas de stamp ici).
         config_warnings = inc_update.startup_config_advice(
             self.config_path, self.config_path.parent)
         if not self._excel_loaded:

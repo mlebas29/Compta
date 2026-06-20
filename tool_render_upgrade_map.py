@@ -114,10 +114,14 @@ def _cell_badges(e, perim, mode_badges, badge_perim, e_axis):
     return ' '.join(out)
 
 
-def render_matrix(rows, active, mode_badges, badge_perim, show_tool):
-    """Tableau unique chronologique (récent d'abord) : Version × axes [+ Outil] + Effet.
-    `active` = [(clé, entête, desc)] des axes ayant au moins un badge en ce mode.
-    `show_tool` ajoute la colonne Outil (ce que `upgrade` lance — vue assistée)."""
+def render_matrix(rows, active, mode_badges, badge_perim, show_tool, show_marker):
+    """Tableau unique chronologique (récent d'abord) : Version × composants [+ Outil] + Effet.
+    `active` = [(clé, entête, desc)] des composants ayant au moins un badge en ce mode.
+    `show_marker` affiche, DANS la colonne du composant concerné, le marqueur de schéma
+    atteint (schema_to) — ainsi « quel marqueur » est sans ambiguïté : un nombre dans la
+    colonne Classeur est un schéma classeur, dans Config un schéma config. Sa FORME porte
+    la gravité (entier → bloque, décimal → avertit, absent → silencieux ; cf.
+    Compta_coherence.md). `show_tool` ajoute la colonne Outil. Les deux = vue assistée."""
     ncol = len(active)
     head = ['Version'] + [s for _, s, _ in active] + (['Outil'] if show_tool else []) + ['Effet']
     sep = ['---'] + [':--:'] * ncol + (['---'] if show_tool else []) + ['---']
@@ -125,7 +129,14 @@ def render_matrix(rows, active, mode_badges, badge_perim, show_tool):
     for e in rows:
         e_axis = _entry_axis(e, badge_perim)
         ver = e.get('version_label') or f"v{e.get('app_version', '?')}"
-        row = [ver] + [_cell_badges(e, k, mode_badges, badge_perim, e_axis) for k, _, _ in active]
+        row = [ver]
+        for k, _, _ in active:
+            cell = _cell_badges(e, k, mode_badges, badge_perim, e_axis)
+            # marqueur logé dans la colonne de SON composant (e_axis == k)
+            if show_marker and e_axis == k and e.get('schema_to') is not None:
+                mark = f"`{e['schema_to']}`"
+                cell = f'{cell} {mark}' if cell else mark
+            row.append(cell)
         if show_tool:
             tool = e.get('tool') or ''
             row.append(f'`{tool}`' if tool else '')
@@ -178,7 +189,14 @@ def main():
         assiste = mode == 'assiste'
         if len(active) > 1:                       # caption des composants utile en multi-composants seulement
             lines += ['', '_Composants : ' + ' · '.join(f'**{s}** = {d}' for _, s, d in active) + '_']
-        lines += [''] + render_matrix(rows, active, mode_badges, badge_perim, assiste)
+        if assiste:                               # caption marqueur (affiché en assisté seul)
+            lines += ['', '_Le **nombre** dans la colonne d’un composant = le marqueur de schéma '
+                      'que la mise à jour pose pour CE composant (Classeur ou Config). Sa **forme** '
+                      'porte la gravité au démarrage — **entier** (`3`) bloque (structure '
+                      'incompatible), **décimal** (`0.2`) avertit ; **aucun** = silencieux '
+                      '(rejoué, sans alerte). Cf. `Compta_coherence.md`._']
+        lines += [''] + render_matrix(rows, active, mode_badges, badge_perim, assiste, assiste)
+    lines.append('')   # ligne vide finale : sépare le tableau du marqueur de fin de bloc
     print('\n'.join(lines))
     return 0
 

@@ -6,7 +6,6 @@ Vous tenez le classeur à la main, sans `upgrade` (pour le mode assisté en un g
 - soit **partir de votre classeur** et y reporter à la main les évolutions décrites ci-dessous (en vous aidant de l'exemple au besoin).
 
 <!-- bloc généré : ./tool_render_upgrade_map.py --mode classeur — ne pas éditer à la main -->
-
 **Légende des badges** :
 
 - 📘 contenu : nouveau classeur exemple — récupérer le nouveau classeur exemple

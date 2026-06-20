@@ -3,33 +3,35 @@
   "_note_badges": "Une SOURCE, deux objectifs : pilotage (upgrade lit migrations + badges actionnables 🔧/⚙️) ET description (tool_render_upgrade_map --mode rend une vue par mode). Chaque badge a deux axes INDÉPENDANTS : 'perimetre' (classeur/config/app) = la SECTION du rendu ; 'geste' = la mode-applicabilité (les clés présentes = modes où le badge est actionnable) + l'instruction. Ex. 🔧 est périmètre 'classeur' mais geste 'assiste' seul : en mode classeur on ne migre pas en place, on récupère le nouvel exemple (📘) — le distingo 📘/🔧 est une notion app. Seul 📘 est dual-mode. 🔄 (re-clone, périmètre app) est AUTOMATIQUE : upgrade le franchit en phase A (plus de frontière ni de geste manuel). 🧱 (butée d'automatisation) est un MARQUEUR cross-périmètre sans 'perimetre' propre, routé par le 'perimetre' explicite de l'entrée ; il ne reste qu'au PLANCHER CLASSEUR (préhistoire ≤v3.x, schéma <1, outils retirés du repo → vraiment manuel). Univers CLOS 📘/🔧/🔄/⚙️/🧱 (extensible : ajouter une entrée + KNOWN_BADGES).",
   "badges_legend": [
     { "badge": "🔧", "perimetre": "classeur", "nature": "cumulatif", "label": "migration de structure du classeur", "geste": {
-        "assiste": "`upgrade` la propose (consentement + sauvegarde)" } },
+        "assiste": "`upgrade` l'applique automatiquement (sauvegarde préalable → réversible)" } },
     { "badge": "📘", "perimetre": "classeur", "nature": "informatif", "label": "contenu : nouveau classeur exemple", "geste": {
         "assiste": "votre classeur migré reste en place",
         "classeur": "récupérer le nouveau classeur exemple" } },
     { "badge": "⚙️", "perimetre": "config", "nature": "cumulatif", "label": "config à normaliser", "geste": {
         "assiste": "`upgrade` la normalise (rattrapage)" } },
     { "badge": "🔄", "perimetre": "app", "nature": "ponctuel", "label": "re-clonage du dépôt (réécriture d'historique git)", "geste": {
-        "assiste": "`upgrade` re-clone automatiquement (sauvegarde + consentement)" } },
+        "assiste": "`upgrade` re-clone automatiquement (sauvegarde complète → réversible)" } },
     { "badge": "🧱", "nature": "ponctuel", "label": "butée d'automatisation (profondeur de rattrapage)", "geste": {
         "assiste": "profondeur où le rattrapage automatique s'arrête → recréer le classeur depuis le template (cf. Compta_upgrade_classeur.md)" } }
   ],
   "migrations": [
     { "id": "schema_v2", "tool": "tool_migrate_schema_v2.py", "schema_from": 1, "schema_to": 2,
-      "blocking": true, "idempotent": false, "app_version": "4.0.0", "badges": ["📘", "🔧"],
+      "idempotent": false, "app_version": "4.0.0", "badges": ["📘", "🔧"],
       "summary": "drill devise (élimine les colonnes par devise)" },
     { "id": "schema_v3", "tool": "tool_migrate_v4.1.0.py", "schema_from": 2, "schema_to": 3,
-      "blocking": true, "idempotent": false, "app_version": "4.1.0", "badges": ["📘", "🔧"],
+      "idempotent": false, "app_version": "4.1.0", "badges": ["📘", "🔧"],
       "summary": "refonte CTRL2 + alarmes" },
     { "id": "formules_v5", "tool": "tool_migrate_v5.0.0.py", "schema_from": 3, "schema_to": 3,
-      "blocking": false, "idempotent": true, "app_version": "5.0.0", "badges": ["🔧"],
+      "idempotent": true, "app_version": "5.0.0", "badges": ["🔧"],
       "summary": "fiabilisation alarmes anti-#REF! orphelines" }
   ],
-  "_note_config_migrations": "Pendant config des migrations classeur. PAS de schéma de départ fiable (honored_version est une CROYANCE — badges honorés —, pas l'état réel du config.ini, qui peut diverger : édition main, restore, migration partielle). Donc PAS de gating par version : on lance TOUTES les entrées à chaque upgrade ; chacune VÉRIFIE l'état réel (auto-gate sur le marqueur de l'ancien schéma) et ASSURE la cible. Contrat DUR : tout outil ici est idempotent + auto-gated sur l'état-AVANT (jamais l'état-cible, sinon une reconfig manuelle ultérieure serait re-clobbée) ; valider en le lançant 2×. app_version sert au rendu + à l'avis #99, jamais à gater l'exécution.",
+  "_note_config_migrations": "Pendant config des migrations classeur, MARKER-DRIVEN (#98, cf. Compta_coherence.md). Chemin = entrées dont schema_to > config_schema_version relevé, jusqu'à CONFIG_SCHEMA_VERSION (code). Forme du schema_to = gravité : décimal (0.1, 0.2) → avertit, entier → bloque, ABSENT → entrée SILENCIEUSE rejouée systématiquement (run-all). Le « run-all sans gating » d'avant #98 ne vaut donc plus que pour les entrées silencieuses. Contrat DUR maintenu : tout outil est idempotent + auto-gated sur l'état réel du config.ini (jamais re-clobbée si reconfig manuelle ultérieure) ; valider en le lançant 2×. Invariant : max(config schema_to) == inc_excel_schema.CONFIG_SCHEMA_VERSION. app_version sert au rendu + au balayage, jamais à gater l'exécution.",
   "config_migrations": [
-    { "id": "xmr_remote", "tool": "tool_migrate_config_xmr.py", "app_version": "5.7.0", "badges": ["⚙️"],
+    { "id": "xmr_remote", "tool": "tool_migrate_config_xmr.py", "schema_from": "0", "schema_to": "0.1",
+      "app_version": "5.7.0", "badges": ["⚙️"],
       "summary": "[XMR] migré vers collecte par nœud distant (wallet-rpc) — site désactivé, reconfiguration + credential GPG requis (cf. Compta_xmr.md)" },
-    { "id": "cotations_dejson", "tool": "tool_migrate_config_cotations.py", "app_version": "5.8.3", "badges": ["⚙️"],
+    { "id": "cotations_dejson", "tool": "tool_migrate_config_cotations.py", "schema_from": "0.1", "schema_to": "0.2",
+      "app_version": "5.9.0", "badges": ["⚙️"],
       "summary": "config_cotations.json dépollué : famille/décimales retirées (source unique = feuille Cotations)" }
   ],
   "actions": [

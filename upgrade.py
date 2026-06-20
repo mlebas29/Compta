@@ -11,13 +11,19 @@ le CADRE vide custom/ reste OK — c'est structurel (ensure_custom_frame, #93).
 
 Séquence (#94) :
   1. pull résilient PUB, --ff-only ; si histoires disjointes (merge-base vide,
-     ex. clone d'avant un squash 🔄) → PROPOSE reclone.sh (backup+confirmation),
-     jamais auto. Divergence / commits locaux → simplement signalé (pas reclone).
-  2. rattrapages bénins idempotents : config+raccourci (install_fix), cadre
-     custom/ (ensure_custom_frame). Toujours joués (geste explicite, pas gated
-     sur « le pull a avancé »).
-  3. report / propose les ajustements à CONSENTEMENT (migration classeur) via les
-     probes partagées avec le GUI (inc_update, par import).
+     ex. clone d'avant un squash 🔄) → re-clone AUTOMATIQUE (reclone.sh, sauvegarde
+     complète conservée → réversible). Divergence / commits locaux → simplement
+     signalé (pas reclone). Seule contrainte du reclone : être lancé HORS du clone.
+  2. rattrapages bénins idempotents : config+raccourci (install_fix), migrations
+     config (carte), cadre custom/ (ensure_custom_frame). Toujours joués.
+  3. migration classeur (carte) : APPLIQUÉE automatiquement via les probes partagées
+     avec le GUI (inc_update, par import).
+
+upgrade APPLIQUE automatiquement ce que la carte dit — PAS de consentement : la
+sauvegarde (snapshot pré-mutation + backup complet du reclone) est le filet,
+réversible via --restore. Qui veut garder la main pas à pas fait le geste manuel
+(git pull + lancer les scripts soi-même). Garde-fous conservés (≠ consentement) :
+--check (report seul), classeur ouvert / GUI en cours, LibreOffice < 24.8, hors-clone.
 
 Idempotent : un second passage ne fait rien si tout est déjà à jour.
 
@@ -112,32 +118,21 @@ def _run_interactive(snippet):
 
 
 def _do_reclone():
-    """Re-clone de BASE_DIR (histoires disjointes / butée 🔄). `reclone.sh` est
-    rapatrié FRAIS de GitHub s'il manque (clone v4/v5.0 antérieur à v5.1.0). Montre
-    le plan (dry-run) puis, sur consentement EN TERMINAL, lance le reclone (backup
-    complet + clone frais préservant custom/+config). Sans terminal : propose
-    seulement. Retourne True si un re-clone a été lancé OK. Toujours ciblé par
-    `--repo BASE_DIR` (marche que le script soit dans le clone ou téléchargé hors).
+    """Re-clone AUTOMATIQUE de BASE_DIR (histoires disjointes / butée 🔄). Comme le
+    reste du flux, pas de consentement : `reclone.sh --yes` fait sa propre sauvegarde
+    COMPLÈTE (dossier `.backup-<ts>` conservé) → réversible. `reclone.sh` est rapatrié
+    FRAIS de GitHub s'il manque (clone v4/v5.0 antérieur à v5.1.0). Toujours ciblé par
+    `--repo BASE_DIR`. La seule contrainte (≠ consentement) est le HORS-CLONE, gardé
+    en amont dans main() : le swap remplacerait un script tournant dans le dossier.
+    Retourne True si le re-clone a réussi.
     """
     script = _fetch_reclone(BASE_DIR)
     if not script:
         return False
-    cmd = f"'{script}' --reclone --repo '{BASE_DIR}'"
-    if not sys.stdin.isatty():
-        # non interactif : on PROPOSE, jamais d'exécution destructive sans terminal.
-        print(f'   → reclone recommandé : {cmd} --yes (backup + confirmation).')
-        return False
-    print(f"{YELLOW}--- Plan de re-clone (simulation — rien n'est altéré) ---{NC}")
-    _run_interactive(cmd)                               # dry-run informatif
-    try:
-        ans = input('Lancer le re-clone maintenant (backup complet + clone frais) ? [oui/non] ').strip().lower()
-    except EOFError:
-        ans = ''
-    if ans == 'oui':
-        rc = _run_interactive(f'{cmd} --yes')           # backup + gate « oui » + reclone
-        return rc == 0
-    print(f'   Re-clone non lancé. Plus tard : {cmd} --yes')
-    return False
+    print(f'{YELLOW}--- Re-clone automatique (réécriture d\'historique 🔄 ; '
+          f'sauvegarde complète conservée) ---{NC}')
+    rc = _run_interactive(f"'{script}' --reclone --repo '{BASE_DIR}' --yes")
+    return rc == 0
 
 
 def apply_benign():
@@ -153,12 +148,17 @@ def apply_benign():
         print(f'{RED}✗{NC} install_fix.sh a échoué (rc={rc})')
         failed += 1
 
-    # Migrations de SCHÉMA config — CARTE-DRIVEN (upgrade_map.json config_migrations),
-    # jamais hardcodées. Pas de gating par version : le config n'a pas de schéma de
-    # départ fiable → on les lance TOUTES, chacune idempotente + auto-gated sur l'état
-    # réel du config.ini (vérifier-et-assurer). Distinct de normalize_config
-    # (renommages génériques) ; check_config_obsolete reste le détecteur qui éteint ⚙️.
-    for cm in inc_update.config_migrations(BASE_DIR):
+    # Migrations de SCHÉMA config — MARKER-DRIVEN (#98, upgrade_map.json
+    # config_migrations). Chemin = entrées dont le marqueur (schema_to) dépasse le
+    # relevé config.ini, jusqu'à CONFIG_SCHEMA_VERSION ; + entrées SILENCIEUSES
+    # (sans marqueur) rejouées systématiquement. Chaque outil reste idempotent +
+    # auto-gated sur l'état réel du .ini. Distinct de normalize_config (renommages
+    # génériques) ; check_config_obsolete reste le détecteur générique.
+    from inc_excel_schema import CONFIG_SCHEMA_VERSION
+    config_path = BASE_DIR / 'config.ini'
+    releve = inc_update.read_config_schema(config_path)
+    config_failed = 0
+    for cm in inc_update.pending_config_migrations(BASE_DIR, releve, CONFIG_SCHEMA_VERSION):
         tool = cm.get('tool')
         if not tool:
             continue
@@ -167,7 +167,13 @@ def apply_benign():
             print(out)
         if rc != 0:
             print(f'{RED}✗{NC} {tool} a échoué (rc={rc})')
-            failed += 1
+            config_failed += 1
+    failed += config_failed
+    # Avance le marqueur config — UPGRADE SEUL résout puis pose la note
+    # (Compta_coherence.md) ; uniquement si aucune migration config n'a échoué (sinon
+    # l'avis ⚙️ doit persister) et seulement si le relevé diffère (écriture évitée si inchangé).
+    if config_failed == 0 and releve != CONFIG_SCHEMA_VERSION:
+        inc_update.write_config_schema(config_path, CONFIG_SCHEMA_VERSION)
 
     # cadre privé custom/ (#93) — rattrapage des installs antérieures à #93.
     # Structurel (pose un .git vide), pas un pull du contenu privé.
@@ -238,10 +244,13 @@ def migrate(check=False):
     """Volet C — migration classeur pilotée par la CARTE (upgrade_map.json).
 
     Origine = SCHEMA du classeur, cible = SCHEMA du code → chemin via la carte
-    (inc_update.pending_migrations). Structurelles bloquantes : consentement +
-    backup + run. Catch-up idempotent : proposé en option. Jamais en silence ;
-    non-interactif (ou --check) = propose seulement. Retourne le nb de points
-    bloquants signalés.
+    (inc_update.pending_migrations). `upgrade` APPLIQUE automatiquement le chemin
+    (structurelles puis catch-up idempotent) — PAS de consentement : la sauvegarde
+    (snapshot pris avant toute mutation) est le filet, réversible via --restore. Qui
+    veut garder la main pas à pas utilise le mode manuel (git pull + scripts). Garde-
+    fous conservés (≠ consentement) : --check = report seul ; classeur ouvert / GUI
+    en cours = refus ; LibreOffice < 24.8 = refus dans _run_migration. Retourne le nb
+    de points NON résolus (pending en --check, ou migrations échouées/refusées).
     """
     xlsx = BASE_DIR / 'comptes.xlsm'
     if not xlsx.exists():
@@ -282,31 +291,28 @@ def migrate(check=False):
 
     issues = 0
     ran = []
-    interactive = (not check) and sys.stdin.isatty()
 
-    # --- migrations structurelles bloquantes ---
+    # --- migrations structurelles : APPLIQUÉES (snapshot déjà pris → réversible) ---
     for m in plan['structural']:
-        issues += 1
-        print(f"{YELLOW}⚠{NC} Migration requise : SCHEMA {m['schema_from']}→{m['schema_to']} "
+        print(f"{YELLOW}⚠{NC} Migration classeur SCHEMA {m['schema_from']}→{m['schema_to']} "
               f"({m['summary']}) — {m['tool']}.")
-        if not interactive:
-            print('   → consentement requis ; relance en terminal pour migrer.')
+        if check:
+            issues += 1
+            print('   → (--check) non appliquée ; relance sans --check pour migrer.')
             continue
-        if input('   Migrer maintenant (backup auto) ? [oui/non] ').strip().lower() == 'oui':
-            ran.append(_run_migration(m['tool']))
-        else:
-            print('   Migration non lancée.')
+        r = _run_migration(m['tool'])
+        ran.append(r)
+        if r['result'] in ('failed', 'refused-lo'):
+            issues += 1
 
     # --- catch-up idempotent (seulement si structurellement à jour) ---
     c = plan['catchup']
     if c and not plan['structural']:
-        print(f"{YELLOW}ℹ{NC} Catch-up formules disponible : {c['summary']} "
-              f"({c['tool']}, idempotent).")
-        if interactive:
-            if input('   Appliquer (backup auto) ? [oui/non] ').strip().lower() == 'oui':
-                ran.append(_run_migration(c['tool']))
+        print(f"{YELLOW}ℹ{NC} Catch-up classeur : {c['summary']} ({c['tool']}, idempotent).")
+        if check:
+            print('   → (--check) non appliqué.')
         else:
-            print("   → optionnel ; relance en terminal pour l'appliquer.")
+            ran.append(_run_migration(c['tool']))
 
     return {'issues': issues, 'migrations': ran}
 
@@ -675,21 +681,18 @@ def main():
             'op': 'up',
             'from': from_state,
             'to': {'app_version': _disk_app_version(),                 # post-pull, lu
-                   'classeur_schema': inc_update.read_classeur_schema(xlsx)},
+                   'classeur_schema': inc_update.read_classeur_schema(xlsx),
+                   'config_schema': inc_update.read_config_schema(BASE_DIR / 'config.ini')},
             'pull': status,
             'rattrapages': ('échec' if failed else 'ok') if status == 'ok' else 'sauté',
             'migrations': mig['migrations'],
             'issues': issues,
             'snapshot': snapshot,
         })
-
-        # #99 — pose le stamp honored_version = version disque (post-pull). Après
-        # un run OK, l'installation est réputée à jour : rattrapages bénins
-        # appliqués ; structurelles déclinées restent gardées par le gate dur
-        # check_schema_compat. C'est l'acteur load-bearing du stamp (le self-heal
-        # du GUI/CLI n'avance que les pulls sans action due).
-        if not failed and not mig.get('blocked'):
-            inc_update.write_honored_version(BASE_DIR / 'config.ini', _disk_app_version())
+        # Marqueurs (#98, Compta_coherence.md) : le composant Config est avancé par
+        # apply_benign (write_config_schema, run OK) ; le composant Classeur par son
+        # outil de migration (NR dans le .xlsm). Plus de stamp d'app (honored_version
+        # retiré) : l'app n'a pas de marqueur, git porte sa version.
 
     return 1 if (failed or mig.get('blocked')) else 0
 

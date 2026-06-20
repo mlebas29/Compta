@@ -576,15 +576,16 @@ echo "--- [8/8] Configuration ---"
 if [[ ! -f "config.ini" && -f "config.ini.default" ]]; then
     cp config.ini.default config.ini
     ok "config.ini créé depuis config.ini.default"
-    # #108 — amorce honored_version (lecture VIVE de APP_VERSION → drift-proof) :
-    # install fraîche née stampée → ne déclenche ni l'avis « version non honorée »
-    # ni le pré-pas de rattrapage au boot. Best-effort : un échec est rattrapé au
-    # 1er boot (seed), donc on ne fait jamais avorter l'install (|| warn).
-    _hv=$(python3 -c 'from inc_excel_schema import APP_VERSION as v; print(v)' 2>/dev/null) \
-        && [[ -n "$_hv" ]] \
-        && sed -i "s/^#\?honored_version *=.*/honored_version = $_hv/" config.ini \
-        && ok "honored_version amorcé ($_hv)" \
-        || warn "amorçage honored_version reporté au 1er boot"
+    # #98 — amorce le marqueur config_schema_version (lecture VIVE de
+    # CONFIG_SCHEMA_VERSION → drift-proof) : install fraîche née « à jour », sans
+    # avis ⚙️ au boot et sans migration config à rejouer (cf. Compta_coherence.md).
+    # Best-effort : un échec est rattrapé au 1er upgrade, on ne fait jamais avorter
+    # l'install (|| warn).
+    _cs=$(python3 -c 'from inc_excel_schema import CONFIG_SCHEMA_VERSION as v; print(v)' 2>/dev/null) \
+        && [[ -n "$_cs" ]] \
+        && sed -i "s/^#\?config_schema_version *=.*/config_schema_version = $_cs/" config.ini \
+        && ok "config_schema_version amorcé ($_cs)" \
+        || warn "amorçage config_schema_version reporté au 1er upgrade"
 elif [[ -f "config.ini" ]]; then
     ok "config.ini déjà présent"
 else

@@ -1,15 +1,16 @@
 """inc_update.py — probes d'ajustement partagées (détection pure, sans effet).
 
-Cervelle commune de la doctrine de rattrapage (#94, cf. Compta_extension.md) :
+Cervelle commune de la doctrine de cohérence (#94/#98, cf. Compta_coherence.md) :
 des probes PURES qui lisent l'état RÉEL d'un clone et retournent un verdict
 texte. Deux front-ends les consomment, chacun à SA cadence, chacun RECALCULANT
 (aucun cache inter-acteur — fraîcheur garantie par construction) :
 
-  - cpt_gui (démarrage, quotidien) : AFFICHE les warnings / BLOQUE sur schema.
-  - install_update.py (post-pull, rare) : APPLIQUE les bénins / signale le reste.
+  - cpt_gui / cpt.py (démarrage, quotidien) : ALERTE — AFFICHE les warnings /
+    BLOQUE sur schema, ne mute JAMAIS.
+  - upgrade.py (rare) : RÉSOUT — applique les migrations et avance les marqueurs.
 
 Le partage est du CODE (ces fonctions), pas une donnée figée passée de l'un à
-l'autre : GUI et install_update sont deux process distincts, chacun appelle ces
+l'autre : démarrage et upgrade sont des process distincts, chacun appelle ces
 probes pour lui-même.
 
 Perf — le seul hotspot est l'ouverture du classeur (.xlsm à macros/NR). Les
@@ -26,18 +27,17 @@ from pathlib import Path
 import openpyxl
 
 
-# --- Badges de release (#99) -------------------------------------------------
-# Univers CLOS, 4 types (légende canonique CHANGELOG.md). Portés par
+# --- Badges de release ------------------------------------------------------
+# Univers CLOS, 5 types (légende canonique CHANGELOG.md). Portés par
 # upgrade_map.json (machine-lisible) ; le CHANGELOG en est le rendu humain, jamais
-# parsé. ACTIONABLE = badges qui réclament un geste au démarrage :
-#   🔧 migration classeur (→ upgrade) · ⚙️ config à mettre à niveau (→ upgrade).
-# 🔄 (reclone) est self-resolving — exécuter du code au-delà d'une frontière
-# reclone implique d'avoir reclôné ; 📘 (classeur exemple) n'est pas actionnable
-# en mode assisté. Ni l'un ni l'autre ne déclenche d'avis.
-# 🧱 (butée d'automatisation) est un MARQUEUR cross-périmètre (profondeur de
-# rattrapage) : pas de 'perimetre' propre — porté par l'entrée ; jamais actionnable.
+# parsé. L'avis au démarrage n'est PLUS dérivé des badges (modèle #99 retiré) mais
+# du MARQUEUR de chaque composant (cf. check_config_schema / check_schema_compat,
+# Compta_coherence.md) : la forme du marqueur porte la gravité. Les badges restent
+# DESCRIPTIFS (rendu par mode, légende). 🔄 (reclone) est franchi automatiquement
+# par upgrade ; 📘 (classeur exemple) n'est pas actionnable en mode assisté.
+# 🧱 (butée d'automatisation) est un MARQUEUR cross-périmètre : pas de 'perimetre'
+# propre — porté par l'entrée.
 KNOWN_BADGES = {'📘', '🔧', '🔄', '⚙️', '🧱'}
-ACTIONABLE_BADGES = {'🔧', '⚙️'}
 MARKER_BADGES = {'🧱'}  # badges sans section propre, routés par le périmètre de l'entrée
 
 
@@ -218,18 +218,6 @@ def load_upgrade_map(base_dir):
         return {}
 
 
-def config_migrations(base_dir):
-    """Migrations de schéma config carte-décrites (pendant config des migrations classeur).
-
-    PAS de gating par version : le config n'a pas de schéma de départ fiable
-    (honored_version est une croyance, pas l'état réel — cf. upgrade_map.json
-    _note_config_migrations). L'appelant (upgrade) les lance TOUTES ; chaque outil
-    est idempotent + auto-gated sur l'état réel du config.ini (vérifier-et-assurer).
-    Retourne la liste des entrées dans l'ordre de la carte.
-    """
-    return load_upgrade_map(base_dir).get('config_migrations', [])
-
-
 def pending_migrations(base_dir, classeur_schema, code_schema):
     """Calcule le chemin de migration d'un classeur depuis la carte.
 
@@ -307,11 +295,21 @@ def validate_upgrade_map(base_dir, code_schema):
             f"max(schema_to)={max_to} ≠ SCHEMA_VERSION code={code_schema} "
             f"(carte ou code désynchronisé).")
 
-    # les outils référencés existent
-    for m in migs:
+    # les outils référencés existent (migrations classeur + config)
+    for m in migs + cmap.get('config_migrations', []):
         tool = m.get('tool')
         if tool and not (Path(base_dir) / tool).exists():
             problems.append(f"outil absent : {tool} (migration {m.get('id')}).")
+
+    # chaîne config (marker-driven, #98) : la carte atteint le marqueur du code.
+    from inc_excel_schema import CONFIG_SCHEMA_VERSION
+    cfg_targets = [_parse_marker(m.get('schema_to'))
+                   for m in cmap.get('config_migrations', []) if m.get('schema_to')]
+    code_cfg = _parse_marker(CONFIG_SCHEMA_VERSION)
+    if cfg_targets and code_cfg and max(cfg_targets) != code_cfg:
+        problems.append(
+            f"max(config schema_to)={max(cfg_targets)} ≠ "
+            f"CONFIG_SCHEMA_VERSION={code_cfg} (carte ou code désynchronisé).")
 
     # légende : badge connu + périmètre valide (= SECTION du rendu) + au moins un
     # geste (= mode-applicabilité). Périmètre et geste sont indépendants (ex. 🔧 :
@@ -343,114 +341,84 @@ def validate_upgrade_map(base_dir, code_schema):
     return problems
 
 
-# --- Stamp honored_version (#99) — avis « version badgée non honorée » --------
-# Ferme la surface « git pull nu » du trou raquette upgrade que le gate dur
-# check_schema_compat laisse passer (pull de code SANS bump de schéma : fix,
-# badge ⚙️/🔄/📘). Dirty-bit O(1) : config.ini [general] honored_version. Tant
-# qu'il == APP_VERSION, silence total, ZÉRO sonde (pas d'ouverture classeur juste
-# pour découvrir qu'il n'y a rien à dire). Au-delà, lecture de la carte (cheap).
+# --- Marqueur de schéma config (#98) — avis ⚙️ « configuration à mettre à niveau »
+# Modèle de cohérence (cf. Compta_coherence.md) : le composant Configuration porte
+# un marqueur (config.ini [general] config_schema_version) ; le DÉMARRAGE le compare
+# au marqueur attendu (CONFIG_SCHEMA_VERSION) et ALERTE (lecture seule, n'écrit
+# RIEN) ; UPGRADE SEUL avance le marqueur. La FORME du marqueur porte la gravité :
+# major en retard → bloque · minor → avertit · absent ⇒ plancher 0.
+# Remplace l'ancien stamp honored_version (#99, retiré) : le marqueur config est
+# ancré sur l'état réel du composant, pas sur une « croyance » de version d'app —
+# d'où l'immunité au bug s.174 (migration config-JSON invisible au boot).
 
-def _parse_version(v):
-    """'5.3.1' → (5, 3, 1) pour comparaison ; () si illisible (jamais > rien)."""
-    try:
-        return tuple(int(x) for x in str(v).strip().split('.'))
-    except (ValueError, AttributeError):
-        return ()
+def _parse_marker(v):
+    """Marqueur de composant → (major, minor) pour comparaison.
 
-
-def _badged_versions(base_dir):
-    """[(version_tuple, set(badges)), ...] depuis la carte (entrées avec badges)."""
-    m = load_upgrade_map(base_dir)
-    out = []
-    for entry in (m.get('migrations', []) + m.get('actions', []) + m.get('config_migrations', [])):
-        av, badges = entry.get('app_version'), entry.get('badges')
-        if av and badges:
-            out.append((_parse_version(av), set(badges)))
-    return out
-
-
-def check_honored_version(config_path, base_dir, app_version=None):
-    """#99 — avis « version badgée non honorée » au démarrage. Détection PURE
-    (lit config.ini + upgrade_map.json, jamais le classeur, n'écrit RIEN) :
-    l'appelant écrit le stamp via write_honored_version (l'effet lui revient).
-
-    Décision (cf. CLAUDE_todo #99) :
-      - honored == APP_VERSION (ou clé seedée) → silence, zéro sonde.
-      - honored < APP_VERSION (un pull a eu lieu) → badges actionnables dans
-        ]honored, code] ? ⚙️ ne compte que si la config est RÉELLEMENT obsolète
-        (live, cheap) — résolu par install_fix ⇒ self-heal au démarrage suivant.
-          · aucun actionnable → version réputée honorée → stamp_to = APP_VERSION
-            (self-heal : le fast-path O(1) tient ensuite).
-          · 🔧 / ⚙️ actionnable → avis, stamp_to = None (n'avance que quand
-            upgrade / install_fix a fait le geste).
-      - clé absente (install pré-#99 / fraîche) → seed stamp_to = APP_VERSION,
-        silence (on ne nage pas un historique inconnu).
-
-    Args:
-        config_path: chemin de config.ini.
-        base_dir: racine du clone (upgrade_map.json).
-        app_version: override (tests) ; sinon inc_excel_schema.APP_VERSION.
-
-    Returns:
-        dict {verdict: 'silent'|'heal'|'advise', stamp_to: str|None,
-              message: str|None, badges: list[str]}.
+    Accepte un entier (NR classeur), une string '3' / '3.1' / '0.2', ou None.
+    Forme ENTIÈRE (sans '.') → (M, 0), domaine bloquant ; forme DÉCIMALE 'M.m' →
+    (M, m), domaine avertissement. None / illisible → None (l'appelant décide du
+    plancher). Comparer deux tuples donne directement « major puis minor ».
     """
-    if app_version is None:
-        from inc_excel_schema import APP_VERSION
-        app_version = APP_VERSION
+    if v is None:
+        return None
+    s = str(v).strip()
+    if not s:
+        return None
+    parts = s.split('.')
+    try:
+        major = int(parts[0])
+        minor = int(parts[1]) if len(parts) > 1 and parts[1] != '' else 0
+    except (ValueError, IndexError):
+        return None
+    return (major, minor)
 
-    silent = {'verdict': 'silent', 'stamp_to': None, 'message': None, 'badges': []}
+
+def read_config_schema(config_path):
+    """Lit [general] config_schema_version → string brute, ou None (absent/illisible)."""
     config_path = Path(config_path)
     if not config_path.exists():
-        return silent
+        return None
     cp = configparser.ConfigParser()
     try:
         cp.read(config_path, encoding='utf-8')
     except configparser.Error:
-        return silent
-
-    honored_raw = (cp.get('general', 'honored_version', fallback='')
-                   if cp.has_section('general') else '').strip()
-    if not honored_raw:                      # seed (install pré-#99 / fraîche)
-        return {'verdict': 'heal', 'stamp_to': app_version, 'message': None, 'badges': []}
-
-    honored, code = _parse_version(honored_raw), _parse_version(app_version)
-    if not honored or not code or honored >= code:
-        return silent                        # à jour (ou stamp illisible → on n'agit pas)
-
-    actionable = set()
-    for ver, badges in _badged_versions(base_dir):
-        if honored < ver <= code:
-            for b in badges & ACTIONABLE_BADGES:
-                if b == '⚙️' and not check_config_obsolete(config_path):
-                    continue                 # ⚙️ déjà résolu (config propre)
-                actionable.add(b)
-
-    if not actionable:                       # rien à faire → self-heal
-        return {'verdict': 'heal', 'stamp_to': app_version, 'message': None, 'badges': []}
-
-    parts = []
-    if '🔧' in actionable:
-        parts.append('migration du classeur en attente → mets à niveau (upgrade.py — cf. Compta_upgrade_assiste.md)')
-    if '⚙️' in actionable:
-        parts.append('config à mettre à niveau → mets à niveau (upgrade.py — cf. Compta_upgrade_assiste.md)')
-    msg = (f'Mise à jour du code détectée (version honorée {honored_raw} → '
-           f'{app_version}). Action requise :\n  ' + '\n  '.join(parts))
-    return {'verdict': 'advise', 'stamp_to': None, 'message': msg,
-            'badges': sorted(actionable)}
+        return None
+    val = (cp.get('general', 'config_schema_version', fallback='')
+           if cp.has_section('general') else '').strip()
+    return val or None
 
 
-def write_honored_version(config_path, version):
-    """Écrit/avance [general] honored_version = `version` dans config.ini.
+def pending_config_migrations(base_dir, config_schema, code_marker):
+    """Chemin de migration config depuis la carte (marker-driven, #98).
 
-    SEUL writer Python de config.ini : édition ligne à ligne préservant les
-    commentaires et la mise en page (comme set_mode côté shell), pas de dump
-    configparser. Partagé par tous les acteurs qui posent le stamp :
-    upgrade (fin de run OK, version disque), GUI / cpt.py (self-heal +
-    seed). EFFET (hors probes) — best-effort : une erreur est silencieuse (le
-    stamp n'est pas load-bearing, le gate dur check_schema_compat reste le
-    backstop). Retourne True si écrit.
+    Args:
+        config_schema: marqueur relevé (config.ini) — string ou None (absent ⇒ plancher (0,0)).
+        code_marker: CONFIG_SCHEMA_VERSION attendu par le code (string).
+
+    Returns:
+        list[dict]: entrées à jouer, dans l'ordre de la carte — celles dont
+        schema_to dépasse le relevé (jusqu'au code), PLUS les entrées SILENCIEUSES
+        (sans schema_to) rejouées systématiquement (idempotentes, run-all). Le
+        « run-all sans gating » d'avant #98 ne survit que pour ces silencieuses.
     """
+    migs = load_upgrade_map(base_dir).get('config_migrations', [])
+    releve = _parse_marker(config_schema) or (0, 0)
+    code = _parse_marker(code_marker)
+    out = []
+    for m in migs:
+        to = _parse_marker(m.get('schema_to'))
+        if to is None:                       # entrée silencieuse → toujours rejouée
+            out.append(m)
+        elif to > releve and (code is None or to <= code):
+            out.append(m)
+    return out
+
+
+def _write_general_key(config_path, key, value):
+    """SEUL writer Python de config.ini : pose/avance [general] `key` = `value` par
+    édition ligne à ligne (préserve commentaires et mise en page, comme set_mode
+    côté shell — JAMAIS de dump configparser, qui les écraserait). Best-effort :
+    une erreur est silencieuse. Retourne True si écrit."""
     config_path = Path(config_path)
     if not config_path.exists():
         return False
@@ -459,9 +427,9 @@ def write_honored_version(config_path, version):
     except OSError:
         return False
 
-    key_re = re.compile(r'^\s*honored_version\s*=', re.I)
+    key_re = re.compile(rf'^\s*#?\s*{re.escape(key)}\s*=', re.I)
     sec_re = re.compile(r'^\s*\[([^\]]+)\]')
-    stamp = f'honored_version = {version}\n'
+    stamp = f'{key} = {value}\n'
     out, in_general, written = [], False, False
     for line in lines:
         ms = sec_re.match(line)
@@ -472,7 +440,7 @@ def write_honored_version(config_path, version):
             in_general = (ms.group(1) == 'general')
             out.append(line)
             continue
-        if in_general and key_re.match(line):
+        if in_general and not written and key_re.match(line):
             out.append(stamp)
             written = True
             continue
@@ -490,75 +458,67 @@ def write_honored_version(config_path, version):
     return True
 
 
-def _catchup_unstamped_config_migrations(config_path, base_dir):
-    """#108 — TRANSITOIRE (à ôter quand l'amorçage à l'install posera honored_version
-    dès la création du config.ini ; cf. CLAUDE_todo #108).
+def write_config_schema(config_path, value):
+    """Écrit/avance [general] config_schema_version = `value` dans config.ini.
 
-    Rattrapage des installs NON STAMPÉES (code arrivé par `--align` sans ré-`upgrade`,
-    ou install pré-#99). Pour elles, la mécanique de boot ci-dessous prend le chemin
-    seed de check_honored_version, qui stampe APP_VERSION SANS jouer les migrations
-    config carte-driven → les `config_migrations` ne passent jamais (trou découvert
-    s.167 sur PROD : la migration XMR config restait non appliquée).
-
-    AVANT cette mécanique (qu'on ne touche pas) et UNIQUEMENT si le stamp est absent,
-    on exécute l'axe config carte (`config_migrations`) : chaque outil est idempotent,
-    gaté sur l'état réel du .ini, zéro-classeur → toujours sûr. Le stamp est ensuite
-    posé par la mécanique existante. Une fois stampé, ce pré-pas est inerte (return).
+    Appelé par UPGRADE SEUL (fin de run config) et le seed install — jamais par le
+    démarrage (qui n'alerte que). Best-effort (le marqueur n'est pas load-bearing :
+    les outils config restent idempotents + auto-gated sur l'état réel). Retourne
+    True si écrit.
     """
-    import subprocess
-    config_path = Path(config_path)
-    if not config_path.exists():
-        return
-    cp = configparser.ConfigParser()
-    try:
-        cp.read(config_path, encoding='utf-8')
-    except configparser.Error:
-        return
-    honored = (cp.get('general', 'honored_version', fallback='')
-               if cp.has_section('general') else '').strip()
-    if honored:                              # déjà stampé → rien à rattraper
-        return
-    for cm in config_migrations(base_dir):
-        tool = cm.get('tool')
-        if not tool:
-            continue
-        try:
-            r = subprocess.run(['python3', str(Path(base_dir) / tool), str(config_path)],
-                               cwd=str(base_dir), capture_output=True, text=True)
-        except OSError:
-            continue                         # best-effort : ne jamais casser le boot
-        if r.stdout.strip():
-            print(r.stdout.rstrip())
-        if r.returncode != 0:
-            err = f': {r.stderr.strip()}' if r.stderr.strip() else ''
-            print(f'⚠ #108 rattrapage config {tool} (rc={r.returncode}){err}')
+    return _write_general_key(config_path, 'config_schema_version', value)
 
 
-def startup_config_advice(config_path, base_dir, app_version=None):
-    """Avis config au démarrage (#105) — ordre canonique partagé CLI + GUI, pour
-    que les deux appelants ne divergent JAMAIS (1 seule source pour l'ordre).
+def check_config_schema(config_path, base_dir=None, code_marker=None):
+    """#98 — avis ⚙️ « configuration à mettre à niveau », piloté par le marqueur.
 
-    Gating mutuellement exclusif (fin de la double détection #99) :
-      1. check_honored_version D'ABORD (badge 🔧/⚙️ en attente ?) ; self-heal/seed
-         du stamp honored_version au passage (write_honored_version — seul writer
-         Python de config.ini).
-      2. badge en attente → cet avis SEUL : upgrade honore 🔧 ET ⚙️ (il lance
-         install_fix normalize ET les config_migrations via apply_benign) → citer
-         le générique check_config_obsolete (qui ne renvoie qu'à install_fix)
-         serait faux et redondant.
-         sinon → check_config_obsolete (filet générique) : il ne reste alors que
-         du générique à normaliser, donc son renvoi vers install_fix est juste.
-
-    La sonde ⚙️ INTERNE à check_honored_version (« ⚙️ encore actionnable ? ») reste
-    intacte ; ce gating ne vise que le check_config_obsolete AUTONOME des appelants.
+    Compare le marqueur relevé (config.ini, absent ⇒ plancher (0,0)) au marqueur
+    attendu (CONFIG_SCHEMA_VERSION). Détection PURE — n'écrit RIEN (upgrade SEUL
+    avance le marqueur). La FORME décide la gravité : major en retard → bloquant ·
+    minor → avertissement (cf. Compta_coherence.md). `base_dir` n'est pas utilisé
+    (le marqueur attendu vient du code) — gardé pour la symétrie de signature.
 
     Returns:
-        list[str]: avertissements à afficher, dans l'ordre (déjà dédupliqués).
+        dict {verdict: 'silent'|'advise', severity: 'warn'|'block'|None,
+              message: str|None}.
     """
-    _catchup_unstamped_config_migrations(config_path, base_dir)  # #108 (transitoire)
-    r = check_honored_version(config_path, base_dir, app_version)
-    if r['stamp_to']:
-        write_honored_version(config_path, r['stamp_to'])
+    if code_marker is None:
+        from inc_excel_schema import CONFIG_SCHEMA_VERSION
+        code_marker = CONFIG_SCHEMA_VERSION
+    silent = {'verdict': 'silent', 'severity': None, 'message': None}
+    code = _parse_marker(code_marker)
+    if code is None:
+        return silent
+    releve = _parse_marker(read_config_schema(config_path)) or (0, 0)
+    if releve >= code:
+        return silent
+    severity = 'block' if code[0] > releve[0] else 'warn'
+    lead = 'BLOQUANT — ' if severity == 'block' else ''
+    msg = (f'{lead}Configuration à mettre à niveau (schéma {releve[0]}.{releve[1]} '
+           f'→ {code[0]}.{code[1]}) → mets à niveau : upgrade.py '
+           f'(cf. Compta_upgrade_assiste.md).')
+    return {'verdict': 'advise', 'severity': severity, 'message': msg}
+
+
+def startup_config_advice(config_path, base_dir, code_marker=None):
+    """Avis config au démarrage — ordre canonique partagé CLI + GUI (1 seule source
+    pour que les deux appelants ne divergent JAMAIS).
+
+    Gating mutuellement exclusif :
+      1. check_config_schema D'ABORD (marqueur ⚙️ en retard ? — #98, marker-driven).
+      2. marqueur en retard → cet avis SEUL : upgrade honore le composant config
+         (install_fix normalize ET les config_migrations via apply_benign) → citer
+         en plus le générique check_config_obsolete (qui ne renvoie qu'à install_fix)
+         serait redondant.
+         sinon → check_config_obsolete (filet générique, toujours-ON) : il ne reste
+         alors que du générique à normaliser, son renvoi vers install_fix est juste.
+
+    Le DÉMARRAGE NE MUTE JAMAIS (ni marqueur ni config) — upgrade SEUL résout.
+
+    Returns:
+        list[str]: avertissements à afficher, dans l'ordre.
+    """
+    r = check_config_schema(config_path, base_dir, code_marker)
     if r['message']:
         return [r['message']]
     return check_config_obsolete(config_path)

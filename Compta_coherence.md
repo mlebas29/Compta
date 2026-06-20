@@ -54,7 +54,7 @@ Prépare une instance neuve : crée la config depuis `config.ini.default` et **p
 Déroulé :
 
 1. **Code** — appelle `git pull`, ou re-clone si l'historique git a été réécrit ;
-2. **Mises à niveau** — calcule le **chemin** par composant, exécute les outils nécessaires-et-suffisants, avec **sauvegarde** + **consentement** pour le non-anodin, puis **avance les marqueurs**.
+2. **Mises à niveau** — calcule le **chemin** par composant, exécute **automatiquement** les outils nécessaires-et-suffisants, **précédés d'une sauvegarde** (le filet : réversible via `--restore` — pas de consentement demandé), puis **avance les marqueurs**. Qui veut garder la main pas à pas passe par le geste manuel (`git pull` + outils lancés soi-même).
 
 **Mécanisme du chemin** (le « comment ») : pour chaque composant, prendre les entrées dont le **marqueur cible** dépasse le **marqueur relevé** de l'instance, jusqu'au **marqueur attendu** (celui du code) ; les entrées **sans marqueur cible** sont rejouées systématiquement (idempotentes).
 

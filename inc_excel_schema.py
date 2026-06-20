@@ -14,13 +14,22 @@ from typing import Optional
 
 
 # Version de l'application — incrémentée à chaque livraison
-APP_VERSION = "5.8.3"
+APP_VERSION = "5.9.0"
 
 # Version du schéma classeur — incrémentée à chaque changement de structure
 # (named ranges, colonnes, formules). Le classeur doit avoir un named range
 # SCHEMA_VERSION (constante) égal à cette valeur.
 # Voir Compta_upgrade_classeur.md pour l'historique et les procédures de migration.
+# Forme ENTIÈRE = domaine bloquant (cf. Compta_coherence.md : forme = gravité).
 SCHEMA_VERSION = 3
+
+# Version du schéma config — marqueur du composant Configuration (#98). Forme
+# `major.minor` (string) : major en retard → bloque · minor → avertit. Toutes les
+# migrations config actuelles sont tolérantes → décimales (major 0, jamais
+# bloquant). Marqueur stocké dans config.ini [general] config_schema_version,
+# avancé par upgrade SEUL. Distinct d'APP_VERSION et du SCHEMA_VERSION classeur.
+# Voir Compta_coherence.md (modèle) et upgrade_map.json (config_migrations).
+CONFIG_SCHEMA_VERSION = "0.2"
 
 # Noms des 9 champs de base (colonnes Opérations A-I)
 _BASE_FIELD_NAMES = (
