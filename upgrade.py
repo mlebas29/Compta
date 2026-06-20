@@ -135,33 +135,102 @@ def _do_reclone():
     return rc == 0
 
 
+# --- Rendu uniforme d'une étape du chemin (carte, #121) ---------------------
+# Chaque étape (step inconditionnel OU migration gated) s'affiche par UNE ligne
+# d'en-tête « {icône} {composant} — {libellé} : {verdict} », suivie du détail
+# (sortie de l'outil, ou citation read-only en --check). La parité simulé/réel
+# vient de la boucle : on REND toujours le verdict, on EXÉCUTE seulement hors
+# --check. Tue l'asymétrie de verbosité (avant : seul le classeur était encadré,
+# le shell se déversait brut) et le ℹ d'annonce réservé au classeur.
+_STEP_ICONS = {'ok': f'{GREEN}✓{NC}', 'todo': f'{YELLOW}⚠{NC}',
+               'force': f'{YELLOW}ℹ{NC}', 'fail': f'{RED}✗{NC}'}
+
+
+def _step(kind, component, label, verdict):
+    print(f'{_STEP_ICONS.get(kind, "•")} {component} — {label} : {verdict}')
+
+
+def _indent(text, prefix='   '):
+    return '\n'.join(prefix + ln for ln in text.splitlines())
+
+
+# Steps INCONDITIONNELS — l'id de la carte (steps[]) → (sonde, application). La sonde
+# (DRY_RUN / --dry-run) honore la convention EFFECTIVE-STATE #121 : rc 3 = CHANGERAIT,
+# rc 0 = rien, autre = erreur. L'application réelle rend 0 (succès) / non-0 (échec).
+# Invocation shell concrète gardée HORS du JSON déclaratif ; parité id↔runner vérifiée
+# par validate_upgrade_map. `. ./inc_install.sh` source la cervelle shell ; le préfixe
+# DRY_RUN=1 persiste (builtin `.`) jusqu'à la fonction appelée.
+_INC = '. ./inc_install.sh && '
+STEP_CMDS = {
+    'normalize':    ('DRY_RUN=1 ' + _INC + 'normalize_config config.ini',
+                     _INC + 'normalize_config config.ini'),
+    'raccourci':    ('DRY_RUN=1 ' + _INC + 'setup_desktop "$(pwd)" "$(read_mode config.ini)"',
+                     _INC + 'setup_desktop "$(pwd)" "$(read_mode config.ini)"'),
+    'custom_frame': ('DRY_RUN=1 ' + _INC + 'ensure_custom_frame .',
+                     _INC + 'ensure_custom_frame .'),
+}
+
+
+def _probe_and_apply(component, label, probe_cmd, apply_cmd, check):
+    """Contrat EFFECTIVE-STATE (#121). SONDE d'abord (probe_cmd, read-only) → rc 3 =
+    changerait / 0 = rien / autre = erreur. On n'AFFICHE / n'EXÉCUTE que si ça
+    changerait (politique (a) : les no-op sont cachés — plus de « forcé » qui
+    contredirait l'état effectif). Retourne (failed, todo)."""
+    rc, out = _run_bash(probe_cmd)
+    if rc not in (0, 3):
+        _step('fail', component, label, f'sonde en erreur (rc={rc})')
+        if out:
+            print(_indent(out))
+        return (1, 0)
+    if rc == 0:
+        return (0, 0)                        # no-op → caché
+    if check:                                # rc == 3 : changerait
+        _step('todo', component, label, 'à appliquer')
+        return (0, 1)
+    rc2, out2 = _run_bash(apply_cmd)         # apply : exécute réellement
+    if out2:
+        print(_indent(out2))
+    if rc2 != 0:
+        _step('fail', component, label, f'échec (rc={rc2})')
+        return (1, 0)
+    _step('ok', component, label, 'appliqué')
+    return (0, 0)
+
+
 def apply_benign(check=False):
-    """Étapes bénignes idempotentes. Retourne le nombre d'échecs.
+    """Volet config + steps inconditionnels du chemin (carte #121), en EFFECTIVE-STATE :
+    chaque étape est SONDÉE (would-change) puis affichée/jouée seulement si elle
+    changerait quelque chose (politique (a) — no-op cachés). Plus de notion « forcé » :
+    un step inconditionnel sans effet est silencieux comme une migration à jour. Ordre :
+    normalize (config) → migrations config → marqueur → raccourci, custom_frame (app).
+    Retourne (échecs, todo).
 
-    `check=True` (depuis `upgrade --check`) : parité simulé/réel SANS duplication
-    (#111) — chaque étape CITE sa détermination sans muter. Les étapes shell sont
-    lancées avec `DRY_RUN=1` (elles possèdent leur propre dry-run : citent + sautent
-    l'écriture) ; les migrations config pending (déterminées read-only par le marqueur)
-    sont citées sans être lancées ; le marqueur n'est PAS avancé.
-    """
-    failed = 0
-    env = 'DRY_RUN=1 ' if check else ''
+    Le composant Config porte un marqueur (config_schema_version, #98) : l'apply le pose
+    si le relevé diffère de la cible — c'est une CHANGE effective (écrit config.ini même
+    quand toutes les migrations sont no-op : données déjà au schéma, marqueur absent),
+    donc traitée comme une étape. Le marqueur n'avance que si aucune migration config
+    n'a échoué (sinon l'avis ⚙️ doit persister)."""
+    failed = todo = 0
+    cmap = inc_update.load_upgrade_map(BASE_DIR)
+    steps = {s.get('id'): s for s in cmap.get('steps', [])}
 
-    # config (normalize_config) + raccourci (setup_desktop) → délégués à
-    # install_fix.sh : #94 « délègue à install_fix pour la config ».
-    rc, out = _run_bash(f'{env}./install_fix.sh')
-    if out:
-        print(out)
-    if rc != 0:
-        print(f'{RED}✗{NC} install_fix.sh a échoué (rc={rc})')
-        failed += 1
+    def run_step(sid):
+        nonlocal failed, todo
+        s = steps.get(sid)
+        if not s:
+            return
+        probe, real = STEP_CMDS[sid]
+        f, t = _probe_and_apply(s.get('perimetre', '?'), s.get('summary', sid), probe, real, check)
+        failed += f
+        todo += t
 
-    # Migrations de SCHÉMA config — MARKER-DRIVEN (#98, upgrade_map.json
-    # config_migrations). Chemin = entrées dont le marqueur (schema_to) dépasse le
-    # relevé config.ini, jusqu'à CONFIG_SCHEMA_VERSION ; + entrées SILENCIEUSES
-    # (sans marqueur) rejouées systématiquement. Chaque outil reste idempotent +
-    # auto-gated sur l'état réel du .ini. Distinct de normalize_config (renommages
-    # génériques) ; check_config_obsolete reste le détecteur générique.
+    # 1. normalize (config)
+    run_step('normalize')
+
+    # 2. Migrations de SCHÉMA config — le MARQUEUR (#98) décide l'appartenance au chemin
+    # (entrées dont schema_to dépasse le relevé + silencieuses), mais chacune est SONDÉE
+    # (--dry-run rc 3/0) pour son effet RÉEL → une migration déjà appliquée (no-op, ex.
+    # xmr déjà migré) est cachée, plus affichée « à appliquer » à tort.
     from inc_excel_schema import CONFIG_SCHEMA_VERSION
     config_path = BASE_DIR / 'config.ini'
     releve = inc_update.read_config_schema(config_path)
@@ -170,46 +239,31 @@ def apply_benign(check=False):
         tool = cm.get('tool')
         if not tool:
             continue
-        if check:
-            print(f'{YELLOW}ℹ{NC} Migration config en attente : {tool} (serait appliquée).')
-            continue
-        rc, out = _run_bash(f'python3 {tool} config.ini')
-        if out:
-            print(out)
-        if rc != 0:
-            print(f'{RED}✗{NC} {tool} a échoué (rc={rc})')
-            config_failed += 1
+        label = cm.get('id', tool)
+        f, t = _probe_and_apply('config', label,
+                                f'python3 {tool} config.ini --dry-run',
+                                f'python3 {tool} config.ini', check)
+        config_failed += f
+        todo += t
     failed += config_failed
-    # Avance le marqueur config — UPGRADE SEUL résout puis pose la note
-    # (Compta_coherence.md) ; uniquement si aucune migration config n'a échoué (sinon
-    # l'avis ⚙️ doit persister) et seulement si le relevé diffère (écriture évitée si inchangé).
-    if not check and config_failed == 0 and releve != CONFIG_SCHEMA_VERSION:
-        inc_update.write_config_schema(config_path, CONFIG_SCHEMA_VERSION)
 
-    # cadre privé custom/ (#93) — rattrapage des installs antérieures à #93.
-    # Structurel (pose un .git vide), pas un pull du contenu privé.
-    rc, out = _run_bash(f'{env}. ./inc_install.sh && ensure_custom_frame .')
-    if out:
-        print(out)
-    if rc != 0:
-        print(f'{RED}✗{NC} ensure_custom_frame a échoué (rc={rc})')
-        failed += 1
+    # 3. Marqueur config (#98) — étape effective : posé si le relevé diffère de la cible.
+    # UPGRADE SEUL pose la note (Compta_coherence.md) ; pas si une migration config a
+    # échoué (l'avis ⚙️ doit persister).
+    if config_failed == 0 and (releve or '') != CONFIG_SCHEMA_VERSION:
+        if check:
+            _step('todo', 'config',
+                  f'marqueur de schéma ({releve or "absent"} → {CONFIG_SCHEMA_VERSION})', 'à poser')
+            todo += 1
+        else:
+            inc_update.write_config_schema(config_path, CONFIG_SCHEMA_VERSION)
+            _step('ok', 'config', f'marqueur de schéma → {CONFIG_SCHEMA_VERSION}', 'posé')
 
-    return failed
+    # 4. raccourci + cadre privé custom/ (app) — inconditionnels, sondés
+    run_step('raccourci')
+    run_step('custom_frame')
 
-
-def report():
-    """Report config (inc_update, par import). Retourne le nb de warnings.
-
-    Source canonique `startup_config_advice` (check_config_schema gaté PUIS
-    check_config_obsolete) — la MÊME que le démarrage GUI/CLI, pour que `--check`
-    prévisualise l'avance de marqueur config (#98) que l'apply posera, au lieu de
-    ne montrer que le générique obsolete. Le classeur est traité dans migrate().
-    """
-    warns = inc_update.startup_config_advice(BASE_DIR / 'config.ini', BASE_DIR)
-    for w in warns:
-        print(f'{YELLOW}⚠{NC} {w}')
-    return len(warns)
+    return failed, todo
 
 
 def _run_migration(tool):
@@ -224,15 +278,15 @@ def _run_migration(tool):
     rc = _run_interactive(f'./{tool} comptes.xlsm')
     if rc == 0:
         if digest() == before:
-            print(f'{GREEN}✓{NC} Classeur déjà à jour ({tool}) — rien migré.')
+            print(_indent(f'{GREEN}✓{NC} déjà à jour — rien migré.'))
             return {'tool': tool, 'result': 'noop'}
-        print(f'{GREEN}✓{NC} Migration appliquée ({tool}).')
+        print(_indent(f'{GREEN}✓{NC} migration appliquée.'))
         return {'tool': tool, 'result': 'applied'}
     if rc == 2:
-        print(f'{RED}✗{NC} LibreOffice < 24.8 — migration refusée par {tool} (classeur inchangé).')
-        print('   → migre depuis une machine LO≥24.8 (cf. Compta_upgrade_classeur.md).')
+        print(_indent(f'{RED}✗{NC} LibreOffice < 24.8 — migration refusée (classeur inchangé).'))
+        print(_indent('→ migre depuis une machine LO≥24.8 (cf. Compta_upgrade_classeur.md).'))
         return {'tool': tool, 'result': 'refused-lo'}
-    print(f'{RED}✗{NC} {tool} a échoué (rc={rc}).')
+    print(_indent(f'{RED}✗{NC} {tool} a échoué (rc={rc}).'))
     return {'tool': tool, 'result': 'failed'}
 
 
@@ -271,7 +325,7 @@ def migrate(check=False):
         return {'issues': 0, 'migrations': []}
     from inc_excel_schema import SCHEMA_VERSION as code_schema
 
-    problems = inc_update.validate_upgrade_map(BASE_DIR, code_schema)
+    problems = inc_update.validate_upgrade_map(BASE_DIR, code_schema, set(STEP_CMDS))
     if problems:
         print(f'{RED}✗{NC} Carte de migration incohérente — migration suspendue :')
         for p in problems:
@@ -282,9 +336,9 @@ def migrate(check=False):
     plan = inc_update.pending_migrations(BASE_DIR, classeur_schema, code_schema)
 
     if plan['below_floor']:
-        print(f'{YELLOW}⚠{NC} Classeur trop ancien pour la migration automatique '
-              f'(version {classeur_schema} sous le plancher de la carte).')
-        print('   → migration manuelle : voir Compta_upgrade_classeur.md.')
+        _step('fail', 'classeur', f'version {classeur_schema} sous le plancher de la carte',
+              'migration manuelle requise')
+        print(_indent('→ voir Compta_upgrade_classeur.md.'))
         return {'issues': 1, 'migrations': []}
 
     # Garde : la migration écrit le .xlsm via UNO ; refuser si le classeur est
@@ -296,9 +350,9 @@ def migrate(check=False):
     if pending and not check:
         busy = _classeur_busy(xlsx)
         if busy:
-            print(f"{RED}✗{NC} Classeur non migré — {', '.join(busy)}.")
-            print("   → ferme l'application et le classeur (LibreOffice), "
-                  "puis relance upgrade.py sur ce clone.")
+            _step('fail', 'classeur', ', '.join(busy), 'non migré (classeur occupé)')
+            print(_indent("→ ferme l'application et le classeur (LibreOffice), "
+                          "puis relance upgrade.py sur ce clone."))
             # bloqué ≠ décliné : ne PAS avancer le stamp (l'avis #99 doit
             # persister jusqu'à migration réelle) ni clamer un run OK.
             return {'issues': len(pending), 'migrations': [], 'blocked': True}
@@ -308,36 +362,35 @@ def migrate(check=False):
 
     # --- migrations structurelles : APPLIQUÉES (snapshot déjà pris → réversible) ---
     for m in plan['structural']:
-        print(f"{YELLOW}⚠{NC} Migration classeur SCHEMA {m['schema_from']}→{m['schema_to']} "
-              f"({m['summary']}) — {m['tool']}.")
+        _step('todo', 'classeur',
+              f"{m['summary']} (schéma {m['schema_from']}→{m['schema_to']})", 'à appliquer')
         if check:
-            issues += 1
-            print('   → (--check) non appliquée ; relance sans --check pour migrer.')
+            issues += 1     # l'en-tête « à appliquer » dit déjà tout (pas de détail redondant)
             continue
         r = _run_migration(m['tool'])
         ran.append(r)
         if r['result'] in ('failed', 'refused-lo'):
             issues += 1
 
-    # --- rattrapage (catch-up) idempotent (seulement si structurellement à jour) ---
+    # --- rattrapage (catch-up) idempotent — SONDÉ pour son effet réel (#121,
+    # effective-state) : `--dry-run` openpyxl read-only (SANS LibreOffice ; rc 3 =
+    # changerait, 0 = rien). Affiché/joué seulement s'il changerait (politique (a) :
+    # un classeur déjà fiabilisé est silencieux). ---
     c = plan['catchup']
     if c and not plan['structural']:
-        print(f"{YELLOW}ℹ{NC} Rattrapage classeur : {c['summary']} ({c['tool']}, idempotent).")
-        if check:
-            # Parité simulé/réel (#111) : le rattrapage n'a pas de marqueur → pour le
-            # PRÉDIRE en --check, on lance son `--dry-run` (détection openpyxl read-only,
-            # SANS LibreOffice ; code 3 = des changements seraient posés, 0 = rien).
-            rc, _ = _run_bash(f"./{c['tool']} comptes.xlsm --dry-run")
-            if rc == 3:
+        rc, _ = _run_bash(f"./{c['tool']} comptes.xlsm --dry-run")
+        if rc == 3:
+            _step('todo', 'classeur', c['summary'], 'à appliquer')
+            if check:
                 issues += 1
-                print('   → des alarmes orphelines seraient fiabilisées '
-                      '(relance sans --check pour appliquer).')
-            elif rc == 0:
-                print('   → déjà fiabilisé, rien à faire.')
             else:
-                print(f'   → dry-run indéterminé (code {rc}).')
-        else:
-            ran.append(_run_migration(c['tool']))
+                r = _run_migration(c['tool'])
+                ran.append(r)
+                if r['result'] in ('failed', 'refused-lo'):
+                    issues += 1
+        elif rc != 0:
+            _step('fail', 'classeur', f"{c['tool']} (sonde)", f'dry-run indéterminé (code {rc})')
+            issues += 1
 
     return {'issues': issues, 'migrations': ran}
 
@@ -688,20 +741,43 @@ def main():
         print('   → relance SANS --check : la phase A (pull/reclone) installe l\'outillage.')
         return 1
 
-    if status == 'ok' or args.check:
-        print(f'{YELLOW}--- Rattrapages ---{NC}')
-        failed = apply_benign(check=args.check)
-
-    print(f'{YELLOW}--- État ---{NC}')
     xlsx = BASE_DIR / 'comptes.xlsm'
     # classeur_schema inchangé par la phase A → lu avec le cerveau frais.
     from_state = {'app_version': from_app,
                   'classeur_schema': inc_update.read_classeur_schema(xlsx)}
-    config_issues = report()
+
+    # Marche unique pilotée par la CARTE (#121) : steps inconditionnels +
+    # migrations config (apply_benign) PUIS classeur (migrate). Chaque étape rend
+    # un verdict uniforme ; --check cite read-only, l'apply exécute → parité
+    # carte ↔ check ↔ apply par construction.
+    print(f'{YELLOW}--- Mise à niveau (carte) ---{NC}')
+    apply_todo = 0
+    if status == 'ok' or args.check:
+        failed, apply_todo = apply_benign(check=args.check)
     mig = migrate(check=args.check)
-    issues = config_issues + mig['issues']
-    if issues == 0:
-        print(f'{GREEN}✓{NC} Rien à signaler.')
+
+    # Diagnostic générique HORS carte : clés config obsolètes (.default) que les
+    # migrations dédiées ne couvrent pas. L'avis de SCHÉMA config, lui, est rendu
+    # par l'étape de migration config ci-dessus (plus de report() redondant —
+    # startup_config_advice reste pour le DÉMARRAGE GUI/CLI, inchangé).
+    obsolete = inc_update.check_config_obsolete(BASE_DIR / 'config.ini')
+    for w in obsolete:
+        print(f'{YELLOW}⚠{NC} {w}')
+
+    # Bilan. En --check, mig['issues'] = points classeur « à appliquer » ; apply_todo
+    # = migrations config « à appliquer ». On ne clame « à jour » que si RIEN n'est
+    # pending (sinon contradiction avec les « à appliquer » affichés). Hors --check,
+    # les pending ont été exécutés → mig['issues'] = échecs/refus résiduels.
+    issues = mig['issues'] + len(obsolete)
+    if args.check:
+        pending = apply_todo + mig['issues']
+        if pending == 0 and failed == 0 and not obsolete:
+            print(f'{GREEN}✓{NC} Déjà à jour — rien à appliquer.')
+        elif pending:
+            print(f'{YELLOW}ℹ{NC} {pending} point(s) à appliquer — '
+                  f'relance sans --check pour les appliquer.')
+    elif issues == 0 and failed == 0:
+        print(f'{GREEN}✓{NC} Tout est à jour.')
 
     if not args.check:        # le journal forensique ne trace que les RUNS réels
         # Run NULL (ni code avancé, ni config/classeur changés) → on jette le

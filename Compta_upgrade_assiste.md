@@ -64,7 +64,6 @@ _Le **nombre** dans la colonne d’un composant = le marqueur de schéma que la 
 |---|:--:|:--:|:--:|---|---|
 | v5.9.0 |  | ⚙️ `0.2` |  | `tool_migrate_config_cotations.py` | config_cotations.json dépollué : famille/décimales retirées (source unique = feuille Cotations) |
 | v5.7.0 |  | ⚙️ `0.1` |  | `tool_migrate_config_xmr.py` | [XMR] migré vers collecte par nœud distant (wallet-rpc) — site désactivé, reconfiguration + credential GPG requis (cf. Compta_xmr.md) |
-| v5.2.1 |  | ⚙️ |  | `install_fix.sh` | config normalisée (renommages hérités) |
 | v5.1.0 |  |  | 🔄 | `reclone.sh` | historique git réécrit (squash) — re-clone automatique par upgrade |
 | v5.0.1 | 📘 |  |  |  | classeur exemple livré (intègre la migration v5.0.0) |
 | v5.0.0 | 🔧 `3` |  |  | `tool_migrate_v5.0.0.py` | fiabilisation alarmes anti-#REF! orphelines |
@@ -72,6 +71,7 @@ _Le **nombre** dans la colonne d’un composant = le marqueur de schéma que la 
 | v4.0.0 | 📘 🔧 `2` |  |  | `tool_migrate_schema_v2.py` | drill devise (élimine les colonnes par devise) |
 | ≤ v3.x | 🧱 |  |  |  | schéma < 1 (pré-v3.4) : outils de migration retirés du dépôt git → migration manuelle (ancien mode classeur) |
 
+_**À chaque mise à jour**, `upgrade` vérifie aussi (et corrige si nécessaire — idempotent, hors gate de version) : ⚙️ normalisation de la config (renommages hérités) · raccourci de lancement (régénéré si le lanceur a changé) · cadre privé custom/ (dépôt git vide) — rattrapage des installs antérieures à v5.3.0._
 <!-- fin bloc généré -->
 
 ## Comment le script détermine le chemin

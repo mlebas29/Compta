@@ -34,11 +34,19 @@
       "app_version": "5.9.0", "badges": ["⚙️"],
       "summary": "config_cotations.json dépollué : famille/décimales retirées (source unique = feuille Cotations)" }
   ],
+  "_note_steps": "Étapes du chemin upgrade SANS marqueur (#121) : rattrapages idempotents évalués à CHAQUE run, distincts des migrations (dont l'appartenance au chemin est gatée par un marqueur). La carte DÉCLARE (id, badges, perimetre, summary) ; le code (upgrade.py STEP_CMDS) sait SONDER+EXÉCUTER par id — l'invocation shell reste hors JSON. Parité id↔runner vérifiée par validate_upgrade_map (un step sans runner, ou un runner sans entrée = drift). EFFECTIVE-STATE : chaque étape est sondée (would-change) ; `--check` n'affiche que ce qui changerait, l'apply ne joue que si nécessaire (no-op cachés — plus de « forcé »). Phase A (git pull / reclone) = transport, hors carte. Anciennement noyés dans le code (apply_benign) → la carte sous-décrivait upgrade ; les cataloguer ici ferme le trou de parité carte↔actions.",
+  "steps": [
+    { "id": "normalize", "perimetre": "config", "badges": ["⚙️"],
+      "summary": "normalisation de la config (renommages hérités)" },
+    { "id": "raccourci", "perimetre": "app",
+      "summary": "raccourci de lancement (régénéré si le lanceur a changé)" },
+    { "id": "custom_frame", "perimetre": "app",
+      "summary": "cadre privé custom/ (dépôt git vide) — rattrapage des installs antérieures à v5.3.0" }
+  ],
   "actions": [
     { "version_label": "≤ v3.x", "perimetre": "classeur", "badges": ["🧱"],
       "summary": "schéma < 1 (pré-v3.4) : outils de migration retirés du dépôt git → migration manuelle (ancien mode classeur)" },
     { "app_version": "5.0.1", "badges": ["📘"], "summary": "classeur exemple livré (intègre la migration v5.0.0)" },
-    { "app_version": "5.1.0", "badges": ["🔄"], "tool": "reclone.sh", "summary": "historique git réécrit (squash) — re-clone automatique par upgrade" },
-    { "app_version": "5.2.1", "badges": ["⚙️"], "tool": "install_fix.sh", "summary": "config normalisée (renommages hérités)" }
+    { "app_version": "5.1.0", "badges": ["🔄"], "tool": "reclone.sh", "summary": "historique git réécrit (squash) — re-clone automatique par upgrade" }
   ]
 }

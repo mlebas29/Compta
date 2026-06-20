@@ -86,6 +86,9 @@ normalize_config() {  # $1=config.ini
     fi
 
     [[ $changed -eq 0 ]] && ok "config déjà normalisée (rien à migrer)"
+    # Sonde effective-state (#121) : sous DRY_RUN, rc 3 = la normalisation CHANGERAIT
+    # quelque chose, rc 0 = rien. En réel l'écriture a eu lieu → rc 0.
+    if [[ -n "${DRY_RUN:-}" && $changed -eq 1 ]]; then return 3; fi
     return 0
 }
 
@@ -110,7 +113,7 @@ ensure_custom_frame() {  # $1=install_dir (défaut: répertoire courant)
     fi
     if [[ -n "${DRY_RUN:-}" ]]; then
         ok "cadre privé custom/ : serait posé (git init vide)"
-        return 0
+        return 3     # sonde effective-state (#121) : rc 3 = serait créé (le cas présent → rc 0 plus haut)
     fi
     mkdir -p "$dir" || { fail "création de custom/ impossible"; return 1; }
     git init -q "$dir" || { fail "git init custom/ a échoué"; return 1; }
@@ -122,6 +125,32 @@ ensure_custom_frame() {  # $1=install_dir (défaut: répertoire courant)
 # --- Raccourci de lancement (Linux .desktop / macOS .app) --------------------
 # Le CHEMIN vient du 1er arg ; libellé/icône/wm_class du MODE (2e arg).
 # PYTHON (absolu, bundle macOS) : variable d'env si définie, sinon python3.
+# Contenu cible du raccourci — FACTORISÉ pour que la SONDE dry-run (#121, compare à
+# l'installé) et l'ÉCRITURE réelle partent du MÊME template → zéro dérive sonde/écriture.
+_desktop_linux_content() {  # $1=install_dir $2=label $3=icon $4=wm_class
+    cat <<EOF
+[Desktop Entry]
+Name=Comptabilité ${2}
+Comment=Gestion comptable — collecte, import et appariement
+Exec=sh -c 'PATH="\$HOME/.local/bin:\$PATH" exec python3 ${1}/cpt_gui.py'
+Path=${1}
+Icon=${1}/${3}
+Terminal=false
+Type=Application
+Categories=Office;Finance;
+StartupWMClass=${4}
+EOF
+}
+
+_macos_exec_content() {  # $1=install_dir $2=python_abs
+    cat <<EOF
+#!/bin/bash
+export PATH="\$HOME/.local/bin:/opt/local/bin:/usr/local/bin:/opt/homebrew/bin:\$PATH"
+cd "${1}"
+exec "${2}" cpt_gui.py
+EOF
+}
+
 setup_desktop() {  # $1=install_dir  $2=mode (EX|PROD|DEV)
     local INSTALL_DIR="$1" INSTALL_MODE="$2"
     local PY="${PYTHON:-python3}"
@@ -133,12 +162,27 @@ setup_desktop() {  # $1=install_dir  $2=mode (EX|PROD|DEV)
         *)    _label="[EX]";   _icon="cpt_gui_export.png"; _wm="cpt_gui_export" ;;
     esac
 
-    # Régénère TOUJOURS le raccourci → en dry-run, la détermination est triviale
-    # (« serait régénéré ») : on cite et on sort avant toute écriture, sans toucher
-    # aux branches Linux/macOS (#111 parité --check).
+    # Sonde effective-state (#121) : génère le contenu cible et le compare à l'installé
+    # → rc 3 (le raccourci CHANGERAIT) / 0 (déjà à jour), SANS rien écrire. upgrade ne
+    # lance l'écriture réelle (plus bas) que si la sonde a renvoyé 3 → plus de
+    # réécriture pour rien, verdict --check exact. Même template des deux côtés
+    # (_*_content) → zéro dérive. macOS : on compare l'exécutable (porte INSTALL_DIR +
+    # python absolu, les plus volatils) ; plist/icône stables à mode fixé.
     if [[ -n "${DRY_RUN:-}" ]]; then
-        ok "Raccourci : serait (re)généré (mode $INSTALL_MODE)"
-        return 0
+        if [[ $OS == linux ]]; then
+            local f="$HOME/.local/share/applications/cpt_gui_${INSTALL_MODE}.desktop"
+            if [[ -f "$f" && "$(_desktop_linux_content "$INSTALL_DIR" "$_label" "$_icon" "$_wm")" == "$(cat "$f")" ]]; then
+                ok "Raccourci : déjà à jour (mode $INSTALL_MODE)"; return 0
+            fi
+        elif [[ $OS == macos ]]; then
+            local _sfx=""; [[ "$INSTALL_MODE" != EX ]] && _sfx=" $INSTALL_MODE"
+            local _exe="$HOME/Applications/Comptabilité${_sfx}.app/Contents/MacOS/Comptabilité${_sfx}"
+            local _pyabs; _pyabs=$(command -v "$PY")
+            if [[ -f "$_exe" && "$(_macos_exec_content "$INSTALL_DIR" "$_pyabs")" == "$(cat "$_exe")" ]]; then
+                ok "Raccourci : déjà à jour (mode $INSTALL_MODE)"; return 0
+            fi
+        fi
+        ok "Raccourci : serait (re)généré (mode $INSTALL_MODE)"; return 3
     fi
 
     if [[ $OS == linux ]]; then
@@ -146,18 +190,7 @@ setup_desktop() {  # $1=install_dir  $2=mode (EX|PROD|DEV)
         mkdir -p "$DESKTOP_DIR"
         local DESKTOP_FILE="$DESKTOP_DIR/cpt_gui_${INSTALL_MODE}.desktop"
         # Exec via sh -c pour ajouter ~/.local/bin au PATH (wrapper python3-uno).
-        cat > "$DESKTOP_FILE" <<EOF
-[Desktop Entry]
-Name=Comptabilité ${_label}
-Comment=Gestion comptable — collecte, import et appariement
-Exec=sh -c 'PATH="\$HOME/.local/bin:\$PATH" exec python3 ${INSTALL_DIR}/cpt_gui.py'
-Path=${INSTALL_DIR}
-Icon=${INSTALL_DIR}/${_icon}
-Terminal=false
-Type=Application
-Categories=Office;Finance;
-StartupWMClass=${_wm}
-EOF
+        _desktop_linux_content "$INSTALL_DIR" "$_label" "$_icon" "$_wm" > "$DESKTOP_FILE"
         update-desktop-database "$DESKTOP_DIR" 2>/dev/null || true
         DESKTOP_TARGET="$DESKTOP_FILE"
         ok "Raccourci installé (${DESKTOP_FILE})"
@@ -181,12 +214,7 @@ EOF
         # Chemin absolu de python (Dock = PATH minimal) + PATH augmenté pour
         # les subprocess GUI (UNO / OCR / gpg).
         local PYTHON_ABS; PYTHON_ABS=$(command -v "$PY")
-        cat > "$APP_BUNDLE/Contents/MacOS/$APP_NAME" <<EOF
-#!/bin/bash
-export PATH="\$HOME/.local/bin:/opt/local/bin:/usr/local/bin:/opt/homebrew/bin:\$PATH"
-cd "${INSTALL_DIR}"
-exec "${PYTHON_ABS}" cpt_gui.py
-EOF
+        _macos_exec_content "$INSTALL_DIR" "$PYTHON_ABS" > "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
         chmod +x "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
 
         cat > "$APP_BUNDLE/Contents/Info.plist" <<EOF

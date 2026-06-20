@@ -262,11 +262,16 @@ def pending_migrations(base_dir, classeur_schema, code_schema):
             'below_floor': False, 'up_to_date': up_to_date}
 
 
-def validate_upgrade_map(base_dir, code_schema):
+def validate_upgrade_map(base_dir, code_schema, known_step_ids=None):
     """Cohérence de la carte vs le code. Retourne list[str] de problèmes (vide=OK).
 
     Filet de la barrière de release : détecte une carte désynchronisée (SCHEMA
     bumpé sans entrée carte, trou dans la chaîne, outil disparu).
+
+    `known_step_ids` (set, optionnel) : ids des runners de steps INCONDITIONNELS
+    connus de l'appelant (upgrade.STEP_RUNNERS). Fourni → parité id↔runner
+    BIDIRECTIONNELLE vérifiée (un step de la carte sans runner, ou un runner sans
+    entrée steps[] = drift, #121). None → contrôle sauté (appelants hors-upgrade).
     """
     problems = []
     cmap = load_upgrade_map(base_dir)
@@ -331,12 +336,29 @@ def validate_upgrade_map(base_dir, code_schema):
         if 'assiste' not in geste and 'assiste_avant' not in geste:
             problems.append(f"badge {b} sans geste assisté.")
 
-    # badge utilisé (migrations + config_migrations + actions) ⊆ légende
-    for entry in migs + actions + cmap.get('config_migrations', []):
+    # badge utilisé (migrations + config_migrations + steps + actions) ⊆ légende
+    steps = cmap.get('steps', [])
+    for entry in migs + actions + cmap.get('config_migrations', []) + steps:
         ref = entry.get('id') or entry.get('app_version') or '?'
         for b in (entry.get('badges') or []):
             if b not in legend:
                 problems.append(f"badge « {b} » absent de badges_legend (entrée {ref}).")
+
+    # steps[] (#121) : id obligatoire, périmètre valide, parité id↔runner.
+    carte_ids = set()
+    for s in steps:
+        sid = s.get('id')
+        if not sid:
+            problems.append('step sans id dans steps[].')
+            continue
+        carte_ids.add(sid)
+        if s.get('perimetre') not in valid_perim:
+            problems.append(f"périmètre invalide « {s.get('perimetre')} » (step {sid}).")
+    if known_step_ids is not None:
+        for sid in sorted(carte_ids - set(known_step_ids)):
+            problems.append(f"step « {sid} » sans runner (carte ↛ code, #121).")
+        for sid in sorted(set(known_step_ids) - carte_ids):
+            problems.append(f"runner « {sid} » sans entrée steps[] (code ↛ carte, #121).")
 
     return problems
 

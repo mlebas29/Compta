@@ -145,6 +145,20 @@ def render_matrix(rows, active, mode_badges, badge_perim, show_tool, show_marker
     return out
 
 
+def _steps_note(steps):
+    """Note des étapes SANS marqueur (carte steps[], #121) — listées HORS du tableau
+    version×composant : un step sans badge (cadre privé) ou multi-composant ne s'y
+    range pas proprement (il finirait sous une mauvaise colonne / surchargerait une
+    ligne). Le composant est nommé dans le texte, pas porté par une colonne. Vide si
+    aucun step."""
+    if not steps:
+        return []
+    items = [f"{' '.join(s.get('badges') or [])} {s.get('summary', '')}".strip()
+             for s in steps]
+    return ['', '_**À chaque mise à jour**, `upgrade` vérifie aussi (et corrige si '
+            'nécessaire — idempotent, hors gate de version) : ' + ' · '.join(items) + '._']
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0],
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -196,6 +210,10 @@ def main():
                       'incompatible), **décimal** (`0.2`) avertit ; **aucun** = silencieux '
                       '(rejoué, sans alerte). Cf. `Compta_coherence.md`._']
         lines += [''] + render_matrix(rows, active, mode_badges, badge_perim, assiste, assiste)
+        # Étapes sans marqueur (steps[]) : en NOTE sous le tableau, pas en ligne — et
+        # seulement en assisté (elles décrivent ce que fait `upgrade`).
+        if assiste:
+            lines += _steps_note(cmap.get('steps', []))
     lines.append('')   # ligne vide finale : sépare le tableau du marqueur de fin de bloc
     print('\n'.join(lines))
     return 0

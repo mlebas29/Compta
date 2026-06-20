@@ -15,7 +15,6 @@ Vous tenez le classeur à la main, sans `upgrade` (pour le mode assisté en un g
 | v5.0.1 | 📘 | classeur exemple livré (intègre la migration v5.0.0) |
 | v4.1.0 | 📘 | refonte CTRL2 + alarmes |
 | v4.0.0 | 📘 | drill devise (élimine les colonnes par devise) |
-
 <!-- fin bloc généré -->
 
 **Notes :**

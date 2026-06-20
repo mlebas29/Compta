@@ -24,10 +24,11 @@ from pathlib import Path
 _DROP_KEYS = ('famille', 'decimals')
 
 
-def migrate(cot_path):
+def migrate(cot_path, dry_run=False):
     """Retire famille/décimales du JSON + supprime les entrées vides.
 
-    Retourne True si une modification a eu lieu, False sinon (no-op)."""
+    `dry_run=True` : DÉTECTE sans écrire (sonde effective-state #121).
+    Retourne True si une modification a eu (aurait) lieu, False sinon (no-op)."""
     path = Path(cot_path)
     if not path.exists():
         return False
@@ -50,16 +51,25 @@ def migrate(cot_path):
 
     if not changed:
         return False
+    if dry_run:
+        return True
     write_cotations_json(path, cleaned)
     return True
 
 
 def main():
-    if len(sys.argv) > 1:
-        cot_path = Path(sys.argv[1]).resolve().parent / 'config_cotations.json'
+    argv = sys.argv[1:]
+    dry = '--dry-run' in argv
+    pos = [a for a in argv if not a.startswith('--')]
+    if pos:
+        cot_path = Path(pos[0]).resolve().parent / 'config_cotations.json'
     else:
         import inc_mode
         cot_path = inc_mode.get_base_dir() / 'config_cotations.json'
+
+    # Sonde effective-state (#121) : rc 3 = dépolluerait / 0 = déjà dépollué, sans écrire.
+    if dry:
+        return 3 if migrate(cot_path, dry_run=True) else 0
 
     if migrate(cot_path):
         print('✓ config_cotations.json dépollué (famille/décimales → classeur ; entrées conservées)')

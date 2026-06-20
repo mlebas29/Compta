@@ -45,8 +45,11 @@ refresh_timeout = 300
 tunnel_timeout = 15"""
 
 
-def migrate(config_path):
-    """Migre le bloc [XMR] en place. Retourne True si une migration a eu lieu."""
+def migrate(config_path, dry_run=False):
+    """Migre le bloc [XMR] en place. Retourne True si une migration a eu (aurait) lieu.
+
+    `dry_run=True` : DÉTECTE sans écrire (sonde effective-state #121) — le déclencheur
+    présent ⇒ la migration changerait le bloc."""
     path = Path(config_path)
     if not path.exists():
         return False
@@ -67,6 +70,8 @@ def migrate(config_path):
     # Gate : déclencheur présent (ancien schéma) ?
     if not any(re.match(rf'\s*{SENTINEL}\s*=', l) for l in block):
         return False
+    if dry_run:
+        return True     # déclencheur présent → la migration changerait le bloc
 
     # Préserver credential_id (mot de passe wallet) et max_days_back
     def grab(key, default):
@@ -97,11 +102,18 @@ def migrate(config_path):
 
 
 def main():
-    if len(sys.argv) > 1:
-        config_path = Path(sys.argv[1])
+    argv = sys.argv[1:]
+    dry = '--dry-run' in argv
+    pos = [a for a in argv if not a.startswith('--')]
+    if pos:
+        config_path = Path(pos[0])
     else:
         import inc_mode
         config_path = inc_mode.get_base_dir() / 'config.ini'
+
+    # Sonde effective-state (#121) : rc 3 = migrerait / 0 = déjà au schéma, sans écrire.
+    if dry:
+        return 3 if migrate(config_path, dry_run=True) else 0
 
     if migrate(config_path):
         print(f'✓ [XMR] migré vers nœud distant (wallet-rpc) + site désactivé')
