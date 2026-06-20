@@ -61,7 +61,7 @@ def _build_transfer_pairs():
     import json
     from pathlib import Path
     try:
-        _acc = json.load(open(Path(__file__).parent / 'config_accounts.json', encoding='utf-8'))
+        _acc = json.load(open(BASE_DIR / 'config_accounts.json', encoding='utf-8'))
     except (OSError, ValueError):
         _acc = {}
     pairs = {}
@@ -84,7 +84,7 @@ def _build_internal_transfers():
     from pathlib import Path
     groups = []
     try:
-        _acc = json.load(open(Path(__file__).parent / 'config_accounts.json', encoding='utf-8'))
+        _acc = json.load(open(BASE_DIR / 'config_accounts.json', encoding='utf-8'))
     except (OSError, ValueError):
         _acc = {}
     # SOCGEN : hub = compte principal, spokes = épargne + assurance vie (déduit des types)

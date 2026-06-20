@@ -33,7 +33,7 @@ from datetime import datetime
 from pathlib import Path
 
 from inc_fetch import BaseFetcher, fetch_main, tesseract_install_hint, ensure_tesseract_cmd
-from inc_format import site_name_from_file
+from inc_format import site_name_from_file, base_dir
 
 SITE = site_name_from_file(__file__)
 
@@ -117,7 +117,7 @@ URL_BASE_AVD = "https://particuliers.sg.fr/icd/avd/index-authsec.html"
 URL_SYNTHESE = f"{URL_BASE_CBO}#/synthese"
 
 # Comptes et assurances vie : chargés depuis config_accounts.json
-_ACCOUNTS_JSON = Path(__file__).parent / 'config_accounts.json'
+_ACCOUNTS_JSON = base_dir() / 'config_accounts.json'
 with open(_ACCOUNTS_JSON, 'r', encoding='utf-8') as _f:
     _sg_config = json.load(_f).get(SITE, {})
 

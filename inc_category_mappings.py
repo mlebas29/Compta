@@ -9,6 +9,7 @@ Utilisation dans format scripts via inc_categorize.py
 """
 
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -17,7 +18,11 @@ from pathlib import Path
 # CHARGEMENT DES PATTERNS DEPUIS JSON
 # ============================================================================
 
-_JSON_PATH = Path(__file__).parent / 'config_category_mappings.json'
+# Racine du clone : override COMPTA_BASE_DIR (sandbox TNR, install custom) sinon
+# le dossier du code. Résolveur INLINE et non `inc_format.base_dir()` : l'import
+# inc_format→inc_categorize→inc_category_mappings créerait un cycle (#111).
+_BASE = os.environ.get('COMPTA_BASE_DIR')
+_JSON_PATH = (Path(_BASE) if _BASE else Path(__file__).resolve().parent) / 'config_category_mappings.json'
 _patterns_by_group = None  # Cache chargé au premier appel
 
 

@@ -834,7 +834,8 @@ def compare_xlsx_with_prev(comptes_file, archives_dir, prev=1, warn_threshold=No
 def _read_config_threshold():
     """Lit le seuil warn_threshold depuis config.ini [comparison]."""
     import configparser
-    config_path = Path(__file__).parent / 'config.ini'
+    from inc_format import base_dir  # local : honore COMPTA_BASE_DIR, évite tout cycle d'import (#111)
+    config_path = base_dir() / 'config.ini'
     if not config_path.exists():
         return None
     config = configparser.ConfigParser()
