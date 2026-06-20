@@ -10,13 +10,14 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 Les trois derniers sont spécifiques au mode assisté ; 📘 concerne le mode classeur.
 
 ## v5.9.0 ⚙️
-| 2026-06-20 | Révision et améliorations majeures de la mise à niveau (upgrade) |
+| 2026-06-21 | Révision et améliorations majeures de la mise à niveau (upgrade) |
 | ---------- | ------------------------------------------------------------ |
 
 **Détail :**
 
 - **Généralité** — la mécanique de mise à niveau (`upgrade`) est étendue au composant Configuration.
 - **Flexibilité** — l'outil `upgrade.py` offre deux usages : un mode automatique (plus de confirmation à chaque étape) et un mode manuel, assisté par une carte des outils et mises à niveau disponibles.
+- **Lisibilité** — `upgrade` (automatique comme simulation `--check`) n'affiche plus que ce qui changerait réellement sur votre installation ; les étapes déjà à jour restent silencieuses.
 - **Sécurité** (1) — la mise à niveau automatique est précédée d'une sauvegarde, réversible à tout moment (`--restore`) — c'est elle qui remplace les confirmations.
 - **Sécurité** (2) — au démarrage, l'application signale les mises à niveau en attente et bloque celles qui sont impératives.
 - **Documentation** — le guide de mise à jour assistée ([`Compta_upgrade_assiste.md`](Compta_upgrade_assiste.md)) est réécrit, complété par un document d'architecture ([`Compta_coherence.md`](Compta_coherence.md)).
