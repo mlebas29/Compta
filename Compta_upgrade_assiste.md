@@ -1,21 +1,40 @@
 # Mise à jour (mode assisté)
 
-> **⚠️ Changement de méthode — depuis v5.3.0.** La mise à jour assistée se fait désormais avec `upgrade.py`. Ce **geste unique** remplace les anciennes procédures (`git pull` + scripts `tool_migrate_*` enchaînés à la main, re-clone manuel) et fonctionne **quelle que soit votre version de départ** — il met à jour automatiquement les versions antérieures à v5.1.0, dont l'historique git a été réécrit. **Si une doc d'une version antérieure décrit une autre procédure, préférez lui celle-ci.**
+## Méthode
+
+La mise à jour de l'application, de ses réglages et du classeur se fait désormais avec `upgrade.py`. Ce geste unique :
+
+- remplace les anciennes procédures (`git pull` + scripts `tool_migrate_*` enchaînés à la main, re-clone manuel) ;
+- met à jour automatiquement les **marqueurs** de chaque composant (cf. la *Carte* ci-dessous).
+
+L'outil est :
+
+- **réversible** : avant toute modification, une sauvegarde est faite (config, classeur, version du code). Un lancement qui ne change rien ne laisse pas de sauvegarde.
+- **idempotent** : un 2ᵉ passage ne refait rien d'inutile.
+
+Deux façons de le lancer (A distante, B locale) ; une échappatoire manuelle pour le dépannage ou le **cas trivial** (`git pull` suffit : pas de badge, ni outil, ni marqueur).
+
+### A — Méthode distante
+
+Cette méthode fonctionne **pour toutes les versions**, même celles qui ne disposent pas encore de l'outil localement (avant v5.3.0). **Si une doc d'une version antérieure décrit une autre procédure, préférez celle-ci.**
 
 ```bash
-# Depuis un terminal: télécharger puis lancer upgrade.py.
+# Depuis un terminal : télécharger puis lancer upgrade.py.
 curl -fsSL https://github.com/mlebas29/Compta/raw/main/upgrade.py -o /tmp/upgrade.py
 python3 /tmp/upgrade.py ~/Compta
 # ~/Compta à remplacer éventuellement par le dossier réellement utilisé
 ```
 
-Tout ce que la carte prévoit est **appliqué automatiquement** — `upgrade.py` fait le nécessaire sans rien vous demander. Idempotent (un 2ᵉ passage ne refait rien d'inutile).
+### B — Méthode locale
 
-**Avant toute modification, une sauvegarde est faite** (config, classeur, version du code) : c'est le **filet** qui rend l'upgrade **réversible** (cf. *Restauration*) — il remplace toute demande de confirmation. Un lancement qui ne change rien ne laisse pas de sauvegarde.
+Depuis v5.3.0, `upgrade.py` est présent dans le dossier Compta et se lance comme les autres outils.
 
-> **Vous préférez garder la main ?** Faites la mise à jour **manuellement** : un `git pull` (ou un re-clone si l'historique a été réécrit), puis lancez vous-même les outils de la colonne **Outil** de la *Carte* ci-dessous. `upgrade.py` n'est que le geste **automatique** de ce même chemin.
+```bash
+# Depuis un terminal : lancer upgrade.py présent dans le dossier.
+python3 upgrade.py .
+```
 
-
+Plus simple ; et si la mise à jour exige un **re-clone 🔄** (historique git réécrit), l'outil **s'arrête proprement** et renvoie vers la méthode A — il ne fait jamais un re-clone à moitié.
 
 ## Séquence de mise à jour
 
