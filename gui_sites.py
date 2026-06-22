@@ -121,6 +121,7 @@ class SitesMixin:
             'dossier': 'Dossier',
             'drive_folder': 'Dossier Drive',
             'drive_account': 'Compte Drive',
+            'poll_timeout': 'Timeout collecte (s)',
             'wallet_rpc_ssh_host': 'Hôte SSH wallet-rpc',
             'wallet_rpc_port': 'Port wallet-rpc',
             'wallet_rpc_local_port': 'Port tunnel local',

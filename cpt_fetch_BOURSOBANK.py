@@ -906,7 +906,7 @@ class BbFetcher(BaseFetcher):
             target_name = f"export_{account_name}.csv"
             target_path = self.dropbox_dir / target_name
 
-            # Dispatch OS-aware (doctrine anti-régression, cf. KRAKEN/YUH) — ne
+            # Dispatch OS-aware (doctrine anti-régression, cf. KRAKEN) — ne
             # jamais choisir un chemin CONTRE l'autre :
             #   • Linux : soumission navigateur (#movementSearch_submit) + capture
             #     du download. BoursoBank ne sert le CSV (Content-Disposition:
