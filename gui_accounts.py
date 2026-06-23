@@ -20,10 +20,17 @@ except ImportError:
     messagebox = None
     ttk = None
 
+import inc_format
 from inc_excel_schema import (
     ColResolver,
     SHEET_AVOIRS, SHEET_CONTROLES, SHEET_OPERATIONS, SHEET_PLUS_VALUE,
 )
+
+# Sites publics dont les champs de compte sont câblés en dur ci-dessous
+# (logique conditionnelle propre). Les autres — sites custom/privés — déclarent
+# leurs champs via ACCOUNT_FIELDS dans leur module cpt_format_<SITE>.py
+# (hook générique, cf. inc_format.get_account_fields) → aucun nom privé en PUB.
+_WIRED_FIELD_SITES = ('SOCGEN', 'BOURSOBANK', 'BTC', 'XMR')
 
 
 class AccountsMixin:
@@ -260,7 +267,8 @@ class AccountsMixin:
                 ('Clé :', 'wallet_key', 'entry', None),
                 ('Portefeuille :', 'wallet_name', 'entry', None),
             ]
-        return []
+        # Sites custom/privés : champs déclarés par le module (hook générique)
+        return inc_format.get_account_fields(site)
 
     def _count_site_accounts(self, site, type_sg=None):
         """Compte les comptes existants d'un site (optionnel: par type_sg)."""
@@ -354,6 +362,15 @@ class AccountsMixin:
         if 'addresses' in values and values['addresses']:
             values['addresses'] = [a.strip() for a in values['addresses'].split(',')
                                    if a.strip()]
+
+        # Sites custom (champs déclarés via ACCOUNT_FIELDS) : tout champ déclaré
+        # est requis (un site ne déclare un champ que parce qu'il en a besoin).
+        if site not in _WIRED_FIELD_SITES:
+            for key, val in values.items():
+                if not val:
+                    messagebox.showwarning('Champ requis',
+                        f"Le champ « {key} » est obligatoire.", parent=dlg)
+                    return None
 
         return values
 

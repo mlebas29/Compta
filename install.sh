@@ -581,9 +581,18 @@ if [[ ! -f "config.ini" && -f "config.ini.default" ]]; then
     # avis ⚙️ au boot et sans migration config à rejouer (cf. Compta_coherence.md).
     # Best-effort : un échec est rattrapé au 1er upgrade, on ne fait jamais avorter
     # l'install (|| warn).
+    # Dé-commente/pose la clé via l'idiome portable d'édition de config.ini déjà
+    # utilisé par set_mode/normalize_config : `sed -i.bak -E … && rm -f .bak`.
+    #   - `-i.bak` (suffixe ATTACHÉ) marche sur GNU *et* BSD, là où l'ancien
+    #     `sed -i "s/…"` échouait sur macOS (BSD : -i exige un suffixe) ;
+    #   - `-E` (ERE) rend `?` valide sans backslash (fini la GNU-ism `\?`).
+    # En shell pur → pas de dépendance Python tierce (importer inc_update tirerait
+    # openpyxl, indisponible si $PYTHON ≠ `python3` sur Mac). La version, elle, se
+    # lit via inc_excel_schema (sans dépendance). Best-effort (|| warn).
     _cs=$(python3 -c 'from inc_excel_schema import CONFIG_SCHEMA_VERSION as v; print(v)' 2>/dev/null) \
         && [[ -n "$_cs" ]] \
-        && sed -i "s/^#\?config_schema_version *=.*/config_schema_version = $_cs/" config.ini \
+        && sed -i.bak -E "s|^[[:space:]]*#?[[:space:]]*config_schema_version[[:space:]]*=.*|config_schema_version = $_cs|" config.ini \
+        && rm -f config.ini.bak \
         && ok "config_schema_version amorcé ($_cs)" \
         || warn "amorçage config_schema_version reporté au 1er upgrade"
 elif [[ -f "config.ini" ]]; then

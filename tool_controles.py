@@ -43,10 +43,12 @@ def read_a1_status(sheet):
     return cell_a1.String
 
 
-# 7 contrôles individuels dans Contrôles : K63..K65 + K69..K70 + K75..K76
-# (col K = 10 0-based, rows 0-based ci-dessous).
-# A1 = =$K$80 ne fournit qu'un symbole global ; le détail se lit directement ici.
-_CTRL_CELLS = [(10, 62), (10, 63), (10, 64), (10, 68), (10, 69), (10, 74), (10, 75)]
+# Les 7 verdicts individuels se lisent via les NAMED RANGES du schéma (jamais par
+# des cellules en dur) : CTRL2type = libellés (col J), CTRL2affichage = verdicts
+# ✓/✗/⚠ (col K), CTRL2_synthese = global (= ce que reflète A1). Le bloc de synthèse
+# se déplace verticalement selon le nombre de comptes (tableau d'écarts CTRL1
+# au-dessus) → tout offset en dur dérivait en silence (cellules vides lues comme
+# '✓' = faux négatif). cf. read_ctrl_tokens.
 _CTRL_LABELS = [
     'COMPTES',
     'CATÉGORIES',
@@ -67,15 +69,38 @@ _CTRL_EXPLANATIONS = [
 ]
 
 
-def read_ctrl_tokens(sheet):
-    """Lit les 7 contrôles individuels (K63..K76 selon _CTRL_CELLS).
+def read_ctrl_tokens(doc):
+    """Lit les 7 verdicts de contrôle via les named ranges CTRL2type (libellés) et
+    CTRL2affichage (verdicts) — robuste au décalage de lignes (le bloc de synthèse
+    se déplace selon le nombre de comptes). Chaque contrôle est repéré par son
+    libellé ; un contrôle INTROUVABLE rend '⚠' (JAMAIS un faux '✓' — c'était le
+    piège des cellules en dur, lues vides donc simulant un OK).
 
-    Retourne liste de 7 tokens ✓/✗/⚠.
+    Retourne liste de 7 tokens ✓/✗/⚠, alignée sur _CTRL_LABELS.
     """
+    from inc_uno import get_col_range_bounds
+    xdoc = doc.document
+    sheet = doc.get_sheet(SHEET_CONTROLES)
+    lab_b = get_col_range_bounds(xdoc, 'CTRL2type')
+    ver_b = get_col_range_bounds(xdoc, 'CTRL2affichage')
+    if not lab_b or not ver_b:
+        return ['⚠'] * len(_CTRL_LABELS)   # schéma absent → ne jamais simuler un OK
+
+    lab_col = lab_b[1]
+    ver_col, start, end = ver_b[1], ver_b[2], ver_b[3]   # bornes 1-indexées
+    pairs = []
+    for r1 in range(start, end + 1):
+        r0 = r1 - 1
+        lab = sheet.getCellByPosition(lab_col, r0).String.strip()
+        if not lab:
+            continue
+        ver = sheet.getCellByPosition(ver_col, r0).String.strip()
+        pairs.append((lab.upper(), ver))
+
     tokens = []
-    for col, row in _CTRL_CELLS:
-        v = sheet.getCellByPosition(col, row).String.strip()
-        tokens.append(v if v else '✓')
+    for ctrl in _CTRL_LABELS:
+        tok = next((ver or '✓' for lab, ver in pairs if lab.startswith(ctrl)), None)
+        tokens.append(tok if tok is not None else '⚠')
     return tokens
 
 
@@ -443,9 +468,9 @@ Codes de sortie:
             operations_sheet = doc.get_sheet(SHEET_OPERATIONS)
             avoirs_sheet = doc.get_sheet(SHEET_AVOIRS)
 
-            # Lire A1 (synthèse mono-char) + 6 contrôles individuels K63..K72
+            # Lire A1 (synthèse mono-char globale) + les 7 verdicts via named ranges
             a1_value = read_a1_status(controles_sheet)
-            tokens = read_ctrl_tokens(controles_sheet)
+            tokens = read_ctrl_tokens(doc)
             print(f"\nContrôles!A1 = '{a1_value}'")
 
             # Analyser le statut

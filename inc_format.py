@@ -179,6 +179,21 @@ def get_max_accounts(site_name):
     return getattr(module, 'MAX_ACCOUNTS', None) if module else None
 
 
+def get_account_fields(site_name):
+    """Retourne les champs conditionnels de création de compte pour ce site,
+    déclarés par le module cpt_format_<site>.py via sa variable ACCOUNT_FIELDS
+    (liste de tuples `(label, clé, widget, options)`, même forme que les branches
+    publiques de `gui_accounts._site_account_fields`). Liste vide si site inconnu
+    ou pas de déclaration.
+
+    Comble le trou d'extensibilité GUI : un site **custom** (privé) peut ainsi
+    déclarer ses champs de compte sans qu'aucun nom de site privé n'apparaisse
+    dans le code public (cf. doctrine anonymisation).
+    """
+    module = _get_site_module(site_name)
+    return getattr(module, 'ACCOUNT_FIELDS', []) if module else []
+
+
 def get_all_site_descriptions():
     """Aggrège les DESCRIPTION de tous les cpt_fetch_*.py (PUB + custom/).
 
