@@ -230,6 +230,22 @@ Trois onglets, trois fichiers :
 
 Déposer les identifiants chiffrés dans le fichier configuré par `config.ini` section `[paths]` clé `credentials_file` (cf. `config_credentials.md.default` pour le modèle).
 
+### 4.4 Champs de compte spécifiques au site (`ACCOUNT_FIELDS`)
+
+Par défaut, créer un compte dans l'onglet **Comptes** ne demande que les champs génériques (intitulé, devise, type…). Un site peut exiger des **champs supplémentaires** (un RIB, un numéro de contrat, une clé de wallet…) en déclarant la variable `ACCOUNT_FIELDS` dans son module `cpt_format_<NAME>.py` :
+
+```python
+# cpt_format_FOO.py
+ACCOUNT_FIELDS = [
+    ('RIB :',  'rib',  'entry', None),                 # champ texte
+    ('Type :', 'type', 'combo', ['principal', 'épargne']),  # liste déroulante
+]
+```
+
+Chaque tuple est `(libellé, clé, widget, options)` — `widget` ∈ `'entry'` / `'combo'` (`options` = la liste pour un combo, sinon `None`). Le dialogue « Ajouter un compte » de l'onglet Comptes affiche alors ces champs (tous **requis**) ; leurs valeurs sont persistées dans l'entrée du compte de `config_accounts.json` sous la `clé` indiquée, où le formateur les relit (ex. mapping RIB → nom de compte).
+
+Mécanisme : `inc_format.get_account_fields()` lit `ACCOUNT_FIELDS` du module ; `gui_accounts._site_account_fields` y retombe pour tout site non câblé en dur. **Aucune modification du cœur** (pas de nom de site dans le code public) — la déclaration vit entièrement dans le module du site, `custom/` compris.
+
 ## 5. Test
 
 ```bash

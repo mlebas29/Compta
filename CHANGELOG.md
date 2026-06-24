@@ -9,6 +9,19 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 
 Les trois derniers sont spécifiques au mode assisté ; 📘 concerne le mode classeur.
 
+## v5.10.0 📘
+| 2026-06-24 | Amélioration de présentation des classeurs et corrections d'affichage des erreurs |
+| ---------- | ------------------------------------------------------------ |
+
+**Détail :**
+
+- **Présentation des classeurs livrés** 📘 — les classeurs *exemple* et *vierge* s'ouvrent désormais **cadrés en haut à gauche sur le premier onglet** (ils s'ouvraient sur l'onglet Contrôles, certaines feuilles défilées). 
+- **Nouvel outil** `tool_fix_formats --reframe` pour recaler la présentation d'un classeur (vue seule, données intactes).
+- **Contrôles classeur** — le panneau « Contrôles classeur » (et la barre de statut) pouvait afficher « tout OK » alors qu'une erreur existait réellement dans le classeur (faux négatif silencieux, selon le nombre de comptes). La lecture des verdicts est désormais ancrée sur la structure du classeur, robuste à sa taille.
+- **Installation macOS** — une installation neuve sur Mac affichait à tort « Configuration à mettre à niveau » au démarrage (l'amorçage du marqueur de configuration échouait silencieusement). Corrigé. Sans effet sur Linux/Windows.
+- **Démarrage** — l'avis « configuration à mettre à niveau » est plus clair (message générique ; le détail s'obtient via `upgrade.py --check`).
+- **Extensibilité (contributeurs)** — un nouveau site peut déclarer les champs de saisie de ses comptes (onglet Comptes) dans son module via `ACCOUNT_FIELDS` (cf. [`Compta_site.md`](Compta_site.md)). Sans toucher au cœur de l'app.
+
 ## v5.9.0 ⚙️
 | 2026-06-21 | Révision et améliorations majeures de la mise à niveau (upgrade) |
 | ---------- | ------------------------------------------------------------ |
