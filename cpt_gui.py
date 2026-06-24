@@ -461,8 +461,30 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DaemonClientMixin,
         if hasattr(self, '_inotify_stop'):
             self._inotify_stop.set()
 
-    # Cellules des 7 contrôles individuels dans Contrôles (col K, dans l'ordre _CTRL_LABELS)
-    _CTRL_CELLS = ('K63', 'K64', 'K65', 'K69', 'K70', 'K75', 'K76')
+    @staticmethod
+    def _parse_nr_ref(ref):
+        """`Contrôles!$K$17:$K$34` (ou cellule unique) → `(col_letter, start_row, end_row)`
+        ou None. Le préfixe feuille (quoté/accentué) est ignoré."""
+        m = re.search(r'\$([A-Z]+)\$(\d+)(?::\$[A-Z]+\$(\d+))?', ref or '')
+        return (m.group(1), int(m.group(2)), int(m.group(3) or m.group(2))) if m else None
+
+    def _ctrl_tokens(self, read_cell, lab_ref, ver_ref):
+        """7 tokens ✓/✗/⚠ via les named ranges CTRL2type (libellés) / CTRL2affichage
+        (verdicts) — robuste au décalage du bloc de synthèse selon le nb de comptes
+        (≠ cellules en dur, qui se lisaient VIDES = faux ✓ silencieux). Contrôle
+        introuvable → '⚠' (jamais un faux OK) ; None si les NR ne se résolvent pas.
+        `read_cell(col_letter, row)` → str de la cellule."""
+        lab = self._parse_nr_ref(lab_ref)
+        ver = self._parse_nr_ref(ver_ref)
+        if not lab or not ver:
+            return None
+        pairs = []
+        for row in range(ver[1], ver[2] + 1):
+            label = (read_cell(lab[0], row) or '').strip()
+            if label:
+                pairs.append((label.upper(), (read_cell(ver[0], row) or '').strip()))
+        return [next((v or '✓' for lu, v in pairs if lu.startswith(ctrl)), '⚠')
+                for ctrl in self._CTRL_LABELS]
 
     def _read_status_cells_zip(self):
         """Lecture rapide Contrôles A1 + 7 contrôles + Avoirs L2 via ZIP (~9ms vs ~70ms openpyxl).
@@ -493,8 +515,11 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DaemonClientMixin,
                 strings = [(''.join(t.text or '' for t in si.findall('.//s:t', ns)))
                            for si in ET.parse(f).findall('.//s:si', ns)]
             with z.open('xl/workbook.xml') as f:
-                sheets = [(s.get('name'), s.get(f'{{{ons}}}id'))
-                          for s in ET.parse(f).findall('.//s:sheet', ns)]
+                _wb = ET.parse(f)
+            sheets = [(s.get('name'), s.get(f'{{{ons}}}id'))
+                      for s in _wb.findall('.//s:sheet', ns)]
+            defined = {dn.get('name'): (dn.text or '')
+                       for dn in _wb.findall('.//s:definedName', ns)}
             with z.open('xl/_rels/workbook.xml.rels') as f:
                 rel_map = {r.get('Id'): r.get('Target')
                            for r in ET.parse(f).findall(f'.//{{{rns}}}Relationship')}
@@ -503,19 +528,20 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DaemonClientMixin,
                 if name in (SHEET_CONTROLES, SHEET_AVOIRS):
                     sheet_targets[name] = 'xl/' + rel_map[rid]
 
-            # Contrôles A1 = synthèse mono-char (=$K$80), valeur cached MAJ par LO à chaque save.
-            # _CTRL_CELLS = 7 contrôles individuels (✓/✗/⚠) lus pour le détail au clic.
-            # Le tree XML est parsé une seule fois.
+            # Contrôles A1 = synthèse mono-char (=$K$35), valeur cached MAJ par LO à chaque save.
+            # 7 verdicts (✓/✗/⚠) lus via les named ranges CTRL2type/CTRL2affichage
+            # (cf. _ctrl_tokens) pour le détail au clic. Le tree XML est parsé une seule fois.
             ctrl = ''
             tokens = ['✓'] * 7
             if SHEET_CONTROLES in sheet_targets:
                 with z.open(sheet_targets[SHEET_CONTROLES]) as f:
                     tree = ET.parse(f)
                 ctrl = (_read_cell(tree, 'A1') or '').strip()
-                for i, ref in enumerate(self._CTRL_CELLS):
-                    val = _read_cell(tree, ref)
-                    if val:
-                        tokens[i] = val.strip()
+                toks = self._ctrl_tokens(
+                    lambda col, row: _read_cell(tree, f'{col}{row}'),
+                    defined.get('CTRL2type'), defined.get('CTRL2affichage'))
+                if toks is not None:
+                    tokens = toks
 
             # Avoirs L2 = formule Total (=L81 ou similaire), cached value
             # mise à jour par LO à chaque save. Pas besoin de miroir L1.
@@ -546,10 +572,17 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DaemonClientMixin,
                 if SHEET_CONTROLES in wb.sheetnames:
                     ws = wb[SHEET_CONTROLES]
                     ctrl = str(ws['A1'].value or '').strip()
-                    for i, ref in enumerate(self._CTRL_CELLS):
-                        v = ws[ref].value
-                        if v:
-                            tokens[i] = str(v).strip()
+
+                    def _dn(name):
+                        try:
+                            return wb.defined_names[name].value
+                        except (KeyError, AttributeError, TypeError):
+                            return None
+                    toks = self._ctrl_tokens(
+                        lambda col, row: str(ws[f'{col}{row}'].value or ''),
+                        _dn('CTRL2type'), _dn('CTRL2affichage'))
+                    if toks is not None:
+                        tokens = toks
                 if SHEET_AVOIRS in wb.sheetnames:
                     ws = wb[SHEET_AVOIRS]
                     val = ws['L2'].value
@@ -840,8 +873,8 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DaemonClientMixin,
 
         return auto_fixes, warnings
 
-    # 7 contrôles individuels lus dans Contrôles (cf. _CTRL_CELLS).
-    # A1 = =$K$80 = synthèse mono-char globale ; le détail vient de la lecture directe.
+    # 7 verdicts lus via les named ranges CTRL2type/CTRL2affichage (cf. _ctrl_tokens).
+    # A1 = =$K$35 (CTRL2_synthese) = synthèse mono-char globale.
     _CTRL_LABELS = [
         'COMPTES',
         'CATÉGORIES',
