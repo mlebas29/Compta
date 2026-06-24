@@ -1871,6 +1871,103 @@ def fix_formats(xlsm_path, apply=False, sheets=None, charter=False):
     return True
 
 
+def frame_views(path, verbose=True):
+    """Recale la PRÉSENTATION d'un classeur : chaque feuille cadrée en haut-gauche
+    (zone défilante à la frontière de gel) + 1ᵉʳ onglet actif.
+
+    Patch chirurgical ZIP-XML : ne réécrit que les vues (`sheetView`/`pane`) et
+    `workbook.activeTab`, OCTET-IDENTIQUE partout ailleurs (macros `vbaProject.bin`,
+    styles, NR, calc chains intacts). Pur Python (zipfile/ET/re), SANS UNO ; marche
+    xlsx ET xlsm. Vue uniquement → la cellule active est laissée telle quelle.
+
+    Pour une feuille à volets figés, la « frontière de gel » (1ʳᵉ cellule défilante,
+    = coin haut-gauche cadré) est la colonne `xSplit`, ligne `ySplit+1`.
+    """
+    import os
+    import re
+    import zipfile
+    import xml.etree.ElementTree as ET
+
+    def _col(n):  # idx 0-based → lettres de colonne
+        s, n = '', n + 1
+        while n:
+            n, r = divmod(n - 1, 26)
+            s = chr(65 + r) + s
+        return s
+
+    ns = {'s': 'http://schemas.openxmlformats.org/spreadsheetml/2006/main'}
+    ons = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
+    rns = 'http://schemas.openxmlformats.org/package/2006/relationships'
+
+    with zipfile.ZipFile(path) as z:
+        names = z.namelist()
+        infos = {i.filename: i for i in z.infolist()}
+        data = {n: z.read(n) for n in names}
+
+    wbtree = ET.fromstring(data['xl/workbook.xml'])
+    sheets = [(s.get('name'), s.get(f'{{{ons}}}id')) for s in wbtree.findall('.//s:sheet', ns)]
+    rels = {r.get('Id'): r.get('Target') for r in
+            ET.fromstring(data['xl/_rels/workbook.xml.rels']).findall(f'.//{{{rns}}}Relationship')}
+
+    changed = []
+
+    # workbook.xml : onglet actif = le 1ᵉʳ (activeTab = 0)
+    wb_xml = data['xl/workbook.xml'].decode('utf-8')
+    new_wb = re.sub(r'(<workbookView\b[^>]*?\s)activeTab="[^"]*"', r'\g<1>activeTab="0"', wb_xml)
+    if new_wb != wb_xml:
+        data['xl/workbook.xml'] = new_wb.encode('utf-8')
+        changed.append('activeTab→0')
+
+    # par feuille : pane.topLeftCell = frontière de gel ; tabSelected sur la 1ʳᵉ seule
+    for idx, (name, rid) in enumerate(sheets):
+        tgt = 'xl/' + rels[rid]
+        xml = orig = data[tgt].decode('utf-8')
+
+        m = re.search(r'<pane\b[^>]*>', xml)
+        if m:
+            pane = m.group(0)
+            xs = re.search(r'\bxSplit="(\d+)"', pane)
+            ys = re.search(r'\bySplit="(\d+)"', pane)
+            frontier = f'{_col(int(xs.group(1)) if xs else 0)}{(int(ys.group(1)) if ys else 0) + 1}'
+            if re.search(r'\btopLeftCell="[^"]*"', pane):
+                new_pane = re.sub(r'\btopLeftCell="[^"]*"', f'topLeftCell="{frontier}"', pane)
+            else:
+                new_pane = pane.replace('<pane', f'<pane topLeftCell="{frontier}"', 1)
+            xml = xml.replace(pane, new_pane, 1)
+
+        sv = re.search(r'<sheetView\b[^>]*>', xml)
+        if sv:
+            tag = sv.group(0)
+            has = re.search(r'\btabSelected="[^"]*"', tag)
+            if idx == 0:
+                newtag = (re.sub(r'\btabSelected="[^"]*"', 'tabSelected="1"', tag) if has
+                          else tag.replace('<sheetView', '<sheetView tabSelected="1"', 1))
+            else:
+                newtag = re.sub(r'\s*\btabSelected="[^"]*"', '', tag) if has else tag
+            xml = xml.replace(tag, newtag, 1)
+
+        if xml != orig:
+            data[tgt] = xml.encode('utf-8')
+            changed.append(name)
+
+    if not changed:
+        if verbose:
+            print(f'  {path} : présentation déjà cadrée (rien à faire)')
+        return False
+
+    tmp = f'{path}.reframe.tmp'
+    with zipfile.ZipFile(tmp, 'w', zipfile.ZIP_DEFLATED) as zout:
+        for n in names:
+            zout.writestr(infos[n], data[n])
+    if zipfile.ZipFile(tmp).testzip() is not None:
+        os.remove(tmp)
+        raise RuntimeError('ZIP recalé invalide — abandon')
+    os.replace(tmp, path)
+    if verbose:
+        print(f'  {path} : recalé — {", ".join(changed)}')
+    return True
+
+
 def main():
     parser = argparse.ArgumentParser(
         description='Corrige les formats de cellules dans comptes.xlsm')
@@ -1883,7 +1980,14 @@ def main():
     parser.add_argument('--charter', action='store_true',
                         help='Applique en plus la charte graphique v3.6 '
                              '(palette fonds de zone + grille hair + BORDURE_PIED)')
+    parser.add_argument('--reframe', action='store_true',
+                        help='Recale SEULEMENT la présentation (vues cadrées haut-gauche, '
+                             '1ᵉʳ onglet actif) et sort — patch ZIP, sans UNO. xlsx/xlsm.')
     args = parser.parse_args()
+
+    if args.reframe:
+        frame_views(args.xlsm, verbose=True)
+        return
 
     fix_formats(args.xlsm, apply=args.apply, sheets=args.sheet, charter=args.charter)
 
