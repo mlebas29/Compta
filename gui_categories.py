@@ -478,7 +478,7 @@ class CategoriesMixin:
         self._run_uno_operation(
             'Écriture en cours',
             worker,
-            lambda: self._set_status(f'Catégorie "{name}" ajoutée.')
+            lambda: self._after_budget_cat_add(name)
         )
 
     def _save_budget_category(self, name, poste, alloc_pct=100.0, doc=None):
@@ -798,8 +798,17 @@ class CategoriesMixin:
         shutil.copy2(self.xlsx_path, bak_path)
         self._delete_category(name, reassign_to=reassign_to, doc=doc)
 
+    def _after_budget_cat_add(self, name):
+        """Callback après ajout catégorie : recharge le budget (le daemon Mac ne
+        touche pas l'état GUI) puis rafraîchit l'affichage catégories."""
+        self._reload_budget_from_disk()
+        self._on_cat_group_selected(None)
+        self._set_status(f'Catégorie "{name}" ajoutée.')
+
     def _after_budget_cat_delete(self, name):
-        """Callback après suppression catégorie : GUI + purge mappings."""
+        """Callback après suppression catégorie : recharge le budget (sinon la cat
+        supprimée reste « dans Budget » via le daemon Mac) + purge mappings + GUI."""
+        self._reload_budget_from_disk()
         # Purger les patterns orphelins qui référençaient cette catégorie
         purged = 0
         for group_entries in self.mappings.values():
@@ -1001,9 +1010,37 @@ class CategoriesMixin:
         """Insère un nouveau poste budgétaire via BudgetMixin."""
         self._add_poste(name, fixe=(type_fv == 'Fixe'), doc=doc)
 
+    def _reload_budget_from_disk(self):
+        """Re-résout `cr` + recharge le budget depuis le disque. Retourne True si OK.
+
+        Nécessaire après une op budget via le DAEMON (Mac) : c'est l'état du process
+        daemon qui change, pas celui de la GUI. Et il faut RE-RÉSOUDRE `cr` car le
+        ColResolver du démarrage a des bornes de lignes PÉRIMÉES après une
+        insertion/suppression (`cr.rows('POSTESnom')`) → sans ça,
+        `_load_budget_categories` relit l'ancienne plage et rate la modif, pourtant
+        bien sur le disque (flush daemon OK).
+        """
+        try:
+            wb_formula = openpyxl.load_workbook(self.xlsx_path, data_only=False)
+            wb_values = openpyxl.load_workbook(self.xlsx_path, data_only=True)
+            try:
+                from inc_excel_schema import ColResolver
+                self.cr = ColResolver.from_openpyxl(wb_formula)
+                self._load_budget_categories(wb_values)
+            finally:
+                wb_formula.close()
+                wb_values.close()
+            return True
+        except Exception:
+            return False
+
     def _after_budget_post_save(self, name, type_fv):
-        """Callback après ajout poste : refresh GUI (état mémoire mis à jour par le mixin)."""
-        self.budget_post_types[name] = type_fv
+        """Callback après ajout poste : recharge le budget du disque puis rafraîchit."""
+        if not self._reload_budget_from_disk():
+            # Repli : au moins refléter le poste dans l'état local
+            self.budget_post_types[name] = type_fv
+            if name not in self.budget_posts:
+                self.budget_posts.append(name)
         self._refresh_post_tree()
         self._set_status(f'Poste "{name}" ajouté.')
 
@@ -1078,7 +1115,14 @@ class CategoriesMixin:
         self._delete_poste(name, doc=doc)
 
     def _after_budget_post_delete(self, name):
-        """Callback après suppression poste : GUI."""
+        """Callback après suppression poste : recharge le budget (sinon le poste
+        supprimé reste affiché via le daemon Mac) puis rafraîchit."""
+        if not self._reload_budget_from_disk():
+            # Repli : retirer localement
+            if name in self.budget_posts:
+                self.budget_posts.remove(name)
+            self.budget_post_rows.pop(name, None)
+            self.budget_post_types.pop(name, None)
         self._refresh_post_tree()
         self._set_status(f'Poste "{name}" supprimé.')
 

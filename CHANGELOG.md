@@ -9,6 +9,15 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 
 Les trois derniers sont spécifiques au mode assisté ; 📘 concerne le mode classeur.
 
+## v5.10.1
+| 2026-06-25 | macOS : correction du figement à la création/suppression de poste ou catégorie budgétaire. |
+| ---------- | ------------------------------------------------------------ |
+
+**Détail :**
+
+- **macOS — figement corrigé** — créer ou supprimer un poste / une catégorie budgétaire pouvait **figer l'application** (« écriture en cours » sans fin) : une boîte de dialogue « Enregistrer ? » **invisible** bloquait LibreOffice en arrière-plan. Corrigé. Sans effet sur Linux/Windows.
+- **Rafraîchissement immédiat** — le poste / la catégorie ajouté(e) ou supprimé(e) apparaît désormais **tout de suite** dans l'interface, sans attendre un redémarrage.
+
 ## v5.10.0 📘
 | 2026-06-24 | Amélioration de présentation des classeurs et corrections d'affichage des erreurs |
 | ---------- | ------------------------------------------------------------ |

@@ -534,25 +534,52 @@ class UnoDocument:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        try:
-            if self._document:
-                if not self._read_only:
-                    self._document.setModified(False)
-                self._document.close(True)
-        except Exception:
-            pass
-        try:
-            if self._desktop:
-                self._desktop.terminate()
-        except Exception:
-            pass
-        if self._process:
+        # macOS UNIQUEMENT, quand le soffice nous appartient : fermeture NON
+        # INTERACTIVE par KILL du process, SANS close/terminate UNO gracieux. Sur
+        # macOS, ces appels déclenchent une modale « Enregistrer le document ? »
+        # (ExecuteQuerySaveDocument) INVISIBLE qui BLOQUE indéfiniment le thread
+        # principal de soffice (le doc vient d'être modifié, et --headless ne la
+        # supprime pas au close) → daemon GUI figé sur « écriture en cours » (ex.
+        # création de poste budgétaire). Le store a déjà eu lieu côté caller
+        # (_uno_finalize/save) → le doc en mémoire meurt proprement avec le process.
+        # Linux N'EST PAS concerné (--headless y supprime la modale) → on y garde le
+        # teardown gracieux d'origine, qui libère proprement port 2002 / lock file
+        # (dont dépendent les gardes du chemin in-process Linux).
+        if self._process is not None and sys.platform == 'darwin':
             self._process.terminate()
             try:
                 self._process.wait(timeout=5)
             except subprocess.TimeoutExpired:
                 self._process.kill()
                 self._process.wait()
+            # Lock résiduel éventuel (arrêt abrupt sans fermeture gracieuse).
+            try:
+                lock = self._file_path.parent / f".~lock.{self._file_path.name}#"
+                if lock.exists():
+                    lock.unlink()
+            except Exception:
+                pass
+        else:
+            # Linux, ou soffice externe → fermeture gracieuse (comportement d'origine).
+            try:
+                if self._document:
+                    if not self._read_only:
+                        self._document.setModified(False)
+                    self._document.close(True)
+            except Exception:
+                pass
+            try:
+                if self._desktop:
+                    self._desktop.terminate()
+            except Exception:
+                pass
+            if self._process:
+                self._process.terminate()
+                try:
+                    self._process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    self._process.kill()
+                    self._process.wait()
         # Post-process xlsm si sauvegardé : retire les <border> vides des dxfs
         # (effet de bord LO sur cell styles Drill_*, écrase BORDURE_PIED top).
         if self._was_saved and exc_type is None:
