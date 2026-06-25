@@ -313,13 +313,19 @@ class HeadlessGUI(DevisesMixin, AccountsMixin, BudgetMixin, CategoriesMixin):
     def rename_category(self, old_name, new_name, doc=None):
         """Renomme une catégorie dans Budget + Opérations."""
         self._rename_budget_category(old_name, new_name, doc=doc)
-        # Mémoire mise à jour normalement par _after_budget_cat_rename côté GUI ;
+        # Mémoire mise à jour normalement par _after_budget_cat_modify côté GUI ;
         # ici (HeadlessGUI), on ajuste manuellement pour cohérence batch.
         if old_name in self.budget_categories:
             idx = self.budget_categories.index(old_name)
             self.budget_categories[idx] = new_name
             self.budget_cat_rows[new_name] = self.budget_cat_rows.pop(old_name)
         print(f"Catégorie renommée: {old_name} → {new_name}")
+        return True
+
+    def set_category_poste(self, name, poste, doc=None):
+        """Change le poste de rattachement d'une catégorie (cellule CATposte)."""
+        self._set_category_poste(name, poste, doc=doc)
+        print(f"Catégorie '{name}' rattachée au poste '{poste}'")
         return True
 
     def update_poste(self, old_name, new_name, new_type, doc=None):

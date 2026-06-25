@@ -109,11 +109,15 @@ class CategoriesMixin:
             self.post_tree.pack(side='left', fill='x', expand=True)
             post_vsb.pack(side='right', fill='y')
 
-            # Bouton ajout poste (modifier/supprimer via clic droit)
+            # Boutons poste (Ajouter/Modifier/Supprimer) — menu contextuel clic droit conservé
             post_btn = ttk.Frame(post_frame)
             post_btn.pack(fill='x', pady=(5, 0))
             ttk.Button(post_btn, text='\u2795 Ajouter',
                        command=self._budget_post_add).pack(side='left', padx=2)
+            ttk.Button(post_btn, text='✏ Modifier',
+                       command=self._budget_post_edit).pack(side='left', padx=2)
+            ttk.Button(post_btn, text='✖ Supprimer',
+                       command=self._budget_post_delete).pack(side='left', padx=2)
 
             # Menu contextuel postes
             self._post_context_menu = tk.Menu(self.post_tree, tearoff=0)
@@ -136,7 +140,7 @@ class CategoriesMixin:
         if self.xlsx_path:
             self._cat_context_menu.add_separator()
             self._cat_context_menu.add_command(
-                label='\u270f Renommer catégorie', command=self._budget_cat_rename_from_menu)
+                label='\u270f Modifier catégorie', command=self._budget_cat_modify_from_menu)
             self._cat_context_menu.add_command(
                 label='\u2716 Supprimer catégorie', command=self._budget_cat_delete_from_menu)
         self.cat_tree.bind('<Button-3>', self._cat_show_context_menu)
@@ -203,7 +207,7 @@ class CategoriesMixin:
                 cat_name = str(vals[1]) if vals and len(vals) > 1 else ''
                 in_budget = cat_name in self.budget_categories
                 self._cat_context_menu.entryconfigure(
-                    3, label=f'\u270f Renommer catégorie \u00ab{cat_name}\u00bb',
+                    3, label=f'\u270f Modifier catégorie \u00ab{cat_name}\u00bb',
                     state='normal' if in_budget else 'disabled')
                 self._cat_context_menu.entryconfigure(
                     4, label=f'\u2716 Supprimer catégorie \u00ab{cat_name}\u00bb',
@@ -490,7 +494,7 @@ class CategoriesMixin:
     # ----------------------------------------------------------------
 
     def _budget_cat_manage(self):
-        """Dialog listant toutes les catégories Budget avec Renommer/Supprimer."""
+        """Dialog listant toutes les catégories Budget avec Modifier/Supprimer."""
         dlg = tk.Toplevel(self.root)
         dlg.title('Catégories Budget')
         dlg.geometry('400x420')
@@ -526,7 +530,7 @@ class CategoriesMixin:
             cat = get_selected()
             if cat:
                 dlg.destroy()
-                self._budget_cat_rename_dialog(cat)
+                self._budget_cat_modify_dialog(cat)
 
         def on_delete():
             cat = get_selected()
@@ -534,7 +538,7 @@ class CategoriesMixin:
                 dlg.destroy()
                 self._budget_cat_delete_confirm(cat)
 
-        ttk.Button(btn_frame, text='\u270f Renommer',
+        ttk.Button(btn_frame, text='\u270f Modifier',
                    command=on_rename).pack(side='left', padx=5)
         ttk.Button(btn_frame, text='\u2716 Supprimer',
                    command=on_delete).pack(side='left', padx=5)
@@ -543,7 +547,7 @@ class CategoriesMixin:
 
         # Context menu
         ctx = tk.Menu(lb, tearoff=0)
-        ctx.add_command(label='\u270f Renommer', command=on_rename)
+        ctx.add_command(label='\u270f Modifier', command=on_rename)
         ctx.add_command(label='\u2716 Supprimer', command=on_delete)
         lb.bind('<Button-3>', lambda e: (
             lb.selection_clear(0, 'end'),
@@ -551,8 +555,8 @@ class CategoriesMixin:
             ctx.tk_popup(e.x_root, e.y_root)))
         lb.bind('<Double-1>', lambda e: on_rename())
 
-    def _budget_cat_rename_from_menu(self):
-        """Renomme une catégorie Budget depuis le menu contextuel patterns."""
+    def _budget_cat_modify_from_menu(self):
+        """Modifie une catégorie Budget (nom/poste) depuis le menu contextuel patterns."""
         sel = self.cat_tree.selection()
         if not sel:
             return
@@ -560,57 +564,79 @@ class CategoriesMixin:
         cat_name = str(vals[1]) if vals and len(vals) > 1 else ''
         if not cat_name or cat_name not in self.budget_categories:
             return
-        self._budget_cat_rename_dialog(cat_name)
+        self._budget_cat_modify_dialog(cat_name)
 
-    def _budget_cat_rename_dialog(self, cat_name):
-        """Dialog pour renommer une catégorie Budget."""
+    def _budget_cat_modify_dialog(self, cat_name):
+        """Dialog pour modifier une catégorie Budget : nom et/ou poste de rattachement."""
         dlg = tk.Toplevel(self.root)
-        dlg.title('Renommer catégorie')
-        dlg.geometry('400x150')
+        dlg.title('Modifier catégorie')
+        dlg.geometry('440x200')
         dlg.transient(self.root)
         dlg.wait_visibility()
         dlg.grab_set()
 
-        ttk.Label(dlg, text=f'Catégorie actuelle : {cat_name}').grid(
+        current_poste = self._get_cat_post(cat_name) or ''
+
+        ttk.Label(dlg, text=f'Catégorie : {cat_name}').grid(
             row=0, column=0, columnspan=2, sticky='w', padx=10, pady=5)
-        ttk.Label(dlg, text='Nouveau nom :').grid(
+        ttk.Label(dlg, text='Nom :').grid(
             row=1, column=0, sticky='w', padx=10, pady=5)
         name_var = tk.StringVar(value=cat_name)
         name_entry = ttk.Entry(dlg, textvariable=name_var, width=30)
         name_entry.grid(row=1, column=1, padx=10, pady=5, sticky='w')
 
-        ttk.Label(dlg, text='Les opérations existantes seront mises à jour.',
+        ttk.Label(dlg, text='Poste :').grid(
+            row=2, column=0, sticky='w', padx=10, pady=5)
+        poste_var = tk.StringVar(value=current_poste)
+        poste_combo = ttk.Combobox(dlg, textvariable=poste_var,
+                                   values=list(self.budget_posts),
+                                   state='readonly', width=28)
+        poste_combo.grid(row=2, column=1, padx=10, pady=5, sticky='w')
+
+        ttk.Label(dlg, text='Un renommage met à jour les opérations existantes.',
                   foreground='grey').grid(
-            row=2, column=0, columnspan=2, padx=10, sticky='w')
+            row=3, column=0, columnspan=2, padx=10, sticky='w')
 
         def on_ok():
             new_name = name_var.get().strip()
-            if not new_name or new_name == cat_name:
-                dlg.destroy()
-                return
-            if new_name in self.budget_categories:
+            new_poste = poste_var.get().strip()
+            name_changed = bool(new_name) and new_name != cat_name
+            poste_changed = bool(new_poste) and new_poste != current_poste
+            if name_changed and new_name in self.budget_categories:
                 messagebox.showwarning('Doublon',
                     f'La catégorie "{new_name}" existe déjà.',
                     parent=dlg)
+                return
+            if not name_changed and not poste_changed:
+                dlg.destroy()
                 return
             dlg.destroy()
             from inc_uno import HAS_UNO
 
             def worker():
-                if HAS_UNO:
-                    self._rename_budget_category(cat_name, new_name)
-                else:
-                    self._daemon_call('rename_category',
-                                      old_name=cat_name, new_name=new_name)
+                # Poste d'abord (utilise le nom courant), puis renommage.
+                if poste_changed:
+                    if HAS_UNO:
+                        self._set_category_poste(cat_name, new_poste)
+                    else:
+                        self._daemon_call('set_category_poste',
+                                          name=cat_name, poste=new_poste)
+                if name_changed:
+                    if HAS_UNO:
+                        self._rename_budget_category(cat_name, new_name)
+                    else:
+                        self._daemon_call('rename_category',
+                                          old_name=cat_name, new_name=new_name)
 
             self._run_uno_operation(
-                'Renommage en cours',
+                'Modification en cours',
                 worker,
-                lambda: self._after_budget_cat_rename(cat_name, new_name)
+                lambda: self._after_budget_cat_modify(
+                    cat_name, new_name if name_changed else cat_name, poste_changed)
             )
 
         btn_frame = ttk.Frame(dlg)
-        btn_frame.grid(row=3, column=0, columnspan=2, pady=10)
+        btn_frame.grid(row=4, column=0, columnspan=2, pady=10)
         ttk.Button(btn_frame, text='OK', command=on_ok).pack(side='left', padx=5)
         ttk.Button(btn_frame, text='Annuler',
                    command=dlg.destroy).pack(side='left', padx=5)
@@ -779,15 +805,56 @@ class CategoriesMixin:
                 if entry.get('category') == old_name:
                     entry['category'] = new_name
 
-    def _after_budget_cat_rename(self, old_name, new_name):
-        """Callback après renommage catégorie : met à jour l'état mémoire."""
-        idx = self.budget_categories.index(old_name)
-        self.budget_categories[idx] = new_name
-        self.budget_cat_rows[new_name] = self.budget_cat_rows.pop(old_name)
-        # Rafraîchir le Treeview catégories
+    def _set_category_poste(self, name, new_poste, doc=None):
+        """Worker UNO : change le poste de rattachement d'une catégorie.
+
+        Le poste d'une catégorie est une simple valeur de cellule (colonne
+        CATposte), pas une position → réécriture directe, sans déplacement de
+        ligne ni impact sur les opérations.
+
+        Args:
+            doc: UnoDocument ouvert (mode batch). Si None, ouvre/ferme automatiquement.
+        """
+        from contextlib import nullcontext
+        from inc_uno import UnoDocument
+        from inc_excel_schema import uno_row
+
+        cat_row = self.budget_cat_rows.get(name)
+        if not cat_row:
+            raise ValueError(f'Catégorie "{name}" introuvable dans budget_cat_rows')
+
+        owned = doc is None
+        ctx = UnoDocument(self.xlsx_path) if owned else nullcontext(doc)
+        with ctx as doc:
+            cr = doc.cr
+            ws = doc.get_sheet(SHEET_BUDGET)
+            ws.getCellByPosition(cr.col('CATposte'), uno_row(cat_row)).setString(new_poste)
+            if owned:
+                self._uno_finalize(doc)
+
+    def _after_budget_cat_modify(self, old_name, new_name, poste_changed):
+        """Callback après modification catégorie (nom et/ou poste) : recharge + refresh.
+
+        Recharge le budget du disque (via le daemon Mac, l'op n'a pas modifié l'état
+        GUI ; et le poste rattaché se relit là). Un renommage est aussi propagé aux
+        patterns (config_category_mappings.json).
+        """
+        if new_name != old_name:
+            for group_entries in self.mappings.values():
+                for entry in group_entries:
+                    if entry.get('category') == old_name:
+                        entry['category'] = new_name
+            self._save_mappings()
+        self._reload_budget_from_disk()
         self._on_cat_group_selected(None)
-        self._save_mappings()
-        self._set_status(f'Catégorie "{old_name}" renommée en "{new_name}".')
+        bits = []
+        if new_name != old_name:
+            bits.append(f'renommée en « {new_name} »')
+        if poste_changed:
+            bits.append('poste mis à jour')
+        self._set_status(
+            f'Catégorie « {old_name} » : '
+            + (' ; '.join(bits) if bits else 'inchangée') + '.')
 
     def _delete_budget_category(self, name, reassign_to=None, doc=None):
         """Worker UNO : supprime une catégorie du Budget.

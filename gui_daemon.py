@@ -59,7 +59,7 @@ class DaemonClientMixin:
         # CRUD titres
         'add_title', 'rename_pv_title', 'delete_pv_title',
         # CRUD budget
-        'add_category', 'delete_category', 'rename_category',
+        'add_category', 'delete_category', 'rename_category', 'set_category_poste',
         'add_poste', 'delete_poste', 'update_poste',
         # Worker
         '_save_accounts',
@@ -258,7 +258,7 @@ class DaemonGUI(DaemonClientMixin):
         # CRUD titres
         'add_title', 'rename_pv_title', 'delete_pv_title',
         # CRUD budget
-        'add_category', 'delete_category', 'rename_category',
+        'add_category', 'delete_category', 'rename_category', 'set_category_poste',
         'add_poste', 'delete_poste', 'update_poste',
         # Workers utilisés par certains TNR (light_build)
         '_save_accounts',
