@@ -15,18 +15,25 @@ from pathlib import Path
 from datetime import datetime
 
 import inc_categorize
-from inc_format import process_files, log_csv_debug as _log_csv_debug, site_name_from_file, base_dir
+from inc_format import process_files, log_csv_debug as _log_csv_debug, site_name_from_file, base_dir, lazy
 
 SITE = site_name_from_file(__file__)
 
-# Nom du compte : chargé depuis config_accounts.json
+# Nom du compte : référence PARESSEUSE (résolue au 1er usage réel, pas à l'import) —
+# un site désactivé / config_accounts.json incomplet ne doit pas rendre le module
+# inimportable (cf. inc_format._LazyStr / #67 ; aligne sur les autres formatteurs).
 _ACCOUNTS_JSON = base_dir() / 'config_accounts.json'
-with open(_ACCOUNTS_JSON, 'r', encoding='utf-8') as _f:
-    _amazon_config = json.load(_f).get(SITE, {})
-_amazon_accounts = _amazon_config.get('accounts', [])
-if not _amazon_accounts or 'name' not in _amazon_accounts[0]:
-    raise ValueError('config_accounts.json [AMAZON] : aucun compte configuré')
-ACCOUNT_NAME = _amazon_accounts[0]['name']
+
+
+def _resolve_account_name():
+    with open(_ACCOUNTS_JSON, 'r', encoding='utf-8') as _f:
+        _accounts = json.load(_f).get(SITE, {}).get('accounts', [])
+    if not _accounts or 'name' not in _accounts[0]:
+        raise ValueError(f'config_accounts.json [{SITE}] : aucun compte configuré')
+    return _accounts[0]['name']
+
+
+ACCOUNT_NAME = lazy(_resolve_account_name)
 
 # Mois français → numéro
 MOIS_FR = {
