@@ -31,7 +31,7 @@ Sonoma+ : architecture identique, mais non testé en l'état — pourrait permet
 | **MacPorts** | https://macports.org — pour `python311`, `py311-tkinter`, `py311-pip`, `tesseract` | non requis | Maintenu sur Ventura, ses bottles existent encore |
 | **LibreOffice** | DMG officiel **24.8.x** | DMG officiel **24.8.x** | Voir tableau versions plus bas |
 | **Tesseract** | MacPorts (`tesseract` + langues) | Homebrew (`tesseract`) | OCR pour 2FA Société Générale |
-| **Python 3.10+** | MacPorts (`python311`) | Homebrew (`python`) | Interpréteur applicatif |
+| **Python 3.10+ (Tk ≥ 8.6)** | MacPorts (`python311`) ou **python.org** | Homebrew (`python`) ou **python.org** | Interpréteur applicatif — **Tk ≥ 8.6 requis** (le Python système Apple, Tk 8.5, n'affiche pas la GUI) |
 
 ### Pourquoi MacPorts sur Ventura
 
@@ -81,7 +81,9 @@ cd ~/Compta && ./install.sh
 
 #### Environnement Python
 
-Sur Mac, `install.sh` installe les dépendances dans **deux interpréteurs Python distincts** (système pour la GUI Tk + LibreOffice embarqué pour les scripts UNO). C'est transparent pour l'utilisateur.
+Sur Mac, deux interpréteurs Python distincts interviennent : le **Python applicatif** (celui détecté par `install.sh` — MacPorts `python311` / Homebrew `python` / **python.org**) pour la GUI et les scripts, et le **Python embarqué de LibreOffice** pour le bridge UNO.
+
+⚠ Le Python applicatif doit fournir **Tk ≥ 8.6**. Le Python système d'Apple (`/usr/bin/python3`, **Tk 8.5** déprécié) **n'affiche pas la GUI** — c'est la raison du prérequis MacPorts/Homebrew/python.org. S'assurer que `install.sh` détecte bien ce Python et non `/usr/bin/python3` (sur Ventura : `sudo port select --set python3 python311` ; ou installer python.org, dont l'installeur met son `python3` en tête de PATH).
 
 ### Lancement
 
@@ -91,6 +93,8 @@ Ligne de commande :
 ```bash
 cd ~/Compta && ./cpt_gui.py
 ```
+
+> Le shebang de `cpt_gui.py` suit le `PATH` : `python3` doit y résoudre le Python applicatif (Tk ≥ 8.6), **pas** `/usr/bin/python3`. Le bundle du Dock, lui, pointe l'interpréteur absolu détecté à l'installation.
 
 ### Particularités macOS
 

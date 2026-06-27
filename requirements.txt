@@ -30,6 +30,8 @@ google-auth-httplib2>=0.1.0
 # Notes:
 # - playwright install chrome (Chrome browser for Playwright)
 # - python3-tk must be installed separately (system package: sudo apt install python3-tk)
+# - macOS: the GUI needs a Python with Tk >= 8.6 (python.org, or `brew install python-tk`);
+#   Apple's system /usr/bin/python3 (Tk 8.5, deprecated) cannot display the interface
 # - tesseract-ocr must be installed separately (system package)
 # - xclip (Linux) or pbcopy (macOS, natif) requis pour pyperclip — clipboard 2FA Kraken/Wise
 # - gpg must be available in PATH for credential decryption

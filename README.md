@@ -94,7 +94,7 @@ cd ~/Compta && ./install.sh
 
 Pour **Windows 11** c'est la même procédure, après avoir installé WSL2 qui permet de faire tourner Linux sur Windows sans machine virtuelle à gérer.
 
-Pour **MacOS** la procédure est plus spécifique, avec une installation manuelle de **LibreOffice 24.8**.
+Pour **MacOS** la procédure est plus spécifique, avec une installation manuelle de **LibreOffice 24.8** et d'un **Python avec Tk ≥ 8.6**.
 
 Pour aller plus loin avec Windows et MacOS :  [Compta_portage.md](Compta_portage.md)
 
@@ -218,5 +218,6 @@ Compta [EX] est distribué gratuitement sous licence GNU GPL v3.
 - **GPG** (GNU Privacy Guard) : Outil de cryptographie au standard OpenPGP
 - **GUI** (Graphical User Interface) : Interface graphique
 - **Playwright** : Outil d'automatisation de navigateur, utilisé pour la collecte
+- **Shebang** : Première ligne `#!…` d'un script, qui indique au système quel interpréteur utiliser pour l'exécuter (ici `python3`)
 - **TNR** : Tests de non-régression
 - **WSL** (Windows Subsystem for Linux) : Composant Linux de Microsoft pour Windows
