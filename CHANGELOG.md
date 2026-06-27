@@ -9,6 +9,16 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 
 Les trois derniers sont spécifiques au mode assisté ; 📘 concerne le mode classeur.
 
+## v5.11.0
+| 2026-06-27 | Budget : changer le poste d'une catégorie ; démarrage plus robuste sur anciens Mac. |
+| ---------- | ------------------------------------------------------------ |
+
+**Détail :**
+
+- **Budget — réaffecter une catégorie** — on peut désormais **changer le poste** d'une catégorie budgétaire (et plus seulement la renommer) ; boutons ➕ / ✏ / ✖ visibles pour ajouter, modifier ou supprimer un poste.
+- **macOS — démarrage robuste** — sur un Mac utilisant le Python système (Tk ancien), l'application ne **démarre plus** faute de pouvoir afficher son icône : l'icône est simplement ignorée, le reste fonctionne.
+- **Collecte — fin de faux avertissements** — plus de messages « site désactivé » intempestifs quand certains sites ne sont pas configurés.
+
 ## v5.10.1
 | 2026-06-25 | macOS : correction du figement à la création/suppression de poste ou catégorie budgétaire. |
 | ---------- | ------------------------------------------------------------ |
