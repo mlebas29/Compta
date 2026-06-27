@@ -189,8 +189,12 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DaemonClientMixin,
         icon_name = _ICON_NAMES.get(self.mode, 'cpt_gui.png')
         icon_path = Path(__file__).parent / icon_name
         if icon_path.exists():
-            self._icon_img = tk.PhotoImage(file=str(icon_path))
-            self.root.iconphoto(True, self._icon_img)
+            try:
+                self._icon_img = tk.PhotoImage(file=str(icon_path))
+                self.root.iconphoto(True, self._icon_img)
+            except tk.TclError as e:
+                # Tk < 8.6 (Python système macOS) ne décode pas le PNG → icône ignorée (cosmétique)
+                print(f"⚠ icône fenêtre ignorée ({icon_path.name}) : {e}", file=sys.stderr)
 
         # Police plus grande pour meilleur contraste
         default_font = ('', 11)
