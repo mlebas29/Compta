@@ -228,13 +228,10 @@ else
     ERRORS=$((ERRORS + 1))
 fi
 
-# Pinentry GUI Linux/WSL — déchiffrement credentials depuis subprocess
+# Pinentry GUI — déchiffrement credentials depuis un subprocess GUI/dock
 # (capture_output=True dans cpt_fetch / inc_gpg_credentials → pas de TTY).
 # pinentry-curses échoue avec "Inappropriate ioctl for device". Hard fail :
-# sans pinentry GUI, toute collecte lancée depuis la GUI échoue.
-# Pas de check macOS : les installs gpg usuelles (GPGTools/MacGPG2, brew)
-# semblent configurer pinentry-mac correctement — à ajouter si un cas Mac
-# réel se présente.
+# sans pinentry GUI, toute collecte lancée depuis la GUI/dock échoue.
 if [[ $OS == linux ]] && command -v gpg &>/dev/null; then
     if command -v pinentry-gtk-2 &>/dev/null \
        || command -v pinentry-gnome3 &>/dev/null \
@@ -244,6 +241,30 @@ if [[ $OS == linux ]] && command -v gpg &>/dev/null; then
         fail "pinentry GUI (déchiffrement credentials depuis la GUI)"
         echo "  → sudo apt install pinentry-gtk2"
         ERRORS=$((ERRORS + 1))
+    fi
+# macOS : double exigence (vécu juf, gnupg MacPorts). (1) le binaire pinentry-mac
+# est souvent un .app HORS PATH (MacPorts → /Applications/MacPorts/…) que
+# `command -v` rate ; (2) le pinentry par défaut de MacPorts est curses → il faut
+# pointer gpg-agent dessus, sinon "Inappropriate ioctl" même binaire posé.
+elif [[ $OS == macos ]] && command -v gpg &>/dev/null; then
+    PINENTRY_MAC=""
+    for p in "$(command -v pinentry-mac 2>/dev/null)" \
+             /opt/homebrew/bin/pinentry-mac /usr/local/bin/pinentry-mac \
+             /Applications/MacPorts/pinentry-mac.app/Contents/MacOS/pinentry-mac \
+             /usr/local/MacGPG2/libexec/pinentry-mac.app/Contents/MacOS/pinentry-mac; do
+        if [[ -n "$p" && -x "$p" ]]; then PINENTRY_MAC="$p"; break; fi
+    done
+    if [[ -z "$PINENTRY_MAC" ]]; then
+        fail "pinentry-mac (déchiffrement credentials depuis la GUI/dock)"
+        pkg_hint "" pinentry-mac pinentry-mac
+        ERRORS=$((ERRORS + 1))
+    elif ! grep -qs 'pinentry-program.*pinentry-mac' "$HOME/.gnupg/gpg-agent.conf"; then
+        fail "pinentry-mac présent mais gpg-agent ne l'utilise pas"
+        echo "  → ajoute à ~/.gnupg/gpg-agent.conf : pinentry-program $PINENTRY_MAC"
+        echo "  → puis : gpgconf --kill gpg-agent"
+        ERRORS=$((ERRORS + 1))
+    else
+        ok "pinentry-mac (agent configuré)"
     fi
 fi
 

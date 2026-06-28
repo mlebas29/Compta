@@ -227,6 +227,8 @@ class ComptaFetcher:
         )
         if result.returncode != 0:
             self.logger.error("Échec déchiffrement GPG — abandon collecte")
+            if result.stderr:
+                self.logger.error(f"  {result.stderr[:200]}")
             return False
         return True
 

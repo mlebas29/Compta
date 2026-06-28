@@ -9,6 +9,17 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 
 Les trois derniers sont spécifiques au mode assisté ; 📘 concerne le mode classeur.
 
+## v5.11.1
+| 2026-06-28 | Correction de l'installateur  macOS |
+| ---------- | ----------------------------------- |
+
+macOS : installation étendue à la composante graphique GPG pinentry-mac  (saisie du mot de passe de collecte)
+
+**Détail :**
+
+- **macOS — déchiffrement des identifiants** — sur un Mac où GnuPG provient de MacPorts, la collecte pouvait échouer (« Échec déchiffrement GPG ») faute d'une fenêtre de saisie de mot de passe lorsqu'elle est lancée depuis le dock : l'installateur **détecte et guide** désormais l'installation et la configuration de `pinentry-mac`.
+- **Diagnostic** — en cas d'échec de déchiffrement, le message d'erreur réel de GnuPG est désormais affiché (plus de panne muette).
+
 ## v5.11.0
 | 2026-06-27 | Budget : changer le poste d'une catégorie ; démarrage plus robuste sur anciens Mac. |
 | ---------- | ------------------------------------------------------------ |
