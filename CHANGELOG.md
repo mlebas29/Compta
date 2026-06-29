@@ -9,6 +9,18 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 
 Les trois derniers sont spécifiques au mode assisté ; 📘 concerne le mode classeur.
 
+## v5.12.0
+| 2026-06-29 | Catégories : recatégoriser les opérations non classées, onglet réorganisé. |
+| ---------- | ------------------------------------------------------------ |
+
+**Détail :**
+
+- **Recatégoriser les opérations non classées** — un nouveau bouton ré-applique les correspondances (patterns) aux opérations encore en « - », **sans re-collecter**. Utile surtout pour un classeur récent : on importe, on affine ses correspondances, puis on recatégorise. Ne touche **que** les « - » → les catégories déjà posées (à la main ou par une correspondance) ne sont jamais écrasées.
+- **Onglet Catégories réorganisé** — boutons regroupés et étiquetés (Pattern / Catégorie / Postes) ; **Modifier** et **Supprimer** sont désormais de vrais boutons (ils n'étaient accessibles qu'au clic droit, peu visible sur Mac) ; aide **« ? » regex** (mémo + exemples).
+- **Catégories prédéfinies protégées** — les catégories système (@Virement, @Change, « - »…) ne peuvent plus être renommées ni supprimées par mégarde.
+- **Supprimer une catégorie utilisée** — possibilité de **remettre ses opérations à « - »** (non classées) pour les recatégoriser ensuite.
+- **Correction** — supprimer une catégorie ayant des opérations à réaffecter échouait ; corrigé.
+
 ## v5.11.1
 | 2026-06-28 | Correction de l'installateur  macOS |
 | ---------- | ----------------------------------- |
