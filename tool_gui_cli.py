@@ -328,6 +328,14 @@ class HeadlessGUI(DevisesMixin, AccountsMixin, BudgetMixin, CategoriesMixin):
         print(f"Catégorie '{name}' rattachée au poste '{poste}'")
         return True
 
+    def recategorize(self, doc=None):
+        """Re-catégorise les opérations « - » via les patterns courants.
+
+        Retourne le nombre d'opérations recatégorisées."""
+        n = self._recategorize_operations(doc=doc)
+        print(f"{n} opération(s) recatégorisée(s)")
+        return n
+
     def update_poste(self, old_name, new_name, new_type, doc=None):
         """Modifie un poste budgétaire (renommage et/ou type)."""
         self._update_budget_post(old_name, new_name, new_type, doc=doc)

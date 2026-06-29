@@ -3,7 +3,7 @@
 import shutil
 from inc_excel_schema import (
     uno_col, uno_row, ColResolver,
-    SHEET_BUDGET,
+    SHEET_BUDGET, SHEET_OPERATIONS,
 )
 
 

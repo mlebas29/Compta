@@ -61,6 +61,8 @@ class DaemonClientMixin:
         # CRUD budget
         'add_category', 'delete_category', 'rename_category', 'set_category_poste',
         'add_poste', 'delete_poste', 'update_poste',
+        # Recatégorisation post-import
+        'recategorize',
         # Worker
         '_save_accounts',
     })
@@ -260,6 +262,8 @@ class DaemonGUI(DaemonClientMixin):
         # CRUD budget
         'add_category', 'delete_category', 'rename_category', 'set_category_poste',
         'add_poste', 'delete_poste', 'update_poste',
+        # Recatégorisation post-import
+        'recategorize',
         # Workers utilisés par certains TNR (light_build)
         '_save_accounts',
         # Lecture

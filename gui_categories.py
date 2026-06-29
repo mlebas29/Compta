@@ -62,28 +62,50 @@ class CategoriesMixin:
         self.cat_tree.pack(side='left', fill='both', expand=True)
         vsb.pack(side='right', fill='y')
 
-        # Bas : boutons
+        # Bas : boutons — trois zones. « Pattern » (CRUD des règles regex) à
+        # l'extrême gauche ; « Catégorie » (CRUD catégories budget + Liste) à
+        # l'extrême droite ; au centre « Recatégoriser », action GLOBALE à part
+        # (applique les patterns aux opérations « - »). Recatégoriser est
+        # explicite/batché à dessein : ~8 s par passe (réécriture complète du
+        # classeur) → pas d'auto-refresh à chaque édition de pattern.
+        # Pas de flèches de reclassement (l'ordre des patterns = priorité
+        # d'évaluation, se gère à la création / dans le JSON).
+        # Symboles : \u2795 ajouter · \u2716 supprimer · \u270f modifier.
         btn_frame = ttk.Frame(tab)
         btn_frame.pack(fill='x', padx=5, pady=5)
 
-        ttk.Button(btn_frame, text='\u2795 Ajouter pattern',
-                   command=self._cat_add).pack(side='left', padx=2)
-
-        ttk.Separator(btn_frame, orient='vertical').pack(
-            side='left', fill='y', padx=8)
-
-        ttk.Button(btn_frame, text='\u25b2 Monter',
-                   command=self._cat_move_up).pack(side='left', padx=2)
-        ttk.Button(btn_frame, text='\u25bc Descendre',
-                   command=self._cat_move_down).pack(side='left', padx=2)
+        # Groupe « Pattern » — extrême gauche
+        pat_grp = ttk.Frame(btn_frame)
+        pat_grp.pack(side='left')
+        ttk.Label(pat_grp, text='Pattern').pack(side='left', padx=(2, 4))
+        ttk.Button(pat_grp, text='\u2795', width=3,
+                   command=self._cat_add).pack(side='left', padx=1)
+        ttk.Button(pat_grp, text='\u2716', width=3,
+                   command=self._cat_delete).pack(side='left', padx=1)
+        ttk.Button(pat_grp, text='\u270f', width=3,
+                   command=self._cat_edit).pack(side='left', padx=1)
 
         if self.xlsx_path:
-            ttk.Separator(btn_frame, orient='vertical').pack(
-                side='left', fill='y', padx=8)
-            ttk.Button(btn_frame, text='\u2795 Nouvelle catégorie',
-                       command=self._budget_cat_add).pack(side='left', padx=2)
-            ttk.Button(btn_frame, text='\U0001f4cb Catégories Budget',
-                       command=self._budget_cat_manage).pack(side='left', padx=2)
+            # Groupe « Catégorie » — extrême droite (sous-frame : ancré à
+            # droite, ordre interne gauche→droite).
+            cat_grp = ttk.Frame(btn_frame)
+            cat_grp.pack(side='right')
+            ttk.Label(cat_grp, text='Catégorie').pack(side='left', padx=(2, 4))
+            ttk.Button(cat_grp, text='\u2795', width=3,
+                       command=self._budget_cat_add).pack(side='left', padx=1)
+            self._cat_del_btn = ttk.Button(cat_grp, text='\u2716', width=3,
+                                           command=self._budget_cat_delete_from_menu)
+            self._cat_del_btn.pack(side='left', padx=1)
+            self._cat_mod_btn = ttk.Button(cat_grp, text='\u270f', width=3,
+                                           command=self._budget_cat_modify_from_menu)
+            self._cat_mod_btn.pack(side='left', padx=1)
+            ttk.Button(cat_grp, text='\U0001f4cb Liste',
+                       command=self._budget_cat_manage).pack(side='left', padx=(8, 1))
+
+            # « Recatégoriser » — centré entre les deux groupes (expand remplit
+            # la cavité restante, le bouton se centre dedans).
+            ttk.Button(btn_frame, text='\U0001f504 Recatégoriser les « - »',
+                       command=self._recategorize_run).pack(side='left', expand=True)
 
         # --- Section Postes budgétaires ---
         if self.xlsx_path:
@@ -109,15 +131,16 @@ class CategoriesMixin:
             self.post_tree.pack(side='left', fill='x', expand=True)
             post_vsb.pack(side='right', fill='y')
 
-            # Boutons poste (Ajouter/Modifier/Supprimer) — menu contextuel clic droit conservé
+            # Boutons poste — légende « Postes » + ➕ ✖ ✏ (menu clic droit conservé)
             post_btn = ttk.Frame(post_frame)
             post_btn.pack(fill='x', pady=(5, 0))
-            ttk.Button(post_btn, text='\u2795 Ajouter',
-                       command=self._budget_post_add).pack(side='left', padx=2)
-            ttk.Button(post_btn, text='✏ Modifier',
-                       command=self._budget_post_edit).pack(side='left', padx=2)
-            ttk.Button(post_btn, text='✖ Supprimer',
-                       command=self._budget_post_delete).pack(side='left', padx=2)
+            ttk.Label(post_btn, text='Postes').pack(side='left', padx=(2, 4))
+            ttk.Button(post_btn, text='\u2795', width=3,
+                       command=self._budget_post_add).pack(side='left', padx=1)
+            ttk.Button(post_btn, text='\u2716', width=3,
+                       command=self._budget_post_delete).pack(side='left', padx=1)
+            ttk.Button(post_btn, text='\u270f', width=3,
+                       command=self._budget_post_edit).pack(side='left', padx=1)
 
             # Menu contextuel postes
             self._post_context_menu = tk.Menu(self.post_tree, tearoff=0)
@@ -145,6 +168,7 @@ class CategoriesMixin:
                 label='\u2716 Supprimer catégorie', command=self._budget_cat_delete_from_menu)
         self.cat_tree.bind('<Button-3>', self._cat_show_context_menu)
         self.cat_tree.bind('<Double-1>', lambda e: self._cat_edit())
+        self.cat_tree.bind('<<TreeviewSelect>>', self._update_cat_btn_state)
 
         # Initialise la liste — sera rafraîchie à chaque sélection de l'onglet
         # (cf. _refresh_cat_groups) pour suivre la création de comptes.
@@ -195,6 +219,7 @@ class CategoriesMixin:
             appariement = 'oui' if entry.get('ref') == '-' else ''
             self.cat_tree.insert('', 'end', values=(
                 entry['pattern'], entry['category'], appariement))
+        self._update_cat_btn_state()
 
     def _cat_show_context_menu(self, event):
         """Affiche le menu contextuel sur clic droit d'un pattern."""
@@ -205,7 +230,7 @@ class CategoriesMixin:
             if self.xlsx_path:
                 vals = self.cat_tree.item(item)['values']
                 cat_name = str(vals[1]) if vals and len(vals) > 1 else ''
-                in_budget = cat_name in self.budget_categories
+                in_budget = self._is_editable_category(cat_name)
                 self._cat_context_menu.entryconfigure(
                     3, label=f'\u270f Modifier catégorie \u00ab{cat_name}\u00bb',
                     state='normal' if in_budget else 'disabled')
@@ -213,6 +238,37 @@ class CategoriesMixin:
                     4, label=f'\u2716 Supprimer catégorie \u00ab{cat_name}\u00bb',
                     state='normal' if in_budget else 'disabled')
             self._cat_context_menu.tk_popup(event.x_root, event.y_root)
+
+    @staticmethod
+    def _is_reserved_category(name):
+        """True si le nom est un jeton réservé au système (structurel),
+        donc interdit comme catégorie budget créée/renommée : '-' (non
+        catégorisé), '@…' (virement/change/titres…), '#…' (#Solde/#Info)."""
+        n = (name or '').strip()
+        return (not n) or n == '-' or n[:1] in ('@', '#')
+
+    def _is_editable_category(self, name):
+        """True si `name` est une catégorie budget que l'utilisateur peut
+        renommer/supprimer. ⚠ Les jetons réservés (@Change, @Virement, '-'…)
+        SONT des lignes du Budget (donc dans budget_categories) mais ne doivent
+        PAS être modifiables → exclus explicitement."""
+        return name in self.budget_categories and not self._is_reserved_category(name)
+
+    def _update_cat_btn_state(self, event=None):
+        """Active ✏/✖ Catégorie seulement si la catégorie de la ligne pattern
+        sélectionnée est une catégorie budget MODIFIABLE (jamais un réservé
+        @/#/-). Rend la protection VISIBLE (le grisé du clic droit n'est pas
+        fiable sur Mac)."""
+        if not getattr(self, '_cat_mod_btn', None):
+            return
+        cat = ''
+        sel = self.cat_tree.selection()
+        if sel:
+            vals = self.cat_tree.item(sel[0])['values']
+            cat = str(vals[1]) if vals and len(vals) > 1 else ''
+        state = 'normal' if self._is_editable_category(cat) else 'disabled'
+        self._cat_mod_btn.config(state=state)
+        self._cat_del_btn.config(state=state)
 
     def _cat_add(self):
         self._cat_dialog('Ajouter un pattern')
@@ -247,39 +303,6 @@ class CategoriesMixin:
         self.cat_tree.delete(sel[0])
         self.cat_count_label.config(
             text=f'{len(self.mappings[group])} pattern(s)')
-
-    def _cat_move_up(self):
-        sel = self.cat_tree.selection()
-        if not sel:
-            return
-        idx = self.cat_tree.index(sel[0])
-        if idx == 0:
-            return
-        group = self._current_group_key()
-        entries = self.mappings[group]
-        entries[idx - 1], entries[idx] = entries[idx], entries[idx - 1]
-        self._save_mappings()
-        self._on_cat_group_selected(None)
-        # Re-sélectionner l'élément déplacé
-        children = self.cat_tree.get_children()
-        self.cat_tree.selection_set(children[idx - 1])
-        self.cat_tree.see(children[idx - 1])
-
-    def _cat_move_down(self):
-        sel = self.cat_tree.selection()
-        if not sel:
-            return
-        idx = self.cat_tree.index(sel[0])
-        group = self._current_group_key()
-        entries = self.mappings[group]
-        if idx >= len(entries) - 1:
-            return
-        entries[idx], entries[idx + 1] = entries[idx + 1], entries[idx]
-        self._save_mappings()
-        self._on_cat_group_selected(None)
-        children = self.cat_tree.get_children()
-        self.cat_tree.selection_set(children[idx + 1])
-        self.cat_tree.see(children[idx + 1])
 
     def _cat_dialog(self, title, pattern='', category='', ref='',
                     edit_item=None):
@@ -394,6 +417,129 @@ class CategoriesMixin:
         pat_entry.focus()
 
     # ----------------------------------------------------------------
+    # RECATÉGORISATION POST-IMPORT
+    # ----------------------------------------------------------------
+    def _recategorize_run(self):
+        """Ré-applique les patterns aux opérations non catégorisées (« - »).
+
+        Geste « post-import » : après avoir affiné ses correspondances, l'utilisateur
+        re-joue la catégorisation sur les opérations déjà dans le classeur, sans
+        re-collecter. Portée NON-DESTRUCTIVE : seules les opérations encore « - »
+        sont touchées (les catégories déjà posées — à la main ou par un pattern —
+        et les lignes structurelles @Virement/#Solde… ne sont jamais « - »).
+        """
+        if not self.xlsx_path:
+            return
+        if not messagebox.askyesno(
+                'Recatégoriser les « - »',
+                'Ré-appliquer les correspondances (patterns) sur les opérations '
+                'encore non catégorisées (« - ») ?\n\n'
+                'Les catégories déjà posées (à la main ou par un pattern) et les '
+                'opérations structurelles ne sont pas modifiées.',
+                parent=self.root):
+            return
+
+        from inc_uno import HAS_UNO
+        result = {}
+
+        def worker():
+            if HAS_UNO:
+                result['n'] = self._recategorize_operations()
+            else:
+                result['n'] = self._daemon_call('recategorize')
+
+        self._run_uno_operation(
+            'Recatégorisation en cours',
+            worker,
+            lambda: self._after_recategorize(result.get('n', 0)))
+
+    def _recategorize_operations(self, doc=None):
+        """Worker UNO : re-catégorise les opérations « - » via les patterns courants.
+
+        Pour chaque opération dont la catégorie (col G) vaut « - », résout le site
+        depuis le compte (col H → config_accounts.json), recalcule la catégorie via
+        inc_category_mappings et réécrit la cellule SI un pattern matche (sinon laisse
+        « - »). Reproduit l'option d'appariement (`ref='-'`) comme à l'import.
+
+        Self-contained (recharge patterns + map compte→site du disque) → identique
+        en in-process (Linux) et via le daemon (Mac, HeadlessGUI sans account_site_map).
+
+        Args:
+            doc: UnoDocument ouvert (mode batch). Si None, ouvre/sauve/ferme.
+
+        Returns:
+            int : nombre d'opérations recatégorisées.
+        """
+        from contextlib import nullcontext
+        from inc_uno import UnoDocument
+        import inc_category_mappings
+        from inc_config_io import read_accounts_json, accounts_to_site_map
+
+        # L'utilisateur vient d'éditer ses patterns → recharger le JSON (et purger
+        # le cache du process daemon, persistant entre les calls).
+        inc_category_mappings.reload_patterns()
+
+        accounts_path = getattr(self, 'accounts_json_path', None) \
+            or (self.xlsx_path.parent / 'config_accounts.json')
+        site_map = accounts_to_site_map(read_accounts_json(accounts_path))
+
+        owned = doc is None
+        ctx = UnoDocument(self.xlsx_path) if owned else nullcontext(doc)
+        count = 0
+        backed_up = False
+        with ctx as doc:
+            cr = doc.cr
+            ws = doc.get_sheet(SHEET_OPERATIONS)
+            col_cat = cr.col('OPcatégorie')
+            col_lib = cr.col('OPlibellé')
+            col_cpt = cr.col('OPcompte')
+            col_ref = cr.col('OPréf')
+
+            cursor = ws.createCursor()
+            cursor.gotoStartOfUsedArea(False)
+            cursor.gotoEndOfUsedArea(True)
+            last_row_0 = cursor.getRangeAddress().EndRow
+
+            for r in range(2, last_row_0 + 1):  # 0,1 = en-têtes ; données dès row 2
+                cat_cell = ws.getCellByPosition(col_cat, r)
+                if cat_cell.getString().strip() != '-':
+                    continue
+                libelle = ws.getCellByPosition(col_lib, r).getString()
+                compte = ws.getCellByPosition(col_cpt, r).getString().strip()
+                new_cat, opts = inc_category_mappings.categorize(
+                    libelle, site_map.get(compte))
+                if new_cat and new_cat != '-':
+                    # Backup paresseux à la 1re modif réelle (« no-op si inchangé » :
+                    # un clic sans rien à reclasser ne touche ni le .xlsm ni le .bak).
+                    if not backed_up:
+                        shutil.copy2(self.xlsx_path,
+                                     self.xlsx_path.with_suffix('.xlsm.bak'))
+                        backed_up = True
+                    cat_cell.setString(new_cat)
+                    if 'ref' in opts:
+                        ws.getCellByPosition(col_ref, r).setString(opts['ref'])
+                    count += 1
+
+            # Save seulement si quelque chose a changé (sinon le doc est jeté tel quel).
+            if owned and count:
+                self._uno_finalize(doc)
+
+        print(f'{count} opération(s) recatégorisée(s)', file=sys.stderr)
+        return count
+
+    def _after_recategorize(self, n):
+        """Callback après recatégorisation : message de bilan.
+
+        Le rafraîchissement du contrôle « opérations non catégorisées » est assuré
+        par `_run_uno_operation` (`_refresh_status_bar`). Pas de rechargement budget
+        nécessaire (ni postes ni catégories Budget ne bougent)."""
+        if n:
+            self._set_status(f'{n} opération(s) recatégorisée(s).')
+        else:
+            self._set_status('Aucune opération à recatégoriser '
+                             '(toutes déjà classées ou aucun pattern ne matche).')
+
+    # ----------------------------------------------------------------
     # NOUVELLE CATÉGORIE BUDGET
     # ----------------------------------------------------------------
     def _budget_cat_add(self):
@@ -443,6 +589,9 @@ class CategoriesMixin:
 
             if not name:
                 status_label.config(text='Le nom est obligatoire.')
+                return
+            if self._is_reserved_category(name):
+                status_label.config(text='Nom réservé au système (@, #, -).')
                 return
             if name in self.budget_categories:
                 status_label.config(text=f'La catégorie "{name}" existe déjà.')
@@ -515,6 +664,8 @@ class CategoriesMixin:
 
         for cat in self.budget_categories:
             lb.insert('end', cat)
+            if self._is_reserved_category(cat):
+                lb.itemconfig(lb.size() - 1, foreground='gray')
 
         # Boutons
         btn_frame = ttk.Frame(dlg)
@@ -528,22 +679,31 @@ class CategoriesMixin:
 
         def on_rename():
             cat = get_selected()
-            if cat:
+            if cat and self._is_editable_category(cat):
                 dlg.destroy()
                 self._budget_cat_modify_dialog(cat)
 
         def on_delete():
             cat = get_selected()
-            if cat:
+            if cat and self._is_editable_category(cat):
                 dlg.destroy()
                 self._budget_cat_delete_confirm(cat)
 
-        ttk.Button(btn_frame, text='\u270f Modifier',
-                   command=on_rename).pack(side='left', padx=5)
-        ttk.Button(btn_frame, text='\u2716 Supprimer',
-                   command=on_delete).pack(side='left', padx=5)
+        mod_btn = ttk.Button(btn_frame, text='\u270f Modifier', command=on_rename)
+        mod_btn.pack(side='left', padx=5)
+        del_btn = ttk.Button(btn_frame, text='\u2716 Supprimer', command=on_delete)
+        del_btn.pack(side='left', padx=5)
         ttk.Button(btn_frame, text='Fermer',
                    command=dlg.destroy).pack(side='left', padx=5)
+
+        def _refresh_manage_btns(event=None):
+            # Réservés (@/#/-) non modifiables/supprimables → boutons grisés.
+            cat = get_selected()
+            state = 'normal' if (cat and self._is_editable_category(cat)) else 'disabled'
+            mod_btn.config(state=state)
+            del_btn.config(state=state)
+        lb.bind('<<ListboxSelect>>', _refresh_manage_btns)
+        _refresh_manage_btns()  # init : rien de sélectionné → grisé
 
         # Context menu
         ctx = tk.Menu(lb, tearoff=0)
@@ -562,7 +722,7 @@ class CategoriesMixin:
             return
         vals = self.cat_tree.item(sel[0])['values']
         cat_name = str(vals[1]) if vals and len(vals) > 1 else ''
-        if not cat_name or cat_name not in self.budget_categories:
+        if not self._is_editable_category(cat_name):
             return
         self._budget_cat_modify_dialog(cat_name)
 
@@ -602,6 +762,11 @@ class CategoriesMixin:
             new_poste = poste_var.get().strip()
             name_changed = bool(new_name) and new_name != cat_name
             poste_changed = bool(new_poste) and new_poste != current_poste
+            if name_changed and self._is_reserved_category(new_name):
+                messagebox.showwarning('Nom réservé',
+                    'Un nom commençant par @ ou #, ou « - », est réservé au système.',
+                    parent=dlg)
+                return
             if name_changed and new_name in self.budget_categories:
                 messagebox.showwarning('Doublon',
                     f'La catégorie "{new_name}" existe déjà.',
@@ -650,7 +815,7 @@ class CategoriesMixin:
             return
         vals = self.cat_tree.item(sel[0])['values']
         cat_name = str(vals[1]) if vals and len(vals) > 1 else ''
-        if not cat_name or cat_name not in self.budget_categories:
+        if not self._is_editable_category(cat_name):
             return
 
         if len(self.budget_categories) <= 1:
@@ -670,7 +835,12 @@ class CategoriesMixin:
 
         if ops_count > 0:
             # Réaffectation obligatoire avant suppression
-            others = [c for c in self.budget_categories if c != cat_name]
+            others = [c for c in self.budget_categories
+                      if c != cat_name and not self._is_reserved_category(c)]
+            # Option (b) : remettre les opérations à « - » (non catégorisé) →
+            # re-traitables ensuite par 🔄 Recatégoriser.
+            DASH_OPT = '\u2014 remettre à « - » (non catégorisé)'
+            choices = [DASH_OPT] + others
             dlg = tk.Toplevel(self.root)
             dlg.title('Réaffecter les opérations')
             dlg.transient(self.root)
@@ -678,12 +848,12 @@ class CategoriesMixin:
 
             ttk.Label(dlg, text=(
                 f'{ops_count} opération(s) utilisent la catégorie « {cat_name} ».\n'
-                'Choisir une catégorie de remplacement :'),
+                'Choisir une catégorie de remplacement (ou les remettre à « - ») :'),
                 wraplength=380).pack(padx=15, pady=(15, 5))
 
-            combo_var = tk.StringVar(value=others[0] if others else '')
+            combo_var = tk.StringVar(value=others[0] if others else DASH_OPT)
             combo = ttk.Combobox(dlg, textvariable=combo_var,
-                                 values=others, state='readonly', width=35)
+                                 values=choices, state='readonly', width=35)
             combo.pack(padx=15, pady=5)
 
             btn_frame = ttk.Frame(dlg)
@@ -693,6 +863,8 @@ class CategoriesMixin:
                 target = combo_var.get()
                 if not target:
                     return
+                if target == DASH_OPT:
+                    target = '-'
                 dlg.destroy()
                 from inc_uno import HAS_UNO
 
