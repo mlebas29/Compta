@@ -541,16 +541,24 @@ class CategoriesMixin:
         return count
 
     def _after_recategorize(self, n):
-        """Callback après recatégorisation : message de bilan.
+        """Callback après recatégorisation : bilan en boîte de dialogue.
 
-        Le rafraîchissement du contrôle « opérations non catégorisées » est assuré
-        par `_run_uno_operation` (`_refresh_status_bar`). Pas de rechargement budget
-        nécessaire (ni postes ni catégories Budget ne bougent)."""
+        PAS via `_set_status` : `_run_uno_operation` rappelle `_refresh_status_bar`
+        juste après ce callback, ce qui écraserait aussitôt le message de la barre.
+        Pour une action explicite/batchée sans retour visuel dans l'onglet, un
+        popup donne un bilan clair (et distingue 0 vs N). Le contrôle « opérations
+        non catégorisées » est, lui, bien rafraîchi par `_refresh_status_bar`."""
         if n:
-            self._set_status(f'{n} opération(s) recatégorisée(s).')
+            messagebox.showinfo(
+                'Recatégorisation terminée',
+                f'{n} opération(s) recatégorisée(s).',
+                parent=self.root)
         else:
-            self._set_status('Aucune opération à recatégoriser '
-                             '(toutes déjà classées ou aucun pattern ne matche).')
+            messagebox.showinfo(
+                'Recatégorisation terminée',
+                'Aucune opération à recatégoriser\n'
+                '(toutes déjà classées, ou aucun pattern ne correspond).',
+                parent=self.root)
 
     # ----------------------------------------------------------------
     # NOUVELLE CATÉGORIE BUDGET
