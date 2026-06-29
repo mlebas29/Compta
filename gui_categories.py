@@ -42,6 +42,13 @@ class CategoriesMixin:
         count_label.pack(side='left', padx=10)
         self.cat_count_label = count_label
 
+        # Bouton « ? » : mémo regex (réutilise le tooltip d'aide des LabelFrames).
+        help_btn = tk.Label(top, text=' ? ', font=('', 9, 'bold'),
+                            fg='#555', bg='#e8e8e8', cursor='hand2',
+                            relief='flat', padx=2)
+        help_btn.pack(side='left', padx=(4, 0))
+        help_btn.bind('<Button-1>', lambda e: self._show_pattern_help(e.widget))
+
         # Centre : Treeview
         tree_frame = ttk.Frame(tab)
         tree_frame.pack(fill='both', expand=True, padx=5)
@@ -246,6 +253,12 @@ class CategoriesMixin:
         catégorisé), '@…' (virement/change/titres…), '#…' (#Solde/#Info)."""
         n = (name or '').strip()
         return (not n) or n == '-' or n[:1] in ('@', '#')
+
+    def _show_pattern_help(self, widget):
+        """Affiche le mémo regex (clé 'Correspondances (patterns)' de FRAME_HELP)."""
+        from cpt_gui import FRAME_HELP
+        self._show_help_tooltip(
+            widget, FRAME_HELP.get('Correspondances (patterns)', ''))
 
     def _is_editable_category(self, name):
         """True si `name` est une catégorie budget que l'utilisateur peut
