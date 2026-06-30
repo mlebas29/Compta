@@ -9,6 +9,16 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 
 Les trois derniers sont spécifiques au mode assisté ; 📘 concerne le mode classeur.
 
+## v5.13.0
+| 2026-06-30 | Réorganisation et enrichissement des onglets Avoirs et Catégories (corrige MacOS) |
+| ---------- | ------------------------------------------------------------ |
+
+**Détail :**
+
+- **Catégories — purger une catégorie** — nouveau geste **♲ Purger** (distinct de ✖ Supprimer) : il **décatégorise** les opérations d'une catégorie (remises à « - ») tout en **conservant** la catégorie et ses règles, prêtes à les reclasser via « 🔄 Recatégoriser ». Disponible en bouton, menu contextuel et dans la liste des catégories.
+- **Catégories — suppression plus claire** — le dialogue de suppression propose « - » par défaut comme destination des opérations et **avertit** quand des règles (patterns) seront supprimées avec la catégorie.
+- **Comptes — boutons visibles (corrige macOS)** — l'onglet Comptes expose désormais des **boutons** groupés par légende (Compte, Bien, Titre, Devise) pour Ajouter / Modifier / Supprimer / Purger, là où ces actions n'étaient accessibles **qu'au clic droit** (peu fiable sur Mac). Les boutons s'activent selon la sélection — un **bien** (sans opérations) n'a pas de purge. Le clic droit reste disponible.
+
 ## v5.12.0
 | 2026-06-29 | Catégories : recatégoriser les opérations non classées, onglet réorganisé. |
 | ---------- | ------------------------------------------------------------ |
