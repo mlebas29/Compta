@@ -59,7 +59,8 @@ class DaemonClientMixin:
         # CRUD titres
         'add_title', 'rename_pv_title', 'delete_pv_title',
         # CRUD budget
-        'add_category', 'delete_category', 'rename_category', 'set_category_poste',
+        'add_category', 'delete_category', 'purge_category', 'rename_category',
+        'set_category_poste',
         'add_poste', 'delete_poste', 'update_poste',
         # Recatégorisation post-import
         'recategorize',
@@ -260,7 +261,8 @@ class DaemonGUI(DaemonClientMixin):
         # CRUD titres
         'add_title', 'rename_pv_title', 'delete_pv_title',
         # CRUD budget
-        'add_category', 'delete_category', 'rename_category', 'set_category_poste',
+        'add_category', 'delete_category', 'purge_category', 'rename_category',
+        'set_category_poste',
         'add_poste', 'delete_poste', 'update_poste',
         # Recatégorisation post-import
         'recategorize',

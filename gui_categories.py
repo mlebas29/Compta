@@ -106,6 +106,9 @@ class CategoriesMixin:
             self._cat_mod_btn = ttk.Button(cat_grp, text='\u270f', width=3,
                                            command=self._budget_cat_modify_from_menu)
             self._cat_mod_btn.pack(side='left', padx=1)
+            self._cat_purge_btn = ttk.Button(cat_grp, text='\u2672', width=3,
+                                             command=self._budget_cat_purge_from_menu)
+            self._cat_purge_btn.pack(side='left', padx=1)
             ttk.Button(cat_grp, text='\U0001f4cb Liste',
                        command=self._budget_cat_manage).pack(side='left', padx=(8, 1))
 
@@ -173,6 +176,8 @@ class CategoriesMixin:
                 label='\u270f Modifier catégorie', command=self._budget_cat_modify_from_menu)
             self._cat_context_menu.add_command(
                 label='\u2716 Supprimer catégorie', command=self._budget_cat_delete_from_menu)
+            self._cat_context_menu.add_command(
+                label='♲ Purger catégorie', command=self._budget_cat_purge_from_menu)
         self.cat_tree.bind('<Button-3>', self._cat_show_context_menu)
         self.cat_tree.bind('<Double-1>', lambda e: self._cat_edit())
         self.cat_tree.bind('<<TreeviewSelect>>', self._update_cat_btn_state)
@@ -282,6 +287,8 @@ class CategoriesMixin:
         state = 'normal' if self._is_editable_category(cat) else 'disabled'
         self._cat_mod_btn.config(state=state)
         self._cat_del_btn.config(state=state)
+        if getattr(self, '_cat_purge_btn', None):
+            self._cat_purge_btn.config(state=state)
 
     def _cat_add(self):
         self._cat_dialog('Ajouter un pattern')
@@ -710,8 +717,16 @@ class CategoriesMixin:
                 dlg.destroy()
                 self._budget_cat_delete_confirm(cat)
 
+        def on_purge():
+            cat = get_selected()
+            if cat and self._is_editable_category(cat):
+                dlg.destroy()
+                self._budget_cat_purge_confirm(cat)
+
         mod_btn = ttk.Button(btn_frame, text='\u270f Modifier', command=on_rename)
         mod_btn.pack(side='left', padx=5)
+        purge_btn = ttk.Button(btn_frame, text='♲ Purger', command=on_purge)
+        purge_btn.pack(side='left', padx=5)
         del_btn = ttk.Button(btn_frame, text='\u2716 Supprimer', command=on_delete)
         del_btn.pack(side='left', padx=5)
         ttk.Button(btn_frame, text='Fermer',
@@ -722,6 +737,7 @@ class CategoriesMixin:
             cat = get_selected()
             state = 'normal' if (cat and self._is_editable_category(cat)) else 'disabled'
             mod_btn.config(state=state)
+            purge_btn.config(state=state)
             del_btn.config(state=state)
         lb.bind('<<ListboxSelect>>', _refresh_manage_btns)
         _refresh_manage_btns()  # init : rien de sélectionné → grisé
@@ -730,6 +746,7 @@ class CategoriesMixin:
         ctx = tk.Menu(lb, tearoff=0)
         ctx.add_command(label='\u270f Modifier', command=on_rename)
         ctx.add_command(label='\u2716 Supprimer', command=on_delete)
+        ctx.add_command(label='♲ Purger', command=on_purge)
         lb.bind('<Button-3>', lambda e: (
             lb.selection_clear(0, 'end'),
             lb.selection_set(lb.nearest(e.y)),
@@ -849,10 +866,23 @@ class CategoriesMixin:
 
         self._budget_cat_delete_confirm(cat_name)
 
+    def _count_patterns_for_category(self, cat_name):
+        """Compte les patterns (tous groupes) qui pointent vers cette catégorie."""
+        return sum(1 for entries in self.mappings.values()
+                   for e in entries if e.get('category') == cat_name)
+
     def _budget_cat_delete_confirm(self, cat_name):
-        """Vérifie les ops associées et lance la suppression ou réaffectation."""
+        """Vérifie les ops associées et lance la suppression ou réaffectation.
+
+        Suppression = retire la ligne Budget ET purge les patterns associés
+        (cf. _after_budget_cat_delete). Pour seulement décatégoriser en gardant
+        catégorie + règles, utiliser la purge (_budget_cat_purge_confirm).
+        """
         # Compter les opérations qui référencent cette catégorie (col G)
         ops_count = self._count_ops_for_category(cat_name)
+        pat_count = self._count_patterns_for_category(cat_name)
+        pat_warn = (f'\n• {pat_count} règle(s) (patterns) seront aussi supprimées'
+                    if pat_count else '')
 
         if ops_count > 0:
             # Réaffectation obligatoire avant suppression
@@ -868,11 +898,14 @@ class CategoriesMixin:
             dlg.grab_set()
 
             ttk.Label(dlg, text=(
-                f'{ops_count} opération(s) utilisent la catégorie « {cat_name} ».\n'
-                'Choisir une catégorie de remplacement (ou les remettre à « - ») :'),
-                wraplength=380).pack(padx=15, pady=(15, 5))
+                f'Supprimer la catégorie « {cat_name} » :\n'
+                f'• {ops_count} opération(s) la référencent → choisir une '
+                'catégorie de remplacement (ou « - »)'
+                f'{pat_warn}'),
+                wraplength=380, justify='left').pack(padx=15, pady=(15, 5))
 
-            combo_var = tk.StringVar(value=others[0] if others else DASH_OPT)
+            # Défaut neutre = « - » (clarté : pas de catégorie tierce en évidence).
+            combo_var = tk.StringVar(value=DASH_OPT)
             combo = ttk.Combobox(dlg, textvariable=combo_var,
                                  values=choices, state='readonly', width=35)
             combo.pack(padx=15, pady=5)
@@ -906,13 +939,14 @@ class CategoriesMixin:
             ttk.Button(btn_frame, text='Annuler',
                        command=dlg.destroy).pack(side='left', padx=5)
 
-            dlg.geometry('420x160')
+            dlg.geometry('470x240')
             dlg.wait_window()
         else:
             if not messagebox.askyesno(
                     'Confirmer la suppression',
                     f'Supprimer la catégorie « {cat_name} » du Budget ?\n\n'
-                    'Aucune opération ne référence cette catégorie.',
+                    'Aucune opération ne référence cette catégorie.'
+                    f'{pat_warn}',
                     parent=self.root):
                 return
 
@@ -928,6 +962,54 @@ class CategoriesMixin:
                 'Suppression en cours',
                 worker,
                 lambda: self._after_budget_cat_delete(cat_name))
+
+    def _budget_cat_purge_from_menu(self):
+        """Purge une catégorie Budget depuis un bouton / menu contextuel."""
+        sel = self.cat_tree.selection()
+        if not sel:
+            return
+        vals = self.cat_tree.item(sel[0])['values']
+        cat_name = str(vals[1]) if vals and len(vals) > 1 else ''
+        if not self._is_editable_category(cat_name):
+            return
+        self._budget_cat_purge_confirm(cat_name)
+
+    def _budget_cat_purge_confirm(self, cat_name):
+        """Décatégorise les opérations de la catégorie (col G → « - »), en
+        GARDANT la catégorie et ses patterns (analogue de la purge compte).
+
+        Pendant de _budget_cat_delete_confirm : la purge vide le contenu,
+        la suppression retire l'enveloppe (ligne Budget + règles).
+        """
+        ops_count = self._count_ops_for_category(cat_name)
+        if ops_count == 0:
+            messagebox.showinfo(
+                'Purge',
+                f'« {cat_name} » n\'a aucune opération à décatégoriser.',
+                parent=self.root)
+            return
+
+        if not messagebox.askyesno(
+                'Confirmer la purge',
+                f'Purger « {cat_name} » ?\n\n'
+                f'• {ops_count} opération(s) seront décatégorisées (→ « - »)\n'
+                '• La catégorie et ses règles (patterns) sont conservées\n\n'
+                'Relance « Recatégoriser les « - » » pour les retraiter.',
+                parent=self.root):
+            return
+
+        from inc_uno import HAS_UNO
+
+        def worker():
+            if HAS_UNO:
+                self._purge_category(cat_name)
+            else:
+                self._daemon_call('purge_category', name=cat_name)
+
+        self._run_uno_operation(
+            'Purge en cours',
+            worker,
+            lambda: self._after_budget_cat_purge(cat_name))
 
     def _count_ops_for_category(self, cat_name):
         """Compte les opérations dans col G qui référencent une catégorie."""
@@ -1080,6 +1162,14 @@ class CategoriesMixin:
             print(f'{purged} pattern(s) orphelin(s) purgé(s) pour catégorie "{name}"', file=sys.stderr)
 
         self._set_status(f'Catégorie "{name}" supprimée du Budget.')
+        self._on_cat_group_selected(None)
+
+    def _after_budget_cat_purge(self, name):
+        """Callback après purge catégorie : recharge le budget (le daemon Mac ne
+        touche pas l'état GUI). NE purge PAS les patterns (catégorie + règles
+        conservées, contrairement à _after_budget_cat_delete)."""
+        self._reload_budget_from_disk()
+        self._set_status(f'Catégorie "{name}" purgée (opérations → « - »).')
         self._on_cat_group_selected(None)
 
     # ----------------------------------------------------------------

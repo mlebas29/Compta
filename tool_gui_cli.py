@@ -464,6 +464,10 @@ class HeadlessGUI(DevisesMixin, AccountsMixin, BudgetMixin, CategoriesMixin):
         """Supprime une catégorie du Budget."""
         return self._delete_category(name, reassign_to=reassign_to, doc=doc)
 
+    def purge_category(self, name, doc=None):
+        """Purge une catégorie : décatégorise ses opérations, garde la structure."""
+        return self._purge_category(name, doc=doc)
+
     def delete_poste(self, name, doc=None):
         """Supprime un poste budgétaire du Budget."""
         return self._delete_poste(name, doc=doc)

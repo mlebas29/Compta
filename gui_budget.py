@@ -165,6 +165,54 @@ class BudgetMixin:
         print(f"Poste ajouté: {name} ({'Fixe' if fixe else 'Variable'})")
         return True
 
+    def _reassign_category_ops(self, doc, name, target):
+        """Réaffecte (col G Opérations) toutes les opérations de catégorie
+        `name` vers `target`. Retourne le nombre d'opérations modifiées.
+
+        Mutualisé entre suppression (réaffectation) et purge (→ '-').
+        """
+        ws_ops = doc.get_sheet(SHEET_OPERATIONS)
+        col_g = doc.cr.col('OPcatégorie')
+        cursor = ws_ops.createCursor()
+        cursor.gotoStartOfUsedArea(False)
+        cursor.gotoEndOfUsedArea(True)
+        last_row_0 = cursor.getRangeAddress().EndRow
+        count = 0
+        for r in range(2, last_row_0 + 1):
+            cell = ws_ops.getCellByPosition(col_g, r)
+            if cell.getString() == name:
+                cell.setString(target)
+                count += 1
+        return count
+
+    def _purge_category(self, name, doc=None):
+        """Purge une catégorie : décatégorise ses opérations (col G → '-'),
+        GARDE la ligne Budget ET les patterns.
+
+        Analogue de purge_account (vide le contenu, conserve l'enveloppe).
+        Permet ensuite « 🔄 Recatégoriser les « - » » de les retraiter via
+        les patterns intacts.
+        """
+        if name not in self.budget_cat_rows:
+            print(f"ERREUR: catégorie '{name}' introuvable")
+            return False
+
+        from contextlib import nullcontext
+        from inc_uno import UnoDocument
+
+        owned = doc is None
+        ctx = UnoDocument(self.xlsx_path) if owned else nullcontext(doc)
+        with ctx as doc:
+            count = self._reassign_category_ops(doc, name, '-')
+            if owned:
+                doc.save()
+
+        if owned and hasattr(self, '_load_excel_data'):
+            self._load_excel_data()
+
+        print(f"Catégorie purgée: {name} ({count} opération(s) → '-')")
+        return True
+
     def _delete_category(self, name, reassign_to=None, doc=None):
         """Supprime une catégorie de la feuille Budget via UNO.
 
@@ -185,16 +233,7 @@ class BudgetMixin:
             cr = doc.cr
             # Réaffecter les opérations col G si demandé
             if reassign_to:
-                ws_ops = doc.get_sheet(SHEET_OPERATIONS)
-                col_g = cr.col('OPcatégorie')
-                cursor = ws_ops.createCursor()
-                cursor.gotoStartOfUsedArea(False)
-                cursor.gotoEndOfUsedArea(True)
-                last_row_0 = cursor.getRangeAddress().EndRow
-                for r in range(2, last_row_0 + 1):
-                    cell = ws_ops.getCellByPosition(col_g, r)
-                    if cell.getString() == name:
-                        cell.setString(reassign_to)
+                self._reassign_category_ops(doc, name, reassign_to)
 
             # Supprimer la ligne Budget
             ws = doc.get_sheet(SHEET_BUDGET)

@@ -67,16 +67,62 @@ class AccountsMixin:
         # --- Boutons ---
         btn_frame = ttk.Frame(tab)
         btn_frame.pack(fill='x', padx=5, pady=(2, 5))
-        ttk.Button(btn_frame, text='\u2795 Ajouter compte',
-                   command=self._acct_add).pack(side='left', padx=2)
-        ttk.Button(btn_frame, text='\u2795 Ajouter bien',
-                   command=self._bien_add).pack(side='left', padx=2)
-        ttk.Separator(btn_frame, orient='vertical').pack(
-            side='left', fill='y', padx=8)
-        ttk.Button(btn_frame, text='\u2795 Nouvelle devise',
-                   command=self._devise_add).pack(side='left', padx=2)
-        ttk.Button(btn_frame, text='\u2716 Supprimer devise',
-                   command=self._devise_delete_dialog).pack(side='left', padx=2)
+        # Groupes par legende (comme l'onglet Categories), boutons icone.
+        # Symboles : \u2795 ajouter \u00b7 \u270f modifier \u00b7 \u2716 supprimer
+        # \u00b7 \u2672 purger. Gating type-aware dans _update_acct_btn_state.
+
+        # Compte : ajouter / modifier / supprimer / purger (compte, hors bien)
+        cpt_grp = ttk.Frame(btn_frame)
+        cpt_grp.pack(side='left')
+        ttk.Label(cpt_grp, text='Compte').pack(side='left', padx=(2, 4))
+        ttk.Button(cpt_grp, text='\u2795', width=3,
+                   command=self._acct_add).pack(side='left', padx=1)
+        self._acct_mod_btn = ttk.Button(cpt_grp, text='\u270f', width=3,
+                                        command=self._acct_edit)
+        self._acct_mod_btn.pack(side='left', padx=1)
+        self._acct_del_btn = ttk.Button(cpt_grp, text='\u2716', width=3,
+                                        command=self._acct_delete)
+        self._acct_del_btn.pack(side='left', padx=1)
+        self._acct_purge_btn = ttk.Button(cpt_grp, text='\u2672', width=3,
+                                          command=self._acct_purge)
+        self._acct_purge_btn.pack(side='left', padx=1)
+
+        # Bien : ajouter / modifier / supprimer \u2014 PAS de purge (un bien n'a
+        # pas d'operations et n'est jamais dans Controles).
+        bien_grp = ttk.Frame(btn_frame)
+        bien_grp.pack(side='left', padx=(12, 0))
+        ttk.Label(bien_grp, text='Bien').pack(side='left', padx=(2, 4))
+        ttk.Button(bien_grp, text='\u2795', width=3,
+                   command=self._bien_add).pack(side='left', padx=1)
+        self._bien_mod_btn = ttk.Button(bien_grp, text='\u270f', width=3,
+                                        command=self._acct_edit)
+        self._bien_mod_btn.pack(side='left', padx=1)
+        self._bien_del_btn = ttk.Button(bien_grp, text='\u2716', width=3,
+                                        command=self._acct_delete)
+        self._bien_del_btn.pack(side='left', padx=1)
+
+        # Titre : ajouter (portefeuille) / renommer / supprimer
+        titre_grp = ttk.Frame(btn_frame)
+        titre_grp.pack(side='left', padx=(12, 0))
+        ttk.Label(titre_grp, text='Titre').pack(side='left', padx=(2, 4))
+        self._title_add_btn = ttk.Button(titre_grp, text='\u2795', width=3,
+                                         command=self._acct_add_title)
+        self._title_add_btn.pack(side='left', padx=1)
+        self._title_mod_btn = ttk.Button(titre_grp, text='\u270f', width=3,
+                                         command=self._pv_title_rename)
+        self._title_mod_btn.pack(side='left', padx=1)
+        self._title_del_btn = ttk.Button(titre_grp, text='\u2716', width=3,
+                                         command=self._pv_title_delete)
+        self._title_del_btn.pack(side='left', padx=1)
+
+        # Devise : nouvelle / supprimer (ancre a droite)
+        dev_grp = ttk.Frame(btn_frame)
+        dev_grp.pack(side='right')
+        ttk.Label(dev_grp, text='Devise').pack(side='left', padx=(2, 4))
+        ttk.Button(dev_grp, text='\u2795', width=3,
+                   command=self._devise_add).pack(side='left', padx=1)
+        ttk.Button(dev_grp, text='\u2716', width=3,
+                   command=self._devise_delete_dialog).pack(side='left', padx=1)
 
         # --- Menu contextuel (clic droit) ---
         self._acct_context_menu = tk.Menu(self.acct_tree, tearoff=0)
@@ -99,6 +145,45 @@ class AccountsMixin:
 
         self.acct_tree.bind('<Button-3>', self._acct_show_context_menu)
         self.acct_tree.bind('<Double-1>', lambda e: self._acct_edit())
+        self.acct_tree.bind('<<TreeviewSelect>>', self._update_acct_btn_state)
+        self._update_acct_btn_state()
+
+    def _update_acct_btn_state(self, event=None):
+        """Active les boutons selon le TYPE de la ligne sélectionnée (rend la
+        protection visible — le grisé du clic droit n'est pas fiable sur Mac) :
+        Compte (modif/suppr/purge) sur un compte hors bien ; Bien (modif/suppr)
+        sur un bien (pas de purge) ; Titre (ajout sur portefeuille non-Réserve ;
+        renommer/supprimer sur un nœud titre)."""
+        if not getattr(self, '_acct_mod_btn', None):
+            return
+        is_compte = is_bien = is_title = is_portef = False
+        sel = self.acct_tree.selection()
+        if sel:
+            item_id = sel[0]
+            if self._is_title_node(item_id):
+                is_title = True
+            elif self.acct_tree.parent(item_id):  # compte/bien (sous un site)
+                entry = self._find_display_by_tree_selection()
+                if entry:
+                    if entry.get('type') == 'Biens matériels':
+                        is_bien = True
+                    else:
+                        is_compte = True
+                        is_portef = (entry.get('type') == 'Portefeuilles'
+                                     and 'Réserve' not in entry['intitule'])
+            # sinon : nœud groupe Site → tout désactivé
+
+        def st(flag):
+            return 'normal' if flag else 'disabled'
+
+        self._acct_mod_btn.config(state=st(is_compte))
+        self._acct_del_btn.config(state=st(is_compte))
+        self._acct_purge_btn.config(state=st(is_compte))
+        self._bien_mod_btn.config(state=st(is_bien))
+        self._bien_del_btn.config(state=st(is_bien))
+        self._title_add_btn.config(state=st(is_portef))
+        self._title_mod_btn.config(state=st(is_title))
+        self._title_del_btn.config(state=st(is_title))
 
     def _acct_show_context_menu(self, event):
         """Affiche le menu contextuel sur clic droit (compte ou titre)."""
@@ -114,7 +199,12 @@ class AccountsMixin:
             entry = self._find_display_by_tree_selection()
             can_add_title = (entry and entry.get('type') == 'Portefeuilles'
                             and 'Réserve' not in entry['intitule'])
+            is_bien = bool(entry and entry.get('type') == 'Biens matériels')
+            # Ajout titre (idx 2) : portefeuille non-Réserve seulement.
             self._acct_context_menu.entryconfigure(2, state='normal' if can_add_title else 'disabled')
+            # Purger opérations (idx 4) : un bien n'a pas d'opérations → grisé
+            # (parité avec le groupe de boutons Bien, sans ♲).
+            self._acct_context_menu.entryconfigure(4, state='disabled' if is_bien else 'normal')
             self._acct_context_menu.tk_popup(event.x_root, event.y_root)
 
     def _populate_accounts_tree(self):
@@ -811,7 +901,8 @@ class AccountsMixin:
         json_acct = self._find_json_account(old_intitule, old_site) or {}
 
         dlg = tk.Toplevel(self.root)
-        dlg.title('Modifier un compte')
+        dlg.title('Modifier un bien' if entry.get('type') == 'Biens matériels'
+                  else 'Modifier un compte')
         dlg.resizable(True, False)
         dlg.transient(self.root)
         dlg.grab_set()
