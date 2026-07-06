@@ -55,6 +55,10 @@ def accounts_to_site_map(accounts_data):
     """Dérive le dict plat {nom_compte: site} depuis config_accounts.json."""
     site_map = {}
     for site, site_data in accounts_data.items():
+        # config_accounts.json peut porter des clés top-level NON-site (ex.
+        # 'transfer_pairs' = liste, lue par cpt_pair) → ne traiter que les sites.
+        if not isinstance(site_data, dict):
+            continue
         for acct in site_data.get('accounts', []):
             site_map[acct['name']] = site
     return site_map
@@ -69,6 +73,8 @@ def site_map_to_accounts(site_map, existing_accounts=None):
     existing_by_name = {}
     if existing_accounts:
         for site, site_data in existing_accounts.items():
+            if not isinstance(site_data, dict):
+                continue
             for acct in site_data.get('accounts', []):
                 existing_by_name[acct['name']] = (site, acct)
 

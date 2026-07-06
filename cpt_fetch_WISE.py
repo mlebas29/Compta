@@ -620,6 +620,7 @@ class WiseFetcher(BaseFetcher):
             )
         if currency_combo.count() == 0:
             self.logger.error("Dropdown devises introuvable")
+            self._dump_page_debug("wise_currency_dropdown_not_found", force=True)
             return
 
         # Ouvrir le dropdown (dialog headlessui)
@@ -662,6 +663,7 @@ class WiseFetcher(BaseFetcher):
             )
         if format_combo.count() == 0:
             self.logger.warning("Dropdown format introuvable — PDF par défaut ?")
+            self._dump_page_debug("wise_format_dropdown_not_found", force=True)
             return False
 
         format_combo.first.click()

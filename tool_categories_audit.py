@@ -38,6 +38,7 @@ if _ACCOUNTS_PATH.exists():
     COMPTE_TO_SITE = {
         acct['name']: site
         for site, site_data in _accounts_data.items()
+        if isinstance(site_data, dict)  # ignorer les clés non-site (transfer_pairs)
         for acct in site_data.get('accounts', [])
     }
 else:

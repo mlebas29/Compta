@@ -800,6 +800,8 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DaemonClientMixin,
                 del self.account_site_map[name]
             # Supprimer les comptes orphelins du JSON (sans reconstruire tout)
             for site_data in self.accounts_json_data.values():
+                if not isinstance(site_data, dict):
+                    continue  # clés top-level non-site (ex. transfer_pairs)
                 accts = site_data.get('accounts', [])
                 site_data['accounts'] = [a for a in accts
                                          if a.get('name') not in orphan_sites]
