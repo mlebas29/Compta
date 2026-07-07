@@ -9,6 +9,16 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 
 Les trois derniers sont spécifiques au mode assisté ; 📘 concerne le mode classeur.
 
+## v5.14.0
+| 2026-07-07 | Collecte Wise refondue (site changé) + fiabilisation des collectes |
+| ---------- | ------------------------------------------------------------ |
+
+**Détail :**
+
+- **Wise — collecte refondue** — Wise ayant changé son assistant de génération de relevé, la collecte passe désormais par l'export **« Toutes les transactions » (CSV)** puis la lecture des **soldes par devise** sur la page du compte multi-devises. 
+- **BoursoBank — collecte plus robuste** — si une **page de connexion** est renvoyée à la place du relevé (session expirée), c'est détecté et **signalé clairement** au lieu d'un plantage obscur ; la garde est mutualisée pour les autres collectes web.
+- **Soldes — libellé cohérent** — un solde **calculé automatiquement** (faute de relevé) est désormais **toujours** étiqueté « Solde calculé » dans les Opérations au lieu de « Relevé compte ».
+
 ## v5.13.0
 | 2026-06-30 | Réorganisation et enrichissement des onglets Avoirs et Catégories (corrige MacOS) |
 | ---------- | ------------------------------------------------------------ |
