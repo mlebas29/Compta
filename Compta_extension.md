@@ -75,6 +75,8 @@ Le code public reste **vierge** : aucune mention de `custom/`. Le chargement du 
 
 Étant gitignoré par PUB, `custom/` est le **réceptacle naturel de tout le privé**, pas seulement du code chargé : sites, monkeypatches, tests, doc et outils privés — versionnés comme le public.
 
+**Dépendances Python du privé** — si un site/patch privé requiert des libs absentes du `requirements.txt` public, les déclarer dans **`custom/requirements.txt`** (dépôt PRV) : `install.sh` l'installe en plus s'il existe. Le `requirements.txt` public reste ainsi **vierge de tout indice de site privé** (même règle que les hooks à nom neutre).
+
 ### Hooks publics
 
 | Hook | Type | Convention |

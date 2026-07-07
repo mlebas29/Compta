@@ -411,6 +411,12 @@ fi
 $PYTHON -m pip install -r requirements.txt $PIP_EXTRA
 ok "requirements.txt installé"
 
+# Cadre privé (custom/, dépôt PRV) : dépendances de ses sites/extensions, si présent.
+if [[ -f custom/requirements.txt ]]; then
+    $PYTHON -m pip install -r custom/requirements.txt $PIP_EXTRA
+    ok "custom/requirements.txt installé (cadre privé)"
+fi
+
 # Python embarqué LibreOffice (macOS) : openpyxl indispensable pour les scripts UNO
 # (tool_fix_formats, tool_controles) lancés via le wrapper python3-uno sur Mac.
 # Le module 'uno' est livré avec LibreOffice ; openpyxl ne l'est pas.

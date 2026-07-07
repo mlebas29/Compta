@@ -22,11 +22,6 @@ requests>=2.28.0
 # Clipboard cross-platform (Linux: xclip/xsel ; macOS: pbcopy ; Windows: natif)
 pyperclip>=1.8.0
 
-# Google Drive API (collecte par dossier Drive partagé, OAuth — chemin unifié Mac/Linux/WSL)
-google-api-python-client>=2.0.0
-google-auth-oauthlib>=1.0.0
-google-auth-httplib2>=0.1.0
-
 # Notes:
 # - playwright install chrome (Chrome browser for Playwright)
 # - python3-tk must be installed separately (system package: sudo apt install python3-tk)
