@@ -21,6 +21,7 @@ texte (cheap).
 
 import configparser
 import json
+import os
 import re
 from pathlib import Path
 
@@ -322,6 +323,17 @@ def validate_upgrade_map(base_dir, code_schema, known_step_ids=None):
         tool = m.get('tool')
         if tool and not (Path(base_dir) / tool).exists():
             problems.append(f"outil absent : {tool} (migration {m.get('id')}).")
+    # les migrations CLASSEUR sont invoquées via `./tool` (shebang python3-uno) → bit
+    # exécutable requis, sinon rc 126 opaque à l'upgrade. On le vérifie ICI (barrière
+    # carte) pour transformer l'omission de +x en « carte incohérente » lisible. Les
+    # config_migrations sont lancées `python3 tool` (upgrade.py:244) → +x non requis,
+    # hors contrôle.
+    for m in migs:
+        tool = m.get('tool')
+        p = Path(base_dir) / tool if tool else None
+        if p and p.exists() and not os.access(p, os.X_OK):
+            problems.append(
+                f"outil non exécutable : {tool} (chmod +x requis — migration {m.get('id')}).")
 
     # chaîne config (marker-driven, #98) : la carte atteint le marqueur du code.
     from inc_excel_schema import CONFIG_SCHEMA_VERSION

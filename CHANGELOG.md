@@ -9,6 +9,15 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 
 Les trois derniers sont spécifiques au mode assisté ; 📘 concerne le mode classeur.
 
+## v5.14.2
+| 2026-07-07 | Correctifs upgrade.py (outil de mise à niveau) |
+| ---------- | ---------------------------------------------- |
+
+**Détail :**
+
+- **Mise à niveau assistée réparée** — l'outil de migration livré en v5.14.1 n'était pas exécutable : `upgrade` échouait sans appliquer la correction d'ancrage. Corrigé.
+- **Message clair si LibreOffice est ouvert** — lancer une migration du classeur alors que LibreOffice est déjà ouvert (même sur un autre document) affiche désormais « ferme LibreOffice, puis relance » au lieu d'une erreur technique obscure.
+
 ## v5.14.1 🔧 📘
 | 2026-07-07 | Correction mineure du classeur (feuille plus-value latente) |
 | ---------- | ----------------------------------------------------------- |

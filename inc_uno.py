@@ -515,7 +515,20 @@ class UnoDocument:
                 if attempt < max_attempts - 1:
                     time.sleep(1)
                 else:
-                    raise
+                    # Aucune connexion après ~15s : le soffice qu'on a lancé n'a pas
+                    # ouvert le port 2002. Cause la plus fréquente = un LibreOffice
+                    # DÉJÀ ouvert (mono-instance par profil → notre --accept ne bind
+                    # pas). Tuer NOTRE process (sinon il fuit en zombie --headless),
+                    # puis lever un message actionnable au lieu du NoConnectException
+                    # brut. Couvre le cas « LO ouvert sur un autre document » que le
+                    # garde _classeur_busy (verrou du .xlsm) ne détecte pas.
+                    if self._process is not None:
+                        self._process.terminate()
+                        self._process = None
+                    raise RuntimeError(
+                        "Impossible de contacter LibreOffice via UNO (port 2002 non "
+                        "ouvert après ~15s). Un LibreOffice est-il déjà ouvert ? "
+                        "Ferme-le entièrement, puis relance.") from None
 
         smgr = ctx.ServiceManager
         self._desktop = smgr.createInstanceWithContext(
