@@ -23,7 +23,10 @@
       "summary": "refonte CTRL2 + alarmes" },
     { "id": "formules_v5", "tool": "tool_migrate_v5.0.0.py", "schema_from": 3, "schema_to": 3,
       "idempotent": true, "app_version": "5.0.0", "badges": ["🔧"],
-      "summary": "fiabilisation alarmes anti-#REF! orphelines" }
+      "summary": "fiabilisation alarmes anti-#REF! orphelines" },
+    { "id": "pvl_min_ancrage", "tool": "tool_migrate_pvl_min_ancrage.py", "schema_from": 3, "schema_to": 3,
+      "idempotent": true, "app_version": "5.14.1", "badges": ["🔧"],
+      "summary": "ancrage PVL au premier #Solde (MIN, fin du re-ancrage mort)" }
   ],
   "_note_config_migrations": "Pendant config des migrations classeur, MARKER-DRIVEN (#98, cf. Compta_coherence.md). Chemin = entrées dont schema_to > config_schema_version relevé, jusqu'à CONFIG_SCHEMA_VERSION (code). Forme du schema_to = gravité : décimal (0.1, 0.2) → avertit, entier → bloque, ABSENT → entrée SILENCIEUSE rejouée systématiquement (run-all). Le « run-all sans gating » d'avant #98 ne vaut donc plus que pour les entrées silencieuses. Contrat DUR maintenu : tout outil est idempotent + auto-gated sur l'état réel du config.ini (jamais re-clobbée si reconfig manuelle ultérieure) ; valider en le lançant 2×. Invariant : max(config schema_to) == inc_excel_schema.CONFIG_SCHEMA_VERSION. app_version sert au rendu + au balayage, jamais à gater l'exécution.",
   "config_migrations": [
@@ -47,6 +50,7 @@
     { "version_label": "≤ v3.x", "perimetre": "classeur", "badges": ["🧱"],
       "summary": "schéma < 1 (pré-v3.4) : outils de migration retirés du dépôt git → migration manuelle (ancien mode classeur)" },
     { "app_version": "5.0.1", "badges": ["📘"], "summary": "classeur exemple livré (intègre la migration v5.0.0)" },
-    { "app_version": "5.1.0", "badges": ["🔄"], "tool": "reclone.sh", "summary": "historique git réécrit (squash) — re-clone automatique par upgrade" }
+    { "app_version": "5.1.0", "badges": ["🔄"], "tool": "reclone.sh", "summary": "historique git réécrit (squash) — re-clone automatique par upgrade" },
+    { "app_version": "5.14.1", "badges": ["📘"], "summary": "classeur exemple livré (intègre la migration pvl_min_ancrage)" }
   ]
 }

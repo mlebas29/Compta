@@ -22,6 +22,13 @@ Vous tenez le classeur à la main, sans `upgrade` (pour le mode assisté en un g
 - **drill (devise)** = modèle « une colonne par devise → colonnes génériques avec menu déroulant » (chantier v4.0.0).
 
 
+## v5.14.1 🔧 📘 — Ancrage PVL au premier `#Solde` (métaux / crypto / devises)
+
+`SCHEMA_VERSION` inchangé (reste à 3) : correction de formule.  La *date d'ancrage* de la plus-value latente (Plus_value « Date initiale », Avoirs « Date antérieure ») s'appuyait sur une condition **morte** — `MAXIFS(…;OPcatégorie;Solde;OPequiv_euro;"<>")`, or un `#Solde` ne porte jamais d'`equiv_euro` → l'ancrage retombait en 1900 (dégradé). Corrigé : `MINIFS(…;OPcatégorie;Solde)` — ancrage = **premier `#Solde` présent**, comme les portefeuilles. Les montants de plus-value ne changent pas, seule la date d'ancrage devient correcte.
+
+
+
+
 ## v5.0.1 📘 — Classeur exemple intégrant la migration v5.0.0 + prérequis LibreOffice ≥ 24.8
 
 `SCHEMA_VERSION` inchangé. Les classeurs livrés (`comptes_template.xlsm`, `comptes_exemple.xlsx`) intègrent les 2 améliorations de formules v5.0.0 :

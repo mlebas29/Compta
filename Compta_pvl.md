@@ -98,10 +98,13 @@ Trois critères convergents guident l'attribution d'une section à l'un ou l'aut
 
 ## Re-ancrage
 
-Le Montant initial et la date initiale suivent le **dernier `#Solde` retenu** dans les opérations du compte. Conséquence : la PVL mesure l'appréciation **depuis ce dernier ancrage**, pas nécessairement depuis l'achat originel.
+La date et le montant initiaux ancrent au **premier `#Solde` présent** dans les opérations du compte (formule `MINIFS`). Le re-ancrage **n'est pas une logique de la formule PVL** : c'est une **conséquence de la purge**.
 
-- Si le compte n'a jamais été ré-ancré, le Montant initial = capital d'acquisition d'origine.
-- Si on a ré-ancré (par exemple pour reposer un point de référence après une période trop longue ou une cession partielle), le Montant initial est postérieur à l'achat — la PVL ne mesure plus la performance « depuis le début ».
+- **La formule** ancre au premier `#Solde` présent et lit sa valorisation (`H`). Point — elle reste simple et déterministe.
+- **La purge**, en condensant un historique devenu long, **pose un `#Solde` valorisé** au point de coupure et supprime les opérations antérieures. Ce `#Solde` devient alors le **premier présent** → le `MINIFS` l'ancre naturellement, et `H` récupère sa valorisation. Le re-ancrage *émerge* de la donnée, pas de la formule.
+- Conséquence : après une purge, la PVL mesure l'appréciation **depuis le dernier point de coupure valorisé**, pas nécessairement depuis l'achat originel.
+
+> Historique : une version antérieure mettait la logique de re-ancrage *dans* la formule (`MAXIFS(…;OPequiv_euro;"<>")` = dernier `#Solde` valorisé). Comme un `#Solde` ne porte jamais d'`equiv_euro`, la condition était morte et l'ancrage tombait en epoch (dégradé). Corrigé (`tool_migrate_pvl_min_ancrage.py`) : la responsabilité du re-ancrage revient à la purge, la formule ne fait que `MIN`.
 
 Pour la fiscalité (cf. [§Cessions](#cessions)), le **cost basis fiscal** est par définition la valeur d'acquisition d'origine ; il coïncide avec le Montant initial *seulement si* on n'a pas ré-ancré. Sinon, il faut le remonter ailleurs (historique des achats).
 

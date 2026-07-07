@@ -9,6 +9,14 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 
 Les trois derniers sont spécifiques au mode assisté ; 📘 concerne le mode classeur.
 
+## v5.14.1 🔧 📘
+| 2026-07-07 | Correction mineure du classeur (feuille plus-value latente) |
+| ---------- | ----------------------------------------------------------- |
+
+**Détail :**
+
+- **Plus-value latente — ancrage corrigé** — pour les comptes **métaux / crypto / devises**, la *date d'ancrage* de la plus-value s'appuyait sur une condition qui n'était jamais remplie → l'ancrage retombait sur une date vide (1900). Corrigé : l'ancrage suit le **premier `#Solde`** du compte (comme les portefeuilles). **Sans effet sur les montants de plus-value** (ils étaient déjà justes) — la date d'ancrage devient simplement correcte et lisible. 
+
 ## v5.14.0
 | 2026-07-07 | Collecte Wise refondue (site changé) + fiabilisation des collectes |
 | ---------- | ------------------------------------------------------------ |

@@ -345,8 +345,8 @@ def migrate(check=False):
     # ouvert (verrou LO) ou l'appli tourne — ne tire QUE s'il y a vraiment une
     # migration à appliquer (sinon le run pull/config se poursuit normalement).
     pending = list(plan['structural'])
-    if plan['catchup'] and not plan['structural']:
-        pending.append(plan['catchup'])
+    if not plan['structural']:
+        pending += plan['catchups']
     if pending and not check:
         busy = _classeur_busy(xlsx)
         if busy:
@@ -376,21 +376,22 @@ def migrate(check=False):
     # effective-state) : `--dry-run` openpyxl read-only (SANS LibreOffice ; rc 3 =
     # changerait, 0 = rien). Affiché/joué seulement s'il changerait (politique (a) :
     # un classeur déjà fiabilisé est silencieux). ---
-    c = plan['catchup']
-    if c and not plan['structural']:
-        rc, _ = _run_bash(f"./{c['tool']} comptes.xlsm --dry-run")
-        if rc == 3:
-            _step('todo', 'classeur', c['summary'], 'à appliquer')
-            if check:
-                issues += 1
-            else:
-                r = _run_migration(c['tool'])
-                ran.append(r)
-                if r['result'] in ('failed', 'refused-lo'):
+    if not plan['structural']:
+        for c in plan['catchups']:
+            rc, _ = _run_bash(f"./{c['tool']} comptes.xlsm --dry-run")
+            if rc == 3:
+                _step('todo', 'classeur', c['summary'], 'à appliquer')
+                if check:
                     issues += 1
-        elif rc != 0:
-            _step('fail', 'classeur', f"{c['tool']} (sonde)", f'dry-run indéterminé (code {rc})')
-            issues += 1
+                else:
+                    r = _run_migration(c['tool'])
+                    ran.append(r)
+                    if r['result'] in ('failed', 'refused-lo'):
+                        issues += 1
+            elif rc != 0:
+                _step('fail', 'classeur', f"{c['tool']} (sonde)",
+                      f'dry-run indéterminé (code {rc})')
+                issues += 1
 
     return {'issues': issues, 'migrations': ran}
 

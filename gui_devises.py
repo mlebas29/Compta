@@ -1069,11 +1069,12 @@ class DevisesMixin:
         ws_pv.getCellByPosition(cr.col('PVLdevise'), r0).setString(devise)
         ws_pv.getCellByPosition(cr.col('PVLpvl'), r0).setFormula(
             f'={cK}{r}-({cH}{r}+{cI}{r})')
-        # Ancrage PVL = MAX(date #Solde avec OPequiv_euro renseigné).
-        # Permet la purge : un nouveau #Solde valorisé déplace l'ancrage.
-        # Cas dégradé (aucun #Solde valorisé) : MAXIFS → 0 (epoch), H → 0, PVL = SOLDE - SIGMA.
+        # Ancrage PVL = premier #Solde présent (comme la section portefeuilles).
+        # Le re-ancrage n'est PAS une logique de la formule : c'est une conséquence
+        # de la purge (qui, en condensant l'historique, pose un #Solde valorisé
+        # devenant le premier présent → le MIN l'ancre, H récupère sa valorisation).
         ws_pv.getCellByPosition(cr.col('PVLdate_init'), r0).setFormula(
-            f'=MAXIFS(OPdate;OPcompte;{cB}{r};OPdevise;{cD}{r};OPcatégorie;Solde;OPequiv_euro;"<>")')
+            f'=MINIFS(OPdate;OPcompte;{cB}{r};OPdevise;{cD}{r};OPcatégorie;Solde)')
         ws_pv.getCellByPosition(cr.col('PVLmontant_init'), r0).setFormula(
             f'=SUMIFS(OPequiv_euro;OPcompte;{cB}{r};OPdevise;{cD}{r};OPcatégorie;Solde;OPdate;{cG}{r})')
         ws_pv.getCellByPosition(cr.col('PVLsigma'), r0).setFormula(
@@ -1461,7 +1462,9 @@ class DevisesMixin:
                     ws.getCellByPosition(cr.col('AVRpropriete'), r0).setString(acct.get('propriete') or '')
                     # DATE_ANTER et MONTANT_ANTER
                     # Biens matériels : valeurs statiques (date/val acquisition)
-                    # Autres comptes : formules dynamiques — ancrage PVL = MAX(#Solde avec Equiv)
+                    # Autres comptes : formule dynamique — ancrage = premier #Solde
+                    # présent (MIN ; le re-ancrage est une conséquence de la purge,
+                    # pas une logique de la formule — cf. Compta_pvl.md).
                     if acct.get('date_anter'):
                         from datetime import datetime
                         epoch = datetime(1899, 12, 30)
@@ -1472,8 +1475,8 @@ class DevisesMixin:
                     elif acct.get('devise'):
                         cell_h = ws.getCellByPosition(cr.col('AVRdate_anter'), r0)
                         cell_h.setFormula(
-                            f'=MAXIFS(OPdate;OPcompte;$A{r};OPdevise;$E{r};'
-                            f'OPcatégorie;Solde;OPequiv_euro;"<>")')
+                            f'=MINIFS(OPdate;OPcompte;$A{r};OPdevise;$E{r};'
+                            f'OPcatégorie;Solde)')
                         cell_h.NumberFormat = doc.register_number_format('DD/MM/YY')
 
                     if acct.get('montant_anter') is not None:

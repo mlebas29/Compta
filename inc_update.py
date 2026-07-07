@@ -218,6 +218,17 @@ def load_upgrade_map(base_dir):
         return {}
 
 
+def _version_tuple(s):
+    """'5.15.0' -> (5, 15, 0) pour un tri NUMÉRIQUE (≠ lexico : 5.9 < 5.15)."""
+    out = []
+    for p in str(s or '').split('.'):
+        try:
+            out.append(int(p))
+        except ValueError:
+            out.append(0)
+    return tuple(out)
+
+
 def pending_migrations(base_dir, classeur_schema, code_schema):
     """Calcule le chemin de migration d'un classeur depuis la carte.
 
@@ -228,7 +239,7 @@ def pending_migrations(base_dir, classeur_schema, code_schema):
     Returns:
         dict {
           'structural': [migrations bloquantes à jouer, dans l'ordre],
-          'catchup': la migration idempotente la plus récente (dict) ou None,
+          'catchups': [migrations idempotentes au code_schema, app_version croissant],
           'below_floor': classeur sous le plancher de la carte (non rattrapable),
           'up_to_date': structurellement à jour,
         }
@@ -251,14 +262,20 @@ def pending_migrations(base_dir, classeur_schema, code_schema):
             if origin is not None
             and m['schema_from'] >= origin and m['schema_to'] <= code_schema]
 
-    catchups = [m for m in migs
-                if m.get('schema_from') == m.get('schema_to') == code_schema
-                and m.get('idempotent')]
-    catchup = (sorted(catchups, key=lambda m: m.get('app_version', ''))[-1]
-               if catchups else None)
+    # TOUS les catchups idempotents au code_schema, triés par app_version
+    # CROISSANT (rattrapage déterministe : un classeur qui a sauté des versions
+    # les rejoue dans l'ordre historique ; chevauchement éventuel → le plus
+    # récent s'applique en dernier = état cible). Tri NUMÉRIQUE (pas lexico,
+    # sinon 5.9.0 passerait après 5.15.0). Chacun est idempotent + sondé en
+    # dry-run côté upgrade → coût réel = seulement ceux qui ont du travail.
+    catchups = sorted(
+        (m for m in migs
+         if m.get('schema_from') == m.get('schema_to') == code_schema
+         and m.get('idempotent')),
+        key=lambda m: _version_tuple(m.get('app_version', '')))
 
     up_to_date = not path and origin is not None and origin >= code_schema
-    return {'structural': path, 'catchup': catchup,
+    return {'structural': path, 'catchups': catchups,
             'below_floor': False, 'up_to_date': up_to_date}
 
 
