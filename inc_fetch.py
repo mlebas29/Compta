@@ -265,6 +265,38 @@ class BaseFetcher:
             self.logger.warning(f"  Impression PDF {filename}: {e}")
             return None
 
+    @staticmethod
+    def looks_like_html(data):
+        """Vrai si `data` (bytes) ressemble à une page HTML plutôt qu'au fichier
+        attendu (CSV/PDF). Sert à refuser d'enregistrer une page login/redirect
+        qu'un site sert parfois en HTTP 200 quand la session a expiré ou que
+        l'URL d'export n'est plus la bonne — sinon le format échoue plus tard sur
+        un cryptique KeyError (ex. BOURSOBANK 'dateOp')."""
+        head = (data or b'')[:512].lstrip().lower()
+        return head.startswith(b'<!doctype html') or head.startswith(b'<html')
+
+    def reject_saved_if_html(self, path, label):
+        """Après un download écrit sur disque : si le fichier est en réalité une
+        page HTML (session expirée / mauvais export), le supprimer et renvoyer
+        False. Renvoie True si le fichier est légitime (conservé). À appeler sur
+        tout chemin de sauvegarde de download qui ne valide pas déjà le contenu
+        (l'event `download` Playwright ne porte pas de content-type)."""
+        try:
+            with open(path, 'rb') as f:
+                head = f.read(512)
+        except OSError:
+            return True  # illisible → laisser le flux normal gérer
+        if self.looks_like_html(head):
+            self.logger.error(
+                f"  {label}: réponse HTML au lieu du fichier attendu "
+                f"({path.name}) — session expirée ou mauvais export ? Fichier ignoré.")
+            try:
+                path.unlink()
+            except OSError:
+                pass
+            return False
+        return True
+
     def load_gpg_credentials(self):
         """Charge les credentials GPG.
 

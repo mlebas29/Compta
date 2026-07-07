@@ -109,6 +109,21 @@ def format_amount(amount_str):
 
     return amount_str
 
+def _require_csv_header(reader, key_col):
+    """Filet défensif : vérifie que le CSV a bien le header attendu avant de le
+    parcourir. Si la collecte a déposé une page HTML (session expirée / mauvais
+    export) au lieu du CSV, `reader.fieldnames` ne contient pas `key_col` → on
+    lève une erreur métier explicite (captée et loggée par
+    inc_format.process_files) plutôt qu'un cryptique KeyError plus loin (#56)."""
+    fields = reader.fieldnames or []
+    if key_col not in fields:
+        got = repr(fields[0]) if fields else '(vide)'
+        raise ValueError(
+            f"header inattendu — colonne {key_col!r} absente (reçu : {got}) ; "
+            "fichier probablement HTML (session expirée / mauvais export) au lieu "
+            "du CSV attendu")
+
+
 def process_bank_operations(input_file):
     """
     Traite les opérations bancaires (compte principal, livret)
@@ -124,6 +139,7 @@ def process_bank_operations(input_file):
 
     with open(input_file, 'r', encoding='utf-8-sig') as f:
         reader = csv.DictReader(f, delimiter=';')
+        _require_csv_header(reader, 'dateOp')
 
         for row in reader:
             date_str = format_date(row['dateOp'])
@@ -177,6 +193,7 @@ def process_stock_movements(input_file):
 
     with open(input_file, 'r', encoding='utf-8-sig') as f:
         reader = csv.DictReader(f, delimiter=';')
+        _require_csv_header(reader, 'Date opération')
 
         for row in reader:
             date_str = format_date(row['Date opération'])
@@ -429,6 +446,7 @@ def process_positions(input_files):
         try:
             with open(input_file, 'r', encoding='utf-8-sig') as f:
                 reader = csv.DictReader(f, delimiter=';')
+                _require_csv_header(reader, 'isin')
                 for row in reader:
                     isin = row['isin'].strip()
                     name = row['name'].strip()

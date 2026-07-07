@@ -830,10 +830,7 @@ class BbFetcher(BaseFetcher):
             # refuse d'enregistrer ce contenu — sinon le format échoue plus tard
             # sur un cryptique KeyError 'dateOp'.
             ctype = (response.headers.get('content-type') or '').lower()
-            head = body[:512].lstrip().lower()
-            if ('text/html' in ctype
-                    or head.startswith(b'<!doctype html')
-                    or head.startswith(b'<html')):
+            if 'text/html' in ctype or self.looks_like_html(body):
                 self.logger.error(
                     f"  Réponse HTML (pas un CSV) sur {response.url} — "
                     "session expirée ou mauvais formulaire d'export ?")
@@ -963,6 +960,11 @@ class BbFetcher(BaseFetcher):
                 if download_obj[0]:
                     target_path.parent.mkdir(parents=True, exist_ok=True)
                     download_obj[0].save_as(str(target_path))
+                    # BoursoBank sert parfois une page HTML (login/redirect) en
+                    # guise de « download » quand la session a expiré → refuser,
+                    # sinon le format planterait sur KeyError 'dateOp'.
+                    if not self.reject_saved_if_html(target_path, account_name):
+                        return False
                     self.downloads.append(target_path)
                     return True
                 if empty_banner.count() > 0 and empty_banner.first.is_visible():
