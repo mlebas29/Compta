@@ -271,44 +271,64 @@ class WiseFetcher(BaseFetcher):
         return False
 
     def fetch_balances(self):
-        """Lit les soldes courants par devise → dropbox/WISE/wise_balances.csv
-        (format « DEVISE,solde » par ligne), que le format consomme pour générer
-        le #Solde par compte (#131, choix b : réconciliation au relevé).
+        """Lit les soldes par devise -> dropbox/WISE/wise_balances.csv (« DEVISE,
+        solde » par ligne), consomme par le format pour le #Solde (#131, choix b).
 
-        Best-effort : la structure de la page soldes n'a pas été validée hors
-        collecte réelle → dump systématique si aucun solde lu (calage live).
+        Les 5 jars (EUR inclus) sont sur la page du GROUPE multi-devises
+        (« Compte principal »), pas sur /home (qui n'expose que les 4 etrangers).
+        On extrait l'id du groupe depuis /home (« MCA - <id> ») -> /groups/<id>,
+        puis on lit chaque jar dans les spans `np-option__title` (« <montant> <ISO> »).
+        NB : /balances = 404. Id extrait dynamiquement (portable, pas de hardcode).
+        Nav pure `goto` : pas de wait_for_load_state('networkidle') (la SPA ne
+        devient jamais idle -> timeout inutile) ; on attend juste la condition ciblee.
         """
-        url = f"{self.base_url}/balances"
-        self.logger.info(f"Lecture des soldes: {url}")
-        self.page.goto(url, wait_until="domcontentloaded")
-        # La SPA affiche d'abord un écran de chargement (« no hidden fees ») →
-        # attendre que les soldes réels (montant + devise) apparaissent, sinon on
-        # scanne le splash. networkidle + attente d'un motif montant-devise.
-        try:
-            self.page.wait_for_load_state("networkidle", timeout=20000)
-        except PlaywrightTimeout:
-            pass
+        # 1. /home -> id du groupe multi-devises
+        self.page.goto(f"{self.base_url}/home", wait_until="domcontentloaded")
         try:
             self.page.wait_for_function(
-                "() => /[0-9][0-9\\s.,]*\\s?(EUR|USD|CHF|SEK|SGD|GBP|AUD|CAD|JPY)/"
-                ".test(document.body.innerText || '')",
-                timeout=20000)
+                "() => /MCA\\s*-\\s*\\d+|multi-currency-account/"
+                ".test(document.documentElement.innerHTML)",
+                timeout=12000)
         except PlaywrightTimeout:
-            self.logger.warning("Soldes non apparus après 20s (page lente ?)")
-        time.sleep(2)
-        self.dismiss_cookies()
-        self._dump_page_debug('balances_landing', force=self.verbose)
+            self.logger.warning("/home lent - id groupe peut-etre absent")
+        group_id = self.page.evaluate(r"""
+            () => {
+                const h = document.documentElement.innerHTML;
+                let m = h.match(/multi-currency-account[":\s]+(\d+)/)
+                     || h.match(/MCA\s*-\s*(\d+)/)
+                     || h.match(/\/groups\/(\d+)/);
+                return m ? m[1] : null;
+            }
+        """)
+        if not group_id:
+            self.logger.warning("Id du groupe multi-devises introuvable sur /home")
+            self._dump_page_debug("no_group_id", force=True)
+            return
+        self.logger.info(f"Groupe multi-devises: {group_id}")
 
-        # Scan best-effort des cartes solde : (devise ISO, montant brut).
+        # 2. /groups/<id> -> les 5 jars
+        url = f"{self.base_url}/groups/{group_id}"
+        self.logger.info(f"Lecture des soldes: {url}")
+        self.page.goto(url, wait_until="domcontentloaded")
+        try:
+            self.page.wait_for_function(
+                "() => !!document.querySelector('.np-option__title, [class*=\"option__title\"]')",
+                timeout=12000)
+        except PlaywrightTimeout:
+            self.logger.warning("Cartes de solde non apparues (page lente ?)")
+        self.dismiss_cookies()
+        self._dump_page_debug("balances_group", force=self.verbose)
+
+        # Chaque jar = un span de titre d'option « <montant> <ISO> » (les codes
+        # ISO sont dans le texte visible sur la page groupe ; les transactions,
+        # elles, ne portent pas cette classe -> pas de pollution).
         pairs = self.page.evaluate(r"""
             () => {
                 const out = [];
-                const nodes = document.querySelectorAll(
-                    '[data-testid*="balance"], [class*="balance"], a[href*="/balances/"]');
-                nodes.forEach(el => {
-                    const t = (el.innerText || '').replace(/\n/g, ' ').trim();
-                    const m = t.match(/\b([A-Z]{3})\b[^0-9-]*(-?[\d \s.,]+)/);
-                    if (m) out.push([m[1], m[2].trim()]);
+                document.querySelectorAll('.np-option__title, [class*="option__title"]').forEach(el => {
+                    const t = (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim();
+                    const m = t.match(/^([0-9][0-9\s.,]*?)\s*([A-Z]{3})$/);
+                    if (m) out.push([m[2], m[1]]);
                 });
                 return out;
             }
@@ -319,15 +339,24 @@ class WiseFetcher(BaseFetcher):
             if len(cur) == 3 and cur.isalpha() and amt:
                 seen[cur] = amt  # dernier gagne
         if not seen:
-            self.logger.warning("Aucun solde lu (page balances) — dump pour calage live")
             self._dump_page_debug("no_balances", force=True)
+            self.logger.warning("Aucun solde lu sur le groupe - voir dump")
             return
+
+        def _norm(a):
+            # « 19 437,07 » -> « 19437.07 » : retirer les espaces (dont fines/nbsp)
+            # puis virgule decimale -> point, sinon collision avec la virgule
+            # separateur de wise_balances.csv (CHF,19 437,07 = 3 champs !).
+            a = ''.join(ch for ch in a if not ch.isspace())
+            if ',' in a and '.' not in a:
+                a = a.replace(',', '.')
+            return a
         out = self.dropbox_dir / 'wise_balances.csv'
         with open(out, 'w', encoding='utf-8') as f:
             for cur, amt in seen.items():
-                f.write(f"{cur},{amt}\n")
+                f.write(f"{cur},{_norm(amt)}\n")
         self.downloads.append(out)
-        self.logger.info(f"Soldes écrits: {out.name} ({len(seen)} devises)")
+        self.logger.info(f"Soldes ecrits: {out.name} ({len(seen)} devises: {','.join(seen)})")
 
     def dismiss_cookies(self):
         """Ferme la popup cookies (Reject/Refuser en priorité)."""

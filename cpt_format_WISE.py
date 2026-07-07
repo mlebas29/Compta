@@ -260,8 +260,10 @@ def is_all_transactions_csv(csv_file):
 
 
 def _to_float(value):
-    """Parse un montant Wise (point OU virgule décimale, espaces/guillemets)."""
-    s = (value or '').strip().strip('"').replace('\xa0', '').replace(' ', '')
+    """Parse un montant Wise (point OU virgule décimale, guillemets, et toute
+    espace Unicode comme séparateur de milliers — normal, \\xa0, \\u202f fine…)."""
+    s = (value or '').strip().strip('"')
+    s = ''.join(ch for ch in s if not ch.isspace())   # retire TOUTES les espaces
     if not s:
         return 0.0
     if ',' in s and '.' not in s:      # virgule décimale (locale FR)
