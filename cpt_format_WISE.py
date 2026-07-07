@@ -9,6 +9,7 @@ Tier 2 script: Raw XLSX → Standardized CSV
 """
 
 import sys
+import csv
 import openpyxl
 import zipfile
 import re
@@ -34,7 +35,13 @@ for _a in _wise_config.get('accounts', []):
         CURRENCY_ACCOUNTS[_parts[1]] = _name
 
 EXPECTED_FILES = [
-    ('statement_*.zip', 'glob', '1'),
+    # Deux chemins alternatifs (l'un OU l'autre) :
+    #  - legacy : relevés multi-devises XLSX dans un ZIP (assistant Wise) ;
+    #  - nouveau : export unique « all-transactions » (1 clic, cf. #131).
+    ('statement_*.zip', 'glob', '0-1'),
+    ('transaction-history*.csv', 'glob', '0-1'),
+    ('all-transactions*.csv', 'glob', '0-1'),
+    ('wise_balances.csv', 'exact', '0-1'),   # soldes par devise (#Solde, #131 choix b)
 ]
 
 def log(message, verbose=False):
@@ -212,6 +219,151 @@ def parse_wise_xlsx(xlsx_file, verbose=False):
     return operations, final_balance, currency, account_name
 
 # ============================================================================
+# EXPORT « ALL-TRANSACTIONS » (CSV unique, #131) — remplace l'assistant XLSX
+# ============================================================================
+#
+# Colonnes (index 0-based, ordre stable ; les entêtes sont localisées donc on
+# adresse par position) :
+#   0 Identifiant (ACCRUAL_CHARGE-/TRANSFER-/BALANCE_TRANSACTION-…)  1 Statut
+#   2 Direction (IN/OUT/NEUTRAL)  3 Créé le  4 Terminé le
+#   5 Frais départ (montant)  6 Frais départ (devise)  7-8 Frais arrivée
+#   9 Nom d'origine  10 Montant départ (après frais)  11 Devise départ
+#   12 Nom cible  13 Montant arrivée (après frais)  14 Devise arrivée
+#   15 Taux  16 Référence  17 Paiement de masse  18 Créé par  19 Catégorie  20 Note
+#
+# Modèle de jambes (vérifié en croisant CSV ↔ ancien XLSX « Solde actuel ») :
+#   ACCRUAL_CHARGE (OUT)  → 1 jambe : débit Compte Wise <dev> du montant (frais)
+#   TRANSFER IN           → 1 jambe : crédit Compte Wise <dev arrivée>
+#   TRANSFER OUT          → 1 jambe : débit Compte Wise <dev départ> (montant + frais).
+#                            La cible d'un OUT est TOUJOURS externe (Kraken, banque…),
+#                            jamais une 2e jambe Wise — même en conversion.
+#   BALANCE_TRANSACTION (NEUTRAL) → 2 jambes (conversion INTERNE entre soldes) :
+#                            débit Compte Wise <dev départ> (montant + frais)
+#                            + crédit Compte Wise <dev arrivée> (montant arrivée),
+#                            appariées par ref='-' (comme un change YUH).
+# Le débit inclut TOUJOURS les frais de départ (confirmé : 4986.04+13.96 = -5000 USD).
+
+_TXN_TYPE_RE = re.compile(r'^"?(ACCRUAL_CHARGE|TRANSFER|BALANCE_TRANSACTION)')
+
+
+def is_all_transactions_csv(csv_file):
+    """Reconnaît un export « all-transactions » Wise par le motif d'ID de sa
+    1re ligne de données (indépendant du nom de fichier et de la langue)."""
+    try:
+        with open(csv_file, newline='', encoding='utf-8-sig') as f:
+            reader = csv.reader(f)
+            next(reader, None)          # entête
+            first = next(reader, None)  # 1re ligne data
+        return bool(first and _TXN_TYPE_RE.match((first[0] or '').strip()))
+    except Exception:
+        return False
+
+
+def _to_float(value):
+    """Parse un montant Wise (point OU virgule décimale, espaces/guillemets)."""
+    s = (value or '').strip().strip('"').replace('\xa0', '').replace(' ', '')
+    if not s:
+        return 0.0
+    if ',' in s and '.' not in s:      # virgule décimale (locale FR)
+        s = s.replace(',', '.')
+    return float(s)
+
+
+def _fmt_fr(x):
+    """Formate un montant façon relevé Wise FR : « 5 000,00 » (espace milliers,
+    virgule décimale). Aligne le libellé des conversions sur le rendu de l'ancien
+    XLSX → le dédup à l'import reconnaît la même op à la bascule (#131). NB : le
+    dédup normalise les espaces, seuls comptent le séparateur espace + la virgule."""
+    return f'{x:,.2f}'.replace(',', ' ').replace('.', ',')
+
+
+def parse_all_transactions_csv(csv_file, verbose=False):
+    """Décompose l'export « all-transactions » en opérations par compte-devise.
+
+    Retourne une liste de tuples 9 champs (Date, Libellé, Montant, Devise, Equiv,
+    Réf, Catégorie, Compte, Commentaire), du plus ancien au plus récent. Le
+    filtrage par date est appliqué en aval par inc_format.process_files().
+    """
+    with open(csv_file, newline='', encoding='utf-8-sig') as f:
+        rows = list(csv.reader(f))
+
+    data = [r for r in rows[1:] if r and _TXN_TYPE_RE.match((r[0] or '').strip())]
+    data.reverse()  # Wise exporte du plus récent au plus ancien → on remet ancien→récent
+
+    operations = []
+    for row in data:
+        if len(row) < 21:
+            continue
+        txn = row[0].strip().strip('"')
+        typ = _TXN_TYPE_RE.match(txn).group(1)
+        if row[1].strip() != 'COMPLETED':      # ignorer PENDING/CANCELLED/…
+            continue
+
+        direction = row[2].strip()
+        date = parse_wise_date(row[4] or row[3])
+        fee = _to_float(row[5])
+        src_amt, src_cur = _to_float(row[10]), row[11].strip()
+        tgt_amt, tgt_cur = _to_float(row[13]), row[14].strip()
+        name_orig, name_cible = row[9].strip(), row[12].strip()
+
+        # (montant signé, devise, libellé, ref forcée)
+        legs = []
+        if typ == 'ACCRUAL_CHARGE':
+            legs.append((-src_amt, src_cur, 'Frais Wise Assets Europe', ''))
+        elif typ == 'TRANSFER' and direction == 'IN':
+            legs.append((tgt_amt, tgt_cur, f'Argent reçu de {name_orig}', ''))
+        elif typ == 'TRANSFER' and direction == 'OUT':
+            legs.append((-(src_amt + fee), src_cur, f'Argent envoyé à {name_cible}', ''))
+        elif typ == 'BALANCE_TRANSACTION':      # NEUTRAL — conversion interne
+            label = (f'{_fmt_fr(src_amt + fee)} {src_cur} convertis en '
+                     f'{_fmt_fr(tgt_amt)} {tgt_cur}')
+            legs.append((-(src_amt + fee), src_cur, label, '-'))
+            legs.append((tgt_amt, tgt_cur, label, '-'))
+        else:
+            log(f"Type/direction non géré ({typ}/{direction}) : {txn} — ignoré", verbose=True)
+            continue
+
+        for amount, cur, label, forced_ref in legs:
+            account = CURRENCY_ACCOUNTS.get(cur)
+            if not account:
+                log(f"Devise {cur} sans compte configuré ({txn}) — jambe ignorée", verbose=True)
+                continue
+            category, opts = inc_categorize.categorize_operation(label, SITE)
+            ref = forced_ref or opts.get('ref', '')
+            equiv = opts.get('equiv', '')
+            operations.append(
+                (date, label, f'{amount:.2f}', cur, equiv, ref, category, account, '')
+            )
+
+    log(f"all-transactions: {len(operations)} jambes depuis {csv_file.name}", verbose)
+    return operations
+
+
+def read_balances_soldes(site_dir, date_str, verbose=False):
+    """Lit wise_balances.csv (déposé par le fetch, #131 choix b) → une ligne
+    #Solde par devise configurée, datée `date_str`. Format du fichier :
+    « DEVISE,solde » par ligne. Absent → [] (comptes Wise auto-calculés)."""
+    bal = Path(site_dir) / 'wise_balances.csv'
+    if not bal.exists():
+        return []
+    soldes = []
+    with open(bal, newline='', encoding='utf-8-sig') as f:
+        for row in csv.reader(f):
+            if len(row) < 2:
+                continue
+            cur = row[0].strip().upper()
+            account = CURRENCY_ACCOUNTS.get(cur)
+            if not account:
+                log(f"solde devise {cur} sans compte configuré — ignoré", verbose=True)
+                continue
+            amount = _to_float(row[1])
+            soldes.append((date_str, f'Relevé {account}', f'{amount:.2f}',
+                           cur, '', '', '#Solde', account, ''))
+    log(f"wise_balances: {len(soldes)} #Solde depuis {bal.name}", verbose)
+    return soldes
+
+
+# ============================================================================
 # API POUR UPDATE - NOUVELLE INTERFACE
 # ============================================================================
 
@@ -236,36 +388,60 @@ def format_site(site_dir, verbose=False, logger=None):
     all_operations = []
 
     try:
-        # 1. Extraire les ZIPs présents
-        for zip_path in site_dir.glob('*.zip'):
-            temp_dir.mkdir(exist_ok=True)
-            extract_zips(zip_path, temp_dir, verbose)
+        # EXCLUSIVITÉ DE SOURCE (#131). L'export « all-transactions » contient
+        # TOUT l'historique → s'il est présent, il PRIME et rend les relevés
+        # XLSX/ZIP redondants. Traiter les deux doublonnerait : entre XLSX et CSV
+        # la date (fuseau, transferts proches de minuit) ET le libellé (formatage)
+        # divergent → le dédup ne les reconnaît pas. On choisit donc UNE source.
+        csv_all_tx = [f for f in site_dir.glob('*.csv') if is_all_transactions_csv(f)]
 
-        # 2. Fonction de parsing qui ajoute le #Solde
-        def _parse_xlsx(xlsx_file):
-            operations, final_balance, currency, account_name = parse_wise_xlsx(
-                xlsx_file, verbose
-            )
-            # Ne pas générer de #Solde si le statement est vide (solde réel inconnu)
-            if not operations:
-                return []
-            # Ajouter #Solde
-            solde_date = operations[-1][0]
-            solde_line = (solde_date, f'Relevé {account_name}', f'{final_balance:.2f}',
-                          currency, '', '', '#Solde', account_name, '')
-            return operations + [solde_line]
+        if csv_all_tx:
+            def _parse_csv(csv_file):
+                if not is_all_transactions_csv(csv_file):
+                    return []
+                return parse_all_transactions_csv(csv_file, verbose)
+            ops_csv, _ = process_files(site_dir, [('*.csv', _parse_csv, 'ops')],
+                                       verbose, SITE, logger=logger)
+            all_operations.extend(ops_csv)
 
-        # 3. Handlers pour les deux répertoires
-        handlers = [('statement_*.xlsx', _parse_xlsx, 'ops')]
+            # #Solde par devise depuis wise_balances.csv (fetch, #131 choix b) —
+            # daté de la dernière opération importée. Absent → auto-calculé.
+            dates = [o[0] for o in ops_csv if o and o[0]]
+            if dates:
+                try:
+                    last = max(dates, key=lambda d: datetime.strptime(d, '%d/%m/%Y'))
+                except ValueError:
+                    last = dates[-1]
+                all_operations.extend(read_balances_soldes(site_dir, last, verbose))
 
-        # Parser les XLSX extraits
-        if temp_dir.exists():
-            ops_temp, _ = process_files(temp_dir, handlers, verbose, SITE, logger=logger)
-            all_operations.extend(ops_temp)
+            if list(site_dir.glob('*.zip')) or list(site_dir.glob('statement_*.xlsx')):
+                logger.warning(
+                    "Export all-transactions présent → relevés XLSX/ZIP ignorés "
+                    "(source unique, évite les doublons)")
+        else:
+            # Chemin legacy : relevés multi-devises XLSX (ZIP de l'assistant Wise).
+            for zip_path in site_dir.glob('*.zip'):
+                temp_dir.mkdir(exist_ok=True)
+                extract_zips(zip_path, temp_dir, verbose)
 
-        # Parser les XLSX directs
-        ops_direct, _ = process_files(site_dir, handlers, verbose, SITE, logger=logger)
-        all_operations.extend(ops_direct)
+            def _parse_xlsx(xlsx_file):
+                operations, final_balance, currency, account_name = parse_wise_xlsx(
+                    xlsx_file, verbose
+                )
+                # Ne pas générer de #Solde si le statement est vide (solde inconnu)
+                if not operations:
+                    return []
+                solde_date = operations[-1][0]
+                solde_line = (solde_date, f'Relevé {account_name}', f'{final_balance:.2f}',
+                              currency, '', '', '#Solde', account_name, '')
+                return operations + [solde_line]
+
+            handlers = [('statement_*.xlsx', _parse_xlsx, 'ops')]
+            if temp_dir.exists():
+                ops_temp, _ = process_files(temp_dir, handlers, verbose, SITE, logger=logger)
+                all_operations.extend(ops_temp)
+            ops_direct, _ = process_files(site_dir, handlers, verbose, SITE, logger=logger)
+            all_operations.extend(ops_direct)
 
     finally:
         # Nettoyer le dossier temporaire

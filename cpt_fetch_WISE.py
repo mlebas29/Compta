@@ -73,9 +73,9 @@ Procédure :
 
 ══════ Collecte manuelle de secours ══════
 
-1. Opérations et soldes
-   wise.com/balances/statements → Créer un Relevé
-   → Toutes devises, format XLSX → Générer → Télécharger ZIP
+1. Opérations
+   wise.com/all-transactions → Télécharger → format CSV → Télécharger
+   → dropbox/WISE/ (le format le décompose en jambes par devise)
 
 2. Intérêts comptes rémunérés (annuel, début d'année)
    wise.com/balances/.../holding-money → Année précédente
@@ -106,7 +106,13 @@ class WiseFetcher(BaseFetcher):
         self.wise_statements = f"{self.base_url}/balances/statements/balance-statement?schedule=monthly"
 
     def run(self):
-        """Main workflow: login, create statement, download.
+        """Workflow : login → export « all-transactions » (CSV) → soldes (#Solde).
+
+        #131 : l'assistant relevé XLSX (devenu inaccessible) est remplacé par
+        l'export CSV « all-transactions » (1 clic) que le format décompose en
+        jambes, plus une lecture des soldes courants pour le #Solde par devise.
+        (Le fetch assistant create_statement/download_statement a été retiré ;
+        le format garde son chemin de lecture XLSX pour le TNR pipe.)
 
         Returns:
             True if successful, False otherwise
@@ -117,20 +123,22 @@ class WiseFetcher(BaseFetcher):
                 self.logger.error("Échec de la connexion")
                 return False
 
-            # 3. Créer le relevé (formulaire)
-            if not self.create_statement():
-                self.logger.error("Échec création du relevé")
+            # 2. Exporter l'historique complet (CSV all-transactions)
+            csv_path = self.export_all_transactions()
+            if not csv_path:
+                self.logger.error("Échec export all-transactions")
                 return False
 
-            # 4. Télécharger le ZIP
-            result = self.download_statement()
-            if not result:
-                self.logger.error("Échec téléchargement")
-                return False
+            # 3. Soldes par devise → #Solde (best-effort : les opérations priment ;
+            #    sans soldes, les comptes Wise seront auto-calculés à l'import).
+            try:
+                self.fetch_balances()
+            except Exception as e:
+                self.logger.warning(f"Soldes non collectés (comptes auto-calculés): {e}")
 
-            # 5. Résumé
+            # 4. Résumé
             self.logger.info("=" * 50)
-            self.logger.info(f"Fichier:     {result.name}")
+            self.logger.info(f"Fichier:     {csv_path.name}")
             self.logger.info(f"Destination: {self.dropbox_dir}")
             self.logger.info("=" * 50)
 
@@ -146,6 +154,180 @@ class WiseFetcher(BaseFetcher):
                 import traceback
                 traceback.print_exc()
             return False
+
+    def export_all_transactions(self):
+        """Exporte l'historique complet en CSV depuis wise.com/all-transactions.
+
+        Remplace l'assistant relevé XLSX (#131) : la page « Toutes les
+        transactions » offre un export en ~1 clic (Export → CSV). Sélecteurs à
+        valider en live — dump systématique (logs/debug/) à chaque point d'échec.
+
+        Returns:
+            Path du CSV téléchargé ou None
+        """
+        url = f"{self.base_url}/all-transactions"
+        self.logger.info(f"Navigation vers {url}")
+        self.page.goto(url, wait_until="domcontentloaded")
+        time.sleep(3)
+        self.dismiss_cookies()
+        # Dump du DOM à l'arrivée (--verbose) : capture la page au moment décisif
+        # pour caler/maintenir les sélecteurs (les dumps d'échec ne suffisent pas
+        # si un sélecteur « marche à moitié »). Cf. maintenance-sélecteurs #131.
+        self._dump_page_debug('all_transactions_landing', force=self.verbose)
+
+        # 1. Ouvrir le tiroir de téléchargement (bouton « Télécharger », icône ↓).
+        dl_btn = self.page.locator(
+            "button[aria-label='Télécharger'], button[aria-label='Download']")
+        try:
+            dl_btn.first.wait_for(state="visible", timeout=15000)
+        except PlaywrightTimeout:
+            self.logger.error("Bouton 'Télécharger' introuvable sur all-transactions")
+            self._dump_page_debug("no_export_btn", force=True)
+            return None
+        dl_btn.first.click()
+        self.logger.info("Tiroir de téléchargement ouvert")
+        time.sleep(2)
+        # Le tiroir (« Format du fichier ») est rendu au clic → dump pour caler le
+        # sélecteur de format + le bouton d'action (inconnus hors collecte réelle).
+        self._dump_page_debug("download_drawer", force=self.verbose)
+
+        # 2. Choisir le format CSV dans le tiroir (best-effort, multi-stratégies).
+        if not self._choose_csv_format():
+            self.logger.warning("Format CSV non sélectionné — voir dump download_drawer")
+
+        # 3. Déclencher l'action « Télécharger » du tiroir + capturer le download.
+        #    Deux boutons portent « Télécharger » (en-tête + action du tiroir) → on
+        #    prend le DERNIER (action du tiroir, ajoutée en fin de DOM).
+        self.dropbox_dir.mkdir(parents=True, exist_ok=True)
+        dest_path = self.dropbox_dir / 'transaction-history.csv'
+        action = self.page.locator(
+            "button[aria-label='Télécharger'], button:has-text('Télécharger'), "
+            "button:has-text('Download')")
+        try:
+            with self.page.expect_download(timeout=DOWNLOAD_TIMEOUT_S * 1000) as dl_info:
+                action.last.click()
+            dl_info.value.save_as(str(dest_path))
+        except PlaywrightTimeout:
+            self.logger.error("Téléchargement CSV non déclenché (timeout)")
+            self._dump_page_debug("no_csv_download", force=True)
+            return None
+        except Exception as e:
+            self.logger.error(f"Erreur téléchargement CSV: {e}")
+            self._dump_page_debug("csv_download_error", force=True)
+            return None
+
+        # Garde-fou anti-HTML (#137) : refuser une page servie au lieu du CSV
+        if not self.reject_saved_if_html(dest_path, 'all-transactions'):
+            self._dump_page_debug("csv_is_html", force=True)
+            return None
+
+        self.logger.info(f"Téléchargé: {dest_path.name}")
+        self.download_path = dest_path
+        self.downloads.append(dest_path)
+        return dest_path
+
+    def _choose_csv_format(self):
+        """Sélectionne le format CSV dans le tiroir « Format du fichier »
+        (best-effort — sélecteurs exacts à confirmer sur le dump download_drawer).
+
+        Returns:
+            True si une stratégie a effectivement choisi CSV, False sinon.
+        """
+        # a) <select> natif (par libellé puis par valeur, casse haute/basse)
+        sel = self.page.locator("select")
+        if sel.count() > 0:
+            for kwargs in ({'label': 'CSV'}, {'value': 'CSV'}, {'value': 'csv'}):
+                try:
+                    sel.first.select_option(**kwargs)
+                    self.logger.info("Format CSV sélectionné (select natif)")
+                    return True
+                except Exception:
+                    pass
+        # b) radio / option / libellé cliquable « CSV »
+        csv_opt = self.page.locator(
+            "input[value='CSV'], input[value='csv'], label:has-text('CSV'), "
+            "[role='option']:has-text('CSV'), [role='radio']:has-text('CSV'), "
+            "button:has-text('CSV')")
+        if csv_opt.count() > 0:
+            try:
+                csv_opt.first.click()
+                self.logger.info("Format CSV sélectionné (option)")
+                return True
+            except Exception:
+                pass
+        # c) composant custom : ouvrir le combobox puis choisir CSV
+        combo = self.page.locator("[role='combobox'], [class*='Select']")
+        if combo.count() > 0:
+            try:
+                combo.first.click()
+                time.sleep(0.5)
+                opt = self.page.locator("[role='option']:has-text('CSV'), li:has-text('CSV')")
+                if opt.count() > 0:
+                    opt.first.click()
+                    self.logger.info("Format CSV sélectionné (combobox)")
+                    return True
+            except Exception:
+                pass
+        return False
+
+    def fetch_balances(self):
+        """Lit les soldes courants par devise → dropbox/WISE/wise_balances.csv
+        (format « DEVISE,solde » par ligne), que le format consomme pour générer
+        le #Solde par compte (#131, choix b : réconciliation au relevé).
+
+        Best-effort : la structure de la page soldes n'a pas été validée hors
+        collecte réelle → dump systématique si aucun solde lu (calage live).
+        """
+        url = f"{self.base_url}/balances"
+        self.logger.info(f"Lecture des soldes: {url}")
+        self.page.goto(url, wait_until="domcontentloaded")
+        # La SPA affiche d'abord un écran de chargement (« no hidden fees ») →
+        # attendre que les soldes réels (montant + devise) apparaissent, sinon on
+        # scanne le splash. networkidle + attente d'un motif montant-devise.
+        try:
+            self.page.wait_for_load_state("networkidle", timeout=20000)
+        except PlaywrightTimeout:
+            pass
+        try:
+            self.page.wait_for_function(
+                "() => /[0-9][0-9\\s.,]*\\s?(EUR|USD|CHF|SEK|SGD|GBP|AUD|CAD|JPY)/"
+                ".test(document.body.innerText || '')",
+                timeout=20000)
+        except PlaywrightTimeout:
+            self.logger.warning("Soldes non apparus après 20s (page lente ?)")
+        time.sleep(2)
+        self.dismiss_cookies()
+        self._dump_page_debug('balances_landing', force=self.verbose)
+
+        # Scan best-effort des cartes solde : (devise ISO, montant brut).
+        pairs = self.page.evaluate(r"""
+            () => {
+                const out = [];
+                const nodes = document.querySelectorAll(
+                    '[data-testid*="balance"], [class*="balance"], a[href*="/balances/"]');
+                nodes.forEach(el => {
+                    const t = (el.innerText || '').replace(/\n/g, ' ').trim();
+                    const m = t.match(/\b([A-Z]{3})\b[^0-9-]*(-?[\d \s.,]+)/);
+                    if (m) out.push([m[1], m[2].trim()]);
+                });
+                return out;
+            }
+        """)
+        seen = {}
+        for cur, amt in (pairs or []):
+            cur = (cur or '').strip().upper()
+            if len(cur) == 3 and cur.isalpha() and amt:
+                seen[cur] = amt  # dernier gagne
+        if not seen:
+            self.logger.warning("Aucun solde lu (page balances) — dump pour calage live")
+            self._dump_page_debug("no_balances", force=True)
+            return
+        out = self.dropbox_dir / 'wise_balances.csv'
+        with open(out, 'w', encoding='utf-8') as f:
+            for cur, amt in seen.items():
+                f.write(f"{cur},{amt}\n")
+        self.downloads.append(out)
+        self.logger.info(f"Soldes écrits: {out.name} ({len(seen)} devises)")
 
     def dismiss_cookies(self):
         """Ferme la popup cookies (Reject/Refuser en priorité)."""
@@ -473,281 +655,6 @@ class WiseFetcher(BaseFetcher):
 
         self.logger.error(f"Timeout login ({LOGIN_TIMEOUT_S}s)")
         return False
-
-    def create_statement(self):
-        """Remplit le formulaire pour créer un relevé.
-
-        Étapes :
-        1. S'assurer d'être sur la page des relevés
-        2. Cliquer "Créer un Relevé"
-        3. Configurer dates, devises, format XLSX
-        4. Cliquer "Générer"
-
-        Returns:
-            True si le relevé a été demandé, False sinon
-        """
-        # S'assurer d'être sur la bonne page
-        current_url = self.page.url
-        if 'statements' not in current_url:
-            self.logger.info("Navigation vers la page des relevés...")
-            self.page.goto(self.wise_statements, wait_until="domcontentloaded")
-            time.sleep(3)
-            self.dismiss_cookies()
-
-        # Chercher et cliquer "Créer..." / "Get statement" / "Create statement"
-        create_btn = self.page.locator(
-            ":is(button, a, div, span)[role='button']:has-text('Créer'), "
-            ":is(button, a, div, span)[role='button']:has-text('Get statement'), "
-            ":is(button, a, div, span)[role='button']:has-text('Create statement'), "
-            "button:has-text('Créer'), "
-            "button:has-text('Get statement'), "
-            "button:has-text('Create statement'), "
-            "a:has-text('Créer'), "
-            "a:has-text('Get statement'), "
-            "a:has-text('Create statement')"
-        )
-        try:
-            create_btn.first.wait_for(state="visible", timeout=10000)
-        except PlaywrightTimeout:
-            self.logger.error("Bouton 'Créer un relevé' introuvable")
-            self._dump_page_debug("no_create_btn")
-            return False
-
-        create_btn.first.click()
-        self.logger.info("Bouton 'Créer un Relevé' cliqué")
-        time.sleep(3)
-
-        # Configurer la période
-        self._set_date_range()
-
-        # Sélectionner toutes les devises
-        self._select_all_currencies()
-
-        # Sélectionner format XLSX
-        self._select_xlsx_format()
-
-        # Cliquer "Générer" / "Generate"
-        generate_btn = self.page.locator(
-            "button:has-text('Générer'), "
-            "button:has-text('Generate'), "
-            "button[type='submit']"
-        )
-        if generate_btn.count() == 0:
-            self.logger.error("Bouton 'Générer' introuvable")
-            self._dump_page_debug("no_generate_btn")
-            return False
-
-        generate_btn.first.click()
-        self.logger.info("Relevé demandé (Générer cliqué)")
-        time.sleep(3)
-
-        # Vérifier que le formulaire a bien été soumis (pas d'erreur de validation)
-        validation_error = self.page.locator("text='Champ obligatoire'")
-        if validation_error.count() > 0:
-            self.logger.error("Formulaire non soumis — champ obligatoire manquant (devises ?)")
-            self._dump_page_debug("form_validation_error")
-            return False
-
-        return True
-
-    def _set_date_range(self):
-        """Configure la plage de dates du relevé à J-max_days_back → aujourd'hui.
-
-        Wise utilise un date picker custom (bouton np-date-trigger → calendrier).
-        Les jours ont un aria-label au format "DD/MM/YYYY".
-        On navigue mois par mois avec le bouton "précédent mois" puis on clique le jour.
-        """
-        start_date = datetime.now() - timedelta(days=self.max_days_back)
-        target_label = start_date.strftime('%d/%m/%Y')
-        self.logger.info(f"Période cible: {target_label} → aujourd'hui ({self.max_days_back}j)")
-
-        # Cliquer le bouton "Date de début" (np-date-trigger)
-        from_btn = self.page.locator("button.np-date-trigger").first
-        try:
-            from_btn.wait_for(state="visible", timeout=5000)
-        except PlaywrightTimeout:
-            self.logger.warning("Bouton date de début introuvable — dates par défaut")
-            return
-        from_btn.click()
-        time.sleep(1)
-
-        # Attendre que le calendrier s'ouvre
-        calendar = self.page.locator("table.tw-date-lookup-calendar")
-        try:
-            calendar.wait_for(state="visible", timeout=5000)
-        except PlaywrightTimeout:
-            self.logger.warning("Calendrier non ouvert — dates par défaut")
-            return
-
-        # Naviguer vers le mois cible en cliquant "précédent mois"
-        prev_btn = self.page.locator("button[aria-label='précédent mois']")
-        for i in range(12):  # max 12 mois en arrière
-            # Chercher le jour cible par aria-label
-            day_btn = self.page.locator(f"button.tw-date-lookup-day-option[aria-label='{target_label}']")
-            if day_btn.count() > 0:
-                day_btn.first.click()
-                self.logger.info(f"Date de début: {target_label}")
-                time.sleep(1)
-                return
-
-            # Pas trouvé → reculer d'un mois
-            if prev_btn.count() > 0:
-                prev_btn.first.click()
-                time.sleep(0.5)
-            else:
-                break
-
-        self.logger.warning(f"Jour {target_label} non trouvé dans le calendrier — dates par défaut")
-        self.page.keyboard.press("Escape")
-        time.sleep(0.5)
-
-    def _select_all_currencies(self):
-        """Sélectionne toutes les devises (EUR, USD, SGD, SEK).
-
-        Wise utilise un combobox (bouton role=combobox, classe np-button-input)
-        avec placeholder "Sélectionnez des devises". Au clic, un dropdown
-        s'ouvre avec les devises disponibles sous forme de checkboxes.
-        """
-        # Ouvrir le dropdown devises
-        currency_combo = self.page.locator(
-            "button[role='combobox']:near(:text('Vos devises'))"
-        )
-        if currency_combo.count() == 0:
-            # Fallback : le combobox avec placeholder
-            currency_combo = self.page.locator(
-                "button[role='combobox']:has-text('Sélectionnez des devises'), "
-                "button[role='combobox']:has-text('Select currencies')"
-            )
-        if currency_combo.count() == 0:
-            self.logger.error("Dropdown devises introuvable")
-            self._dump_page_debug("wise_currency_dropdown_not_found", force=True)
-            return
-
-        # Ouvrir le dropdown (dialog headlessui)
-        currency_combo.first.click()
-        time.sleep(2)
-
-        # Cliquer "Tout sélectionner" / "Select all" (texte du bouton dans le dialog)
-        select_all = self.page.locator(
-            "button:has-text('Tout sélectionner'), "
-            "button:has-text('Select all')"
-        )
-        if select_all.count() > 0:
-            select_all.first.click()
-            self.logger.info("Toutes les devises sélectionnées")
-            time.sleep(0.5)
-        else:
-            self.logger.warning("'Tout sélectionner' non trouvé")
-            self._dump_page_debug("no_select_all_btn")
-
-        # Fermer le dropdown
-        self.page.keyboard.press("Escape")
-        time.sleep(0.5)
-
-    def _select_xlsx_format(self):
-        """Sélectionne le format XLSX (requis par cpt_format_WISE.py).
-
-        Wise utilise un combobox (bouton role=combobox) dans la section
-        "Format du fichier", pré-sélectionné sur "PDF". On l'ouvre et
-        on sélectionne "XLSX".
-        """
-        # Ouvrir le dropdown format
-        format_combo = self.page.locator(
-            "button[role='combobox']:near(:text('Format du fichier')), "
-            "button[role='combobox']:near(:text('File format'))"
-        )
-        if format_combo.count() == 0:
-            # Fallback : combobox contenant "PDF"
-            format_combo = self.page.locator(
-                "button[role='combobox']:has-text('PDF')"
-            )
-        if format_combo.count() == 0:
-            self.logger.warning("Dropdown format introuvable — PDF par défaut ?")
-            self._dump_page_debug("wise_format_dropdown_not_found", force=True)
-            return False
-
-        format_combo.first.click()
-        time.sleep(1)
-        self.logger.debug("Dropdown format ouvert")
-
-        # Sélectionner XLSX
-        xlsx_option = self.page.locator(
-            "[role='option']:has-text('XLSX'), "
-            "[role='listbox'] :has-text('XLSX')"
-        )
-        if xlsx_option.count() > 0:
-            xlsx_option.first.click()
-            self.logger.info("Format XLSX sélectionné")
-            time.sleep(0.5)
-            return True
-
-        # Fallback : Excel
-        excel_option = self.page.locator(
-            "[role='option']:has-text('Excel'), "
-            "[role='listbox'] :has-text('Excel')"
-        )
-        if excel_option.count() > 0:
-            excel_option.first.click()
-            self.logger.info("Format Excel sélectionné")
-            time.sleep(0.5)
-            return True
-
-        self.logger.warning("Option XLSX/Excel non trouvée dans le dropdown")
-        return False
-
-    def download_statement(self):
-        """Attend la génération du relevé et télécharge le ZIP.
-
-        Après avoir cliqué "Générer", Wise peut :
-        - Afficher une nouvelle page avec un bouton "Télécharger"
-        - Ou rediriger vers une page de téléchargement
-
-        Returns:
-            Path du fichier téléchargé ou None
-        """
-        self.dropbox_dir.mkdir(parents=True, exist_ok=True)
-
-        # Attendre le bouton "Télécharger" / "Download"
-        self.logger.info("Attente du relevé (génération en cours)...")
-        download_btn = self.page.locator(
-            "button:has-text('Télécharger'), "
-            "button:has-text('Download'), "
-            "a:has-text('Télécharger'), "
-            "a:has-text('Download')"
-        )
-
-        try:
-            download_btn.first.wait_for(state="visible", timeout=DOWNLOAD_TIMEOUT_S * 1000)
-        except PlaywrightTimeout:
-            self.logger.error(f"Bouton 'Télécharger' non trouvé après {DOWNLOAD_TIMEOUT_S}s")
-            self._dump_page_debug("no_download_btn")
-            return None
-
-        self.logger.info("Bouton 'Télécharger' trouvé")
-        time.sleep(1)
-
-        # Télécharger avec capture de l'événement download
-        try:
-            with self.page.expect_download(timeout=60000) as download_info:
-                download_btn.first.click()
-
-            download = download_info.value
-            original_name = download.suggested_filename
-            dest_path = self.dropbox_dir / original_name
-
-            download.save_as(str(dest_path))
-
-            self.logger.info(f"Téléchargé: {original_name}")
-            self.download_path = dest_path
-            self.downloads.append(dest_path)  # Also track in BaseFetcher's list
-            return dest_path
-
-        except PlaywrightTimeout:
-            self.logger.error("Timeout téléchargement")
-            return None
-        except Exception as e:
-            self.logger.error(f"Erreur téléchargement: {e}")
-            return None
 
 
 if __name__ == '__main__':
