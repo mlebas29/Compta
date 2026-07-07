@@ -1,14 +1,18 @@
 #!/usr/bin/env python3
 """
-cpt_fetch_WISE.py - Fetch Wise statements via Playwright (semi-automatique)
+cpt_fetch_WISE.py - Collecte Wise via Playwright (semi-automatique)
 
 Login semi-automatique : Chrome remplit les identifiants via GPG.
 Wise demande systématiquement une approbation par notification push dans
 l'appli Wise (« Oui, c'est moi ») ; selon le contexte (typiquement
 changement d'appareil), une vérification email peut s'y ajouter — copier
 le lien reçu (clic droit → Copier le lien), le clipboard est surveillé
-et le lien est ouvert dans un nouvel onglet. Le script automatise ensuite
-la génération et le téléchargement du relevé.
+et le lien est ouvert dans un nouvel onglet. Le script exporte ensuite
+l'historique et lit les soldes.
+
+Depuis #131, l'assistant relevé XLSX (devenu inaccessible côté Wise) est
+remplacé par l'export CSV « all-transactions » (1 clic) que le format
+décompose en jambes par devise, plus une lecture des soldes courants.
 
 Prérequis:
 - pip install playwright
@@ -16,21 +20,19 @@ Prérequis:
 
 Usage:
   ./cpt_fetch_WISE.py         # Mode normal
-  ./cpt_fetch_WISE.py -v      # Mode verbeux
+  ./cpt_fetch_WISE.py -v      # Mode verbeux (dump du DOM aux étapes clés)
 
 Workflow:
   1. Lance Chrome avec profil persistant (cookies de session conservés)
-  2. Navigue vers la page des relevés Wise
-  3. Si non connecté : remplit email/password (GPG), attend validation push mobile
+  2. Login si nécessaire : email/password (GPG) + validation push mobile
      puis (si demandée) lien email Wise copié dans le clipboard
-  4. Clique "Créer un Relevé"
-  5. Sélectionne la période, toutes les devises, format XLSX
-  6. Clique "Générer"
-  7. Attend la génération puis clique "Télécharger"
-  8. Sauve le ZIP dans dropbox/WISE/
+  3. /all-transactions → bouton « Télécharger » → tiroir → format CSV → download
+  4. Soldes : /home → id du groupe multi-devises → /groups/<id> → lecture des
+     jars par devise (« Compte principal »)
 
-Fichiers générés:
-  - dropbox/WISE/statement_YYYY-MM-DD_YYYY-MM-DD.zip
+Fichiers générés (dropbox/WISE/):
+  - transaction-history.csv  (toutes les opérations, toutes devises)
+  - wise_balances.csv        (solde courant par devise, pour le #Solde)
 """
 
 import sys
@@ -159,8 +161,8 @@ class WiseFetcher(BaseFetcher):
         """Exporte l'historique complet en CSV depuis wise.com/all-transactions.
 
         Remplace l'assistant relevé XLSX (#131) : la page « Toutes les
-        transactions » offre un export en ~1 clic (Export → CSV). Sélecteurs à
-        valider en live — dump systématique (logs/debug/) à chaque point d'échec.
+        transactions » offre un export en ~1 clic (bouton « Télécharger » → tiroir
+        → format CSV → action). Validé live s.194 ; dump (logs/debug/) à chaque échec.
 
         Returns:
             Path du CSV téléchargé ou None
