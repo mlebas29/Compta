@@ -598,7 +598,7 @@ class ComptaExcelImport(ComptaExcel):
             if solde_auto_last_date[compte] is not None:
                 op_solde = Operation(
                     date=solde_auto_last_date[compte],
-                    label='Relevé compte',
+                    label='Solde calculé',   # cohérence : c'est un solde auto-calculé
                     montant=str(solde_auto_balances[compte]).replace('.', ','),
                     devise=config['devise'],
                     categorie='#Solde',
