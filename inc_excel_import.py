@@ -524,7 +524,10 @@ class ComptaExcelImport(ComptaExcel):
 
                 op_solde = Operation(
                     date=op.date,
-                    label='Relevé compte',
+                    # cumul SYNTHÉTISÉ par l'import (balances[compte_cible] += montant_cible),
+                    # pas un solde lu d'une source externe → « Solde calculé » (cohérence #135).
+                    # Préfixe Σ = marqueur visuel « solde calculé par l'import » (#135).
+                    label='Σ Solde calculé',
                     montant=str(balances[compte_cible]).replace('.', ','),
                     devise=op.devise,
                     categorie='#Solde',
@@ -598,7 +601,7 @@ class ComptaExcelImport(ComptaExcel):
             if solde_auto_last_date[compte] is not None:
                 op_solde = Operation(
                     date=solde_auto_last_date[compte],
-                    label='Solde calculé',   # cohérence : c'est un solde auto-calculé
+                    label='Σ Solde calculé',   # cohérence : c'est un solde auto-calculé (Σ = préfixe #135)
                     montant=str(solde_auto_balances[compte]).replace('.', ','),
                     devise=config['devise'],
                     categorie='#Solde',
@@ -1144,7 +1147,7 @@ class ComptaExcelImport(ComptaExcel):
                 copy_cell_formatting(template_cells[self.cr.col('OPdate') - 1], cell)
 
             cell = self.ws_operations.cell(next_row, self.cr.col('OPlibellé'))
-            cell.value = 'Solde calculé'
+            cell.value = 'Σ Solde calculé'   # Σ = marqueur « solde calculé par l'import » (#135)
             if template_cells:
                 copy_cell_formatting(template_cells[self.cr.col('OPlibellé') - 1], cell)
 
