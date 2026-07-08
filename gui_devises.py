@@ -2156,23 +2156,17 @@ class DevisesMixin:
         if self.pipeline_json_path.exists():
             with open(self.pipeline_json_path, 'r', encoding='utf-8') as f:
                 return json.load(f)
-        return {'linked_operations': {}, 'solde_auto': {}}
+        return {'linked_operations': {}}
 
     def _save_pipeline_config(self):
-        """Sauvegarde _linked_data et _solde_auto_data dans config_pipeline.json."""
+        """Sauvegarde _linked_data dans config_pipeline.json."""
         import json
-        data = {'linked_operations': {}, 'solde_auto': {}}
+        data = {'linked_operations': {}}
         if hasattr(self, '_linked_data'):
             for pattern, compte, desc in self._linked_data:
                 data['linked_operations'][pattern] = {
                     'compte_cible': compte,
                     'description': desc,
-                }
-        if hasattr(self, '_solde_auto_data'):
-            for compte, cat, devise in self._solde_auto_data:
-                data['solde_auto'][compte] = {
-                    'categorie_trigger': cat,
-                    'devise': devise,
                 }
         text = json.dumps(data, ensure_ascii=False, indent=4) + '\n'
         try:                                 # bon marché : pas de réécriture si inchangé
@@ -2183,6 +2177,24 @@ class DevisesMixin:
             pass
         with open(self.pipeline_json_path, 'w', encoding='utf-8') as f:
             f.write(text)
+        return True
+
+    def _save_transfer_pairs(self):
+        """Sauvegarde _transfer_pairs_data dans config_accounts.json['transfer_pairs']
+        (read-modify-write du dict mémoire → ne touche pas les sections sites). #133.
+        No-op si inchangé."""
+        if not hasattr(self, '_transfer_pairs_data'):
+            return False
+        current = self.accounts_json_data.get('transfer_pairs', [])
+        new = self._transfer_pairs_data
+        if current == new:
+            return False
+        from inc_config_io import write_accounts_json
+        if new:
+            self.accounts_json_data['transfer_pairs'] = new
+        else:
+            self.accounts_json_data.pop('transfer_pairs', None)
+        write_accounts_json(self.accounts_json_path, self.accounts_json_data)
         return True
 
     def _save_mappings(self):

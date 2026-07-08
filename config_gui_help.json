@@ -1,13 +1,13 @@
 {
-    "Comptes et biens matériels": "Liste des comptes bancaires, placements\net biens matériels (foncier, mobilier).\nClic droit ou double-clic pour modifier.",
-    "Général": "Paramètres globaux : mode debug, rétention des\nsessions archivées, profondeur d'import.",
-    "Appariement": "Réglages de l'appariement automatique des opérations\nentre comptes (virements, transferts).",
-    "Comparaison": "Seuil de variation pour les alertes dans\nla comparaison Plus_value.",
-    "Sites": "Sites de collecte disponibles.\nCocher pour activer.",
-    "Propriétés": "Paramètres du site sélectionné. Les champs\ngrisés sont en lecture seule.",
-    "Postes budgétaires": "Postes de regroupement (Fixe/Variable)\npour les catégories du budget.",
-    "Opérations liées": "Génération automatique d'une opération\ncontrepartie lors de l'import.\nQuand le libellé contient le pattern,\nune opération miroir (montant opposé)\nest créée dans le compte cible.\nEx : RETRAIT DAB → écriture dans Espèces.",
-    "Solde auto": "Génération automatique d'une opération\n#Solde calculée pour les comptes sans\nrelevé bancaire (pas de CSV).\nLe solde est recalculé à chaque import\nà partir des opérations de la catégorie\ntrigger.\nEx : Pièces or → solde déduit des\nAchat métaux.",
-    "Statut": "Synthèse de l'état du classeur :\n• Vert : tout est OK\n• Orange : appariements incomplets\n  ou incohérence de configuration\n• Rouge : erreur comptes, catégories ou inconnus\n\nCliquer pour voir le détail dans Résultat.\nMis à jour au démarrage et après chaque opération.",
-    "Correspondances (patterns)": "Un « pattern » est une expression régulière (regex Python) testée sur le LIBELLÉ de l'opération ; si elle correspond, sa catégorie est appliquée.\n\n• Trouvé n'importe où dans le libellé :\n  CARREFOUR reconnaît « CB CARREFOUR 12/05 ».\n• Ignorer la casse : préfixer (?i)\n  → (?i)carrefour\n• « ou » : (?i)carrefour|leclerc|auchan\n• . = un caractère    .* = n'importe quoi\n  \\d = un chiffre    ^ = début    $ = fin\n• Caractère spécial littéral : l'échapper\n  (\\.  \\(  \\+ …)\n\nExemples :\n  (?i)edf|engie → Énergie\n  (?i)vir.*loyer → Loyer\n\nTester un motif : regex101.com (flavor Python).\nLa validité est vérifiée en direct à l'édition."
+  "Comptes et biens matériels": "Liste des comptes bancaires, placements\net biens matériels (foncier, mobilier).\nClic droit ou double-clic pour modifier.",
+  "Général": "Paramètres globaux : mode debug, rétention des\nsessions archivées, profondeur d'import.",
+  "Appariement": "Réglages de l'appariement automatique des opérations\nentre comptes (virements, transferts).",
+  "Comparaison": "Seuil de variation pour les alertes dans\nla comparaison Plus_value.",
+  "Sites": "Sites de collecte disponibles.\nCocher pour activer.",
+  "Propriétés": "Paramètres du site sélectionné. Les champs\ngrisés sont en lecture seule.",
+  "Postes budgétaires": "Postes de regroupement (Fixe/Variable)\npour les catégories du budget.",
+  "Statut": "Synthèse de l'état du classeur :\n• Vert : tout est OK\n• Orange : appariements incomplets\n  ou incohérence de configuration\n• Rouge : erreur comptes, catégories ou inconnus\n\nCliquer pour voir le détail dans Résultat.\nMis à jour au démarrage et après chaque opération.",
+  "Correspondances (patterns)": "Un « pattern » est une expression régulière (regex Python) testée sur le LIBELLÉ de l'opération ; si elle correspond, sa catégorie est appliquée.\n\n• Trouvé n'importe où dans le libellé :\n  CARREFOUR reconnaît « CB CARREFOUR 12/05 ».\n• Ignorer la casse : préfixer (?i)\n  → (?i)carrefour\n• « ou » : (?i)carrefour|leclerc|auchan\n• . = un caractère    .* = n'importe quoi\n  \\d = un chiffre    ^ = début    $ = fin\n• Caractère spécial littéral : l'échapper\n  (\\.  \\(  \\+ …)\n\nExemples :\n  (?i)edf|engie → Énergie\n  (?i)vir.*loyer → Loyer\n\nTester un motif : regex101.com (flavor Python).\nLa validité est vérifiée en direct à l'édition.",
+  "Opérations de compensation": "Génération automatique d'une opération de compensation dans un compte cible à partir d'une opération existante : quand le libellé contient le pattern, une contrepartie (signe inversé) est créée et appariée. C'est de la génération, pas de l'appariement pur (voir « Appariement »). Le « Nom » est un libellé libre pour vous repérer.",
+  "Spécifique (paires prédéfinies)": "Paires de virements récurrents à apparier explicitement quand l'algorithme général les rate (décalage de dates récurrent, ex. gérance→banque à 1 mois). Les deux opérations existent déjà des deux côtés — ici on ne fait qu'apparier. Le « Nom » est libre ; source/destination (compte, pattern, signe) et la fenêtre en jours se règlent dans le dialog."
 }

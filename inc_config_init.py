@@ -13,7 +13,7 @@ _BASE_DIR = Path(__file__).parent
 _USER_CONFIGS = {
     'config_accounts.json': {},
     'config_cotations.json': {},
-    'config_pipeline.json': {'linked_operations': {}, 'solde_auto': {}},
+    'config_pipeline.json': {'linked_operations': {}},
     'config_category_mappings.json': {},
 }
 

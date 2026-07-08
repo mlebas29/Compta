@@ -246,7 +246,7 @@ def main():
     pipeline_json = sandbox / 'config_pipeline.json'
     if pipeline_json.exists():
         with open(pipeline_json, 'w') as f:
-            json.dump({"linked_operations": {}, "solde_auto": {}}, f, indent=2)
+            json.dump({"linked_operations": {}}, f, indent=2)
 
     # Vider config_cotations.json : en PROD le config copié depuis code_root
     # contient les devises utilisateur (USD/CHF/...), incompatibles avec un

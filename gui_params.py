@@ -36,28 +36,53 @@ class ParamsMixin:
         self._add_spinbox(gf, 'Jours max import', 'general', 'max_days_back',
                           0, 365, '0 = illimité')
 
-        # Appariement
+        # Appariement — un cadre, deux sous-sections : Générale (params de l'algo) +
+        # Spécifique (paires prédéfinies transfer_pairs). #133
         pf = ttk.LabelFrame(scroll_frame, text='Appariement', padding=10)
         pf.pack(fill='x', padx=10, pady=5)
         self._make_help_button(pf)
 
-        self._add_spinbox(pf, 'Même devise (jours)', 'pairing',
+        # — Générale : paramètres de l'algo d'appariement (config.ini [pairing])
+        gpf = ttk.LabelFrame(pf, text='Générale', padding=8)
+        gpf.pack(fill='x', pady=(0, 6))
+        self._add_spinbox(gpf, 'Même devise (jours)', 'pairing',
                           'max_jours_same_currency', 1, 90,
                           'Fenêtre de dates')
-        self._add_spinbox(pf, 'Devises croisées (jours)', 'pairing',
+        self._add_spinbox(gpf, 'Devises croisées (jours)', 'pairing',
                           'max_jours_cross_currency', 1, 90,
                           'Fenêtre de dates')
-        self._add_entry(pf, 'Ratio max présélection', 'pairing',
+        self._add_entry(gpf, 'Ratio max présélection', 'pairing',
                         'max_ratio_preselect',
                         'ex: 1.25 = 25%')
-        self._add_entry(pf, 'Ratio max équivalent', 'pairing',
+        self._add_entry(gpf, 'Ratio max équivalent', 'pairing',
                         'max_ratio_equiv',
                         'ex: 2.0 = 100%')
-        self._add_entry(pf, 'Seuil ambiguïté', 'pairing',
+        self._add_entry(gpf, 'Seuil ambiguïté', 'pairing',
                         'ambiguity_threshold',
                         'ex: 0.05 = 5%')
-        self._add_checkbox(pf, 'Sans appariement', 'pairing', 'no_pair',
+        self._add_checkbox(gpf, 'Sans appariement', 'pairing', 'no_pair',
                            'Ne pas lancer l\'appariement après l\'import')
+
+        # — Spécifique : paires prédéfinies (transfer_pairs, config_accounts.json).
+        # Apparie deux opérations DÉJÀ existantes que l'algo général rate (décalage
+        # récurrent, ex. gérance→SG à 1 mois). Liste = Nom seul, détail dans le dialog.
+        spf = ttk.LabelFrame(pf, text='Spécifique (paires prédéfinies)', padding=8)
+        spf.pack(fill='x')
+        self.transfer_tree = ttk.Treeview(
+            spf, columns=('name',), show='headings', height=4, selectmode='browse')
+        self.transfer_tree.heading('name', text='Nom')
+        self.transfer_tree.column('name', width=320, minwidth=120)
+        self.transfer_tree.pack(fill='x')
+        tf_btn = ttk.Frame(spf)
+        tf_btn.pack(fill='x', pady=(5, 0))
+        ttk.Button(tf_btn, text='➕ Ajouter',
+                   command=self._transfer_pair_add).pack(side='left', padx=2)
+        ttk.Button(tf_btn, text='✏ Éditer',
+                   command=self._transfer_pair_edit).pack(side='left', padx=2)
+        ttk.Button(tf_btn, text='✖ Supprimer',
+                   command=self._transfer_pair_delete).pack(side='left', padx=2)
+        self._transfer_pairs_data = []
+        self._load_transfer_pairs()
 
         # Comparaison
         cf = ttk.LabelFrame(scroll_frame, text='Comparaison', padding=10)
@@ -89,164 +114,199 @@ class ParamsMixin:
         ttk.Label(frame2, text='Traces détaillées à l\'exécution',
                   style='Hint.TLabel').pack(side='left', padx=10)
 
-        # Opérations liées
-        lf = ttk.LabelFrame(scroll_frame, text='Opérations liées', padding=10)
+        # Opérations de compensation (ex « Opérations liées », linked_operations).
+        # À partir d'une op existante (pattern matché sur le libellé), GÉNÈRE une op
+        # de compensation dans un compte cible + marque l'appariement. C'est de la
+        # GÉNÉRATION, pas de l'appariement pur. Liste = Nom seul (champ libre), détail
+        # dans le dialog. #133/#140
+        lf = ttk.LabelFrame(scroll_frame, text='Opérations de compensation', padding=10)
         lf.pack(fill='x', padx=10, pady=5)
         self._make_help_button(lf)
 
         self.linked_tree = ttk.Treeview(
-            lf, columns=('pattern', 'compte', 'description'),
-            show='headings', height=4, selectmode='browse')
-        self.linked_tree.heading('pattern', text='Pattern libellé')
-        self.linked_tree.heading('compte', text='Compte cible')
-        self.linked_tree.heading('description', text='Description')
-        self.linked_tree.column('pattern', width=180, minwidth=100)
-        self.linked_tree.column('compte', width=180, minwidth=100)
-        self.linked_tree.column('description', width=180, minwidth=100)
+            lf, columns=('name',), show='headings', height=4, selectmode='browse')
+        self.linked_tree.heading('name', text='Nom')
+        self.linked_tree.column('name', width=320, minwidth=120)
         self.linked_tree.pack(fill='x')
 
         lf_btn = ttk.Frame(lf)
         lf_btn.pack(fill='x', pady=(5, 0))
-        ttk.Button(lf_btn, text='\u2795 Ajouter',
+        ttk.Button(lf_btn, text='➕ Ajouter',
                    command=self._linked_add).pack(side='left', padx=2)
-        ttk.Button(lf_btn, text='\u2716 Supprimer',
+        ttk.Button(lf_btn, text='✏ Éditer',
+                   command=self._linked_edit).pack(side='left', padx=2)
+        ttk.Button(lf_btn, text='✖ Supprimer',
                    command=self._linked_delete).pack(side='left', padx=2)
 
         self._linked_data = []
         self._load_linked_data()
 
-        # Solde auto
-        sf = ttk.LabelFrame(scroll_frame, text='Solde auto', padding=10)
-        sf.pack(fill='x', padx=10, pady=5)
-        self._make_help_button(sf)
-
-        self.solde_auto_tree = ttk.Treeview(
-            sf, columns=('compte', 'categorie', 'devise'),
-            show='headings', height=3, selectmode='browse')
-        self.solde_auto_tree.heading('compte', text='Compte')
-        self.solde_auto_tree.heading('categorie', text='Catégorie trigger')
-        self.solde_auto_tree.heading('devise', text='Devise')
-        self.solde_auto_tree.column('compte', width=180, minwidth=100)
-        self.solde_auto_tree.column('categorie', width=180, minwidth=100)
-        self.solde_auto_tree.column('devise', width=120, minwidth=60)
-        self.solde_auto_tree.pack(fill='x')
-
-        sf_btn = ttk.Frame(sf)
-        sf_btn.pack(fill='x', pady=(5, 0))
-        ttk.Button(sf_btn, text='\u2795 Ajouter',
-                   command=self._solde_auto_add).pack(side='left', padx=2)
-        ttk.Button(sf_btn, text='\u2716 Supprimer',
-                   command=self._solde_auto_delete).pack(side='left', padx=2)
-
-        self._solde_auto_data = []
-        self._load_solde_auto_data()
 
     def _load_linked_data(self):
-        """Charge les opérations liées depuis config_pipeline.json et peuple le Treeview."""
+        """Charge linked_operations (config_pipeline.json). Liste = Nom (description) seul."""
         self._linked_data = []
-        self.linked_tree.delete(*self.linked_tree.get_children())
         pipeline = self._load_pipeline_json()
         for pattern, entry in pipeline.get('linked_operations', {}).items():
-            p = pattern.upper()
-            compte = entry.get('compte_cible', '')
-            desc = entry.get('description', '')
-            self._linked_data.append((p, compte, desc))
-            self.linked_tree.insert('', 'end', values=(p, compte, desc))
+            self._linked_data.append((pattern.upper(),
+                                      entry.get('compte_cible', ''),
+                                      entry.get('description', '')))
+        self._refresh_linked_tree()
 
-    def _linked_add(self):
-        """Dialog pour ajouter une opération liée."""
+    def _refresh_linked_tree(self):
+        self.linked_tree.delete(*self.linked_tree.get_children())
+        for i, (pattern, compte, desc) in enumerate(self._linked_data):
+            self.linked_tree.insert('', 'end', iid=str(i), values=(desc or pattern,))
+
+    def _linked_dialog(self, existing=None):
+        """Dialog Ajouter/Éditer une op de compensation. Retourne (pattern, compte, nom) ou None."""
         dlg = tk.Toplevel(self.root)
-        dlg.title('Ajouter opération liée')
-        dlg.geometry('400x180')
+        dlg.title('Opération de compensation')
+        dlg.geometry('460x210')
         dlg.transient(self.root)
         dlg.grab_set()
-
-        fields = {}
-        for i, (label, width) in enumerate([
-            ('Pattern libellé :', 30), ('Compte cible :', 30),
-            ('Description :', 30)]):
-            ttk.Label(dlg, text=label).grid(row=i, column=0, sticky='w', padx=10, pady=3)
-            var = tk.StringVar()
-            ttk.Entry(dlg, textvariable=var, width=width).grid(
-                row=i, column=1, padx=10, pady=3, sticky='w')
-            fields[i] = var
+        pattern0, compte0, nom0 = existing or ('', '', '')
+        rows = [('Nom :', nom0), ('Pattern libellé :', pattern0), ('Compte cible :', compte0)]
+        vals = []
+        for i, (lab, v) in enumerate(rows):
+            ttk.Label(dlg, text=lab).grid(row=i, column=0, sticky='w', padx=10, pady=4)
+            var = tk.StringVar(value=v)
+            ttk.Entry(dlg, textvariable=var, width=34).grid(row=i, column=1, padx=10, pady=4, sticky='w')
+            vals.append(var)
+        result = {}
 
         def on_ok():
-            pattern = fields[0].get().strip().upper()
-            compte = fields[1].get().strip()
-            desc = fields[2].get().strip()
-            if not pattern or not compte or not desc:
+            nom = vals[0].get().strip()
+            pattern = vals[1].get().strip().upper()
+            compte = vals[2].get().strip()
+            if not pattern or not compte:
                 return
-            self._linked_data.append((pattern, compte, desc))
-            self.linked_tree.insert('', 'end', values=(pattern, compte, desc))
+            result['row'] = (pattern, compte, nom)
             dlg.destroy()
 
         btn = ttk.Frame(dlg)
-        btn.grid(row=3, column=0, columnspan=2, pady=10)
+        btn.grid(row=3, column=0, columnspan=2, pady=12)
         ttk.Button(btn, text='OK', command=on_ok).pack(side='left', padx=5)
         ttk.Button(btn, text='Annuler', command=dlg.destroy).pack(side='left', padx=5)
+        dlg.wait_window()
+        return result.get('row')
 
-    def _linked_delete(self):
-        """Supprime l'opération liée sélectionnée."""
+    def _linked_add(self):
+        row = self._linked_dialog()
+        if row:
+            self._linked_data.append(row)
+            self._refresh_linked_tree()
+
+    def _linked_edit(self):
         sel = self.linked_tree.selection()
         if not sel:
             return
-        vals = self.linked_tree.item(sel[0])['values']
-        self._linked_data = [d for d in self._linked_data if d[0] != str(vals[0])]
-        self.linked_tree.delete(sel[0])
+        i = int(sel[0])
+        row = self._linked_dialog(self._linked_data[i])
+        if row:
+            self._linked_data[i] = row
+            self._refresh_linked_tree()
 
-    def _load_solde_auto_data(self):
-        """Charge les soldes auto depuis config_pipeline.json et peuple le Treeview."""
-        self._solde_auto_data = []
-        self.solde_auto_tree.delete(*self.solde_auto_tree.get_children())
-        pipeline = self._load_pipeline_json()
-        for compte, entry in pipeline.get('solde_auto', {}).items():
-            cat = entry.get('categorie_trigger', '')
-            devise = entry.get('devise', '')
-            self._solde_auto_data.append((compte, cat, devise))
-            self.solde_auto_tree.insert('', 'end', values=(compte, cat, devise))
+    def _linked_delete(self):
+        sel = self.linked_tree.selection()
+        if not sel:
+            return
+        del self._linked_data[int(sel[0])]
+        self._refresh_linked_tree()
 
-    def _solde_auto_add(self):
-        """Dialog pour ajouter un solde auto."""
+    def _load_transfer_pairs(self):
+        """Charge transfer_pairs (config_accounts.json). Liste = Nom seul."""
+        self._transfer_pairs_data = list(self.accounts_json_data.get('transfer_pairs', []))
+        self._refresh_transfer_tree()
+
+    def _refresh_transfer_tree(self):
+        self.transfer_tree.delete(*self.transfer_tree.get_children())
+        for i, p in enumerate(self._transfer_pairs_data):
+            self.transfer_tree.insert('', 'end', iid=str(i), values=(p.get('name', ''),))
+
+    def _transfer_pair_dialog(self, existing=None):
+        """Dialog Ajouter/Éditer une paire prédéfinie. Retourne le dict paire ou None."""
         dlg = tk.Toplevel(self.root)
-        dlg.title('Ajouter solde auto')
-        dlg.geometry('400x160')
+        dlg.title('Paire de virements (appariement prédéfini)')
+        dlg.geometry('480x360')
         dlg.transient(self.root)
         dlg.grab_set()
-
-        fields = {}
-        for i, (label, width) in enumerate([
-            ('Compte :', 30), ('Catégorie trigger :', 30), ('Devise :', 15)]):
-            ttk.Label(dlg, text=label).grid(row=i, column=0, sticky='w', padx=10, pady=3)
-            var = tk.StringVar()
-            ttk.Entry(dlg, textvariable=var, width=width).grid(
-                row=i, column=1, padx=10, pady=3, sticky='w')
-            fields[i] = var
+        e = existing or {}
+        src = e.get('source', {})
+        dst = e.get('dest', {})
+        rows = [
+            ('Nom :', e.get('name', '')),
+            ('Source — compte :', src.get('compte', '')),
+            ('Source — pattern libellé :', src.get('pattern', '')),
+            ('Dest — compte :', dst.get('compte', '')),
+            ('Dest — pattern libellé :', dst.get('pattern', '')),
+            ('Jours max écart :', str(e.get('max_jours_ecart', 7))),
+        ]
+        keys = ['name', 'src_compte', 'src_pattern', 'dst_compte', 'dst_pattern', 'jours']
+        vars = {}
+        for i, ((lab, v), key) in enumerate(zip(rows, keys)):
+            ttk.Label(dlg, text=lab).grid(row=i, column=0, sticky='w', padx=10, pady=3)
+            var = tk.StringVar(value=v)
+            ttk.Entry(dlg, textvariable=var, width=34).grid(row=i, column=1, padx=10, pady=3, sticky='w')
+            vars[key] = var
+        ttk.Label(dlg, text='Source — signe :').grid(row=6, column=0, sticky='w', padx=10, pady=3)
+        src_signe = tk.StringVar(value=src.get('signe', 'negatif'))
+        ttk.Combobox(dlg, textvariable=src_signe, values=['negatif', 'positif'],
+                     state='readonly', width=12).grid(row=6, column=1, sticky='w', padx=10, pady=3)
+        ttk.Label(dlg, text='Dest — signe :').grid(row=7, column=0, sticky='w', padx=10, pady=3)
+        dst_signe = tk.StringVar(value=dst.get('signe', 'positif'))
+        ttk.Combobox(dlg, textvariable=dst_signe, values=['negatif', 'positif'],
+                     state='readonly', width=12).grid(row=7, column=1, sticky='w', padx=10, pady=3)
+        result = {}
 
         def on_ok():
-            compte = fields[0].get().strip()
-            cat = fields[1].get().strip()
-            devise = fields[2].get().strip()
-            if not compte or not cat or not devise:
+            name = vars['name'].get().strip()
+            src_c = vars['src_compte'].get().strip()
+            dst_c = vars['dst_compte'].get().strip()
+            if not name or not src_c or not dst_c:
                 return
-            self._solde_auto_data.append((compte, cat, devise))
-            self.solde_auto_tree.insert('', 'end', values=(compte, cat, devise))
+            try:
+                jours = int(vars['jours'].get().strip() or '7')
+            except ValueError:
+                jours = 7
+            result['pair'] = {
+                'name': name,
+                'max_jours_ecart': jours,
+                'source': {'compte': src_c, 'pattern': vars['src_pattern'].get().strip(),
+                           'signe': src_signe.get()},
+                'dest': {'compte': dst_c, 'pattern': vars['dst_pattern'].get().strip(),
+                         'signe': dst_signe.get()},
+            }
             dlg.destroy()
 
         btn = ttk.Frame(dlg)
-        btn.grid(row=3, column=0, columnspan=2, pady=10)
+        btn.grid(row=8, column=0, columnspan=2, pady=12)
         ttk.Button(btn, text='OK', command=on_ok).pack(side='left', padx=5)
         ttk.Button(btn, text='Annuler', command=dlg.destroy).pack(side='left', padx=5)
+        dlg.wait_window()
+        return result.get('pair')
 
-    def _solde_auto_delete(self):
-        """Supprime le solde auto sélectionné."""
-        sel = self.solde_auto_tree.selection()
+    def _transfer_pair_add(self):
+        p = self._transfer_pair_dialog()
+        if p:
+            self._transfer_pairs_data.append(p)
+            self._refresh_transfer_tree()
+
+    def _transfer_pair_edit(self):
+        sel = self.transfer_tree.selection()
         if not sel:
             return
-        vals = self.solde_auto_tree.item(sel[0])['values']
-        self._solde_auto_data = [d for d in self._solde_auto_data
-                                  if d[0] != str(vals[0])]
-        self.solde_auto_tree.delete(sel[0])
+        i = int(sel[0])
+        p = self._transfer_pair_dialog(self._transfer_pairs_data[i])
+        if p:
+            self._transfer_pairs_data[i] = p
+            self._refresh_transfer_tree()
+
+    def _transfer_pair_delete(self):
+        sel = self.transfer_tree.selection()
+        if not sel:
+            return
+        del self._transfer_pairs_data[int(sel[0])]
+        self._refresh_transfer_tree()
 
 
     def _add_checkbox(self, parent, label, section, key, tooltip=''):

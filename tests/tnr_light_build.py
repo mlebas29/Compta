@@ -115,7 +115,7 @@ def main():
     pipeline_json = sandbox / 'config_pipeline.json'
     if pipeline_json.exists():
         with open(pipeline_json, 'w') as f:
-            json.dump({"linked_operations": {}, "solde_auto": {}}, f, indent=2)
+            json.dump({"linked_operations": {}}, f, indent=2)
 
     print(f"\n{timestamp()} Light build (GUI batch mono-devise)")
     if not setup_build():

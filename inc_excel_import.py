@@ -26,7 +26,7 @@ except ImportError:
     print("Installation: pip3 install openpyxl")
     sys.exit(1)
 
-from inc_excel_compta import ComptaExcel, LINKED_OPERATIONS, SOLDE_AUTO_ACCOUNTS, parse_date, parse_montant
+from inc_excel_compta import ComptaExcel, LINKED_OPERATIONS, parse_date, parse_montant
 from inc_excel_schema import (
     SHEET_OPERATIONS, SHEET_AVOIRS, SHEET_PLUS_VALUE,
     SHEET_CONTROLES, Operation,
@@ -462,24 +462,6 @@ class ComptaExcelImport(ComptaExcel):
                 return datetime.min
         operations.sort(key=parse_date_key)
 
-        # Retirer les #Solde manuels des comptes auto-solde (seront recalculés)
-        if SOLDE_AUTO_ACCOUNTS:
-            filtered = []
-            for op in operations:
-                if op.compte in SOLDE_AUTO_ACCOUNTS and op.categorie == '#Solde':
-                    self.logger.verbose(f"#Solde manuel retiré pour {op.compte} (sera auto-généré)")
-                else:
-                    filtered.append(op)
-            operations = filtered
-
-        # Charger les soldes initiaux des comptes auto-solde
-        solde_auto_balances = {}
-        solde_auto_last_date = {}
-        for compte, config in SOLDE_AUTO_ACCOUNTS.items():
-            solde_auto_balances[compte] = self.get_account_balance(compte)
-            solde_auto_last_date[compte] = None
-            self.logger.verbose(f"Solde auto initial {compte}: {solde_auto_balances[compte]} {config['devise']}")
-
         # Charger les soldes initiaux des comptes cibles
         balances = {}
         for pattern_config in LINKED_OPERATIONS.values():
@@ -586,29 +568,8 @@ class ComptaExcelImport(ComptaExcel):
                     self.logger.verbose(f"Opération Titres générée: {compte} {categorie}")
                     self.logger.verbose(f"  Réserve: {montant_reserve:+.2f} € → Titres: {montant_titres:+.2f} €")
 
-                elif (compte in SOLDE_AUTO_ACCOUNTS and
-                      categorie == SOLDE_AUTO_ACCOUNTS[compte]['categorie_trigger']):
-                    montant_val = normalize_amount(op.montant)
-                    solde_auto_balances[compte] += montant_val
-                    solde_auto_last_date[compte] = op.date
-                    enriched_ops.append(op)
-
                 else:
                     enriched_ops.append(op)
-
-        # Émettre les #Solde auto-générés
-        for compte, config in SOLDE_AUTO_ACCOUNTS.items():
-            if solde_auto_last_date[compte] is not None:
-                op_solde = Operation(
-                    date=solde_auto_last_date[compte],
-                    label='Σ Solde calculé',   # cohérence : c'est un solde auto-calculé (Σ = préfixe #135)
-                    montant=str(solde_auto_balances[compte]).replace('.', ','),
-                    devise=config['devise'],
-                    categorie='#Solde',
-                    compte=compte,
-                )
-                enriched_ops.append(op_solde)
-                self.logger.verbose(f"#Solde auto-généré {compte}: {solde_auto_balances[compte]} {config['devise']}")
 
         return enriched_ops
 

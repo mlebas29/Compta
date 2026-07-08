@@ -202,8 +202,9 @@ def get_all_site_descriptions():
     visible dans la liste GUI même si une dépendance fetcher manque.
 
     Source unique : DESCRIPTION = \"\"\"...\"\"\" au top-level de cpt_fetch_<SITE>.py.
-    MANUEL (sans collecte) porte sa DESCRIPTION dans un cpt_fetch_MANUEL.py
-    minimaliste pour rester sur le même emplacement.
+    MANUEL (saisie manuelle, sans collecte ni affichage GUI — caché) n'a PAS de
+    cpt_fetch_MANUEL.py ni de DESCRIPTION ; il est exclu du check de cohérence
+    des descriptions (cf. cpt_gui) et documenté dans docs/site_MANUEL.md. #140
     """
     import re
     import inc_mode

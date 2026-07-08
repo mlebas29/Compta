@@ -9,6 +9,17 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 
 Les trois derniers sont spécifiques au mode assisté ; 📘 concerne le mode classeur.
 
+## v5.15.0
+| 2026-07-08 | Amélioration des appariements · Marquage Σ des soldes calculés · import manuel |
+| ---------- | ------------------------------------------------------------ |
+
+**Détail :**
+
+- **Onglet Paramètres — appariement** — nouvelle sous-section *Spécifique* pour déclarer des **paires de virements récurrents** à apparier explicitement, quand l'appariement automatique les rate (décalage de dates).
+- **« Opérations liées » → « Opérations de compensation » (onglet Paramètres)** — cadre renommé pour refléter sa fonction : *générer une opération de contrepartie* (distinct de l'appariement).
+- **Soldes calculés repérables** — dans les Opérations, un solde **calculé par l'import** (somme des mouvements, non issu d'un relevé) porte désormais le préfixe **« Σ Solde calculé »**. Deux soldes qui s'affichaient à tort « Relevé » ont été corrigés.
+- **Import manuel d'opérations** — déposer un `manuel.xlsx` dans `dropbox/MANUEL/` pour importer des opérations à la main ; un formulaire vierge est fourni et renouvelé automatiquement après chaque import. Voir `docs/site_MANUEL.md`.
+
 ## v5.14.2
 | 2026-07-07 | Correctifs upgrade.py (outil de mise à niveau) |
 | ---------- | ---------------------------------------------- |

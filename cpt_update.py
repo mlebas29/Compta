@@ -156,6 +156,25 @@ def get_site_dropbox_dir(site):
     return DROPBOX_DIR / config.get(site, 'dossier', fallback=site)
 
 
+def ensure_manuel_template():
+    """Assure la présence du formulaire de saisie manuelle dropbox/MANUEL/manuel.xlsx.
+
+    Recopie le gabarit `manuel.xlsx.default` (en-tête seul) si le fichier est
+    ABSENT — à la création du dossier ET après chaque import (l'archivage
+    consomme le rempli par `move`, cf. process_dropbox). Provision-si-absent :
+    n'écrase JAMAIS une saisie présente (aucune perte si MANUEL n'a pas été
+    traité ce run). No-op si le gabarit n'existe pas (ex. sandbox TNR). #140
+    """
+    default = BASE_DIR / 'manuel.xlsx.default'
+    if not default.exists():
+        return
+    site_dir = get_site_dropbox_dir('MANUEL')
+    site_dir.mkdir(parents=True, exist_ok=True)
+    target = site_dir / 'manuel.xlsx'
+    if not target.exists():
+        shutil.copy2(str(default), str(target))
+
+
 def tuples_to_csv(tuples_list, header=None):
     """Convertit une liste de tuples en CSV texte.
 
@@ -1080,6 +1099,11 @@ class ComptaUpdater:
             for file_path in unknown_files:
                 self.archive_file(file_path)
                 self.logger.verbose(f"  Archivé (non reconnu): {file_path.name}")
+
+        # Réapprovisionner le formulaire de saisie manuelle : l'archivage ci-dessus a
+        # consommé (move) dropbox/MANUEL/manuel.xlsx s'il était présent → recopie du
+        # gabarit manuel.xlsx.default (provision-si-absent, n'écrase jamais une saisie). #140
+        ensure_manuel_template()
 
         # Validation centralisée des noms de comptes AVANT sauvegarde Excel
         # SEULE erreur BLOQUANTE qui empêche la sauvegarde

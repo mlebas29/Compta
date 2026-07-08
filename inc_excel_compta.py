@@ -43,9 +43,9 @@ CLASSE_METAUX = ['@Achat métaux']
 # ============================================================================
 
 def _load_pipeline_config():
-    """Charge LINKED_OPERATIONS et SOLDE_AUTO_ACCOUNTS depuis config_pipeline.json.
+    """Charge LINKED_OPERATIONS depuis config_pipeline.json.
 
-    Clés requises : "linked_operations" et "solde_auto".
+    Clé requise : "linked_operations".
     """
     import json
     from inc_mode import get_base_dir
@@ -57,8 +57,6 @@ def _load_pipeline_config():
 
     if 'linked_operations' not in data:
         raise ValueError('config_pipeline.json : clé "linked_operations" manquante')
-    if 'solde_auto' not in data:
-        raise ValueError('config_pipeline.json : clé "solde_auto" manquante')
 
     # Normaliser les clés linked_operations en UPPER
     linked = {}
@@ -68,16 +66,9 @@ def _load_pipeline_config():
             'description': entry['description'],
         }
 
-    solde_auto = {}
-    for compte, entry in data['solde_auto'].items():
-        solde_auto[compte] = {
-            'categorie_trigger': entry['categorie_trigger'],
-            'devise': entry['devise'],
-        }
+    return linked
 
-    return linked, solde_auto
-
-LINKED_OPERATIONS, SOLDE_AUTO_ACCOUNTS = _load_pipeline_config()
+LINKED_OPERATIONS = _load_pipeline_config()
 
 # ============================================================================
 # FONCTIONS UTILITAIRES

@@ -248,7 +248,7 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DaemonClientMixin,
         self.cotations_json_path = self.config_path.parent / 'config_cotations.json'
         self.cotations_meta = read_cotations_json(self.cotations_json_path)
 
-        # Pipeline config (linked_operations, solde_auto)
+        # Pipeline config (linked_operations)
         self.pipeline_json_path = self.config_path.parent / 'config_pipeline.json'
 
         # Charger les données comptes.xlsm si disponible
@@ -874,7 +874,11 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DaemonClientMixin,
             # Site absent de config.ini : pas de nom convivial, on garde la clé
             warnings.append(f'Site « {s} » dans config_accounts.json mais absent de config.ini')
         # Sites sans description par défaut (variable DESCRIPTION dans le module)
+        # MANUEL exclu : saisie manuelle sans collecte ni affichage GUI (caché,
+        # cf. gui_sites/gui_exec) → pas de cpt_fetch_MANUEL.py ni de DESCRIPTION attendue. #140
         for s in ini_sites - set(self.site_descriptions_default.keys()):
+            if s == 'MANUEL':
+                continue
             warnings.append(f'Site « {_site_label(s)} » : pas de DESCRIPTION dans cpt_fetch_{s}.py')
 
         return auto_fixes, warnings
@@ -1039,6 +1043,7 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DaemonClientMixin,
         elif tab_text == 'Paramètres':
             wrote = self._save_config()
             wrote = self._save_pipeline_config() or wrote
+            wrote = self._save_transfer_pairs() or wrote
         if wrote:
             self._set_status('Configuration enregistrée')
 

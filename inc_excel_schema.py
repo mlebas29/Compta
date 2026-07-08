@@ -14,7 +14,7 @@ from typing import Optional
 
 
 # Version de l'application — incrémentée à chaque livraison
-APP_VERSION = "5.14.2"
+APP_VERSION = "5.15.0"
 
 # Version du schéma classeur — incrémentée à chaque changement de structure
 # (named ranges, colonnes, formules). Le classeur doit avoir un named range

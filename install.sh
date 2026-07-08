@@ -575,6 +575,17 @@ for dir in dropbox archives logs; do
 done
 ok "dropbox/ archives/ logs/ créés"
 
+# Saisie manuelle (MANUEL) : provisionner le formulaire dropbox/MANUEL/manuel.xlsx
+# depuis le gabarit manuel.xlsx.default (si absent). cpt_update le réapprovisionne
+# après chaque import (l'archivage consomme le rempli). #140
+if [[ -f "manuel.xlsx.default" ]]; then
+    mkdir -p "dropbox/MANUEL"
+    if [[ ! -f "dropbox/MANUEL/manuel.xlsx" ]]; then
+        cp "manuel.xlsx.default" "dropbox/MANUEL/manuel.xlsx"
+        ok "dropbox/MANUEL/manuel.xlsx provisionné (saisie manuelle)"
+    fi
+fi
+
 # Cadre privé : dépôt PRV vide (Solo) si absent — homologue du public, inerte
 # tant que vide (cf. inc_install.sh ensure_custom_frame / Compta_extension.md).
 ensure_custom_frame "$(pwd)"

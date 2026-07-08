@@ -448,7 +448,7 @@ def main():
     pipeline_json = sandbox / 'config_pipeline.json'
     if pipeline_json.exists():
         with open(pipeline_json, 'w') as f:
-            json.dump({"linked_operations": {}, "solde_auto": {}}, f, indent=2)
+            json.dump({"linked_operations": {}}, f, indent=2)
 
     # tnr_example simule un démarrage from scratch : pas de config_cotations
     # utilisateur (sinon add_devise refuse les codes déjà présents, cf. 16baddd)
