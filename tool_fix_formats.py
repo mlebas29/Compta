@@ -1938,12 +1938,19 @@ def frame_views(path, verbose=True):
         sv = re.search(r'<sheetView\b[^>]*>', xml)
         if sv:
             tag = sv.group(0)
-            has = re.search(r'\btabSelected="[^"]*"', tag)
+            newtag = tag
+            # topLeftCell de la VUE = A1 (coin haut-gauche figé). Sans ça, la portion
+            # FIGÉE reste défilée horizontalement même si le `pane` est recadré : bug
+            # Budget (pane topLeftCell="A4" OK, mais sheetView topLeftCell="J1" →
+            # s'ouvre col J, hors header POSTES figé).
+            if re.search(r'\btopLeftCell="[^"]*"', newtag):
+                newtag = re.sub(r'\btopLeftCell="[^"]*"', 'topLeftCell="A1"', newtag)
+            has = re.search(r'\btabSelected="[^"]*"', newtag)
             if idx == 0:
-                newtag = (re.sub(r'\btabSelected="[^"]*"', 'tabSelected="1"', tag) if has
-                          else tag.replace('<sheetView', '<sheetView tabSelected="1"', 1))
+                newtag = (re.sub(r'\btabSelected="[^"]*"', 'tabSelected="1"', newtag) if has
+                          else newtag.replace('<sheetView', '<sheetView tabSelected="1"', 1))
             else:
-                newtag = re.sub(r'\s*\btabSelected="[^"]*"', '', tag) if has else tag
+                newtag = re.sub(r'\s*\btabSelected="[^"]*"', '', newtag) if has else newtag
             xml = xml.replace(tag, newtag, 1)
 
         if xml != orig:
