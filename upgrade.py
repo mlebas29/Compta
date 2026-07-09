@@ -27,7 +27,10 @@ réversible via --restore. Qui veut garder la main pas à pas fait le geste manu
 
 Idempotent : un second passage ne fait rien si tout est déjà à jour.
 
-Usage (lancer HORS du clone — cf. en-tête) :
+Usage :
+  # IN-CLONE (confort) — le clone défaute à `.` (cwd) :
+  cd <clone> && python3 upgrade.py [--check]
+  # HORS-CLONE (prescrit, amorce fraîche) — DÉSIGNE le clone explicitement :
   curl -fsSL <raw>/upgrade.py -o /tmp/upgrade.py && python3 /tmp/upgrade.py <clone>
   python3 /tmp/upgrade.py <clone> --check   # pull + rattrapages sautés, report seul
 """
@@ -42,16 +45,21 @@ from pathlib import Path
 # cerveau (inc_update) du clone — désormais frais — et migre. Pas de bi-modal,
 # pas de re-exec.
 #
-# Le clone est un ARGUMENT OBLIGATOIRE (positionnel). Geste prescrit, universel :
+# Le clone est l'ARGUMENT POSITIONNEL ; il défaute à `.` (cwd) pour le confort
+# IN-CLONE (`./upgrade.py` depuis son propre clone, sans répéter le chemin). Le geste
+# prescrit HORS-CLONE le DÉSIGNE toujours explicitement (via /tmp, cwd ≠ clone) :
 #     curl -fsSL <raw>/upgrade.py -o /tmp/upgrade.py && python3 /tmp/upgrade.py <clone>
+# Le défaut `.` reste SÛR : un cwd non-clone est refusé net (garde `.git` dans main,
+# rien n'est muté) et le re-clone depuis l'intérieur du clone reste bloqué (garde
+# hors-clone, `__file__` vs BASE_DIR) → le défaut relâche la saisie, pas les invariants.
 # Hors-clone n'est EXIGÉ que pour le RE-CLONE (vieux clone, butée 🔄) : il swappe le
 # dossier du clone, donc un script qui y tourne se ferait remplacer → refus ciblé
 # dans la phase A. Le pull, la migration (phase B), `--restore`/`--liste` TOLÈRENT
 # l'in-clone (rien n'est swappé) → un restore tardif peut relancer le `upgrade.py`
-# du clone, sans re-curl. Vertus : (a) aucune devinette du clone par cwd/dossier-du-
-# script (GUI-safe : l'appelant DÉSIGNE le clone) ; (b) via /tmp on exécute l'amorce
-# la PLUS FRAÎCHE, en AVANCE sur le code du clone (gère des cas qu'il n'anticipait
-# pas) ; (c) « skip » de la phase A impossible.
+# du clone, sans re-curl. Vertus : (a) l'appelant PEUT désigner le clone (GUI/hors-
+# clone le font toujours ; le défaut `.` = confort in-clone) ; (b) via /tmp on exécute
+# l'amorce la PLUS FRAÎCHE, en AVANCE sur le code du clone (gère des cas qu'il
+# n'anticipait pas) ; (c) « skip » de la phase A impossible.
 inc_update = None          # importé APRÈS la phase A (cerveau frais), via _load_brain
 BASE_DIR = None            # clone cible = l'argument positionnel, résolu dans main()
 
@@ -639,8 +647,9 @@ def _fetch_reclone(repo):
 def main():
     ap = argparse.ArgumentParser(
         description="Point d'entrée upgrade consommateur (#94/#102).")
-    ap.add_argument('repo', metavar='CLONE',
-                    help='dossier du clone à mettre à jour (geste : cf. Compta_upgrade_assiste.md)')
+    ap.add_argument('repo', metavar='CLONE', nargs='?', default='.',
+                    help='dossier du clone à mettre à jour (défaut : . = cwd, confort '
+                         'in-clone ; le geste hors-clone le DÉSIGNE, cf. Compta_upgrade_assiste.md)')
     ap.add_argument('--check', action='store_true',
                     help='report seul : pull et rattrapages sautés')
     ap.add_argument('--liste', action='store_true',

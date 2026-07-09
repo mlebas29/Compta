@@ -19,6 +19,7 @@ Les trois derniers sont spécifiques au mode assisté ; 📘 concerne le mode cl
 - **« Opérations liées » → « Opérations de compensation » (onglet Paramètres)** — cadre renommé pour refléter sa fonction : *générer une opération de contrepartie* (distinct de l'appariement).
 - **Soldes calculés repérables** — dans les Opérations, un solde **calculé par l'import** (somme des mouvements, non issu d'un relevé) porte désormais le préfixe **« Σ Solde calculé »**. Deux soldes qui s'affichaient à tort « Relevé » ont été corrigés.
 - **Import manuel d'opérations** — déposer un `manuel.xlsx` dans `dropbox/MANUEL/` pour importer des opérations à la main ; un formulaire vierge est fourni et renouvelé automatiquement après chaque import. Voir `docs/site_MANUEL.md`.
+- **Mise à niveau assistée — raccourci** — `upgrade.py` sans argument met à jour le clone courant (le dossier depuis lequel on le lance) ; le geste hors-clone continue de désigner le clone explicitement.
 
 ## v5.14.2
 | 2026-07-07 | Correctifs upgrade.py (outil de mise à niveau) |
