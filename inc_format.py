@@ -194,6 +194,55 @@ def get_account_fields(site_name):
     return getattr(module, 'ACCOUNT_FIELDS', []) if module else []
 
 
+def get_calculated_accounts(accounts_config=None):
+    """Ensemble des comptes « calculés » — AUCUN relevé attendu dans la collecte (#141).
+
+    Un compte de cet ensemble, s'il atteint `generate_missing_soldes` sans #Solde
+    fourni, reçoit « Σ Solde calculé » (normal) ; un compte HORS de l'ensemble reçoit
+    « ⚠ Solde calculé » + un message d'import (relevé attendu mais absent).
+
+    Deux sources agrégées (cf. doctrine A, #141) — la taxonomie se répartit selon QUI
+    sait, `update`/`inc_format` étant l'agrégateur :
+      - **site sans `cpt_fetch_<SITE>`** (ex. `N/A` : Espèces, Créances, avoirs manuels)
+        → aucune collecte possible, donc TOUS ses comptes sont calculés ;
+      - **site collecté** déclarant des exceptions via le hook optionnel
+        `cpt_format_<SITE>.get_calculated_accounts(accounts)` (seul cas que l'agrégateur
+        ne peut pas déduire : un compte collecté-mais-calculé est indiscernable d'un
+        relevé manquant). Le hook reçoit la liste des comptes du site (dicts
+        config_accounts) et rend le sous-ensemble calculé, résolu PAR RÔLE (jamais un
+        nom perso en dur — cf. anonymisation). Sites publics : rôle générique (ex.
+        « Réserve ») ; sites privés : déclaration dans `custom/cpt_format_<SITE>`.
+
+    Retourne un set de noms de comptes (peut être vide).
+    """
+    import inc_mode
+    from inc_config_io import read_accounts_json
+    base = inc_mode.get_base_dir()
+    if accounts_config is None:
+        path = base / 'config_accounts.json'
+        accounts_config = read_accounts_json(path) if path.exists() else {}
+
+    calc = set()
+    for site, data in accounts_config.items():
+        # config_accounts.json peut porter des clés top-level NON-site (transfer_pairs).
+        if not isinstance(data, dict):
+            continue
+        accounts = data.get('accounts', [])
+        has_fetch = ((base / f'cpt_fetch_{site}.py').exists()
+                     or (base / 'custom' / f'cpt_fetch_{site}.py').exists())
+        if not has_fetch:
+            calc.update(a['name'] for a in accounts if 'name' in a)
+            continue
+        module = _get_site_module(site)
+        hook = getattr(module, 'get_calculated_accounts', None) if module else None
+        if callable(hook):
+            try:
+                calc.update(hook(accounts))
+            except Exception:
+                pass  # un format qui rate sa déclaration ne doit pas casser l'import
+    return calc
+
+
 def get_all_site_descriptions():
     """Aggrège les DESCRIPTION de tous les cpt_fetch_*.py (PUB + custom/).
 

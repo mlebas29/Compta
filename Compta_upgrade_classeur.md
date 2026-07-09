@@ -6,15 +6,19 @@ Vous tenez le classeur à la main, sans `upgrade` (pour le mode assisté en un g
 - soit **partir de votre classeur** et y reporter à la main les évolutions décrites ci-dessous (en vous aidant de l'exemple au besoin).
 
 <!-- bloc généré : ./tool_render_upgrade_map.py --mode classeur — ne pas éditer à la main -->
+
 **Légende des badges** :
 
 - 📘 contenu : nouveau classeur exemple — récupérer le nouveau classeur exemple
 
 | Version | Classeur | Effet |
 |---|:--:|---|
+| v5.16.0 | 📘 | légende des libellés #Solde (Relevé / Σ / ⚠ Solde calculé) dans la table conventions |
+| v5.14.1 | 📘 | classeur exemple livré (intègre la migration pvl_min_ancrage) |
 | v5.0.1 | 📘 | classeur exemple livré (intègre la migration v5.0.0) |
 | v4.1.0 | 📘 | refonte CTRL2 + alarmes |
 | v4.0.0 | 📘 | drill devise (élimine les colonnes par devise) |
+
 <!-- fin bloc généré -->
 
 **Notes :**

@@ -1032,6 +1032,12 @@ class ComptaExcelImport(ComptaExcel):
 
         Pour chaque compte concerné : dernier #Solde existant (ou 0 si compte nouveau)
         + somme des opérations postérieures = solde calculé.
+
+        Marquage (#141) : un compte CALCULÉ — aucun relevé attendu dans la collecte,
+        cf. `inc_format.get_calculated_accounts` (site sans `cpt_fetch`, ou exception
+        déclarée par le format) — reçoit « Σ Solde calculé » (normal) ; un compte où un
+        relevé ÉTAIT attendu mais absent reçoit « ⚠ Solde calculé » + un message d'import
+        (le solde fabriqué ne doit pas passer pour réconcilié en silence).
         """
         if not self.wb:
             return
@@ -1045,6 +1051,12 @@ class ComptaExcelImport(ComptaExcel):
 
         if not comptes_sans_solde:
             return
+
+        # Taxonomie « relevé attendu / calculé » (#141), agrégée par inc_format :
+        # site sans cpt_fetch → calculé ; exceptions collectées via le hook format.
+        import inc_format
+        calculated_accounts = inc_format.get_calculated_accounts()
+        soldes_manquants = []  # comptes où un relevé était attendu mais absent → ⚠
 
         last_data_row = self.find_last_data_row()
 
@@ -1107,8 +1119,12 @@ class ComptaExcelImport(ComptaExcel):
             if template_cells:
                 copy_cell_formatting(template_cells[self.cr.col('OPdate') - 1], cell)
 
+            # #141 : Σ = calculé attendu (normal) ; ⚠ = relevé attendu mais ABSENT.
+            is_calcule = compte in calculated_accounts
+            if not is_calcule:
+                soldes_manquants.append(compte)
             cell = self.ws_operations.cell(next_row, self.cr.col('OPlibellé'))
-            cell.value = 'Σ Solde calculé'   # Σ = marqueur « solde calculé par l'import » (#135)
+            cell.value = 'Σ Solde calculé' if is_calcule else '⚠ Solde calculé'
             if template_cells:
                 copy_cell_formatting(template_cells[self.cr.col('OPlibellé') - 1], cell)
 
@@ -1158,7 +1174,16 @@ class ComptaExcelImport(ComptaExcel):
             self.stats['comptes_avec_solde'].add(compte)
             last_data_row = next_row
 
-            self.logger.info(f"#Solde calculé {compte}: {solde_calc:.2f} {devise}")
+            marqueur = 'Σ' if is_calcule else '⚠'
+            self.logger.info(f"#Solde calculé {marqueur} {compte}: {solde_calc:.2f} {devise}")
+
+        # #141 — message d'import : un relevé était attendu pour ces comptes mais
+        # absent → solde CALCULÉ à la place (marqué ⚠). Alerte l'utilisateur au lieu
+        # de laisser un solde fabriqué passer pour réconcilié en silence.
+        if soldes_manquants:
+            self.logger.warning(
+                "Solde manquant (relevé attendu, absent) → solde calculé à la place : "
+                + ', '.join(sorted(soldes_manquants)))
 
     def verify_plus_value_dates(self):
         """Vérifie que les dates Plus_value ont été mises à jour pour les comptes valorisés."""

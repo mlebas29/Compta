@@ -9,6 +9,15 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 
 Les trois derniers sont spécifiques au mode assisté ; 📘 concerne le mode classeur.
 
+## v5.16.0 🔧 📘
+| 2026-07-09 | Solde manquant repéré (⚠ à l'import) · légende des libellés de solde |
+| ---------- | ------------------------------------------------------------ |
+
+**Détail :**
+
+- **Solde manquant repéré à l'import** — quand un **relevé est attendu** pour un compte mais **absent**, le solde reconstitué à partir des mouvements est marqué **« ⚠ Solde calculé »** (au lieu de « Σ Solde calculé »), et un **avertissement d'import** liste les comptes concernés. But : ne pas laisser un solde fabriqué passer pour réconcilié en silence. Les comptes **sans relevé attendu** (espèces, créances, avoirs manuels, comptes auto-calculés) restent en « Σ Solde calculé », sans alerte.
+- **Légende des libellés de solde** 🔧 — la feuille **Patrimoine** (tableau des conventions) documente désormais les libellés de la colonne #Solde : « Relevé compte » (solde d'un relevé), « Σ Solde calculé » (calculé, aucun relevé attendu), « ⚠ Solde calculé » (calculé, relevé attendu absent). Ajoutée automatiquement à la mise à niveau ; présente dans les classeurs exemple et vierge.
+
 ## v5.15.0
 | 2026-07-08 | Amélioration des appariements · Marquage Σ des soldes calculés · import manuel |
 | ---------- | ------------------------------------------------------------ |

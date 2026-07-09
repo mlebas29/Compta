@@ -421,8 +421,14 @@ def compare_named_ranges(expected_path, result_path=None):
     removed = set(names_e) - set(names_r)
     changed = {n for n in set(names_r) & set(names_e) if names_r[n] != names_e[n]}
 
-    # Tolérance : OP* raccourci (borne end row réduite) = warning, pas erreur.
-    # Cas typique : purge_account supprime N lignes -> UNO réduit OP* de N.
+    # Tolérance : un tableau REDIMENSIONNÉ entre ses sentinelles (mêmes colonnes +
+    # même ligne de DÉBUT, seule la ligne de FIN change — croissance OU réduction) =
+    # position légitime d'un named range, pas une corruption. La promesse d'un NR est
+    # justement l'indépendance à la position ; comparer la borne exacte de fin
+    # contredirait cet abstraction. Cas : purge_account qui raccourcit OP*, ou insertion
+    # de lignes dans un tableau (ex. légende CONV agrandie de N lignes).
+    # Restent FATALS : ajout/suppression de NR, #REF!, mono-cell, changement de COLONNE
+    # ou de ligne de DÉBUT (vraies corruptions structurelles), captés plus bas.
     def _parse_range(ref):
         m = _re.match(r'\$?[^.!]+[.!]\$?([A-Z]+)\$?(\d+):\$?([A-Z]+)\$?(\d+)', ref or '')
         if not m:
@@ -431,14 +437,12 @@ def compare_named_ranges(expected_path, result_path=None):
 
     softened = set()
     for n in list(changed):
-        if not n.startswith('OP'):
-            continue
         pe = _parse_range(names_e[n])
         pr = _parse_range(names_r[n])
         if not (pe and pr):
             continue
-        # Même col start, même col end, même row start, seule row end <= expected
-        if pe[0] == pr[0] and pe[2] == pr[2] and pe[1] == pr[1] and pr[3] <= pe[3]:
+        # mêmes col début/fin + même ligne de début → seule la ligne de FIN diffère
+        if pe[0] == pr[0] and pe[2] == pr[2] and pe[1] == pr[1]:
             softened.add(n)
     changed -= softened
 
@@ -472,7 +476,7 @@ def compare_named_ranges(expected_path, result_path=None):
         for n in sorted(changed):
             print(f'      {n}: {names_e[n]} → {names_r[n]}')
     if softened:
-        print(f'  ℹ OP* raccourcis ({len(softened)}) — toléré (artefact UNO post-purge):')
+        print(f'  ℹ tableaux redimensionnés ({len(softened)}) — toléré (borne de fin ajustée, NR position-tolérant):')
         for n in sorted(softened):
             print(f'      {n}: {names_e[n]} → {names_r[n]}')
     if monocells_r:

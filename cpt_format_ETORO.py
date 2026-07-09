@@ -71,6 +71,18 @@ EXPECTED_FILES = [
     ('eToro_portfolio.pdf', 'exact', '1'),
 ]
 
+
+def get_calculated_accounts(accounts):
+    """Comptes eToro CALCULÉS (aucun relevé attendu) — hook #141, cf.
+    inc_format.get_calculated_accounts. La collecte eToro ne fournit pas de solde pour
+    la **Réserve** (dérivée, pas relevée) → elle serait sinon prise pour un relevé
+    manquant (⚠) alors qu'elle est légitimement calculée (Σ).
+
+    Déclaration PAR RÔLE (« Réserve »), résolue sur les comptes du site depuis
+    config_accounts.json → aucun nom de compte en dur (doctrine anonymisation)."""
+    return {a['name'] for a in accounts if 'Réserve' in a.get('name', '')}
+
+
 def get_temp_dir():
     """Retourne le répertoire temporaire logs/debug/ETORO/ pour les fichiers parsed"""
     script_dir = base_dir()

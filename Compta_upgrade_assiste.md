@@ -65,6 +65,7 @@ La restauration **sauvegarde l'état courant d'abord** (elle est donc elle-même
 **Inventaire** de ce que chaque version apporte, par composant (**dérivé de `upgrade_map.json`**, source unique) — c'est le **catalogue**, *pas votre chemin* : celui-ci dépend de votre instance, `upgrade.py --check` le montre. Le badge dit l'intention ; une **butée** 🧱 marque la profondeur où le rattrapage automatique s'arrête (en deçà : manuel).
 
 <!-- bloc généré : ./tool_render_upgrade_map.py --mode assiste — ne pas éditer à la main -->
+
 **Légende des badges** :
 
 > *cumulatif* = `upgrade` rattrape le retard accumulé · *informatif* = aucune action · *ponctuel* = à traiter au moment (pas de rattrapage)
@@ -81,6 +82,9 @@ _Le **nombre** dans la colonne d’un composant = le marqueur de schéma que la 
 
 | Version | Classeur | Config | App | Outil | Effet |
 |---|:--:|:--:|:--:|---|---|
+| v5.16.0 | 🔧 📘 `3` |  |  | `tool_migrate_add_legende_soldes.py` | légende des libellés #Solde (Relevé / Σ / ⚠ Solde calculé) dans la table conventions |
+| v5.14.1 | 🔧 `3` |  |  | `tool_migrate_pvl_min_ancrage.py` | ancrage PVL au premier #Solde (MIN, fin du re-ancrage mort) |
+| v5.14.1 | 📘 |  |  |  | classeur exemple livré (intègre la migration pvl_min_ancrage) |
 | v5.9.0 |  | ⚙️ `0.2` |  | `tool_migrate_config_cotations.py` | config_cotations.json dépollué : famille/décimales retirées (source unique = feuille Cotations) |
 | v5.7.0 |  | ⚙️ `0.1` |  | `tool_migrate_config_xmr.py` | [XMR] migré vers collecte par nœud distant (wallet-rpc) — site désactivé, reconfiguration + credential GPG requis (cf. Compta_xmr.md) |
 | v5.1.0 |  |  | 🔄 | `reclone.sh` | historique git réécrit (squash) — re-clone automatique par upgrade |
@@ -91,6 +95,7 @@ _Le **nombre** dans la colonne d’un composant = le marqueur de schéma que la 
 | ≤ v3.x | 🧱 |  |  |  | schéma < 1 (pré-v3.4) : outils de migration retirés du dépôt git → migration manuelle (ancien mode classeur) |
 
 _**À chaque mise à jour**, `upgrade` vérifie aussi (et corrige si nécessaire — idempotent, hors gate de version) : ⚙️ normalisation de la config (renommages hérités) · raccourci de lancement (régénéré si le lanceur a changé) · cadre privé custom/ (dépôt git vide) — rattrapage des installs antérieures à v5.3.0._
+
 <!-- fin bloc généré -->
 
 ## Comment le script détermine le chemin
