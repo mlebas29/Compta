@@ -766,6 +766,18 @@ def main():
         failed, apply_todo = apply_benign(check=args.check)
     mig = migrate(check=args.check)
 
+    # Recadrage SYSTÉMATIQUE de la vue (--reframe) : tout save UNO d'une migration
+    # sale la présentation (feuille active/défilement). On rattrape ici TOUTES les
+    # salissures accumulées — y compris celles des migrations antérieures qui ne
+    # recadraient pas — via le patch ZIP-XML pur de tool_fix_formats (idempotent,
+    # octet-identique si déjà cadré → aucun effet sur un classeur propre). Apply seul.
+    if not args.check and xlsx.exists():
+        try:
+            from tool_fix_formats import frame_views
+            frame_views(str(xlsx), verbose=False)
+        except Exception:
+            pass  # recadrage cosmétique : ne doit JAMAIS casser l'upgrade
+
     # Diagnostic générique HORS carte : clés config obsolètes (.default) que les
     # migrations dédiées ne couvrent pas. L'avis de SCHÉMA config, lui, est rendu
     # par l'étape de migration config ci-dessus (plus de report() redondant —

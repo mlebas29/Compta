@@ -121,7 +121,12 @@ def _apply(xlsm_path):
 
         doc.save()
         print(f"✓ Légende ajoutée ({n} lignes) sous « signalement » (L{at}..L{at + n - 1}).")
-        return 0
+
+    # Hors du `with` (fichier fermé) : recadrer la vue salie par le save UNO
+    # (patch ZIP-XML pur, idempotent). Cf. doctrine « --reframe avant livraison ».
+    from tool_fix_formats import frame_views
+    frame_views(str(xlsm_path), verbose=False)
+    return 0
 
 
 def main():
