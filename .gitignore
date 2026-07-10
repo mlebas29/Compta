@@ -45,6 +45,7 @@ tests/*
 !tests/tnr_build.py
 !tests/tnr_reverse.py
 !tests/tnr_example.py
+!tests/tnr_fetch.py
 !tests/tnr/
 tests/tnr/*
 !tests/tnr/roundtrip/

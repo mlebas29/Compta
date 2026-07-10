@@ -6,7 +6,7 @@ Ce document décrit l'utilisation des TNR publics livrés avec Compta. Audience 
 
 ## Vue d'ensemble
 
-Sept scénarios indépendants, du plus rapide au plus long :
+
 
 | Scénario | Durée Linux | Ce qu'il vérifie |
 |---|---:|---|
@@ -17,8 +17,13 @@ Sept scénarios indépendants, du plus rapide au plus long :
 | `example` | ~38 s | Construction complète du classeur exemple (devises, comptes, titres, opérations) |
 | `build` | ~48 s | Construction allégée (4 comptes, 5 titres, 15 opérations via pipe MANUEL) |
 | `reverse` | ~105 s | Teardown complet du build (purge + delete jusqu'au template) |
+| `fetch` | variable | Collecte réelle des sites de la config réelle (config.ini) dans un dossier dédié jetable (sandbox) |
 
-Sur Mac, compter ×1.5 à ×2.5 selon le scénario.
+Sur Mac, compter ×1.5 à ×2.5 selon le scénario (sauf `fetch`, dont la durée dépend du site et de la saisie humaine).
+
+Les sept premiers sont **automatisables** et comparent le classeur produit à un classeur de **référence**.
+
+`fetch` est à part : il lance la **vraie collecte** d'un site — la seule couche que les autres ne touchent pas. Il n'est pas automatisable (mot de passe GPG, double authentification) et n'a pas de classeur de référence (les données changent à chaque collecte).
 
 ## Mise en œuvre
 
@@ -122,6 +127,27 @@ Mode `--legacy` (~5 min) disponible pour comparer le résultat batch au mode sé
 
 > **Restriction connue** — `purge_account` réduit les bornes des named ranges `OPdate`/`OPmontant`/... de `$A$4:$A$10000` à `$A$4:$A$9984` (artefact UNO). Tolérance intégrée dans `compare_named_ranges` (affichée en `ℹ info`). L'expected contient les bornes réduites.
 
+### `fetch` (collecte réelle)
+
+**Objet** : vérifier les collecteurs `cpt_fetch_*.py` — navigation du site, sélecteurs, déroulé de la collecte, garde anti-HTML (qui refuse une page de connexion servie à la place d'un relevé) — ce que `build` et `example` ne couvrent pas, puisqu'ils partent de fichiers déjà téléchargés.
+
+**Nature** : à part des sept autres. Il se connecte aux **vrais sites** (mot de passe GPG, double authentification saisie à la main) et vérifie des **invariants** sur ce qui est collecté — pas de comparaison à un classeur de référence, pas de régénération. Il ne tourne donc que si le credential du site est présent sur la machine, et ne s'enchaîne jamais tout seul. Il n'est pas **isolé** : il lit le `config.ini`, les credentials et les comptes **réels** de l'instance — seul le dossier où atterrit la collecte est mis à l'écart.
+
+**Prérequis** (différents des sept autres) : credential GPG de l'instance, accès réseau. Aucune contrainte côté LibreOffice. Se lance avec le `python3` **habituel** (pas `python3-uno`).
+
+**Choix des sites** (lu dans `config.ini`) :
+
+```bash
+python3 tests/tnr_fetch.py              # sites actifs (défaut)
+python3 tests/tnr_fetch.py --all        # tout site configuré ayant un collecteur
+python3 tests/tnr_fetch.py SOCGEN,WISE  # liste explicite (prioritaire)
+python3 tests/tnr_fetch.py --list       # inventaire (actif / configuré)
+```
+
+**Déroulé par site** : (1) vraie collecte → un **dossier de collecte dédié et jetable** (le dossier de collecte réel n'est pas touché) ; (2) **invariants** : au moins un fichier collecté · aucun n'est une page HTML (ce qui exerce le garde anti-HTML) · le format `cpt_format_<SITE>` le lit sans erreur → au moins une opération ; (3) verdict par site : réussite, échec, ou ignoré.
+
+**Périmètre** : collecteurs par navigateur. Ceux qui passent par une interface de programmation (sans navigateur) sont ignorés. Un site sans credential sur la machine est ignoré.
+
 ## Quand lancer quel TNR
 
 Guide selon le type de modification dans le code :
@@ -135,7 +161,8 @@ Guide selon le type de modification dans le code :
 | Import des opérations (`cpt_update`, `inc_excel_import`) | `build`, `example` |
 | Formats / charte v3.6 (`inc_formats`, `tool_fix_formats`) | `example` (couverture complète) |
 | Plus_value, multi-devises, cotations | `example` (cas multi-devise large) |
-| Avant un tag de release | les 7 |
+| Collecte : `cpt_fetch_*`, sélecteurs, garde anti-HTML | `fetch` (manuel, par site — double authentification) |
+| Avant un tag de release | les 7 automatiques ; `fetch` à part (manuel, à jouer par site si des collecteurs ont changé) |
 
 Si pressé : `roundtrip` + `fast` (~30 s) couvre la moitié des régressions structurelles courantes. Pour un PR sérieux, ajouter `build` + `reverse` (~3 min). Avant un release, lancer les 7.
 
