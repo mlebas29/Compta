@@ -196,7 +196,10 @@ class ComptaFetcher:
                             last_error = line.strip()
                             break
                 if not last_error:
-                    last_error = "Erreur inconnue (sortie vide)"
+                    # Sortie vraiment vide : le code retour reste le seul
+                    # indice (négatif = signal, 126/127 = souci d'exécution).
+                    last_error = (f"Erreur inconnue (sortie vide, "
+                                  f"code retour {proc.returncode})")
                 print(f"  ✗ {last_error}")
                 self.stats['errors'].append(f"{site}: {last_error}")
                 return False
