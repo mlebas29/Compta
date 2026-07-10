@@ -309,6 +309,10 @@ class DegiroFetcher(BaseFetcher):
             dest_path = self.dropbox_dir / original_name
             download.save_as(str(dest_path))
 
+            # Garde-fou anti-HTML (#137) : refuser une page servie au lieu du CSV
+            if not self.reject_saved_if_html(dest_path, filename):
+                return None
+
             self.logger.info(f"Téléchargé: {original_name}")
             self.downloads.append(dest_path)
             return dest_path

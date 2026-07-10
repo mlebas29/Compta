@@ -588,6 +588,10 @@ class EtoroFetcher(BaseFetcher):
             dest_path = self.dropbox_dir / original_name
             download.save_as(str(dest_path))
 
+            # Garde-fou anti-HTML (#137) : refuser une page servie au lieu du TSV
+            if not self.reject_saved_if_html(dest_path, 'Money TSV'):
+                return None
+
             self.logger.info(f"Money TSV téléchargé: {original_name}")
             self.downloads.append(dest_path)
             return dest_path
@@ -663,6 +667,10 @@ class EtoroFetcher(BaseFetcher):
             original_name = download.suggested_filename
             dest_path = self.dropbox_dir / original_name
             download.save_as(str(dest_path))
+
+            # Garde-fou anti-HTML (#137) : refuser une page servie au lieu du XLSX
+            if not self.reject_saved_if_html(dest_path, 'Reserve XLSX'):
+                return None
 
             self.logger.info(f"Reserve XLSX téléchargé: {original_name}")
             self.downloads.append(dest_path)

@@ -550,6 +550,10 @@ class PayPalFetcher(BaseFetcher):
             dest_path = self.dropbox_dir / original_name
             download.save_as(str(dest_path))
 
+            # Garde-fou anti-HTML (#137) : refuser une page servie au lieu du CSV
+            if not self.reject_saved_if_html(dest_path, 'CSV'):
+                return None
+
             file_size = dest_path.stat().st_size / 1024
             self.logger.info(f"CSV téléchargé: {original_name} ({file_size:.1f} Ko)")
             self.downloads.append(dest_path)

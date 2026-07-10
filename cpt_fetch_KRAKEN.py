@@ -909,6 +909,10 @@ class KrakenFetcher(BaseFetcher):
             # Sauvegarder le fichier
             download.save_as(str(dest_path))
 
+            # Garde-fou anti-HTML (#137) : refuser une page servie au lieu du fichier
+            if not self.reject_saved_if_html(dest_path, type_label):
+                return None
+
             self.logger.info(f"Téléchargé: {original_name} → {dest_path}")
             self.downloads.append(dest_path)
             return dest_path

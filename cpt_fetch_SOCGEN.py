@@ -687,6 +687,10 @@ class SgFetcher(BaseFetcher):
                 target_path = self.dropbox_dir / clean_name
                 download.save_as(str(target_path))
 
+                # Garde-fou anti-HTML (#137) : refuser une page servie au lieu du fichier
+                if not self.reject_saved_if_html(target_path, 'compte courant'):
+                    return None
+
                 self.logger.info(f"  {target_path.name}")
                 self.downloads.append(target_path)
                 return target_path
@@ -746,6 +750,10 @@ class SgFetcher(BaseFetcher):
                 if clean_name != target_path.name:
                     target_path = self.dropbox_dir / clean_name
                 download.save_as(str(target_path))
+
+                # Garde-fou anti-HTML (#137) : refuser une page servie au lieu du fichier
+                if not self.reject_saved_if_html(target_path, nom):
+                    return None
 
                 self.logger.info(f"  {target_path.name}")
                 self.downloads.append(target_path)
@@ -830,6 +838,10 @@ class SgFetcher(BaseFetcher):
                 if target_path.exists():
                     target_path.unlink()
                 download.save_as(str(target_path))
+
+                # Garde-fou anti-HTML (#137) : refuser une page servie au lieu du fichier
+                if not self.reject_saved_if_html(target_path, f'supports {nom}'):
+                    return None
 
                 self.logger.info(f"  {target_path.name}")
                 self.downloads.append(target_path)
