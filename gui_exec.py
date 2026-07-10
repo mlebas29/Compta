@@ -248,14 +248,16 @@ class ExecMixin:
         doc_menu.add_command(label='Référentiel outils',
                              command=lambda: self._exec_open_doc('Compta_tools.md'))
         doc_menu.add_command(label='Mises à niveau',
-                             command=lambda: self._exec_open_doc('Compta_upgrade_classeur.md'))
-        doc_menu.add_command(label='Notes de version',
-                             command=lambda: self._exec_open_doc('CHANGELOG.md'))
+                             command=lambda: self._exec_open_doc('Compta_upgrade_assiste.md'))
         doc_menu.add_separator()
         doc_menu.add_command(label='Charte graphique',
                              command=lambda: self._exec_open_doc('Compta_charte.md'))
         doc_menu.add_command(label='Plus-value latente',
                              command=lambda: self._exec_open_doc('Compta_pvl.md'))
+        doc_menu.add_separator()
+        doc_menu.add_command(label='🌐 Versions',
+                             command=lambda: self._exec_open_url(
+                                 'https://github.com/mlebas29/Compta/blob/main/CHANGELOG.md'))
 
         doc_btn = ttk.Button(files_btn_frame, text='\U0001f4d6 Doc ▴')
 
@@ -565,6 +567,21 @@ class ExecMixin:
             messagebox.showinfo(filename,
                                 f'Fichier introuvable :\n{path}',
                                 parent=self.root)
+
+    def _exec_open_url(self, url):
+        """Ouvre une URL dans le navigateur par défaut (cross-platform).
+
+        Même dispatch OS que `_open_path` (WSL → wslview, qui délègue au
+        navigateur Windows), sans le repli TextEdit propre aux fichiers.
+        """
+        if sys.platform == 'darwin':
+            subprocess.Popen(['open', url])
+        elif sys.platform == 'win32':
+            os.startfile(url)
+        elif os.environ.get('WSL_DISTRO_NAME'):
+            subprocess.Popen(['wslview', url])
+        else:
+            subprocess.Popen(['xdg-open', url])
 
     def _exec_open_journal(self):
         logs_dir = self.config.get('paths', 'logs', fallback='./logs')
