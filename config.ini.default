@@ -102,6 +102,15 @@ credentials_file = ./config_credentials.md.gpg
 [sites]
 # Sites activés (séparés par des virgules)
 enabled =
+
+# Collecte tiérée (cpt_fetch.py) : les sites sans 2FA sont collectés EN
+# PARALLÈLE et AVANT les sites à 2FA ; ceux sans 2FA ni mot de passe GPG sont
+# planifiables sans humain (`cpt_fetch.py --auto`, idéal en cron).
+# Le besoin de 2FA est DÉDUIT automatiquement (API/RPC = jamais ; navigateur =
+# supposé oui). À NE renseigner QUE pour un cas particulier — un site
+# navigateur SANS 2FA sur ton compte — en ajoutant sous son [SITE] :
+#   requires_2fa = false
+
 [SOCGEN]
 name = Société Générale
 dossier = SOCGEN

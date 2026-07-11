@@ -13,9 +13,11 @@ import subprocess
 import argparse
 import configparser
 import threading
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from datetime import datetime
 import inc_mode
+import inc_format
 from inc_logging import Logger
 
 # ============================================================================
@@ -30,14 +32,16 @@ CONFIG_FILE = BASE_DIR / 'config.ini'
 
 
 class ComptaFetcher:
-    def __init__(self, sites_filter=None, verbose=False):
+    def __init__(self, sites_filter=None, verbose=False, auto_only=False):
         """
         Args:
             sites_filter: Liste de sites à traiter (None = tous les sites actifs)
             verbose: Mode verbeux
+            auto_only: Ne collecter que le tier 'auto' (#147, mode cron)
         """
         self.sites_filter = sites_filter
         self.verbose = verbose
+        self.auto_only = auto_only
         self.stats = {
             'sites_attempted': 0,
             'sites_succeeded': 0,
@@ -77,11 +81,13 @@ class ComptaFetcher:
         else:
             self.sites_to_process = self.enabled_sites
 
-    def fetch_site(self, site):
+    def fetch_site(self, site, prefix=''):
         """Lance le script de collecte pour un site donné
 
         Args:
             site: Nom du site (ex: 'SOCGEN', 'WISE')
+            prefix: Préfixe de ligne (ex: '[YUH] ') pour démêler la sortie
+                    quand plusieurs sites collectent en parallèle (#147).
 
         Returns:
             bool: True si succès, False sinon
@@ -111,9 +117,12 @@ class ComptaFetcher:
                 self.logger.error(f"Site {site}: script cpt_fetch_{site}.py introuvable (ni PUB ni custom/)")
                 return False
 
-        # Toujours afficher le site en cours
+        # Toujours afficher le site en cours (ligne vide de séparation en mode
+        # séquentiel ; en parallèle le préfixe suffit à démêler).
         timestamp = datetime.now().strftime('%H:%M:%S')
-        print(f"\n{timestamp} → {site_name} ({site})...", flush=True)
+        if not prefix:
+            print()
+        print(f"{prefix}{timestamp} → {site_name} ({site})...", flush=True)
 
         try:
             # Invocation directe : laisse le shebang du script cible imposer
@@ -146,9 +155,9 @@ class ComptaFetcher:
                     line = line.rstrip('\n')
                     output_lines.append(line)
                     if self.verbose:
-                        print(line, flush=True)
+                        print(f"{prefix}{line}", flush=True)
                     elif '🔔' in line or 'Skip' in line:
-                        print(f"  {line}", flush=True)
+                        print(f"{prefix}  {line}", flush=True)
 
             reader = threading.Thread(target=read_output, daemon=True)
             reader.start()
@@ -158,14 +167,14 @@ class ComptaFetcher:
             except subprocess.TimeoutExpired:
                 proc.kill()
                 proc.wait()
-                print("  ✗ (timeout)")
+                print(f"{prefix}  ✗ (timeout)")
                 self.stats['errors'].append(f"{site}: timeout > 5 min")
                 return False
 
             reader.join(timeout=5)
 
             if proc.returncode == 0:
-                print("  ✓")
+                print(f"{prefix}  ✓")
                 return True
             else:
                 # Chercher la dernière erreur dans la sortie capturée.
@@ -200,12 +209,12 @@ class ComptaFetcher:
                     # indice (négatif = signal, 126/127 = souci d'exécution).
                     last_error = (f"Erreur inconnue (sortie vide, "
                                   f"code retour {proc.returncode})")
-                print(f"  ✗ {last_error}")
+                print(f"{prefix}  ✗ {last_error}")
                 self.stats['errors'].append(f"{site}: {last_error}")
                 return False
 
         except Exception as e:
-            print(f"  ✗ ({e})")
+            print(f"{prefix}  ✗ ({e})")
             self.stats['errors'].append(f"{site}: {e}")
             return False
 
@@ -235,6 +244,30 @@ class ComptaFetcher:
             return False
         return True
 
+    # --- Tiérage par interactivité (#147) ---------------------------------
+    # Trois tiers : auto (ni credential ni 2FA, planifiable) · semi (credential
+    # sans 2FA : 1 passphrase → cache gpg-agent) · manual (2FA, humain requis).
+    #   • `credential` = dérivé de `credential_id` (config).
+    #   • `requires_2fa` = DÉRIVÉ de la nature du fetcher (moitié structurelle,
+    #     certaine : un fetcher sans navigateur ne peut pas demander de 2FA),
+    #     SURCHARGEABLE par `[SITE] requires_2fa` (moitié « compte » : un site
+    #     navigateur exige la 2FA ou non selon le compte de l'utilisateur).
+    def _site_requires_2fa(self, site):
+        # Override config si posé (cas particulier : navigateur SANS 2FA, ou
+        # compte sans 2FA) ; sinon dérivé de la nature du fetcher (source unique
+        # inc_format) : navigateur → 2FA supposée, API/RPC → non.
+        if self.config.has_option(site, 'requires_2fa'):
+            return self.config.getboolean(site, 'requires_2fa')
+        return inc_format.is_browser_fetcher(site, BASE_DIR)
+
+    def _site_has_credential(self, site):
+        return bool(self.config.get(site, 'credential_id', fallback='').strip())
+
+    def _site_tier(self, site):
+        if self._site_requires_2fa(site):
+            return 'manual'
+        return 'semi' if self._site_has_credential(site) else 'auto'
+
     def fetch_all(self):
         """Lance la collecte pour tous les sites à traiter
 
@@ -245,19 +278,81 @@ class ComptaFetcher:
             self.logger.error("Aucun site à traiter")
             return False
 
-        # Vérifier GPG une seule fois avant de lancer les sites
-        if not self.check_gpg():
+        # Tiérage (#147) : auto (ni credential ni 2FA) → semi (credential sans
+        # 2FA) → manual (2FA). Ordre stable dans chaque tier (préserve l'ordre
+        # config) → l'humain n'attend pas les sites API, et ceux-ci ne bloquent
+        # pas derrière un prompt 2FA.
+        tier_rank = {'auto': 0, 'semi': 1, 'manual': 2}
+        sites = sorted(self.sites_to_process,
+                       key=lambda s: tier_rank[self._site_tier(s)])
+
+        # Mode --auto (cron) : seul le tier 'auto' (aucun credential → aucun
+        # pinentry possible → run planifiable sans humain).
+        if self.auto_only:
+            sites = [s for s in sites if self._site_tier(s) == 'auto']
+            if not sites:
+                self.logger.info("Mode --auto : aucun site du tier 'auto'")
+                return True
+
+        by_tier = {t: [s for s in sites if self._site_tier(s) == t]
+                   for t in ('auto', 'semi', 'manual')}
+        self.logger.verbose(
+            "Tiers — auto: {} · semi: {} · manuel: {}".format(
+                ', '.join(by_tier['auto']) or '—',
+                ', '.join(by_tier['semi']) or '—',
+                ', '.join(by_tier['manual']) or '—'))
+
+        # GPG une seule fois, et SEULEMENT si un site en a besoin → un run --auto
+        # (tier auto, sans credential) reste sans pinentry, donc planifiable.
+        if any(self._site_has_credential(s) for s in sites) and not self.check_gpg():
             return False
 
-        self.logger.verbose(f"Sites à traiter: {', '.join(self.sites_to_process)}")
+        stats_lock = threading.Lock()
 
-        for site in self.sites_to_process:
-            self.stats['sites_attempted'] += 1
+        def _run_one(site, prefix=''):
+            with stats_lock:
+                self.stats['sites_attempted'] += 1
+            try:
+                ok = self.fetch_site(site, prefix=prefix)
+            except Exception as e:  # garde-fou : un site ne tue jamais le lot
+                self.logger.error(f"{prefix}{site}: {e}")
+                ok = False
+            with stats_lock:
+                self.stats['sites_succeeded' if ok else 'sites_failed'] += 1
 
-            if self.fetch_site(site):
-                self.stats['sites_succeeded'] += 1
-            else:
-                self.stats['sites_failed'] += 1
+        # Jambes CONCURRENTES (#147). Chaque non-interactif (auto+semi) = 1 jambe
+        # parallèle (plafond 4). Le tier MANUEL forme UNE jambe de plus,
+        # séquentielle en interne (l'humain fait une 2FA à la fois) mais tournant
+        # EN MÊME TEMPS que les jambes machine → la collecte API/RPC se fait
+        # PENDANT les 2FA humaines (total ≈ max, plus somme). Un seul mot de passe
+        # GPG (déjà en cache) couvre tout le lot.
+        non_interactive = by_tier['auto'] + by_tier['semi']
+        manual = by_tier['manual']
+        multi = len(non_interactive) + (1 if manual else 0) > 1
+        pfx = (lambda s: f"[{s}] ") if multi else (lambda s: '')
+
+        # Jambe manuelle : démarre tout de suite, en parallèle des jambes machine.
+        manual_thread = None
+        if manual:
+            def _manual_leg():
+                for site in manual:
+                    _run_one(site, pfx(site))
+            manual_thread = threading.Thread(target=_manual_leg, daemon=True)
+            manual_thread.start()
+
+        # Jambes non-interactives : parallèles, plafond 4.
+        if len(non_interactive) > 1:
+            self.logger.info(
+                "Collecte parallèle : " + ', '.join(non_interactive)
+                + (f" + séquence manuelle ({len(manual)})" if manual else ""))
+            with ThreadPoolExecutor(max_workers=min(4, len(non_interactive))) as ex:
+                for fut in [ex.submit(_run_one, s, pfx(s)) for s in non_interactive]:
+                    fut.result()
+        elif non_interactive:
+            _run_one(non_interactive[0], pfx(non_interactive[0]))
+
+        if manual_thread:
+            manual_thread.join()
 
         return self.stats['sites_succeeded'] > 0
 
@@ -287,6 +382,10 @@ Exemples:
     parser.add_argument('-v', '--verbose',
                         action='store_true',
                         help='Mode verbeux (affiche la sortie de chaque script)')
+    parser.add_argument('--auto',
+                        action='store_true',
+                        help="Ne collecter que les sites 'auto' (ni credential "
+                             "ni 2FA) — planifiable en cron, sans humain (#147)")
 
     args = parser.parse_args()
 
@@ -296,7 +395,8 @@ Exemples:
         sites_filter = [s.strip() for s in args.sites.split(',') if s.strip()]
 
     # Créer le fetcher et lancer la collecte
-    fetcher = ComptaFetcher(sites_filter=sites_filter, verbose=args.verbose)
+    fetcher = ComptaFetcher(sites_filter=sites_filter, verbose=args.verbose,
+                            auto_only=args.auto)
     success = fetcher.fetch_all()
     fetcher.print_stats()
 

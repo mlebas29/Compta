@@ -7,6 +7,7 @@ Fournit les utilitaires partagés par tous les cpt_*_format.py
 """
 
 import os
+import re
 import sys
 import zipfile
 from pathlib import Path
@@ -151,6 +152,29 @@ def _get_site_module(site_name):
         module = None
     _SITE_MODULE_CACHE[site_name] = module
     return module
+
+
+_BROWSER_FETCHER_RE = re.compile(r'class\s+\w+\s*\(\s*BaseFetcher\s*\)')
+
+
+def is_browser_fetcher(site_name, base_dir):
+    """Vrai si `cpt_fetch_<site>.py` définit un `BaseFetcher` (fetcher NAVIGATEUR
+    → 2FA techniquement possible) ; faux si script-style (API/RPC) ou sans
+    collecteur. Détecté par la SOURCE (déclaration `class …(BaseFetcher)`), sans
+    importer le module — les fetchers tournent en sous-processus, et l'import
+    tirerait Playwright. Cherché en PUB (`base_dir`) puis dans `custom/`.
+
+    Source unique du tiérage collecte (`cpt_fetch`) et du périmètre `tnr_fetch`.
+    """
+    root = Path(base_dir)
+    for d in (root, root / 'custom'):
+        p = d / f'cpt_fetch_{site_name}.py'
+        if p.exists():
+            try:
+                return bool(_BROWSER_FETCHER_RE.search(p.read_text(encoding='utf-8')))
+            except OSError:
+                return False
+    return False
 
 
 def get_expected_files(site_name):
