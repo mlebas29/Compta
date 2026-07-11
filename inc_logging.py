@@ -96,7 +96,10 @@ class Logger:
                 display_msg = self._format_message(message, prefix)
 
             output_stream = sys.stderr if is_error else sys.stdout
-            print(display_msg, file=output_stream)
+            # flush=True : sous le pipe de l'orchestrateur (cpt_fetch collecte
+            # concurrente #147) la sortie des jambes doit apparaître en temps
+            # réel et survivre à un kill — sinon bloc-bufferisée puis perdue.
+            print(display_msg, file=output_stream, flush=True)
 
         # Écriture journal (toujours avec format complet)
         if to_journal and self.journal_file:

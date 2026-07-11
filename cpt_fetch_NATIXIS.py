@@ -157,6 +157,13 @@ class PeeFetcher(BaseFetcher):
             next_btn.click()
             self.logger.info("Mot de passe validé")
 
+            # Interstitiel post-login "Simplifiez vos prochaines connexions /
+            # Enregistrer un appareil de confiance" (Natixis 2026) : cliquer
+            # "Plus tard" pour NE PAS enrôler l'appareil et poursuivre. Sinon la
+            # page reste sur l'IdP SAML (/auth) et la détection de connexion
+            # ci-dessous timeoute. Best-effort — absent si déjà écarté.
+            self._dismiss_trusted_device_interstitial()
+
             # Vérifier connexion réussie : attendre une URL stable hors du flux login
             try:
                 self.page.wait_for_function(
@@ -175,11 +182,51 @@ class PeeFetcher(BaseFetcher):
                     self.logger.error(f"Timeout connexion : title='{cur_title}' url='{cur_url}'")
                 except Exception:
                     pass
+                # DIAG à chaud : capturer ce que Natixis affiche après "Suivant"
+                # (mauvais mdp ? étape ajoutée ? confirmation ?).
+                self._dump_page_debug('login_timeout', force=True)
                 raise
 
         except Exception as e:
             self.logger.error(f"Erreur connexion: {e}")
             return False
+
+    def _dismiss_trusted_device_interstitial(self):
+        """Écarte l'assistant post-login "Simplifiez vos prochaines connexions /
+        Enregistrer un appareil de confiance" (Natixis 2026), en 2 écrans :
+        1) "Plus tard" (ne PAS enrôler l'appareil) ;
+        2) cocher "Ne plus proposer ce message" (le profil persistant sautera
+           l'assistant aux prochains runs) puis "Continuer".
+        Best-effort : chaque étape est absente si l'assistant est déjà écarté."""
+        # Écran 1 : "Plus tard" (vs "Continuer" = enrôler l'appareil)
+        try:
+            plus_tard = self.page.locator(
+                "//button[contains(., 'Plus tard') or contains(., 'Later')]"
+            )
+            plus_tard.first.wait_for(state="visible", timeout=8000)
+            plus_tard.first.click()
+            self.logger.info("Assistant appareil de confiance : 'Plus tard'")
+            time.sleep(1)
+        except Exception:
+            return  # assistant absent → rien à faire
+
+        # Écran 2 : cocher "ne plus proposer" (best-effort) + "Continuer"
+        try:
+            checkbox = self.page.locator("input[type='checkbox']")
+            if checkbox.count() > 0 and checkbox.first.is_visible(timeout=2000):
+                checkbox.first.check()
+        except Exception:
+            pass
+        try:
+            continuer = self.page.locator(
+                "//button[contains(., 'Continuer') or contains(., 'Continue')]"
+            )
+            continuer.first.wait_for(state="visible", timeout=5000)
+            continuer.first.click()
+            self.logger.info("Assistant appareil de confiance écarté (Continuer)")
+            time.sleep(1)
+        except Exception:
+            pass
 
     def _dismiss_cookies(self):
         """Accepte le popup cookies si présent."""
