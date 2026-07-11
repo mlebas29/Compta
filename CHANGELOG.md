@@ -9,6 +9,15 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 
 Les trois derniers sont spécifiques au mode assisté ; 📘 concerne le mode classeur.
 
+## v5.16.1
+| 2026-07-11 | Menu Doc corrigé · Collecte plus robuste |
+| ---------- | ---------------------------------------- |
+
+**Détail :**
+
+- **Menu « Doc »** — « Mises à niveau » ouvre le guide du mode **assisté** ; « Notes de version » devient **« Versions »** et ouvre le journal des changements **sur GitHub** (toujours à jour).
+- **Collecte plus robuste** — si un site renvoie une page de connexion (HTML) au lieu du relevé attendu (session expirée, export modifié), la collecte la **refuse avec un message clair** au lieu d'échouer plus tard de façon opaque ; les erreurs de collecte sont aussi plus explicites.
+
 ## v5.16.0 🔧 📘
 | 2026-07-09 | Solde manquant repéré (⚠ à l'import) · légende des libellés de solde |
 | ---------- | ------------------------------------------------------------ |
