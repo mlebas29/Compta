@@ -28,6 +28,7 @@ Usage:
 """
 
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -51,6 +52,9 @@ class Logger:
         self.journal_file = Path(journal_file) if journal_file else None
         self.verbose_mode = verbose
         self.debug_mode = debug
+        # Chrono d'attente humaine (2FA/CAPTCHA) : armé par le 1er alert(),
+        # relevé par user_done() → durée machine = total − attente humaine (#147).
+        self._await_start = None
 
         # Créer le répertoire du journal si nécessaire
         if self.journal_file and not self.journal_file.parent.exists():
@@ -121,8 +125,25 @@ class Logger:
         Utilisé pour les notifications 2FA et autres messages nécessitant
         une action immédiate de l'utilisateur. Le marqueur 🔔 permet à
         l'orchestrateur de les afficher en temps réel même en mode non-verbose.
+
+        Arme aussi le chrono d'attente humaine (au 1er alert d'une séquence),
+        clos par user_done().
         """
+        if self._await_start is None:
+            self._await_start = time.monotonic()
         self._log(message, prefix="🔔", display=True, to_journal=True)
+
+    def user_done(self):
+        """Clôt l'attente humaine ouverte par alert() et journalise sa durée
+        sous un marqueur PARSABLE (`⏳ Attente humaine : Ns`) → permet de
+        déduire le temps machine (total − attente) depuis le journal (#147).
+        No-op si aucune attente n'est ouverte."""
+        if self._await_start is None:
+            return
+        waited = int(round(time.monotonic() - self._await_start))
+        self._await_start = None
+        self._log(f"Attente humaine : {waited}s", prefix="⏳",
+                  display=True, to_journal=True)
 
     def debug(self, message: str):
         """Message de debug (affiché seulement si DEBUG=true)"""
@@ -178,6 +199,9 @@ class PrefixLogger:
 
     def alert(self, msg):
         self._parent.alert(f"{self._prefix} {msg}")
+
+    def user_done(self):
+        self._parent.user_done()
 
     def write_to_journal(self, msg):
         self._parent.write_to_journal(msg)

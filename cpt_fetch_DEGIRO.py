@@ -241,6 +241,7 @@ class DegiroFetcher(BaseFetcher):
                     last_url = js_url
                 if _is_logged_in(js_url):
                     self.logger.info("2FA validé — connexion réussie")
+                    self.logger.user_done()
                     time.sleep(2)
                     return True
             except Exception:

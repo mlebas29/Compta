@@ -384,6 +384,7 @@ class BbFetcher(BaseFetcher):
             # Vérification passive : on est sur le dashboard ?
             if self._is_on_dashboard():
                 self.logger.info(f"2FA validée ({int(elapsed)}s)")
+                self.logger.user_done()
                 time.sleep(2)
                 return True
 

@@ -447,6 +447,7 @@ class EtoroFetcher(BaseFetcher):
 
             if self._is_authenticated_url(current_url, AUTHENTICATED_PATHS):
                 self.logger.info("Connexion détectée")
+                self.logger.user_done()
                 time.sleep(2)
                 self.dismiss_cookies()
                 return True

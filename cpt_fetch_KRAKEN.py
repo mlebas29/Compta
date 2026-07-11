@@ -339,6 +339,7 @@ class KrakenFetcher(BaseFetcher):
                 last_url = current_url
             if '/sign-in' not in current_url:
                 self.logger.info("Connexion détectée")
+                self.logger.user_done()
                 return True
 
             # Vérifier les autres onglets (redirection post-login vers kraken.com)
@@ -359,6 +360,7 @@ class KrakenFetcher(BaseFetcher):
                     # Vérifier si ça a fonctionné
                     if '/sign-in' not in self.page.url:
                         self.logger.info("Connexion validée via lien clipboard")
+                        self.logger.user_done()
                         return True
                 except Exception as e:
                     self.logger.debug(f"Navigation clipboard: {e}")

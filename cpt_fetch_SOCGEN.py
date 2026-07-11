@@ -521,6 +521,7 @@ class SgFetcher(BaseFetcher):
             # Vérification passive : la page 2FA a-t-elle disparu ?
             if not self._detect_2fa():
                 self.logger.info(f"2FA validée ({int(elapsed)}s)")
+                self.logger.user_done()
                 time.sleep(3)
                 return
 
@@ -551,6 +552,7 @@ class SgFetcher(BaseFetcher):
                     time.sleep(2)
                     if self.page.locator("#compte").count() > 0:
                         self.logger.info(f"2FA validée ({int(elapsed)}s)")
+                        self.logger.user_done()
                         return
                 except Exception:
                     pass

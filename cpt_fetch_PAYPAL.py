@@ -255,6 +255,7 @@ class PayPalFetcher(BaseFetcher):
             # Connecté ?
             if self._is_logged_in(current_url):
                 self.logger.info("Connexion détectée")
+                self.logger.user_done()
                 return True
 
             # Page 2FA ? Tenter une seule fois

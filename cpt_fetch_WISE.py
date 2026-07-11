@@ -588,6 +588,7 @@ class WiseFetcher(BaseFetcher):
             # Si on n'est plus sur la page de login → connecté
             if 'login' not in current_url and 'authorize' not in current_url:
                 self.logger.info("Connexion détectée")
+                self.logger.user_done()
                 time.sleep(2)
                 self.dismiss_cookies()
                 return True
