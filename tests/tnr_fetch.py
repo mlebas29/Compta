@@ -47,6 +47,7 @@ sys.path.insert(0, str(CODE_ROOT))
 # (sites sous custom/) importables comme les publics.
 import inc_bootstrap  # noqa: F401,E402
 import inc_fetch  # noqa: E402  — expose le même objet config que les fetchers
+import inc_format  # noqa: E402  — is_browser_fetcher (source unique, partagé cpt_fetch)
 from inc_fetch import BaseFetcher  # noqa: E402
 
 
@@ -74,23 +75,6 @@ def _config_sites():
 
 
 SITES = _discover_sites()
-
-
-def _site_source(site):
-    """Chemin du cpt_fetch_<site>.py (PUB d'abord, puis custom/)."""
-    for d in (CODE_ROOT, CODE_ROOT / 'custom'):
-        p = d / f'cpt_fetch_{site}.py'
-        if p.exists():
-            return p
-    return None
-
-
-def _is_browser_site(site):
-    """Vrai si le fetcher est un BaseFetcher (navigateur), faux si script-style
-    (API/JSON). Détecté par la source (évite d'importer les deps lourdes des
-    script-style : googleapiclient, requests…)."""
-    p = _site_source(site)
-    return bool(p) and 'Fetcher(BaseFetcher)' in p.read_text(encoding='utf-8')
 
 
 def _find_fetcher_class(module):
@@ -133,7 +117,7 @@ def _assert_artifacts(site, site_dir):
 
 def run_fetch(site):
     """Fetch réel dans le sandbox + assertions. Retourne (status, message)."""
-    if not _is_browser_site(site):
+    if not inc_format.is_browser_fetcher(site, CODE_ROOT):
         return 'SKIP', "fetcher script-style (API) — hors périmètre v1"
 
     try:
@@ -205,7 +189,8 @@ def main():
         configured = _config_sites()
         print("Sites détectés (cpt_fetch_*.py) — [E]=enabled [C]=configuré :")
         for s in SITES:
-            kind = "navigateur" if _is_browser_site(s) else "script-style (SKIP v1)"
+            kind = ("navigateur" if inc_format.is_browser_fetcher(s, CODE_ROOT)
+                    else "script-style (SKIP v1)")
             flags = ('E' if s.upper() in enabled else '-') \
                     + ('C' if s.upper() in configured else '-')
             print(f"  [{flags}] {s:15} {kind}")
