@@ -244,27 +244,34 @@ class ComptaFetcher:
             return False
         return True
 
-    # --- Tiérage par interactivité (#147) ---------------------------------
-    # Trois tiers : auto (ni credential ni 2FA, planifiable) · semi (credential
-    # sans 2FA : 1 passphrase → cache gpg-agent) · manual (2FA, humain requis).
-    #   • `credential` = dérivé de `credential_id` (config).
-    #   • `requires_2fa` = DÉRIVÉ de la nature du fetcher (moitié structurelle,
-    #     certaine : un fetcher sans navigateur ne peut pas demander de 2FA),
-    #     SURCHARGEABLE par `[SITE] requires_2fa` (moitié « compte » : un site
-    #     navigateur exige la 2FA ou non selon le compte de l'utilisateur).
-    def _site_requires_2fa(self, site):
-        # Override config si posé (cas particulier : navigateur SANS 2FA, ou
-        # compte sans 2FA) ; sinon dérivé de la nature du fetcher (source unique
-        # inc_format) : navigateur → 2FA supposée, API/RPC → non.
+    # --- Tiérage (#147) : groupe PARALLÈLE vs groupe SÉRIEL ---------------
+    # Deux axes ORTHOGONAUX. Axe A = `parallel` : le site va-t-il dans le groupe
+    # parallèle (collecté en même temps que les autres) ou sériel (humain requis
+    # PENDANT la collecte : 2FA/CAPTCHA/code, un à la fois) ? Axe B = `credential`
+    # (dérivé de `credential_id`) ne subdivise QUE le parallèle : semi (GPG, 1
+    # pinentry partagé en amont) vs auto (rien → planifiable cron).
+    # → 3 tiers : auto (parallèle, sans credential) · semi (parallèle, credential)
+    #   · manual (sériel).
+    # `parallel` est DÉRIVÉ de la nature du fetcher (structurel, certain : un
+    # fetcher sans navigateur ne sollicite jamais l'humain → parallèle),
+    # SURCHARGEABLE par `[SITE] parallel` (moitié « compte » : un site navigateur
+    # SANS 2FA sur ce compte → `parallel = true`).
+    def _site_parallel(self, site):
+        # Override config si posé ; sinon dérivé (source unique inc_format) :
+        # API/RPC → parallèle, navigateur → sériel. Repli sur l'ancien nom
+        # `requires_2fa` (polarité INVERSE : requires_2fa=true ⟺ parallel=false)
+        # = compat transitoire, à retirer une fois les config.ini migrées.
+        if self.config.has_option(site, 'parallel'):
+            return self.config.getboolean(site, 'parallel')
         if self.config.has_option(site, 'requires_2fa'):
-            return self.config.getboolean(site, 'requires_2fa')
-        return inc_format.is_browser_fetcher(site, BASE_DIR)
+            return not self.config.getboolean(site, 'requires_2fa')
+        return not inc_format.is_browser_fetcher(site, BASE_DIR)
 
     def _site_has_credential(self, site):
         return bool(self.config.get(site, 'credential_id', fallback='').strip())
 
     def _site_tier(self, site):
-        if self._site_requires_2fa(site):
+        if not self._site_parallel(site):
             return 'manual'
         return 'semi' if self._site_has_credential(site) else 'auto'
 

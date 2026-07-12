@@ -246,25 +246,27 @@ Chaque tuple est `(libellé, clé, widget, options)` — `widget` ∈ `'entry'` 
 
 Mécanisme : `inc_format.get_account_fields()` lit `ACCOUNT_FIELDS` du module ; `gui_accounts._site_account_fields` y retombe pour tout site non câblé en dur. **Aucune modification du cœur** (pas de nom de site dans le code public) — la déclaration vit entièrement dans le module du site, `custom/` compris.
 
-### 4.5 Interactivité et collecte tiérée (`requires_2fa`)
+### 4.5 Collecte tiérée : groupe parallèle vs sériel (`parallel`)
 
-La collecte `cpt_fetch.py` **tiérise** les sites selon leur besoin d'interaction humaine, pour collecter les non-interactifs **en parallèle et d'abord**, l'humain (2FA) n'intervenant qu'à la fin.
+La collecte `cpt_fetch.py` range chaque site dans un **groupe parallèle** (collecté en même temps que les autres) ou un **groupe sériel** (sites exigeant l'humain **pendant** la collecte — 2FA, CAPTCHA, code — traités **un à la fois**). Le parallèle est collecté **en premier** ; l'humain n'intervient qu'ensuite sur le sériel.
 
-Le besoin de 2FA a **deux moitiés** :
-- **structurelle — décidée par le code** : un fetcher **sans navigateur** (API/RPC) ne *peut pas* demander de 2FA → non-interactif ; un fetcher **navigateur** (`BaseFetcher`) le peut. Détecté en **scannant la source** `cpt_fetch_<SITE>.py` (présence de `BaseFetcher`), sans importer le module (les fetchers tournent en sous-processus).
-- **« compte » — décidée par l'utilisateur** : qu'un site navigateur exige *réellement* la 2FA dépend de son compte → **override** `[SITE] requires_2fa = true|false`, à ne poser **que pour l'exception** (ex. un site navigateur sans 2FA sur ce compte).
+**Deux axes ORTHOGONAUX** :
+- **`parallel`** (l'appartenance au groupe) a **deux moitiés** :
+  - *structurelle — décidée par le code* : un fetcher **sans navigateur** (API/RPC) ne *peut pas* solliciter l'humain → **parallèle** ; un fetcher **navigateur** (`BaseFetcher`) → **sériel** par défaut. Détecté en **scannant la source** `cpt_fetch_<SITE>.py` (présence de `class …(BaseFetcher)`), sans importer le module (les fetchers tournent en sous-processus).
+  - *« compte » — décidée par l'utilisateur* : qu'un site navigateur exige *réellement* la 2FA dépend de son compte → **override** `[SITE] parallel = true`, à ne poser **que pour l'exception** (site navigateur sans 2FA sur ce compte).
+- **`credential`** (présence de `credential_id`) est **dérivé** et ne subdivise QUE le parallèle.
 
-Trois tiers en découlent (`credential` = présence de `credential_id`) :
+Trois tiers en découlent :
 
 | Tier | Condition | Traitement |
 |---|---|---|
-| **auto** | pas de 2FA, **pas** de `credential_id` | **parallèle**, planifiable sans humain (`--auto`, cron) |
-| **semi** | pas de 2FA, **avec** `credential_id` | **parallèle** ; un seul mot de passe GPG (mis en cache) couvre le lot |
-| **manual** | 2FA | **séquentiel**, humain requis |
+| **auto** | parallèle, **pas** de `credential_id` | **parallèle**, planifiable sans humain (`--auto`, cron) |
+| **semi** | parallèle, **avec** `credential_id` | **parallèle** ; un seul mot de passe GPG (mis en cache) couvre le lot |
+| **manual** | sériel | **séquentiel**, humain requis |
 
-Les non-interactifs (auto + semi) sont collectés **en parallèle** (plafond 4) et **avant** les manuels. **`cpt_fetch.py --auto`** ne collecte que le tier **auto** (aucun `credential_id` → aucun pinentry) → idéal en **cron**.
+Les parallèles (auto + semi) sont collectés **en parallèle** (plafond 4) et **avant** les sériels. **`cpt_fetch.py --auto`** ne collecte que le tier **auto** (aucun `credential_id` → aucun pinentry) → idéal en **cron**.
 
-En pratique, **`config.ini` ne contient `requires_2fa` que pour de rares overrides** (souvent aucun) : les API sont non-interactives d'office, les sites navigateur manuels d'office.
+En pratique, **`config.ini` ne contient `parallel` que pour de rares overrides** (souvent aucun) : les API sont parallèles d'office, les sites navigateur sériels d'office. _(Ancien nom `requires_2fa` — polarité inverse — encore lu en repli, le temps de la transition.)_
 
 ## 5. Test
 
