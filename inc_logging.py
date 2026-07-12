@@ -55,6 +55,12 @@ class Logger:
         # Chrono d'attente humaine (2FA/CAPTCHA) : armé par le 1er alert(),
         # relevé par user_done() → durée machine = total − attente humaine (#147).
         self._await_start = None
+        # Profil de navigation (s.202) : étapes chrono-métrées (label, durée) →
+        # baseline par site (inc_fetch_profile) pour détecter un changement de
+        # comportement du site. Alimenté par step(), relu par steps() en fin de run.
+        self._steps = []
+        self._step_start = None
+        self._step_label = None
 
         # Créer le répertoire du journal si nécessaire
         if self.journal_file and not self.journal_file.parent.exists():
@@ -148,6 +154,28 @@ class Logger:
         self._log(f"Attente humaine : {waited}s", prefix="⏳",
                   display=True, to_journal=True)
 
+    def step(self, label: str):
+        """Marque le début d'une étape de navigation (profil s.202). Clôt l'étape
+        précédente (sa durée entre dans self._steps), démarre le chrono de la
+        nouvelle, et journalise le label sous le marqueur ▶ (remplace le info()
+        de début de phase — zéro ligne en plus). Relu par steps() en fin de run.
+        Le label est la CLÉ de baseline → le garder STABLE dans le temps."""
+        now = time.monotonic()
+        if self._step_label is not None:
+            self._steps.append((self._step_label, now - self._step_start))
+        self._step_label = label
+        self._step_start = now
+        self._log(label, prefix="▶", display=True, to_journal=True, simple=True)
+
+    def steps(self):
+        """Renvoie [(label, durée_s)] en clôturant l'étape encore ouverte.
+        Idempotent : une 2e lecture ne ré-ajoute pas la dernière."""
+        if self._step_label is not None:
+            self._steps.append((self._step_label,
+                                time.monotonic() - self._step_start))
+            self._step_label = None
+        return self._steps
+
     def debug(self, message: str):
         """Message de debug (affiché seulement si DEBUG=true)"""
         self._log(message, prefix="🛠", display=self.debug_mode, to_journal=self.debug_mode)
@@ -205,6 +233,13 @@ class PrefixLogger:
 
     def user_done(self):
         self._parent.user_done()
+
+    def step(self, label):
+        # Pas de préfixe : le label est la clé de baseline, à garder stable.
+        self._parent.step(label)
+
+    def steps(self):
+        return self._parent.steps()
 
     def write_to_journal(self, msg):
         self._parent.write_to_journal(msg)

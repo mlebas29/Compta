@@ -33,6 +33,7 @@ Fichiers générés:
 
 import sys
 import os
+import re
 import time
 import subprocess
 import pyperclip
@@ -773,12 +774,18 @@ class KrakenFetcher(BaseFetcher):
             keywords = ["Soldes", "Balance", "balance"]
         type_label = keywords[0]
 
-        # Chercher une ligne contenant un des mots-clés ET un bouton download
+        # Chercher une ligne contenant un des mots-clés ET un bouton download.
+        # ⚠ Ne réutiliser QUE si la période va jusqu'à hier : sinon on
+        # re-télécharge un export périmé en boucle (vécu s.202 : ledgers figés au
+        # 06/07 réutilisés le 12/07 → opérations 07→11 manquantes). Sinon → False
+        # (le run créera un export frais).
+        yesterday = (datetime.now() - timedelta(days=1)).date()
         selector_parts = []
         for kw in keywords:
             selector_parts.append(f"tr:has-text('{kw}')")
             selector_parts.append(f"[class*='row']:has-text('{kw}')")
         rows = self.page.locator(", ".join(selector_parts))
+        stale = None
         for i in range(rows.count()):
             row = rows.nth(i)
             download_btn = row.locator(
@@ -789,10 +796,41 @@ class KrakenFetcher(BaseFetcher):
                 "[data-testid*='download']"
             )
             if download_btn.count() > 0:
-                self.logger.info(f"Export {type_label} existant trouvé — téléchargement direct")
-                return True
+                end = self._export_end_date(row.inner_text())
+                if end and end >= yesterday:
+                    self.logger.info(
+                        f"Export {type_label} frais (jusqu'au "
+                        f"{end.strftime('%d/%m/%Y')}) — téléchargement direct")
+                    return True
+                stale = end
 
+        if stale is not None:
+            self.logger.info(
+                f"Export {type_label} présent mais périmé (jusqu'au "
+                f"{stale.strftime('%d/%m/%Y')}) — création d'un export frais")
+        elif rows.count() > 0:
+            self.logger.warning(
+                f"Export {type_label} présent mais période illisible "
+                f"— création d'un export frais")
         return False
+
+    def _export_end_date(self, row_text):
+        """Date de FIN de période d'une ligne d'export (format Kraken DD/MM/YYYY).
+
+        Ligne type : 'Spot⏎Registre⏎CSV⏎06/06/2026 00:00 - 06/07/2026 23:59⏎06/07/2026 16:24'
+        (dernière ligne = date de CRÉATION ; avant-dernière = période). On prend
+        la DERNIÈRE date de la ligne période = fin de plage (ou date unique pour
+        Soldes). Renvoie un datetime.date, ou None si illisible.
+        """
+        lines = [l for l in row_text.split('\n') if l.strip()]
+        period = lines[-2] if len(lines) >= 2 else row_text
+        dates = re.findall(r'\d{2}/\d{2}/\d{4}', period)
+        if not dates:
+            return None
+        try:
+            return datetime.strptime(dates[-1], '%d/%m/%Y').date()
+        except ValueError:
+            return None
 
     def _count_download_buttons(self):
         """Compte les boutons de téléchargement visibles dans la table des exports."""
@@ -884,8 +922,17 @@ class KrakenFetcher(BaseFetcher):
             selector_parts.append(f"tr:has-text('{kw}')")
             selector_parts.append(f"[class*='row']:has-text('{kw}')")
         rows = self.page.locator(", ".join(selector_parts))
-        if rows.count() > 0:
-            row_download = rows.first.locator(
+        # Choisir la ligne à date de fin MAX : le frais qu'on vient de créer peut
+        # ne PAS être en 1ʳᵉ position, et un vieil export peut traîner (s.202).
+        best_i, best_end = None, None
+        for i in range(rows.count()):
+            end = self._export_end_date(rows.nth(i).inner_text())
+            if end and (best_end is None or end > best_end):
+                best_end, best_i = end, i
+        if best_i is None and rows.count() > 0:
+            best_i = 0  # repli : 1ʳᵉ ligne si périodes illisibles
+        if best_i is not None:
+            row_download = rows.nth(best_i).locator(
                 "button:has-text('Download'), "
                 "button:has-text('Télécharger'), "
                 "a:has-text('Download'), "
@@ -933,6 +980,7 @@ class KrakenFetcher(BaseFetcher):
             True si au moins un fichier a été téléchargé, False sinon
         """
         # 1. Login (interactif)
+        self.step("Login")
         if not self.wait_for_login():
             self.logger.error("Échec de la connexion")
             return False
@@ -943,6 +991,7 @@ class KrakenFetcher(BaseFetcher):
             return False
 
         # 3-5. Export Registre (ledgers) : vérifier existant ou créer
+        self.step("Opérations")
         if self._find_existing_export('ledgers'):
             ledgers_file = self.download_export('ledgers')
         else:
@@ -957,6 +1006,7 @@ class KrakenFetcher(BaseFetcher):
             ledgers_file = self.download_export('ledgers')
 
         # 6-8. Export Soldes (balances) : vérifier existant ou créer
+        self.step("Soldes")
         if self._find_existing_export('balances'):
             balances_file = self.download_export('balances')
         else:

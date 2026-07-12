@@ -200,7 +200,7 @@ class EtoroFetcher(BaseFetcher):
         Returns:
             True si connecté, False si timeout
         """
-        self.logger.info("Navigation vers eToro...")
+        self.step("Login")
         self.page.goto(self.etoro_home, wait_until="domcontentloaded")
         time.sleep(5)
 
@@ -502,7 +502,7 @@ class EtoroFetcher(BaseFetcher):
         Returns:
             Path du fichier téléchargé ou None
         """
-        self.logger.info("Export opérations Money (EUR)...")
+        self.step("Opérations (Money)")
 
         self.page.goto(self.etoro_money_eur, wait_until="domcontentloaded")
         time.sleep(3)
@@ -614,7 +614,7 @@ class EtoroFetcher(BaseFetcher):
         Returns:
             Path du fichier téléchargé ou None
         """
-        self.logger.info("Export opérations Réserve (USD)...")
+        self.step("Opérations (Réserve)")
 
         # Dates : hier - MAX_DAYS_BACK → hier
         end_date = date.today() - timedelta(days=1)
@@ -645,24 +645,19 @@ class EtoroFetcher(BaseFetcher):
         self.dropbox_dir.mkdir(parents=True, exist_ok=True)
 
         # Le clic déclenche un preloader (préparation fichier) puis un download.
-        # eToro affiche parfois une modale "Nous préparons votre relevé"
-        # avec un bouton "J'ai compris" qu'il faut fermer avant le download.
+        # eToro affiche PARFOIS (1ʳᵉ génération de la journée / charge serveur —
+        # ni « froid » ni « chaud » ne le prédit) une modale « Nous préparons
+        # votre relevé / J'ai compris » (génération XLSX asynchrone) ; le download
+        # se déclenche quand la génération finit. ⚠ NE PAS fermer cette modale :
+        # cliquer « J'ai compris » AVANT que le fichier soit prêt ANNULE la
+        # génération → timeout 120s à vide (vécu s.202 : run modale-fermée = 0
+        # download ; runs sans intervention = download direct). On laisse la
+        # modale et on attend le download (événement réseau, non bloqué par
+        # l'overlay). Ne rien faire ici = ne pas casser le download.
         try:
             with self.page.expect_download(timeout=DOWNLOAD_TIMEOUT_S * 1000) as download_info:
                 xls_btn.click(force=True)
-                self.logger.info("Bouton Excel cliqué — attente préparation...")
-
-                # Fermer la modale "Nous préparons votre relevé" si présente
-                try:
-                    dismiss_btn = self.page.locator(
-                        "button:has-text(\"j'ai compris\"), "
-                        "button:has-text(\"J'ai compris\")"
-                    )
-                    dismiss_btn.first.wait_for(state="visible", timeout=10000)
-                    dismiss_btn.first.click(force=True)
-                    self.logger.info("Popup 'Nous préparons votre relevé' fermée")
-                except Exception:
-                    pass
+                self.logger.info("Bouton Excel cliqué — attente préparation/téléchargement...")
 
             download = download_info.value
             original_name = download.suggested_filename
@@ -694,7 +689,7 @@ class EtoroFetcher(BaseFetcher):
         Returns:
             Path du PDF ou None
         """
-        self.logger.info("Capture PDF page d'accueil (soldes)...")
+        self.step("Soldes (accueil)")
 
         self.page.goto(self.etoro_home, wait_until="domcontentloaded")
         time.sleep(5)
@@ -713,7 +708,7 @@ class EtoroFetcher(BaseFetcher):
         Returns:
             Path du PDF ou None
         """
-        self.logger.info("Capture PDF portfolio (positions)...")
+        self.step("Soldes (portfolio)")
 
         self.page.goto(self.etoro_portfolio, wait_until="domcontentloaded")
         time.sleep(5)

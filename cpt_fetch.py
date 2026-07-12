@@ -13,6 +13,7 @@ import subprocess
 import argparse
 import configparser
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from datetime import datetime
@@ -123,6 +124,7 @@ class ComptaFetcher:
         if not prefix:
             print()
         print(f"{prefix}{timestamp} → {site_name} ({site})...", flush=True)
+        t0 = time.monotonic()  # #150 total wall-clock du site → machine = total − Σ⏳
 
         try:
             # Invocation directe : laisse le shebang du script cible imposer
@@ -156,7 +158,7 @@ class ComptaFetcher:
                     output_lines.append(line)
                     if self.verbose:
                         print(f"{prefix}{line}", flush=True)
-                    elif '🔔' in line or 'Skip' in line:
+                    elif '🔔' in line or '⏳' in line or 'Skip' in line:
                         print(f"{prefix}  {line}", flush=True)
 
             reader = threading.Thread(target=read_output, daemon=True)
@@ -174,7 +176,7 @@ class ComptaFetcher:
             reader.join(timeout=5)
 
             if proc.returncode == 0:
-                print(f"{prefix}  ✓")
+                print(f"{prefix}  ✓ ({int(round(time.monotonic() - t0))}s)")
                 return True
             else:
                 # Chercher la dernière erreur dans la sortie capturée.
@@ -209,7 +211,7 @@ class ComptaFetcher:
                     # indice (négatif = signal, 126/127 = souci d'exécution).
                     last_error = (f"Erreur inconnue (sortie vide, "
                                   f"code retour {proc.returncode})")
-                print(f"{prefix}  ✗ {last_error}")
+                print(f"{prefix}  ✗ ({int(round(time.monotonic() - t0))}s) {last_error}")
                 self.stats['errors'].append(f"{site}: {last_error}")
                 return False
 

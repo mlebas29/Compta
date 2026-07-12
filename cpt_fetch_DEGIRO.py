@@ -332,15 +332,18 @@ class DegiroFetcher(BaseFetcher):
             True si au moins un fichier téléchargé, False sinon
         """
         # 1. Login (interactif)
+        self.step("Login")
         if not self.wait_for_login():
             self.logger.error("Échec de la connexion")
             return False
 
         # 2. Télécharger Portfolio (positions)
+        self.step("Soldes")
         portfolio_url = "https://trader.degiro.nl/trader/#/portfolio/assets"
         portfolio_file = self.download_csv(portfolio_url, "Portfolio.csv")
 
         # 3. Télécharger Account (opérations)
+        self.step("Opérations")
         end_date = datetime.now()
         start_date = end_date - timedelta(days=MAX_DAYS_BACK)
         collection_start = start_date.strftime("%Y-%m-%d")

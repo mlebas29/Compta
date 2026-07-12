@@ -579,11 +579,13 @@ class PayPalFetcher(BaseFetcher):
             True si succès, False sinon
         """
         # 1. Login
+        self.step("Login")
         if not self.wait_for_login():
             self.logger.error("Échec de la connexion")
             return False
 
         # 2. Télécharger le rapport CSV
+        self.step("Opérations")
         csv_path = self.fetch_report()
 
         if not csv_path:

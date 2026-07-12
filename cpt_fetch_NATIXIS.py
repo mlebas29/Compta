@@ -60,12 +60,14 @@ class PeeFetcher(BaseFetcher):
 
     def run(self):
         """Logique métier : login + impression 2 PDFs."""
+        self.step("Login")
         if not self.wait_for_login():
             self.logger.error("Échec de connexion")
             return False
 
         failed = []
 
+        self.step("Soldes")
         pdf_positions = self.print_page_pdf(
             URL_POSITIONS,
             "Mon épargne en détail - Natixis Interépargne.pdf",
@@ -74,6 +76,7 @@ class PeeFetcher(BaseFetcher):
         if not pdf_positions:
             failed.append("PDF positions")
 
+        self.step("Opérations")
         pdf_operations = self.print_page_pdf(
             URL_OPERATIONS,
             "Historique et suivi de mes opérations - Natixis Interépargne.pdf",

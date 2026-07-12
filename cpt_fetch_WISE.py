@@ -121,11 +121,13 @@ class WiseFetcher(BaseFetcher):
         """
         try:
             # 1. Login (interactif si nécessaire)
+            self.step("Login")
             if not self.wait_for_login():
                 self.logger.error("Échec de la connexion")
                 return False
 
             # 2. Exporter l'historique complet (CSV all-transactions)
+            self.step("Opérations")
             csv_path = self.export_all_transactions()
             if not csv_path:
                 self.logger.error("Échec export all-transactions")
@@ -133,6 +135,7 @@ class WiseFetcher(BaseFetcher):
 
             # 3. Soldes par devise → #Solde (best-effort : les opérations priment ;
             #    sans soldes, les comptes Wise seront auto-calculés à l'import).
+            self.step("Soldes")
             try:
                 self.fetch_balances()
             except Exception as e:
@@ -619,6 +622,7 @@ class WiseFetcher(BaseFetcher):
                         self.logger.debug(f"Nouvel onglet post-login: {p_url}")
                         self.page = p
                         self.logger.info("Connexion détectée (nouvel onglet)")
+                        self.logger.user_done()  # #150 chemin nouvel onglet : clore l'attente 2FA
                         time.sleep(2)
                         self.dismiss_cookies()
                         return True

@@ -1006,6 +1006,7 @@ class SgFetcher(BaseFetcher):
             return False
 
         # Connexion
+        self.step("Login")
         if not self.wait_for_login(username, password):
             self.logger.error("Échec connexion")
             return False
@@ -1013,6 +1014,7 @@ class SgFetcher(BaseFetcher):
         failed = []
 
         # Download CSV compte courant (page téléchargement)
+        self.step("Opérations")
         csv_cc = self.download_csv_compte_courant()
         if not csv_cc:
             failed.append("CSV compte courant")
@@ -1023,6 +1025,7 @@ class SgFetcher(BaseFetcher):
             failed.append(f"CSV épargne ({len(epargne)}/{len(COMPTES_EPARGNE)})")
 
         # Téléchargement supports assurances vie (URLs directes)
+        self.step("Assurance-vie")
         av_supports = self.export_all_assurances_vie_supports()
         if len(av_supports) < len(ASSURANCES_VIE):
             failed.append(f"supports AV ({len(av_supports)}/{len(ASSURANCES_VIE)})")
@@ -1033,6 +1036,7 @@ class SgFetcher(BaseFetcher):
             failed.append(f"PDF opérations AV ({len(av_pdf)}/{len(ASSURANCES_VIE)})")
 
         # Impression PDF synthèse (tous les soldes)
+        self.step("Soldes")
         synthese = self.print_synthese_pdf()
         if not synthese:
             failed.append("PDF synthèse")

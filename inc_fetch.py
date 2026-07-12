@@ -22,6 +22,8 @@ Usage dans un script fetch :
 """
 
 import sys
+import time
+import re
 import argparse
 import base64
 import configparser
@@ -54,6 +56,10 @@ config = configparser.ConfigParser()
 config.read(CONFIG_FILE)
 
 DEBUG = config.getboolean('general', 'DEBUG', fallback=False)
+# Couche d'investigation (s.202) : snapshot DOM au début de chaque step() du
+# profil → toujours le dernier run de chaque site/étape sous la main, borné
+# (écrasé par run). off | dom (HTML seul, quasi gratuit) | full (+ PNG, coûteux).
+DUMP_STEPS = config.get('general', 'dump_steps', fallback='dom').strip().lower()
 LOGS_DIR = BASE_DIR / config.get('paths', 'logs', fallback='./logs')
 JOURNAL_FILE = LOGS_DIR / 'journal.log'
 
@@ -153,6 +159,7 @@ class BaseFetcher:
                 script_name = stem
         self.verbose = verbose
         self.debug = DEBUG
+        self.site_config_section = site_config_section  # clé site (ex. ETORO) → profil
         self.site_name = config.get(site_config_section, 'name',
                                     fallback=site_config_section)
         self.base_url = config.get(site_config_section, 'base_url',
@@ -389,6 +396,37 @@ class BaseFetcher:
         except Exception as e:
             self.logger.warning(f"Capture de diagnostic impossible : {e}")
 
+    def step(self, label):
+        """Marque une étape de navigation (profil s.202) ET capture un snapshot
+        DOM roulant de son début (couche d'investigation). À appeler depuis run()
+        à chaque frontière de phase (Login, Opérations, Soldes…) — remplace un
+        éventuel logger.info() de début de phase. Le label est la CLÉ de baseline
+        du profil ET du nom de fichier snapshot → le garder STABLE."""
+        self.logger.step(label)
+        self._snapshot_step(label)
+
+    def _snapshot_step(self, label):
+        """Snapshot DOM (roulant, écrasé par run) du début d'une étape → on a
+        toujours le dernier run de chaque site/étape pour investiguer un
+        changement de comportement (cousin de dump_failure #149, mais SANS
+        échec). DOM toujours (quasi gratuit) ; PNG seulement en mode 'full'
+        (coûteux). Gouverné par [general] dump_steps. Best-effort : jamais
+        bloquant (une capture ne doit pas casser une collecte)."""
+        if DUMP_STEPS == 'off' or getattr(self, 'page', None) is None:
+            return
+        try:
+            debug_dir = LOGS_DIR / 'debug'
+            debug_dir.mkdir(parents=True, exist_ok=True)
+            prefix = self.site_name.lower().replace(' ', '_')
+            safe = re.sub(r'[^\w]+', '_', label).strip('_').lower() or 'etape'
+            base = debug_dir / f'{prefix}_step_{safe}'
+            base.with_suffix('.html').write_text(self.page.content(),
+                                                 encoding='utf-8')
+            if DUMP_STEPS == 'full':
+                self.page.screenshot(path=str(base.with_suffix('.png')))
+        except Exception:
+            pass  # best-effort : ne jamais bloquer une collecte
+
 
 def fetch_main(fetcher_class, description='', add_arguments=None, pre_run=None):
     """Boilerplate main() pour les scripts fetch.
@@ -432,6 +470,8 @@ def fetch_main(fetcher_class, description='', add_arguments=None, pre_run=None):
             fetcher.logger.error("Credentials GPG invalides — abandon")
             return 1
 
+    success = False
+    _t0 = time.monotonic()
     try:
         fetcher.launch_browser()
         success = fetcher.run()
@@ -451,3 +491,16 @@ def fetch_main(fetcher_class, description='', add_arguments=None, pre_run=None):
         return 1
     finally:
         fetcher.close()
+        # Profil de navigation (s.202) : enregistre le run (étapes + fichiers +
+        # succès) et met à jour la baseline machine-locale. Même sur échec (un
+        # run partiel EST un signal). Ne doit JAMAIS casser une collecte.
+        try:
+            import inc_fetch_profile
+            steps = fetcher.logger.steps()
+            if not steps:  # fetcher non instrumenté → au moins la durée totale
+                steps = [("Collecte", time.monotonic() - _t0)]
+            inc_fetch_profile.record_run(
+                BASE_DIR, fetcher.site_config_section,
+                steps, fetcher.downloads, success)
+        except Exception:
+            pass

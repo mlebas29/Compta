@@ -43,6 +43,16 @@ mode = EX
 #         - Pas de fichiers debug générés (gain d'espace disque)
 DEBUG = false
 
+# ===== SNAPSHOT PAR ÉTAPE (couche d'investigation collecte) =====
+# Capture l'état de la page au début de chaque étape de collecte (Login,
+# Opérations, Soldes…) → toujours le dernier run de chaque site/étape sous la
+# main pour diagnostiquer un changement de comportement d'un site bancaire.
+# Fichiers roulants (écrasés à chaque run) dans logs/debug/<site>_step_<étape>.
+#   off  = désactivé
+#   dom  = HTML seul (quasi gratuit) — défaut
+#   full = HTML + capture d'écran PNG (plus lent)
+dump_steps = dom
+
 # ===== NOMBRE DE SESSIONS À CONSERVER =====
 # Définit le nombre de sessions archivées à garder (défaut: 10)
 # Une session = un appel à cpt_update.py qui produit :

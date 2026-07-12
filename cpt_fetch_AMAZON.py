@@ -224,6 +224,7 @@ class AmazonFetcher(BaseFetcher):
             # Connecté ?
             if self._is_logged_in(current_url):
                 self.logger.info("Connexion détectée")
+                self.logger.user_done()  # #150 clôt l'attente armée par l'alert connexion
                 return True
 
             # Page "Protégez-vous" (ajout téléphone) → cliquer "Pas maintenant"
@@ -432,11 +433,13 @@ class AmazonFetcher(BaseFetcher):
             True si succès, False sinon
         """
         # 1. Login
+        self.step("Login")
         if not self.wait_for_login():
             self.logger.error("Échec de la connexion")
             return False
 
         # 2. Scraper les opérations
+        self.step("Opérations")
         csv_path = self.fetch_operations()
 
         if not csv_path:

@@ -1237,6 +1237,7 @@ class BbFetcher(BaseFetcher):
             return False
 
         # Connexion
+        self.step("Login")
         if not self.wait_for_login(username, password):
             self.logger.error("Échec connexion")
             return False
@@ -1246,7 +1247,7 @@ class BbFetcher(BaseFetcher):
         total_count = 4
 
         # Extraire les URLs des comptes depuis la page accueil
-        self.logger.info("Extraction URLs des comptes")
+        self.step("Opérations")
         self.page.goto(f"{self.base_url}/", wait_until="domcontentloaded", timeout=30000)
         time.sleep(3)
 
@@ -1301,6 +1302,7 @@ class BbFetcher(BaseFetcher):
             self.logger.warning("Livret Bourso+ non trouvé sur le dashboard")
 
         # Portefeuille titres complet (positions + mouvements)
+        self.step("Soldes")
         if self.export_titres_complete():
             success_count += 1
 
