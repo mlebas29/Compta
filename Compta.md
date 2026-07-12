@@ -83,6 +83,12 @@ Chaque site est décrit dans l'application (Onglet Sites). On y trouve notamment
 
 Pour certains sites le navigateur Chrome est rendu visible afin de permettre une **intervention manuelle** au moment de la connexion; par exemple saisie d'un code dans une page, ou résolution d'un CAPTCHA. Cf. ANNEXE B
 
+Afin d'optimiser le temps de collecte, les sites **sans 2FA** (services par interface de programmation, ou comptes sans double authentification) sont collectés **en parallèle**, et pendant le traitement des autres sites avec 2FA (une à la fois). 
+
+> Le classement parallèle/séquentiel est **automatique** mais tout site peut être ajouté dans le groupe parallèle. Cependant, lorsque des sites interactifs sont placés dans le groupe parallèle, il y a des risques d'entrelacement des dialogues avec les sites du groupe séquentiel. Sans danger mais potentiellement déroutant pour l'utilisateur.
+
+
+
 ## Import
 
 L'import concerne toutes les collectes (dossier de collecte)
@@ -119,7 +125,10 @@ Le mode opératoire est dirigé par l'interface graphique qui documente les proc
 
 #### Préalable - Configuration
 
-Avant la première collecte, le classeur doit être configuré pour refléter les comptes, devises et sites de l'utilisateur. Cette configuration se fait entièrement via l'App, sans toucher au fichier Excel.
+Avant la première collecte il s'agit de renseigner :
+
+- les identifiants de connexion via GPG ; ceux-là sont stockés dans un fichier chiffré (la copie en clair est à supprimer après chiffrement) ;
+- tous les autres paramètres via l'application Compta ; ceux-là sont stockés pour la plupart dans le classeur (noms de comptes, devises utilisées, etc.). Cette configuration se fait entièrement via l'App, sans toucher au fichier Excel
 
 Voir **ANNEXE C** pour le détail de la configuration initiale (identifiants, devises, comptes, catégories, sites).
 
@@ -309,9 +318,16 @@ Chaque site affiche une zone descriptive qui indique :
 Certains sites possèdent des paramètres modifiables :
 
 - **Jours max** : profondeur de collecte en jours (override du paramètre global)
+
 - **Nb rapports** : nombre de rapports à télécharger
+
 - **Dossier Drive**, **Compte Drive** : pour les sites collectés via Google Drive
+
 - **CLI Monero**, **Dossier wallets**, **Timeout wallet** : pour la collecte Monero
+
+- **parallel** : pour placer le site dans le groupe de collecte parallèle
+
+  > parallel n'a pas de champ dans l'interface graphique, il faut ajouter `parallel = true` sous son `[SITE]` dans `config.ini`.
 
 ## 6. Paramètres (onglet Paramètres)
 

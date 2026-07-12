@@ -9,6 +9,17 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 
 Les trois derniers sont spécifiques au mode assisté ; 📘 concerne le mode classeur.
 
+## v5.17.0
+| 2026-07-12 | Collecte plus rapide (parallélisée) · correction NATIXIS |
+| ---------- | -------------------------------------------------------- |
+
+**Détail :**
+
+- **Collecte plus rapide** — les sites **sans 2FA** (API, ou comptes sans double authentification) sont désormais collectés **en parallèle** et **pendant** tes validations 2FA, au lieu d'un par un. Le temps machine se fait « en fond » : sur une collecte complète, seul le temps de tes 2FA compte vraiment. L'appartenance au groupe parallèle est **déduite automatiquement** ; pour un site navigateur sans 2FA sur ton compte, ajouter `parallel = true` sous son `[SITE]` dans `config.ini`.
+- **Collecte planifiable — `cpt_fetch.py --auto`** — ne collecte que les sites **sans 2FA ni mot de passe GPG** (API publiques) → exécutable **sans aucune intervention**, idéal en tâche planifiée (cron).
+- **NATIXIS — connexion réparée** — un nouvel assistant post-login « enregistrer un appareil de confiance » bloquait la collecte ; désormais franchi automatiquement.
+- **Diagnostic des collectes** — en cas d'échec d'une collecte web, une capture de la page (HTML + image) est désormais **toujours** enregistrée dans `logs/debug/`, avec son chemin affiché — pour comprendre ce qui a bloqué.
+
 ## v5.16.1
 | 2026-07-11 | Menu Doc corrigé · Collecte plus robuste |
 | ---------- | ---------------------------------------- |
