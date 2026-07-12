@@ -372,6 +372,23 @@ class BaseFetcher:
         self.page.screenshot(path=str(png_file))
         self.logger.debug(f"Screenshot sauvegardé: {png_file}")
 
+    def dump_failure(self, label='echec'):
+        """Filet de sécurité (#149) : au moindre échec (appelé par fetch_main),
+        capture l'état de la page (DOM + screenshot) dans logs/debug/ MÊME sans
+        DEBUG, et signale le chemin de façon VISIBLE. Un échec « bloqué/timeout »
+        n'est diagnosticable qu'avec le snapshot AU point d'échec (le texte
+        title/url est insuffisant et trompeur). No-op si pas de page (navigateur
+        non lancé ou déjà fermé) ; best-effort (n'échoue jamais)."""
+        if getattr(self, 'page', None) is None:
+            return
+        try:
+            self._dump_page_debug(label, force=True)
+            prefix = self.site_name.lower().replace(' ', '_')
+            self.logger.warning(
+                f"État capturé pour diagnostic : logs/debug/{prefix}_{label}.html (+ .png)")
+        except Exception as e:
+            self.logger.warning(f"Capture de diagnostic impossible : {e}")
+
 
 def fetch_main(fetcher_class, description='', add_arguments=None, pre_run=None):
     """Boilerplate main() pour les scripts fetch.
@@ -418,6 +435,8 @@ def fetch_main(fetcher_class, description='', add_arguments=None, pre_run=None):
     try:
         fetcher.launch_browser()
         success = fetcher.run()
+        if not success:
+            fetcher.dump_failure('echec_run')  # filet #149 (avant close())
         return 0 if success else 1
 
     except KeyboardInterrupt:
@@ -428,6 +447,7 @@ def fetch_main(fetcher_class, description='', add_arguments=None, pre_run=None):
         if DEBUG:
             import traceback
             traceback.print_exc()
+        fetcher.dump_failure('exception')  # filet #149 (avant close())
         return 1
     finally:
         fetcher.close()
