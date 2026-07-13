@@ -366,7 +366,36 @@ class BaseFetcher:
         return False
 
     def close(self):
-        """Ferme le navigateur proprement."""
+        """Ferme le navigateur, borné par un watchdog SIGALRM.
+
+        Sur un contexte persistant ayant servi une session CDP (`printToPDF`),
+        `context.close()`/`playwright.stop()` peuvent **pendre indéfiniment**
+        (observé NATIXIS + BOURSOBANK, headless comme headed) : les 2 sites
+        produisent pourtant TOUS leurs fichiers puis se figent à la fermeture,
+        et seul le kill orchestrateur à 5 min y met fin — masquant une collecte
+        réussie et bloquant un slot du pool tout ce temps. On borne donc le
+        teardown : SIGALRM (thread principal du sous-process de collecte, cf.
+        cpt_fetch.Popen par site → Mac + Linux OK). PEP 475 : le handler qui
+        lève interrompt le syscall bloqué sans retry.
+
+        Returns:
+            True si fermé proprement ; False si le teardown a été abandonné
+            (le caller `fetch_main` bascule alors sur os._exit pour ne pas
+            risquer un hang au cleanup interpréteur avec un driver mi-fermé).
+        """
+        import signal
+
+        fired = {'v': False}
+
+        def _on_timeout(signum, frame):
+            fired['v'] = True
+            raise TimeoutError("teardown navigateur dépassé")
+
+        has_alarm = hasattr(signal, 'SIGALRM')
+        old_handler = None
+        if has_alarm:
+            old_handler = signal.signal(signal.SIGALRM, _on_timeout)
+            signal.alarm(20)
         try:
             if self.context:
                 self.context.close()
@@ -374,7 +403,19 @@ class BaseFetcher:
                 self.playwright.stop()
             self.logger.debug("Navigateur fermé")
         except Exception as e:
-            self.logger.debug(f"Erreur fermeture navigateur: {e}")
+            # On décide « abandon » sur le flag du handler, pas sur le type
+            # d'exception : Playwright peut ré-emballer la TimeoutError.
+            if fired['v']:
+                self.logger.warning(
+                    "Fermeture navigateur > 20s — abandon du teardown "
+                    "(collecte OK, fichiers déjà écrits)")
+            else:
+                self.logger.debug(f"Erreur fermeture navigateur: {e}")
+        finally:
+            if has_alarm:
+                signal.alarm(0)
+                signal.signal(signal.SIGALRM, old_handler)
+        return not fired['v']
 
     def run(self):
         """Logique métier du script — à implémenter dans les sous-classes.
@@ -529,10 +570,12 @@ def fetch_main(fetcher_class, description='', add_arguments=None, pre_run=None):
         fetcher.dump_failure('exception')  # filet #149 (avant close())
         return 1
     finally:
-        fetcher.close()
+        clean = fetcher.close()
         # Profil de navigation (s.202) : enregistre le run (étapes + fichiers +
         # succès) et met à jour la baseline machine-locale. Même sur échec (un
         # run partiel EST un signal). Ne doit JAMAIS casser une collecte.
+        # Placé APRÈS close() mais avant l'éventuel os._exit → une collecte dont
+        # seul le teardown a pendu est bien enregistrée.
         try:
             import inc_fetch_profile
             steps = fetcher.logger.steps()
@@ -543,3 +586,15 @@ def fetch_main(fetcher_class, description='', add_arguments=None, pre_run=None):
                 steps, fetcher.downloads, success)
         except Exception:
             pass
+        # Teardown abandonné (watchdog) : le driver Playwright peut être
+        # mi-fermé → un exit normal risquerait de re-pendre au cleanup
+        # interpréteur/atexit. On sort en dur avec le bon code retour, après
+        # avoir vidé stdout (capturé par l'orchestrateur).
+        if not clean:
+            import os
+            try:
+                sys.stdout.flush()
+                sys.stderr.flush()
+            except Exception:
+                pass
+            os._exit(0 if success else 1)

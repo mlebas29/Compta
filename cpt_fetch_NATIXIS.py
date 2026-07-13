@@ -74,7 +74,10 @@ class PeeFetcher(BaseFetcher):
             "positions"
         )
         if not pdf_positions:
-            failed.append("PDF positions")
+            # Non-bloquant : les soldes sont recalculés à l'import et une
+            # alerte se déclenche si l'écart est notable. Un PDF positions
+            # manqué ne doit pas faire échouer la collecte (≠ Opérations).
+            self.logger.warning("PDF positions manquant (non-bloquant : recalculé + alerte import)")
 
         self.step("Opérations")
         pdf_operations = self.print_page_pdf(
