@@ -111,6 +111,24 @@ class SitesMixin:
         ttk.Label(row_actif, text=site_name,
                   font=('', 12, 'bold')).pack(side='left', padx=(15, 0))
 
+        # Overrides collecte (sites navigateur seulement) : headed / parallel en
+        # cases à cocher — facultatifs, per-instance (cf. inc_fetch headed override
+        # + cpt_fetch parallel). Décoché = comportement dérivé par défaut.
+        if self.config.has_option(site, 'base_url'):
+            row_cb = ttk.Frame(frame)
+            row_cb.pack(fill='x', pady=(2, 6))
+            self.site_detail_widgets.append(row_cb)
+            headed_var = tk.BooleanVar(
+                value=self.config.getboolean(site, 'headed', fallback=False))
+            self.tk_vars[('site_' + site, 'headed')] = ('bool', headed_var)
+            ttk.Checkbutton(row_cb, text='Fenêtre visible (headed)',
+                            variable=headed_var).pack(side='left', padx=(0, 20))
+            par_var = tk.BooleanVar(
+                value=self.config.getboolean(site, 'parallel', fallback=False))
+            self.tk_vars[('site_' + site, 'parallel')] = ('bool', par_var)
+            ttk.Checkbutton(row_cb, text='Collecte en parallèle',
+                            variable=par_var).pack(side='left')
+
         # Libellés français par clé
         french_labels = {
             'name': 'Nom',
@@ -151,6 +169,8 @@ class SitesMixin:
             all_keys.insert(idx, 'dossier')
 
         for key in all_keys:
+            if key in ('headed', 'parallel'):
+                continue  # rendus en cases à cocher ci-dessus
             val = self.config.get(site, key, fallback='')
             row = ttk.Frame(frame)
             row.pack(fill='x', pady=1)

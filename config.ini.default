@@ -122,6 +122,13 @@ enabled =
 # → sériel). À NE renseigner QUE pour un cas particulier — un site navigateur
 # SANS 2FA sur ton compte — en ajoutant sous son [SITE] :
 #   parallel = true
+#
+# Fenêtre visible (headed) — override facultatif PER-INSTANCE : forcer un site en
+# navigateur VISIBLE même quand DEBUG=false (headless). Utile là où le headless
+# casse une opération sur une machine donnée (ex. impression PDF CDP qui pend sur
+# macOS, export qui reçoit du HTML). Décoché/absent = headless par défaut. Se règle
+# aussi par case à cocher dans l'onglet Sites. Pour forcer, sous son [SITE] :
+#   headed = true
 
 [SOCGEN]
 name = Société Générale

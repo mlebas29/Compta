@@ -177,6 +177,15 @@ class BaseFetcher:
         self._dialog_handler = dialog_handler
         self._delete_cookies = delete_cookies
         self._headed = headed
+        # Override per-site (config.ini, per-instance) : forcer headed même sous
+        # DEBUG=false. Utile là où le headless casse une opération sur une machine
+        # donnée (ex. printToPDF CDP qui pend sur macOS, export qui reçoit du HTML)
+        # → `[SITE] headed = true`. Facultatif (commenté dans config.ini.default).
+        if site_config_section and config.has_option(site_config_section, 'headed'):
+            try:
+                self._headed = config.getboolean(site_config_section, 'headed')
+            except ValueError:
+                pass
 
         self.logger = Logger(
             script_name=script_name,

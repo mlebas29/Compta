@@ -2127,6 +2127,17 @@ class DevisesMixin:
                 if key in readonly_keys:
                     continue
                 site = section[5:]  # strip 'site_'
+                if vtype == 'bool':
+                    # Override booléen (headed/parallel) : met à jour si la clé
+                    # existe déjà ; sinon insère SEULEMENT si coché (pas de bruit
+                    # `= false` sur les sites au comportement dérivé).
+                    updated = write_config_section_key(
+                        raw, site, key, 'true' if var.get() else 'false')
+                    if updated is not None:
+                        raw = updated
+                    elif var.get():
+                        raw = _insert_key_in_section(raw, site, key, 'true')
+                    continue
                 val = var.get().strip()
                 if not val:
                     continue  # champ vide = pas de surcharge
