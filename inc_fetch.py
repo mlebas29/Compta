@@ -445,19 +445,30 @@ class BaseFetcher:
         """
         if not force and not DEBUG:
             return
-        debug_dir = LOGS_DIR / 'debug'
-        debug_dir.mkdir(parents=True, exist_ok=True)
-
-        prefix = self.site_name.lower().replace(' ', '_')
-        html_file = debug_dir / f'{prefix}_{label}.html'
-        html = self.page.content()
-        with open(html_file, 'w', encoding='utf-8') as f:
-            f.write(html)
-        self.logger.debug(f"HTML sauvegardé: {html_file}")
-
-        png_file = debug_dir / f'{prefix}_{label}.png'
-        self.page.screenshot(path=str(png_file))
-        self.logger.debug(f"Screenshot sauvegardé: {png_file}")
+        # Best-effort ABSOLU : une capture de diagnostic ne doit JAMAIS devenir
+        # la panne. HTML et PNG protégés séparément ; screenshot BORNÉ (5s) car
+        # sur une page en navigation/détruite `page.screenshot` pendait 30s puis
+        # levait — et, appelé depuis un `except` non re-protégé (BB export titres),
+        # ça remontait en « erreur inattendue » (s.205). Idem `page.content()`.
+        try:
+            debug_dir = LOGS_DIR / 'debug'
+            debug_dir.mkdir(parents=True, exist_ok=True)
+            prefix = self.site_name.lower().replace(' ', '_')
+        except Exception:
+            return
+        try:
+            html_file = debug_dir / f'{prefix}_{label}.html'
+            with open(html_file, 'w', encoding='utf-8') as f:
+                f.write(self.page.content())
+            self.logger.debug(f"HTML sauvegardé: {html_file}")
+        except Exception as e:
+            self.logger.debug(f"Dump HTML {label} impossible: {e}")
+        try:
+            png_file = debug_dir / f'{prefix}_{label}.png'
+            self.page.screenshot(path=str(png_file), timeout=5000)
+            self.logger.debug(f"Screenshot sauvegardé: {png_file}")
+        except Exception as e:
+            self.logger.debug(f"Dump screenshot {label} impossible: {e}")
 
     def dump_failure(self, label='echec'):
         """Filet de sécurité (#149) : au moindre échec (appelé par fetch_main),
