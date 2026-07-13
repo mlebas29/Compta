@@ -4,10 +4,11 @@ Le projet inclut des outils en ligne de commande pour diagnostiquer,
 vérifier et corriger le classeur `comptes.xlsm`. Ils sont tous optionnels
 et complémentaires à l'interface graphique.
 
-Deux familles : les **outils classeur** (audit, fix, migration) qui agissent
-sur le `.xlsm` ; et les **outils d'environnement git** (commit, pull, install
-de `custom/`) qui orchestrent la circulation du code entre PROD, DEV et
-github — usage plutôt dev.
+Deux familles principales : les **outils classeur** (audit, fix, migration) qui
+agissent sur le `.xlsm` ; et les **outils d'environnement git** (commit, pull,
+install de `custom/`) qui orchestrent la circulation du code entre PROD, DEV et
+github — usage plutôt dev. S'y ajoute `tool_fetch_profile.py`, diagnostic
+**lecture seule** des collectes (profil de navigation par site).
 
 ---
 
@@ -124,6 +125,23 @@ temporaires qui peuvent rester après un crash du pipeline.
 ```
 ./tool_cleanup.py                   # nettoyage complet
 ./tool_cleanup.py --processes       # processus uniquement
+```
+
+### tool_fetch_profile.py — Profil de navigation des collectes
+
+Audit **lecture seule** des profils de navigation par site (baseline glissante
+machine-locale `logs/fetch_profiles.json`, alimentée par les collectes via
+`fetch_main`). Répond à « le site a-t-il changé de comportement ? » : durée
+**machine** par étape (attente humaine 2FA/CAPTCHA retranchée), nombre de
+fichiers, succès, et **occurrence d'interaction** humaine par étape (taux
+glissant `k/N`). Ne lance aucune collecte.
+
+Les **étapes** affichées (Login / Opérations / Soldes…) suivent le vocabulaire des fetchers. « **Login** » = phase d'**authentification complète** (identification + éventuels 2FA / CAPTCHA / écrans intermédiaires), cf. `Compta.md` ANNEXE B.
+
+```
+./tool_fetch_profile.py              # résumé (sites, runs, dernier état)
+./tool_fetch_profile.py --report     # dérives du dernier run vs baseline
+./tool_fetch_profile.py --show SITE   # baseline détaillée d'un site
 ```
 
 ---

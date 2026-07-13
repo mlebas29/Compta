@@ -54,7 +54,7 @@ Une supervision reste nécessaire ; par exemple pour compléter la catégorisati
 
 ## Sites pris en charge
 
-Compta est livré avec **12 sites publics** :
+Compta est livré avec **11 sites publics** :
 
 | Site | Nature |
 |---|---|
@@ -69,7 +69,6 @@ Compta est livré avec **12 sites publics** :
 | AMAZON | Carte cadeau Amazon |
 | BTC | Wallets Bitcoin (adresses publiques) |
 | XMR | Wallets Monero (nœud local requis) |
-| MANUEL | Saisie manuelle (créances, biens, sites sans collecte) |
 
 Les connecteurs crypto et multidevises (Kraken, Wise, BTC, XMR, eToro…) sont utilisables tels quels. Les connecteurs bancaires (SOCGEN, NATIXIS…) dépendent du profil client de la banque ; ce profil est pris en compte via les paramètres techniques des comptes (GUI création de compte). Les restrictions éventuelles propres à chaque site figurent dans sa description (GUI onglet Sites).
 
@@ -81,13 +80,13 @@ La collecte est déclenchée pour les sites qui auront été sélectionnés. Un 
 
 Chaque site est décrit dans l'application (Onglet Sites). On y trouve notamment une procédure manuelle de secours pour la collecte et des indications pour les procédures 2FA.
 
-Pour certains sites le navigateur Chrome est rendu visible afin de permettre une **intervention manuelle** au moment de la connexion; par exemple saisie d'un code dans une page, ou résolution d'un CAPTCHA. Cf. ANNEXE B
+- **Interaction** - Lorsqu'un site nécessite une action humaine, l'onglet Exécution la signale visuellement (alerte 2FA/CAPTCHA).
 
-Afin d'optimiser le temps de collecte, les sites **sans 2FA** (services par interface de programmation, ou comptes sans double authentification) sont collectés **en parallèle**, et pendant le traitement des autres sites avec 2FA (une à la fois). 
+- **Visibilité de navigation** - Pour une **action en fenêtre** — saisie d'un code, résolution d'un CAPTCHA, ou login manuel *dans la page* — le navigateur Chrome est rendu visible. Une **2FA mobile** (validation sur le téléphone) ne nécessite aucune fenêtre. (Cf. ANNEXE B)
 
-> Le classement parallèle/séquentiel est **automatique** mais tout site peut être ajouté dans le groupe parallèle. Cependant, lorsque des sites interactifs sont placés dans le groupe parallèle, il y a des risques d'entrelacement des dialogues avec les sites du groupe séquentiel. Sans danger mais potentiellement déroutant pour l'utilisateur.
+- **Parallélisme** - Afin d'optimiser le temps de collecte, plusieurs sites sont collectés en parallèle, pendant le traitement des autres sites à **interaction humaine** (2FA, un à la fois).  Le classement parallèle/séquentiel est prédéfini (Cf. ANNEXE B) mais tout site peut être ajouté dans le groupe parallèle (Cf. ANNEXE C).
 
-
+- **Profilage** -  À chaque collecte, l'App tient à jour un profil de navigation qui sert à repérer qu'un site a **changé de comportement** — une étape qui disparaît ou s'ajoute, une durée qui explose, un fichier attendu manquant, une connexion devenue soudain interactive. Le profil est consultable hors ligne.
 
 ## Import
 
@@ -114,6 +113,8 @@ L'App fait une recherche d'appariement sur toute opération éligible (Réf="-" 
 En cas d'ambiguïté (plusieurs candidats indiscernables), les opérations restent non appariées pour vérification manuelle.
 
 Les seuils (délai max, tolérance montants) sont paramétrables dans l'App  (onglet Paramètres).
+
+Certaines opérations prédéfinies peuvent être appariées automatiquement (onglet Paramètres).
 
 ## Cotations
 
@@ -224,20 +225,25 @@ L'App affiche en permanence une barre de statut en bas de fenêtre avec deux zon
 - Sites orphelins dans la configuration JSON
 - Catégories absentes du Budget
 
-# ANNEXE B - Récap headed
+# ANNEXE B - Comportement de collecte par site
 
-Tous les scripts démarrent en **headless** (fenêtre du navigateur invisible). Bascule headed selon le contexte :
+Deux axes **indépendants** gouvernent la collecte de chaque site :
 
-| Site | Déclencheur headed | Interaction utilisateur |
-|------|-------------------|----------------------|
-| **eToro** | Login requis (session expirée) | CAPTCHA et/ou code 2FA dans Chrome |
-| **Wise** | Login requis (session expirée) | Mobile 2FA + email 2FA (clipboard) |
-| **Kraken** | Cloudflare Turnstile (CAPTCHA) | Cocher "humain", puis 2FA email (clipboard) |
-| **BOURSOBANK/SOCGEN/NATIXIS/DEGIRO** | Selon script (2FA, OCR...) | Variable |
+- **Parallélisme** — *parallèle* (collecté en même temps que les autres) ou *séquentiel* (humain requis pendant : 2FA/CAPTCHA/code → un à la fois). Tout site peut être forcé parallèle (cf. ANNEXE C).
+- **Fenêtre** — les fetchers démarrent **headless** (invisible). Une fenêtre n'apparaît que pour une **action en fenêtre** (saisie d'un code, CAPTCHA, login manuel — *dans la page Chrome*) ; une **2FA mobile** (validation sur le téléphone) se fait **sans fenêtre**. Dans tous les cas, l'onglet Exécution **notifie** (alerte 2FA/CAPTCHA). L'ouverture d'une fenêtre Chrome pour un site persiste jusqu'à la fin de collecte du site.
 
-- Si session active (profil persistant) : reste headless, pas d'interaction
-- Wise : clipboard surveille liens wise.com, ouvre dans nouvel onglet
-- Kraken : clipboard surveille liens kraken.com, navigue dans même onglet
+| Groupe | Sites | Parallélisme | Fenêtre visible | Action utilisateur |
+|---|---|---|---|---|
+| **1. Sans navigateur** (API/RPC) | BTC, XMR | **parallèle** | — | aucune |
+| **2. Navigateur, sans interaction** | NATIXIS | séquentiel par défaut | jamais | aucune (login auto, pas de 2FA) |
+| **3. Repli visible automatique** | AMAZON, eToro, Kraken, PayPal, Wise | séquentiel par défaut | à la demande | **action en fenêtre** : login manuel / CAPTCHA / code |
+| **4. Headless + 2FA mobile** | BOURSOBANK, SOCGEN, DEGIRO | séquentiel par défaut | seulement si l'auto-login échoue (filet) | **2FA mobile** (téléphone) ; login manuel en fenêtre en secours |
+
+**Groupe 3** — fenêtre à la volée quand le site réclame une action *dans la page*, puis poursuite. Wise/Kraken : surveillance du presse-papier pour les liens e-mail (Wise ouvre un nouvel onglet, Kraken navigue dans le même).
+
+**Groupe 4** — login **automatique** (identifiants chiffrés ; clavier virtuel OCR pour les deux banques) + **2FA mobile** (validation sur le téléphone) → pas de fenêtre en régime normal ; le **filet** n'ouvre une fenêtre que si l'auto-login est impossible (identifiants absents, site modifié).
+
+> **Connexion** (« Login ») = authentification **complète** d'un site : identification (identifiants) + éventuels **2FA** / **CAPTCHA** / écrans intermédiaires — pas seulement la saisie des identifiants.
 
 # ANNEXE C - Configuration initiale
 

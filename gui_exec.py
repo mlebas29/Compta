@@ -162,6 +162,8 @@ class ExecMixin:
                                 command=self._startup_check)
         outils_menu.add_command(label='Contrôles classeur',
                                 command=self._exec_controles)
+        outils_menu.add_command(label='Profil de collecte',
+                                command=self._exec_profile)
 
         fix_menu = tk.Menu(outils_menu, tearoff=0)
         fix_menu.add_command(label='Vérifier (numériques)',
@@ -496,6 +498,13 @@ class ExecMixin:
         if self._exec_verbose_var.get():
             cmd.append('-v')
         self._exec_run(cmd, 'Contrôles classeur')
+
+    def _exec_profile(self):
+        # Résumé par défaut (rc=0 toujours → statut « ✓ Terminé »). Le --report
+        # (dérives) renvoie 1 sur dérive → s'afficherait « ❌ Erreur » ici : gardé
+        # au CLI tant que ce contrat de code retour n'est pas tranché.
+        cmd = [str(self.config_path.parent / 'tool_fetch_profile.py')]
+        self._exec_run(cmd, 'Profil de collecte')
 
     def _exec_fix_formats(self, apply_changes, with_apparence):
         if apply_changes:

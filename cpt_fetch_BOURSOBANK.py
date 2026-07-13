@@ -172,6 +172,14 @@ class BbFetcher(BaseFetcher):
                     continue
                 else:
                     self.logger.error(f"Échec après {max_retries} tentatives")
+                    # Filet : auto-login OCR épuisé → login manuel VISIBLE.
+                    if self.prompt_manual_login(
+                            f"{self.base_url}/connexion/",
+                            lambda: '/connexion' not in self.page.evaluate("window.location.href")):
+                        # une sécurisation peut suivre (comme en session active)
+                        if '/securisation' in self.page.evaluate("window.location.href"):
+                            return self._handle_securisation()
+                        return True
                     return False
             else:  # 'error'
                 self.logger.error("Erreur fatale (non liée à l'OCR)")

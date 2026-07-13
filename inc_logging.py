@@ -183,11 +183,13 @@ class Logger:
             self._step_human += now - self._await_start
             self._await_start = None
         dur = (now - self._step_start) - self._step_human
-        self._steps.append((self._step_label, max(0.0, dur)))
+        interacted = self._step_human > 0  # attente humaine survenue = interaction (2FA/CAPTCHA/login)
+        self._steps.append((self._step_label, max(0.0, dur), interacted))
         self._step_label = None
 
     def steps(self):
-        """Renvoie [(label, durée_s)] en clôturant l'étape encore ouverte.
+        """Renvoie [(label, durée_machine_s, interacted)] en clôturant l'étape
+        encore ouverte (`interacted` = une attente humaine a eu lieu dedans).
         Idempotent : une 2e lecture ne ré-ajoute pas la dernière."""
         self._close_step()
         return self._steps

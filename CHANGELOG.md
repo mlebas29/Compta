@@ -9,6 +9,19 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 
 Les trois derniers sont spécifiques au mode assisté ; 📘 concerne le mode classeur.
 
+## v5.18.0
+| 2026-07-13 | Collecte améliorée sur plusieurs axes |
+| ---------- | ------------------------------------- |
+
+**Détail :**
+
+- **Profil de collecte** — à chaque collecte, l'App mémorise le comportement de chaque site (durée de chaque étape *hors* temps de tes validations, fichiers produits, succès, occurrence d'une 2FA/CAPTCHA) et signale s'il **change de comportement** : étape qui apparaît ou disparaît, durée qui explose, fichier attendu manquant, connexion devenue soudain interactive. Consultable via **onglet Exécution → Outils → « Profil de collecte »**, ou en ligne de commande `tool_fetch_profile.py`.
+- **Notification d'action requise** — l'onglet Exécution **flashe et sonne** dès qu'un site attend une action de ta part (2FA, CAPTCHA), même quand le navigateur est invisible (headless).
+- **Connexion plus robuste** — si la connexion automatique échoue (identifiants absents, site modifié) sur BoursoBank / SOCGEN / DEGIRO, une **fenêtre s'ouvre pour un login manuel** au lieu d'abandonner la collecte.
+- **Corrections de collecte** — **eToro** : le relevé « Réserve » d'un jour pas encore généré n'est plus annulé par erreur (collecte partielle corrigée). **Kraken** : un export déjà présent mais **périmé** n'est plus réutilisé (opérations manquantes) — l'App en régénère un à jour.
+- **Documentation collecte** — révisée (Compta.md, ANNEXE B « Comportement de collecte par site »).
+- **Réglage `dump_steps`** — devenu facultatif : plus d'avertissement « clé manquante » au démarrage s'il est absent de `config.ini`.
+
 ## v5.17.0
 | 2026-07-12 | Collecte plus rapide (parallélisée) · correction NATIXIS |
 | ---------- | -------------------------------------------------------- |

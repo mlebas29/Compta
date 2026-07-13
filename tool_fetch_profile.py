@@ -5,6 +5,10 @@ Répond à « le site a-t-il changé de comportement ? » en comparant le dernie
 de chaque fetcher à sa baseline glissante machine-locale (logs/fetch_profiles.json,
 alimentée par inc_fetch.fetch_main). Aucune collecte n'est lancée : lecture seule.
 
+Étapes affichées (Login / Opérations / Soldes…) = vocabulaire des fetchers ;
+« Login » = authentification complète (identification + 2FA / CAPTCHA / écrans
+intermédiaires), pas seulement la saisie des identifiants. Cf. Compta.md ANNEXE B.
+
 Usage :
   tool_fetch_profile.py                # résumé (sites, runs, dernier état)
   tool_fetch_profile.py --report       # dérives du dernier run vs baseline
@@ -70,7 +74,9 @@ def cmd_show(data, site):
     for label, s in p.get("steps", {}).items():
         med = s.get("median", "?")
         samples = ", ".join(str(x) for x in s.get("samples", []))
-        print(f"  {label:<40}{str(med) + 's':>9}  [{samples}]")
+        inter = s.get("interactions", [])
+        itag = f"  ⏳ interactif {sum(inter)}/{len(inter)}" if sum(inter) else ""
+        print(f"  {label:<40}{str(med) + 's':>9}  [{samples}]{itag}")
     run = p.get("last_run")
     if run:
         print(f"\n  Dernier run : {run['files']} fichier(s), "

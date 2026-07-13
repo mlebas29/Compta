@@ -326,6 +326,36 @@ class BaseFetcher:
         self._headed = True
         self.launch_browser()
 
+    def prompt_manual_login(self, nav_url, connected_check, timeout_s=180):
+        """Filet quand l'auto-login échoue (credentials absents, sélecteur cassé,
+        OCR raté) : rend la fenêtre VISIBLE si on tournait headless, re-navigue
+        vers `nav_url`, et attend que l'utilisateur se connecte à la main. Sans ce
+        filet, un fetcher headless resterait invisible → l'humain notifié (🔔) n'a
+        pas de fenêtre pour agir.
+
+        `connected_check` : callable() -> bool, vrai une fois connecté (à fournir
+        par le site : son propre indicateur de session active). Renvoie True si
+        connecté avant `timeout_s`, False sinon. Best-effort (une exception du
+        check n'interrompt pas l'attente)."""
+        if not (self.debug or self._headed):
+            self.relaunch_headed()
+        try:
+            self.page.goto(nav_url, wait_until="domcontentloaded")
+        except Exception:
+            pass
+        self.logger.alert("CONNEXION REQUISE — connecte-toi dans la fenêtre Chrome")
+        start = time.monotonic()
+        while time.monotonic() - start < timeout_s:
+            try:
+                if connected_check():
+                    self.logger.user_done()
+                    return True
+            except Exception:
+                pass
+            time.sleep(2)
+        self.logger.error(f"Timeout login manuel ({timeout_s}s)")
+        return False
+
     def close(self):
         """Ferme le navigateur proprement."""
         try:
@@ -498,7 +528,7 @@ def fetch_main(fetcher_class, description='', add_arguments=None, pre_run=None):
             import inc_fetch_profile
             steps = fetcher.logger.steps()
             if not steps:  # fetcher non instrumenté → au moins la durée totale
-                steps = [("Collecte", time.monotonic() - _t0)]
+                steps = [("Collecte", time.monotonic() - _t0, False)]
             inc_fetch_profile.record_run(
                 BASE_DIR, fetcher.site_config_section,
                 steps, fetcher.downloads, success)

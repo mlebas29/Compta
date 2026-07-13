@@ -187,11 +187,18 @@ class SgFetcher(BaseFetcher):
         # Cas 3 : page de login
         login_field = self.page.locator("#user_id")
         if login_field.count() > 0:
-            return self._try_login_once(username, password)
+            if self._try_login_once(username, password):
+                return True
+            # Filet : auto-login OCR échoué → login manuel VISIBLE.
+            return self.prompt_manual_login(
+                download_url,
+                lambda: self.page.locator("#compte").count() > 0)
 
         # Cas inconnu
         self.logger.error(f"Page inattendue: {current_url}")
-        return False
+        return self.prompt_manual_login(
+            download_url,
+            lambda: self.page.locator("#compte").count() > 0)
 
     def _try_login_once(self, username, password):
         """Tentative de connexion complète : identifiant + clavier virtuel + 2FA.

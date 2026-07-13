@@ -175,12 +175,22 @@ class DegiroFetcher(BaseFetcher):
             self.logger.info("Déjà connecté")
             return True
 
-        # Remplir le formulaire de login
+        # Remplir le formulaire de login (auto GPG). En régime normal, cela réussit
+        # → seul le 2FA push mobile reste (géré par _wait_for_2fa, sans fenêtre).
         if not self._fill_login():
-            # Login manuel requis
-            self.logger.alert("CONNEXION REQUISE — Connecte-toi dans Chrome puis valide sur mobile")
+            # Chemin DÉGRADÉ : auto-login impossible (credentials absents ou
+            # sélecteur cassé) → il faut un login manuel DANS la page. Repli
+            # VISIBLE pour que la fenêtre soit utilisable (sinon hang en headless).
+            if not (self.debug or self._headed):
+                login_url = self.page.evaluate("window.location.href")
+                self.relaunch_headed()
+                try:
+                    self.page.goto(login_url, wait_until="domcontentloaded")
+                except Exception:
+                    pass
+            self.logger.alert("CONNEXION REQUISE — connecte-toi dans la fenêtre Chrome (auto-login indisponible)")
 
-        # Attendre 2FA mobile
+        # Attendre la connexion (login manuel éventuel) puis le 2FA mobile
         return self._wait_for_2fa()
 
     def _fill_login(self):
