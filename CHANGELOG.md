@@ -9,6 +9,19 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 
 Les trois derniers sont spécifiques au mode assisté ; 📘 concerne le mode classeur.
 
+## v5.19.0
+| 2026-07-13 | Collecte fiabilisée |
+| ---------- | ------------------- |
+
+**Détail :**
+
+- **Fin des collectes figées 5 min** — quand un site (NATIXIS, BoursoBank) figeait la fermeture du navigateur après avoir pourtant tout récupéré, la collecte attendait 5 min avant d'abandonner. La fermeture est maintenant **bornée à 20 s** (abandon propre, collecte comptée réussie, créneau libéré). Générique.
+- **Impression PDF bornée** — plus de blocage indéfini si une page ne répond pas (NATIXIS/SOCGEN/eToro/BoursoBank).
+- **BoursoBank réparé** — l'export compte courant / livret (cassé sur macOS suite à un changement côté banque) repasse ; un compte **sans mouvement** est traité comme succès (rien à exporter), plus comme une erreur.
+- **PDF de solde non bloquant** — un PDF de soldes manqué (NATIXIS, BoursoBank) n'échoue plus la collecte (soldes recalculés à l'import + alerte si écart).
+- **Diagnostic plus sûr** — une capture de diagnostic ne peut plus, elle-même, faire échouer une collecte.
+- **Réglages collecte par site** *(optionnel, secours)* — nouvelles cases « Fenêtre visible » et « Collecte en parallèle » (onglet Sites), par poste.
+
 ## v5.18.1
 | 2026-07-13 | Correctif : crash au démarrage sur Python 3.14 |
 | ---------- | ----------------------------------------------- |
