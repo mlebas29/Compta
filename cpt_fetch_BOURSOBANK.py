@@ -912,21 +912,17 @@ class BbFetcher(BaseFetcher):
             target_name = f"export_{account_name}.csv"
             target_path = self.dropbox_dir / target_name
 
-            # Dispatch OS-aware (doctrine anti-régression, cf. KRAKEN) — ne
-            # jamais choisir un chemin CONTRE l'autre :
-            #   • Linux : soumission navigateur (#movementSearch_submit) + capture
-            #     du download. BoursoBank ne sert le CSV (Content-Disposition:
-            #     attachment) qu'à une vraie soumission ; une requête HTTP directe
-            #     (GET/POST) retombe sur du HTML. Chemin validé Linux.
-            #   • Mac : requête HTTP directe — l'event download Playwright ne se
-            #     déclenchait pas sur Chromium Mac (cf. journal portage). Chemin
-            #     INCHANGÉ, donc ce correctif Linux ne peut pas régresser Mac.
-            #     (À revérifier sur Mac : BoursoBank semble avoir basculé l'export
-            #     en POST/redirect, ce qui casserait aussi l'HTTP côté Mac.)
-            if sys.platform == 'darwin':
-                ok = self._export_http(target_path, account_name, start_date, end_date)
-            else:
-                ok = self._export_browser_download(target_path, account_name)
+            # Export par soumission RÉELLE du formulaire (#movementSearch_submit)
+            # + capture du download, sur TOUS les OS (s.205). BoursoBank a basculé
+            # l'export des comptes en POST/redirect : l'ancien chemin Mac (requête
+            # HTTP directe _export_http) retombe désormais sur du HTML → garde-fou
+            # → échec (compte_principal/livret restaient bloqués). La soumission
+            # navigateur sert le CSV (Content-Disposition: attachment) ET gère le
+            # cas « compte vide » (bandeau « Aucune opération »). BB tournant
+            # headed sur Mac, l'event download s'y déclenche normalement.
+            # NB : export_titres_complete garde son HTTP direct (endpoints titres
+            # non migrés, toujours fonctionnels).
+            ok = self._export_browser_download(target_path, account_name)
 
             if not ok:
                 self._dump_page_debug(f'download_fail_{account_name}', force=True)
@@ -986,27 +982,6 @@ class BbFetcher(BaseFetcher):
             return False
         finally:
             self.page.remove_listener("download", on_download)
-
-    def _export_http(self, target_path, account_name, start_date, end_date):
-        """[Mac] Export via requête HTTP directe (GET), l'event download
-        Playwright ne se déclenchait pas sur Chromium Mac (cf. journal portage).
-        Chemin d'origine conservé tel quel pour ne pas régresser Mac. NB : à
-        revérifier — BoursoBank semble avoir basculé l'export en POST/redirect,
-        auquel cas l'HTTP renverra du HTML (capté par le garde-fou de
-        _fetch_download) et il faudra aligner Mac sur le clic navigateur."""
-        form_action = self.page.evaluate("""
-            () => { const f = document.querySelector('form'); return f ? f.action : null; }
-        """)
-        if not form_action:
-            self.logger.error("  Formulaire export non trouvé")
-            return False
-        fetch_url = (
-            f"{form_action}"
-            f"?movementSearch%5BfromDate%5D={start_date}"
-            f"&movementSearch%5BtoDate%5D={end_date}"
-            f"&movementSearch%5Bformat%5D=CSV"
-        )
-        return self._fetch_download(fetch_url, target_path, account_name)
 
     def export_titres_complete(self):
         """Export positions + mouvements titres en une seule visite.
