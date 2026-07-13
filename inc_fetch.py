@@ -27,6 +27,7 @@ import re
 import argparse
 import base64
 import configparser
+from contextlib import contextmanager
 from pathlib import Path
 
 import inc_config_init  # noqa: F401  — auto-création des fichiers config user manquants
@@ -246,6 +247,30 @@ class BaseFetcher:
         except Exception as e:
             self.logger.debug(f"Nettoyage storage CDP: {e}")
 
+    @contextmanager
+    def _time_limit(self, seconds, what):
+        """Borne une section hang-prone par SIGALRM (thread principal du
+        sous-process de collecte, cf. cpt_fetch.Popen par site → Mac + Linux).
+        Lève TimeoutError au-delà de `seconds`. No-op si SIGALRM indisponible.
+        Empêche qu'un appel bloquant SANS timeout interne (CDP printToPDF…) ne
+        pende jusqu'au kill orchestrateur (5 min). PEP 475 : le handler qui lève
+        interrompt le syscall bloqué sans retry. (Cousin du watchdog close().)"""
+        import signal
+        if not hasattr(signal, 'SIGALRM'):
+            yield
+            return
+
+        def _on_timeout(signum, frame):
+            raise TimeoutError(what)
+
+        old = signal.signal(signal.SIGALRM, _on_timeout)
+        signal.alarm(int(seconds))
+        try:
+            yield
+        finally:
+            signal.alarm(0)
+            signal.signal(signal.SIGALRM, old)
+
     def save_page_as_pdf(self, filename):
         """Imprime la page courante en PDF via CDP Page.printToPDF.
 
@@ -262,10 +287,15 @@ class BaseFetcher:
 
             self.dropbox_dir.mkdir(parents=True, exist_ok=True)
             cdp = self.context.new_cdp_session(self.page)
-            result = cdp.send("Page.printToPDF", {
-                "printBackground": True,
-                "preferCSSPageSize": True,
-            })
+            # printToPDF CDP n'a pas de timeout interne → borné (30s) pour qu'une
+            # page qui ne répond pas devienne un échec PDF LOCAL rapide (except
+            # plus bas → None) plutôt qu'un hang jusqu'au kill orchestrateur
+            # 5 min. Générique : NATIXIS/SOCGEN/ETORO/BOURSOBANK y passent (#6).
+            with self._time_limit(30, f"printToPDF {filename} dépassé"):
+                result = cdp.send("Page.printToPDF", {
+                    "printBackground": True,
+                    "preferCSSPageSize": True,
+                })
             pdf_data = base64.b64decode(result['data'])
             cdp.detach()
 
