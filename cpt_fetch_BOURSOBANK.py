@@ -1225,9 +1225,10 @@ class BbFetcher(BaseFetcher):
             self.logger.error("Échec connexion")
             return False
 
-        # Collecte des données
+        # Collecte des données (3 sources gatantes : compte, livret, titres ;
+        # le PDF accueil/soldes est non-fatal — cf. plus bas, #158)
         success_count = 0
-        total_count = 4
+        total_count = 3
 
         # Extraire les URLs des comptes depuis la page accueil
         self.step("Opérations")
@@ -1289,9 +1290,12 @@ class BbFetcher(BaseFetcher):
         if self.export_titres_complete():
             success_count += 1
 
-        # PDF page accueil (soldes)
-        if self.print_accueil_pdf():
-            success_count += 1
+        # PDF page accueil (soldes) — NON-FATAL (#158) : les soldes sont
+        # recalculés à l'import et une alerte se déclenche si l'écart est
+        # notable. Un accueil manqué ne doit pas faire échouer BB (≠ les 3
+        # sources d'opérations). On le tente, on log si absent, sans gater.
+        if not self.print_accueil_pdf():
+            self.logger.warning("PDF accueil (soldes) manquant (non-bloquant : recalculé + alerte import)")
 
         # Vérifier les fichiers téléchargés
         time.sleep(2)
