@@ -82,7 +82,7 @@ Chaque site est décrit dans l'application (Onglet Sites). On y trouve notamment
 
 - **Interaction** - Lorsqu'un site nécessite une action humaine, l'onglet Exécution la signale visuellement (alerte 2FA/CAPTCHA).
 
-- **Visibilité de navigation** - Pour une **action en fenêtre** — saisie d'un code, résolution d'un CAPTCHA, ou login manuel *dans la page* — le navigateur Chrome est rendu visible. Une **2FA mobile** (validation sur le téléphone) ne nécessite aucune fenêtre. Un site peut aussi être **forcé visible** (case « Fenêtre visible » de l'onglet Sites) là où le mode invisible casse une opération sur une machine donnée. (Cf. ANNEXE B, et ANNEXE C §5 pour le réglage)
+- **Visibilité de navigation** - Pour une **action en fenêtre** — saisie d'un code, résolution d'un CAPTCHA, ou login manuel *dans la page* — le navigateur Chrome est rendu visible. Une **2FA mobile** (validation sur le téléphone) ne nécessite aucune fenêtre. Un site peut aussi être **forcé visible** (case « Fenêtre visible » de l'onglet Sites) (Cf. ANNEXE C)
 
 - **Parallélisme** - Afin d'optimiser le temps de collecte, plusieurs sites sont collectés en parallèle, pendant le traitement des autres sites à **interaction humaine** (2FA, un à la fois).  Le classement parallèle/séquentiel est prédéfini (Cf. ANNEXE B) mais tout site peut être ajouté dans le groupe parallèle (Cf. ANNEXE C).
 
@@ -331,9 +331,9 @@ Certains sites possèdent des paramètres modifiables :
 
 - **CLI Monero**, **Dossier wallets**, **Timeout wallet** : pour la collecte Monero
 
-- **Collecte en parallèle** (case à cocher) : force le site dans le groupe de collecte parallèle ; décoché, le classement parallèle/séquentiel est **déduit** automatiquement (cf. ANNEXE B).
+- **Collecte en parallèle** (case à cocher) : force le site dans le groupe de collecte parallèle.
 
-- **Fenêtre visible** *(headed)* (case à cocher) : force ce site en navigateur **visible**, même quand l'App tourne en mode invisible (*headless*). Utile là où le mode invisible casse une opération **sur une machine donnée** (ex. impression PDF ou export qui échoue sur macOS mais passe sur Linux). Réglage **par poste** — chaque machine a sa propre configuration. Décoché = mode par défaut (invisible).
+- **Fenêtre visible** *(headed)* (case à cocher) : force ce site en navigateur **visible** — réglage **par poste**.
 
 ## 6. Paramètres (onglet Paramètres)
 
