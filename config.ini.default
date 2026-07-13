@@ -51,7 +51,8 @@ DEBUG = false
 #   off  = désactivé
 #   dom  = HTML seul (quasi gratuit) — défaut
 #   full = HTML + capture d'écran PNG (plus lent)
-dump_steps = dom
+# Facultatif : absente ⟹ dom. Décommenter seulement pour forcer off/full.
+#dump_steps = dom
 
 # ===== NOMBRE DE SESSIONS À CONSERVER =====
 # Définit le nombre de sessions archivées à garder (défaut: 10)
