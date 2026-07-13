@@ -217,7 +217,9 @@ def process_epargne_csv(file_path):
         lines = f.readlines()
 
     if len(lines) < 3:
-        print("⚠ Fichier CSV trop court (< 3 lignes)", file=sys.stderr)
+        # Compte sans mouvement sur la période (SG exporte 1 CSV/compte, en-tête
+        # seule, ~5 vides/run) → aucune opération à formatter. Cas légitime : on
+        # renvoie l'en-tête seul, sans warning (bruit, zéro impact — #132).
         return "Date;Libellé;Montant;Devise;Equiv;Réf;Catégorie;Compte;Commentaire\n"
 
     # Ligne 1: Extraire le numéro de compte
