@@ -712,7 +712,7 @@ class ExecMixin:
 
     def _exec_2fa_alert(self):
         """Alerte visuelle + sonore sur toute demande d'action humaine (marqueur
-        \ud83d\udd14 d'alert() : 2FA, CAPTCHA, login manuel, validation mobile\u2026)."""
+        \U0001f514 d'alert() : 2FA, CAPTCHA, login manuel, validation mobile\u2026)."""
         self._exec_status_var.set('\U0001f514 Action requise \u2014 2FA / CAPTCHA')
         self._exec_2fa_flashing = True
         self._exec_2fa_flash(True)

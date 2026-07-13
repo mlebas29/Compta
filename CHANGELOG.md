@@ -9,6 +9,14 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 
 Les trois derniers sont spécifiques au mode assisté ; 📘 concerne le mode classeur.
 
+## v5.18.1
+| 2026-07-13 | Correctif : crash au démarrage sur Python 3.14 |
+| ---------- | ----------------------------------------------- |
+
+**Détail :**
+
+- **Démarrage réparé (Python 3.14)** — un caractère emoji mal encodé dans le code de l'onglet Exécution (introduit en v5.18.0) empêchait l'App de démarrer sur les environnements **Python 3.14** (« UnicodeEncodeError: surrogates not allowed »). Corrigé. Sans effet sur les autres versions de Python ni sur les données.
+
 ## v5.18.0
 | 2026-07-13 | Collecte améliorée sur plusieurs axes |
 | ---------- | ------------------------------------- |
