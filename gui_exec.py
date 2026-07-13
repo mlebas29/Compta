@@ -693,7 +693,7 @@ class ExecMixin:
                     return
                 self._exec_output.insert('end', item)
                 self._exec_output.see('end')
-                if 'VALIDATION 2FA' in item or 'VALIDATION REQUISE' in item or 'CONNEXION REQUISE' in item:
+                if '\U0001f514' in item:  # 🔔 = marqueur alert() (2FA/CAPTCHA/login)
                     self._exec_2fa_alert()
                 elif self._exec_2fa_flashing and item.strip():
                     self._exec_2fa_stop()
@@ -702,8 +702,9 @@ class ExecMixin:
         self.root.after(100, self._exec_poll)
 
     def _exec_2fa_alert(self):
-        """Alerte visuelle + sonore lors d'une demande de validation 2FA."""
-        self._exec_status_var.set('\U0001f513 Validation 2FA \u2014 action requise')
+        """Alerte visuelle + sonore sur toute demande d'action humaine (marqueur
+        \ud83d\udd14 d'alert() : 2FA, CAPTCHA, login manuel, validation mobile\u2026)."""
+        self._exec_status_var.set('\U0001f514 Action requise \u2014 2FA / CAPTCHA')
         self._exec_2fa_flashing = True
         self._exec_2fa_flash(True)
         # Auto-stop après 30 s

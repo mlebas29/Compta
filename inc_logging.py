@@ -58,9 +58,13 @@ class Logger:
         # Profil de navigation (s.202) : étapes chrono-métrées (label, durée) →
         # baseline par site (inc_fetch_profile) pour détecter un changement de
         # comportement du site. Alimenté par step(), relu par steps() en fin de run.
+        # _step_human accumule l'attente humaine (2FA/CAPTCHA, relevée par
+        # user_done) SURVENUE DANS l'étape courante → retranchée à la clôture pour
+        # que la durée soit du temps MACHINE (le 2FA humain est du bruit, cf. #147).
         self._steps = []
         self._step_start = None
         self._step_label = None
+        self._step_human = 0.0
 
         # Créer le répertoire du journal si nécessaire
         if self.journal_file and not self.journal_file.parent.exists():
@@ -149,9 +153,10 @@ class Logger:
         No-op si aucune attente n'est ouverte."""
         if self._await_start is None:
             return
-        waited = int(round(time.monotonic() - self._await_start))
+        elapsed = time.monotonic() - self._await_start
+        self._step_human += elapsed        # retranché de l'étape à sa clôture
         self._await_start = None
-        self._log(f"Attente humaine : {waited}s", prefix="⏳",
+        self._log(f"Attente humaine : {int(round(elapsed))}s", prefix="⏳",
                   display=True, to_journal=True)
 
     def step(self, label: str):
@@ -160,20 +165,31 @@ class Logger:
         nouvelle, et journalise le label sous le marqueur ▶ (remplace le info()
         de début de phase — zéro ligne en plus). Relu par steps() en fin de run.
         Le label est la CLÉ de baseline → le garder STABLE dans le temps."""
-        now = time.monotonic()
-        if self._step_label is not None:
-            self._steps.append((self._step_label, now - self._step_start))
+        self._close_step()
         self._step_label = label
-        self._step_start = now
+        self._step_start = time.monotonic()
+        self._step_human = 0.0
         self._log(label, prefix="▶", display=True, to_journal=True, simple=True)
+
+    def _close_step(self):
+        """Clôt l'étape ouverte : durée MACHINE = wall-clock − attente humaine
+        survenue dedans (repli d'une attente encore armée, ex. login timeout sans
+        user_done, pour ne pas la laisser fuiter dans la durée). No-op si aucune
+        étape ouverte."""
+        if self._step_label is None:
+            return
+        now = time.monotonic()
+        if self._await_start is not None:      # attente jamais close (échec 2FA)
+            self._step_human += now - self._await_start
+            self._await_start = None
+        dur = (now - self._step_start) - self._step_human
+        self._steps.append((self._step_label, max(0.0, dur)))
+        self._step_label = None
 
     def steps(self):
         """Renvoie [(label, durée_s)] en clôturant l'étape encore ouverte.
         Idempotent : une 2e lecture ne ré-ajoute pas la dernière."""
-        if self._step_label is not None:
-            self._steps.append((self._step_label,
-                                time.monotonic() - self._step_start))
-            self._step_label = None
+        self._close_step()
         return self._steps
 
     def debug(self, message: str):

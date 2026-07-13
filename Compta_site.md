@@ -284,6 +284,86 @@ ls dropbox/FOO/                # → les fichiers téléchargés
 
 Le formatter parse les fichiers de `dropbox/FOO/`, `cpt_update.py` importe les opérations dans le classeur, archive les fichiers bruts dans `archives/FOO/`.
 
+## 6. Instrumentation & robustesse (briques `BaseFetcher`)
+
+Le squelette des §1-5 suffit à **collecter**. Cette section couvre les briques qui rendent un fetcher **robuste** (échecs diagnostiquables, sessions expirées détectées) et **instrumenté** (attentes humaines notifiées et mesurées, dérives de site détectées). Elles sont **opt-in** : un fetcher marche sans, mais un fetcher de production les câble toutes.
+
+> **Mettre à niveau un vieux fetcher** — checklist. Un fetcher écrit avant ces briques (ou copié d'un ancien gabarit) se remet à niveau en câblant, dans l'ordre :
+> 1. **`self.step(...)`** aux frontières de phase (remplace les `logger.info` d'entête) — §6.2
+> 2. **`self.logger.alert(...)` + `self.logger.user_done()`** autour de chaque 2FA/CAPTCHA/login manuel — §6.1
+> 3. **`self.reject_saved_if_html(path, label)`** après chaque download — §6.3
+> 4. **`self.relaunch_headed()`** sur besoin d'action humaine (indispensable en headless) — §6.4
+> 5. Config : migrer `requires_2fa` → `parallel` dans la section `[SITE]` — §4.5
+>
+> Les briques §6.5 (dump sur échec) et §6.6 (snapshot d'étape) sont **automatiques** : rien à câbler, elles s'activent dès que le fetcher hérite de `BaseFetcher` et passe par `fetch_main`.
+
+### 6.1 Attente humaine — `alert()` / `user_done()`
+
+Encadre **tout** moment où la collecte attend une action de l'utilisateur (2FA, CAPTCHA, validation mobile, saisie de code, login manuel) :
+
+```python
+self.logger.alert("VALIDATION 2FA — Valide sur l'appli mobile")  # AVANT l'attente
+# ... poll jusqu'à ce que la connexion soit détectée ...
+self.logger.user_done()                                          # APRÈS l'action
+```
+
+Un seul appel `alert()` par séquence suffit à armer le chrono (les alertes consécutives le partagent) ; `user_done()` le clôt. **Triple gain** :
+
+- **GUI** : la ligne `alert()` porte le marqueur `🔔` → l'onglet Exécution flashe, sonne et passe au premier plan (`gui_exec.py`). C'est **le seul signal en headless** (fenêtre invisible) — sans lui, un 2FA/CAPTCHA se solde par un hang silencieux jusqu'au timeout.
+- **Journal** : `user_done()` écrit un marqueur parsable `⏳ Attente humaine : Ns` → permet de déduire le temps machine (total − attente).
+- **Profilage** (§6.2) : la durée d'attente humaine est **retranchée** de la durée de l'étape → la baseline mesure le site, pas ta latence de réaction. Appeler `user_done()` **juste après** la résolution : si l'attente reste ouverte, la clôture d'étape la strippe grossièrement (temps machine post-action perdu, mais jamais gonflé).
+
+### 6.2 Profil de navigation — `self.step(label)`
+
+Marque chaque frontière de phase dans `run()` (remplace un `logger.info()` d'entête, zéro ligne en plus) :
+
+```python
+def run(self):
+    self.step("Login")
+    if not self.wait_for_login():
+        return False
+    self.step("Opérations")
+    self._download_operations()
+    self.step("Soldes")
+    self._fetch_balances()
+    return True
+```
+
+Chaque étape est chrono-métrée → baseline **médiane glissante par site** (`inc_fetch_profile`, store `logs/fetch_profiles.json` machine-local). Consultable via `tool_fetch_profile.py --show SITE`. Répond à « le site a-t-il changé de comportement ? » (étape nouvelle/disparue, durée qui explose, fichier manquant). **Le label est la clé de baseline ET le nom du snapshot (§6.6) → le garder STABLE** dans le temps (`"Login"`, pas `"Login v2"`).
+
+### 6.3 Garde anti-HTML — `reject_saved_if_html()`
+
+Un site sert parfois une **page de login/redirect en HTTP 200** quand la session a expiré ou que l'URL d'export a changé. L'event `download` Playwright ne porte pas de content-type : sans garde, tu sauves le HTML, et le formateur échoue plus tard sur un `KeyError` cryptique. Après chaque écriture de download :
+
+```python
+path = self.dropbox_dir / 'foo_operations.csv'
+# ... sauvegarde du download vers path ...
+if not self.reject_saved_if_html(path, "opérations"):
+    return False   # fichier HTML supprimé, erreur claire déjà loggée
+```
+
+### 6.4 Repli visible — `relaunch_headed()`
+
+Le headless est le défaut (`DEBUG=false`). Un fetcher qui a besoin d'une action humaine doit **repasser visible**, sinon la fenêtre invisible bloque l'utilisateur :
+
+```python
+if login_requis:
+    if not (self.debug or self._headed):   # déjà visible en mode DEBUG
+        self.relaunch_headed()             # ferme + relance Chrome en visible
+    self.logger.alert("CONNEXION REQUISE — Connecte-toi dans Chrome")
+    # ... attendre la connexion, puis user_done() ...
+```
+
+Sans ce repli, un fetcher qui `alert()` mais reste headless **notifie** l'utilisateur (§6.1) sans lui donner de fenêtre pour agir : la collecte n'aboutit que si la session était déjà valide.
+
+### 6.5 Diagnostic sur échec — `dump_failure()` *(automatique)*
+
+`fetch_main` appelle `dump_failure()` sur tout `run()` renvoyant `False` **et** sur toute exception : capture DOM + screenshot dans `logs/debug/<site>_echec_run.html` (+ `.png`), **même sans DEBUG**, chemin signalé en clair. Un échec « bloqué/timeout » n'est diagnosticable qu'avec ce snapshot au point d'échec. **Rien à câbler** — le fetcher en hérite. Pour capturer un point risqué précis en cours de route : `self._dump_page_debug('label', force=True)`.
+
+### 6.6 Snapshot d'étape — *(automatique)*
+
+Chaque `self.step(label)` (§6.2) capture aussi un snapshot DOM roulant du début de l'étape (cousin de §6.5 mais **sans** échec) → on a toujours le dernier état de chaque site/étape pour investiguer un changement. Gouverné par `[general] dump_steps` (`dom` par défaut · `full` ajoute le PNG, coûteux · `off`). Best-effort, jamais bloquant.
+
 ## Cas avancés
 
 ### Échanges cross-currency (Change, Achat métaux/crypto)
