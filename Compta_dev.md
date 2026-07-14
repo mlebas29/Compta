@@ -310,3 +310,22 @@ Liste complète : `requirements.txt` (Python) + `install.sh` (système).
 5. **Filtrage temporel** : `max_days_back` dans `config.ini` (défaut 90 jours) évite les doublons avec d'anciennes opérations manuelles.
 6. **Catégorisation** : patterns dans `inc_category_mappings.py` (code) + `config_category_mappings.json` (utilisateur), utilisable par tous les formateurs via `inc_categorize.categorize_operation(libelle, SITE)`.
 7. **TNR avant commit** — toute modif qui touche `cpt_format_*`, `cpt_update`, `cpt_pair`, `inc_excel_*` doit passer au moins `roundtrip` + `fast` (cf. [`Compta_tests.md`](Compta_tests.md)).
+
+## Glossaire développeur
+
+> Termes **strictement développeur**. Le vocabulaire métier et les sigles généraux (2FA, GPG, GUI, collecte, appariement…) sont dans [`Compta_glossaire.md`](Compta_glossaire.md).
+
+- **Architecture 3 tiers (Tier 1/2/3)** — collecte en trois couches indépendantes : **Tier 1** (`cpt_fetch_*`) télécharge les documents bruts, **Tier 2** (`cpt_format_*`) les convertit vers un format standard, **Tier 3** (`cpt_update`) déduplique, apparie et écrit le classeur.
+- **contrat de pipe** — l'unique point de contact Tier 2 → Tier 3 : le format texte produit par les `cpt_format_*` (9 champs pour les opérations, 4 pour les positions). Le modifier casse l'import aval.
+- **fetcher / BaseFetcher** — module de collecte d'un site (`cpt_fetch_<SITE>.py`, Tier 1), bâti sur la classe commune `BaseFetcher` ; c'est le « connecteur » côté utilisateur.
+- **UNO** — API LibreOffice (pilote un `soffice --headless`) pour lire, écrire et **recalculer** le `.xlsm` ; **obligatoire pour toute sauvegarde** (via `UnoDocument`, `inc_uno.py`).
+- **batch UNO** — mode « une session UNO pour N opérations » : les écritures sont accumulées puis appliquées en une passe (≈ ×8 vs cellule par cellule).
+- **daemon (Mac)** — processus **assistant** que la GUI lance sur macOS (où Tk et le module `uno` ne peuvent partager un même Python) : `tool_gui_cli.py` sous `python3-uno`, à qui elle délègue les éditions du classeur (requêtes JSON) ; il vit le temps de la session GUI et meurt avec elle. *Nommé « daemon » au sens large — ce n'est pas un service système Unix.*
+- **openpyxl** — bibliothèque Python pure pour lire / scanner le `.xlsm` (rapide, sans recalcul) ; **écriture interdite** — elle corrompt silencieusement les macros et certains formats.
+- **named range (NR)** — plage nommée du classeur (`OPdate`, `AVRintitulé`, `CTRL1controle`…) qui borne les tableaux ; le code réfère les cellules **par nom**, jamais par coordonnées en dur ; toute insertion/suppression UNO réajuste les bornes.
+- **sentinelles / ancres ⚓** — marqueurs délimitant le début et la fin d'un tableau à l'intérieur d'un named range (détail : [`Compta_charte.md`](Compta_charte.md)).
+- **model rows** — 2 lignes minimum conservées dans chaque tableau : si une suppression UNO retire *toutes* les lignes, le named range devient `#REF!`.
+- **format conditionnel (CF)** — mise en forme conditionnelle Excel (couleur selon la valeur) ; porte les alarmes de la feuille Contrôles (vert = OK, orange = warning, rouge = erreur).
+- **monkeypatch** — mécanisme d'extension `custom/` : un `patch_*.py` (chargé au démarrage par `inc_bootstrap`) remplace ou complète une fonction du cœur **à l'exécution**, sans modifier le code public.
+- **cellules miroirs** — `Contrôles!A1` (statut global) recopié en `C1` / `Opérations!L1` / `Plus_value!L1` à chaque save → lecture du statut par openpyxl **sans** relancer un cycle UNO.
+- **HDS** — horodatage `HDS_YYYYMMDD_HHMMSS` qui tague les fichiers archivés d'une session d'import ; support du `--fallback` (restauration du dernier import).

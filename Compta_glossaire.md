@@ -14,7 +14,10 @@ Glossaire du projet.
 - **Catégorie** — regroupement d'opérations.
 - **Poste budgétaire** — regroupement de catégories (niveau Fixe/Variable).
 - **Portefeuille / Titre** — compte de titres ; un *titre* est une valeur cotée en bourse (obligation, action, ETF).
+- **ETF** — *Exchange-Traded Fund* : fonds indiciel coté en bourse (un type de titre).
 - **Devise / Devise dérivée** — unité de valeur (EUR, USD, XAU, BTC…) ; une devise *dérivée* est définie par une formule à partir d'une autre (once → gramme d'or).
+- **wallet** — portefeuille de crypto-monnaie (BTC, XMR), identifié par ses adresses ou clés publiques ; distinct du **Portefeuille** (compte de titres).
+- **drill (devise)** — modèle du classeur où une colonne générique à menu déroulant remplace « une colonne par devise » (chantier v4.0.0).
 - **Correspondance** — règle *regex → catégorie* appliquée à l'import pour la catégorisation automatique.
 - **Collecte** — téléchargement des données depuis les sites Internet vers le dossier local `./dropbox`.
 - **dropbox** — dossier de collecte **local** (`./dropbox`) ; ⚠ sans rapport avec le service Dropbox.
@@ -47,4 +50,4 @@ Glossaire du projet.
 
 ## C. Termes développeur
 
-Les termes strictement **développeur** (UNO, named range/NR, format conditionnel/CF, monkeypatch, HDS…) sont définis dans [`Compta_dev.md`](Compta_dev.md).
+Les termes strictement **développeur** (UNO, named range/NR, format conditionnel/CF, monkeypatch, HDS…) sont définis dans le **glossaire développeur** de [`Compta_dev.md`](Compta_dev.md).
