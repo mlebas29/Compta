@@ -50,9 +50,13 @@ Le script collecte automatiquement toutes les données disponibles :
 
 **Ce qui est collecté (via URLs directes) :**
 - **CSV compte courant** : 180 jours d'historique
-- **CSV épargne** : 5 comptes d'épargne (export CSV natif SG)
-- **XLSX assurances vie** : 2 contrats (positions/supports)
-- **PDF assurances vie** : 2 contrats (opérations via impression)
+- **CSV épargne** : un export CSV natif SG par compte d'épargne
+- **XLSX assurances vie** : un fichier par contrat (positions/supports)
+- **PDF assurances vie** : un PDF d'opérations par contrat (via impression)
+- **PDF synthèse** : `Mes comptes en ligne _ SG.pdf` — tous les soldes (via impression)
+
+Le périmètre exact (nombre de comptes épargne, d'assurances vie, etc.) est
+piloté par `config_accounts.json` — il n'y a rien de figé dans le code.
 
 **Durée :** ~30-40 secondes
 
@@ -66,17 +70,20 @@ Le script collecte automatiquement toutes les données disponibles :
 ### Épargne
 
 **CSV :**
-- `Export_{numéro}*.csv` : 5 fichiers CSV (Livret A Barnabé, LDD Barnabé, etc.)
+- `Export_{numéro}*.csv` : un fichier CSV par compte d'épargne configuré
 
 ### Assurances vie
 
 **Excel (supports) :**
-- `SG_alice_supports.xlsx` : Portfolio Assurance vie Alice
-- `SG_barnabe_supports.xlsx` : Portfolio Assurance vie Barnabé
+- `SG_{file_key}_supports.xlsx` : positions d'un contrat (un fichier par contrat, `file_key` défini en config)
 
 **PDF (opérations) :**
-- `SG_alice_operations.pdf` : Opérations Assurance vie Alice
-- `SG_barnabe_operations.pdf` : Opérations Assurance vie Barnabé
+- `SG_{file_key}_operations.pdf` : opérations d'un contrat (un fichier par contrat)
+
+### Synthèse (tous comptes)
+
+**PDF :**
+- `Mes comptes en ligne _ SG.pdf` : soldes de tous les comptes SG (impression de la page Synthèse). Parsé par `process_pdf_synthese` pour produire les lignes `#Solde`.
 
 **Structure Excel supports :**
 ```
@@ -109,22 +116,17 @@ Les fichiers Excel `*_supports_*.xlsx` sont traités pour mettre à jour la feui
 
 **Mapping automatique des noms :**
 
-SG renomme parfois ses supports ; le système applique un mapping `<ancien nom>` → `<nouveau nom>` configurable. Exemple :
-- `SUPPORT EURO` → `FONDS_EUROS`
+Le renommage des supports (relevé SG → nom Plus_value) se fait en deux temps dans `process_positions` :
+- **Cas spécial en dur :** `SUPPORT EURO` → `SÉCURITÉ EUROS`.
+- **Mapping configurable :** ensuite, `support_renames` de `config_accounts.json` (correspondance exacte prioritaire, puis par préfixe). Les supports fusionnés après renommage voient leurs valorisations additionnées.
 
-**ETF agrégé :** Pour le contrat "Assurance vie Alice", calcule l'agrégat ETF = somme de tous les supports SAUF `FONDS_EUROS` et `FONDS_OBLIG`. La détection du compte utilise le nom de fichier (pattern : `alice`). Voir Compta_plus.md pour le renommage en collecte manuelle.
+**ETF agrégé (hors code public) :** le cœur public ne fait que déléguer via le hook `post_process_supports` (`cpt_format_SOCGEN.py`), un **pass-through** qui renvoie tous les supports triés alphabétiquement. La logique d'agrégat ETF (regroupement de plusieurs supports en une ligne) vit dans un monkeypatch privé `custom/patch_*.py` qui surcharge ce hook — elle n'est pas dans le dépôt public. Voir Compta_plus.md pour le renommage en collecte manuelle.
 
 ## Particularités techniques
 
 ### Downloads
 
 Téléchargements via `page.expect_download()` (Playwright). Les fichiers existants sont écrasés.
-
-### Comparaison des soldes
-
-Le mode par défaut compare les soldes HTML vs Download et avertit si divergence.
-
-**Note :** Divergence normale si opérations en attente (CB différé, virements).
 
 ## Troubleshooting
 
@@ -139,12 +141,6 @@ Le mode par défaut compare les soldes HTML vs Download et avertit si divergence
 **Cause :** Suffixe `(1)` ajouté par le navigateur
 
 **Solution :** S'assurer que les fichiers existants sont écrasés
-
-### Balance warnings
-
-**Cause :** Opérations en attente (CB différé, virements en cours)
-
-**Solution :** Normal, pas d'action requise
 
 ### Empty CSV
 

@@ -5,8 +5,8 @@
 **Type:** Compte crypto (exchange)
 **Mode:** Semi-automatique (fetch Playwright avec login interactif + 2FA email)
 **Tier 1:** `cpt_fetch_KRAKEN.py` (Playwright Chrome, profil persistant)
-**Tier 2:** `cpt_format_KRAKEN.py` (conversion CSV → CSV standard)
-**Tier 3:** `cpt_update.py` (extraction ZIP automatique + import)
+**Tier 2:** `cpt_format_KRAKEN.py` (extraction ZIP + conversion CSV → CSV standard)
+**Tier 3:** `cpt_update.py` (import — aucune logique spécifique Kraken)
 **URL:** https://www.kraken.com
 **Credentials:** GPG (`BaKr-M`)
 
@@ -29,23 +29,34 @@ Kraken gère 2 comptes séparés dans `comptes.xlsm`:
 cpt_fetch_KRAKEN.py (Playwright Chrome)
     ├─ Login GPG auto-fill + 2FA email (interactif)
     ├─ Navigation vers /c/account-settings/documents
-    ├─ Création/réutilisation exports (Registre + Soldes — plage défaut Kraken ~30 j)
+    ├─ Réutilise un export existant seulement si fin de période ≥ hier, sinon crée
+    │   un export frais (Registre + Soldes — plage défaut Kraken ~30 j)
     └─ Téléchargement 2 ZIP → dropbox/KRAKEN/
         ↓
-cpt_update.py (extraction automatique)
-    ├─ Extrait ledgers.csv dans dropbox/KRAKEN/
-    ├─ Extrait YYYY-MM-DD_balances.csv dans dropbox/KRAKEN/
-    ├─ Archive ZIP avec HDS → archives/KRAKEN/kraken-*_HDS_xxx.zip
-    └─ Pour chaque CSV:
-        ├─ Appelle cpt_format_KRAKEN.py (CSV → CSV standard temporaire)
-        ├─ Import CSV dans comptes.xlsm
-        │   ├─ ledgers.csv → Feuille Opérations (Compte Kraken EUR + Compte Kraken BTC)
-        │   └─ balances.csv → Feuille Plus_value (Compte Kraken BTC uniquement)
-        └─ Archive CSV avec HDS → archives/KRAKEN/ledgers_HDS_xxx.csv
+cpt_format_KRAKEN.py :: format_site()  (extraction + parsing)
+    ├─ Extrait les 2 ZIP dans un répertoire temporaire dropbox/KRAKEN/.kraken_temp/
+    │   (jamais dans dropbox lui-même)
+    ├─ Renomme les CSV internes selon la convention :
+    │   ├─ ledgers.csv  → operations_compte-kraken_parsed.csv
+    │   └─ *balances*.csv → positions_compte-kraken_parsed.csv
+    ├─ Parse ledgers  → opérations (Compte Kraken EUR + Compte Kraken BTC)
+    ├─ Parse balances → positions (Compte Kraken BTC uniquement)
+    └─ Supprime .kraken_temp/ en fin de traitement (shutil.rmtree)
+        ↓
+cpt_update.py (import générique, aucune référence Kraken)
+    ├─ Appelle cpt_format_KRAKEN.py (retourne opérations + positions)
+    ├─ Import dans comptes.xlsm
+    │   ├─ opérations → Feuille Opérations
+    │   └─ positions  → Feuille Plus_value
+    └─ Archive les ZIP avec HDS → archives/KRAKEN/
 ```
 
 **Important:**
-- Les 2 ZIP et les 2 CSV sont tous archivés avec le même HDS pour traçabilité
+- L'extraction ZIP est faite **par `cpt_format_KRAKEN.py`** (`extract_zips()` appelé
+  dans `format_site()`), pas par `cpt_update.py` — ce dernier n'a aucune logique
+  spécifique Kraken. Les CSV extraits vont dans un temp `.kraken_temp/` (noms internes
+  `operations_compte-kraken_parsed.csv` / `positions_compte-kraken_parsed.csv`), pas
+  des `ledgers.csv`/`balances.csv` déposés dans `dropbox/KRAKEN/`.
 - Les achats crypto génèrent 2 opérations symétriques (Réserve debit + Titres credit)
 
 ## Tier 1 - Fetch Playwright
@@ -66,12 +77,15 @@ cpt_update.py (extraction automatique)
 
 1. Lancement Chrome avec profil persistant (`launch_persistent_context`)
 2. Navigation vers `https://www.kraken.com/c` (détection session active)
+   - Si challenge **Cloudflare Turnstile** détecté et session headless → bascule en headed, attente de la résolution manuelle (cf. § CAPTCHA Cloudflare Turnstile)
 3. Si session expirée → page login :
    - Auto-fill identifiants via GPG (`credential_id = BaKr-M`)
    - 2FA email : l'utilisateur copie le lien de validation dans la fenêtre Chrome
 4. Navigation vers `/c/account-settings/documents`
 5. Pour chaque export (Registre + Soldes) :
-   - Vérification si export existant téléchargeable (réutilisation)
+   - Vérification si un export existant est téléchargeable ET **assez récent**
+     (`_find_existing_export` : fin de période ≥ hier). Si oui → réutilisation
+     (téléchargement direct). Un export présent mais périmé n'est **pas** réutilisé.
    - Sinon : création via formulaire (type, **plage par défaut Kraken ~30 j**, format CSV)
 6. Téléchargement 2 ZIP → `dropbox/KRAKEN/`
 7. Fermeture navigateur
@@ -87,6 +101,27 @@ Kraken exige la validation "nouveau device" par email lors des premières connex
 
 **Important:** Ne pas ouvrir le lien dans le navigateur par défaut (Brave) — Kraken exige que le lien soit ouvert dans le même navigateur que le login.
 
+### CAPTCHA Cloudflare Turnstile
+
+En plus du 2FA email, Kraken peut interposer un challenge **Cloudflare Turnstile**
+(« One More Step » / case « Vérifiez que vous êtes humain »), notamment sur la
+navigation vers `/c` ou vers la page documents. Le challenge bloque en mode
+headless.
+
+Gestion par le script :
+- **Détection** — `_is_cloudflare_challenge()` : texte « One More Step » /
+  « security check », ou iframe `challenges.cloudflare.com`.
+- **Bascule headed** — si le challenge apparaît en session headless,
+  `relaunch_headed()` rouvre Chrome en fenêtre visible et re-navigue.
+- **Attente résolution** — `_wait_cloudflare_resolved()` alerte l'utilisateur
+  (« Coche la case 'Vérifiez que vous êtes humain' dans Chrome ») puis poll
+  jusqu'à disparition du challenge (timeout 120 s).
+- Le même contrôle est refait dans `navigate_to_exports()` (Cloudflare peut aussi
+  bloquer la page documents).
+
+**Action utilisateur :** cocher la case Turnstile dans la fenêtre Chrome ouverte
+par le script ; la collecte reprend automatiquement.
+
 ### Particularités techniques
 
 - **React UI :** `force=True` sur les clics (modal overlay `data-portaled-element` intercepte les events)
@@ -94,16 +129,20 @@ Kraken exige la validation "nouveau device" par email lors des premières connex
 - **Scope modale :** locators scopés dans `div[role='dialog']` pour cibler les éléments de la modale
 - **Date picker (NON utilisé par défaut) :** `react-day-picker` (rdp mode-range). Le widget **refuse le 2e clic synthétisé par Playwright** (date de fin) : la plage reste collabée sur un seul jour (`rdp-day_range_start` == `rdp-day_range_end`), le picker incomplet ne se ferme pas et bloque ensuite la combobox Format et le bouton Générer. Constaté sur Mac (tout type de clic) **et sur Linux headless** (chemin normal de la collecte). → `_set_date_range` n'ouvre plus le picker du tout : on garde la plage par défaut Kraken (~30 j). `_set_date_range_picker` (90 j, dropdowns année/mois `datepicker-year/month-dropdown-button` + grille `.rdp-table`) est conservé pour référence / usage headed manuel mais n'est plus appelé.
 - **Export readiness :** comptage boutons download avant/après création (pas juste > 0)
+- **Réutilisation anti-périmé :** `_find_existing_export` ne réutilise un export existant que si la **fin de période est ≥ hier** (`_export_end_date` lit la dernière date `DD/MM/YYYY` de la ligne). Un export figé plus ancien est ignoré → création d'un export frais (évite le bug s.202 : ledgers figés réutilisés en boucle, opérations récentes manquantes). Au téléchargement, la ligne à date de fin **max** est choisie (le frais n'est pas forcément en 1ʳᵉ position).
 - **Session expirée :** détection de redirection vers `id.kraken.com/sign-in` dans `navigate_to_exports()`
+- **Cloudflare Turnstile :** détection + bascule headed + attente résolution (cf. § CAPTCHA Cloudflare Turnstile)
 
 ### Contenu des ZIP
 
-**1. kraken-ledgers-*.zip** contient:
+Les 2 ZIP téléchargés dans `dropbox/KRAKEN/` (`EXPECTED_FILES` du format) :
+
+**1. kraken-spot-ledgers-*.zip** contient:
 ```
 ledgers.csv
 ```
 
-**2. kraken-balances-*.zip** contient:
+**2. kraken-spot-balances-*.zip** contient:
 ```
 YYYY-MM-DD_balances.csv
 ```
@@ -116,9 +155,11 @@ YYYY-MM-DD_balances.csv
 
 **Monoscript:** Détection automatique du type de fichier (ledgers vs balances).
 
-**Input:**
-- CSV ledgers: `dropbox/KRAKEN/ledgers.csv`
-- CSV balances: `dropbox/KRAKEN/YYYY-MM-DD_balances.csv`
+**Input:** les 2 ZIP dans `dropbox/KRAKEN/` (`kraken-spot-ledgers-*.zip`,
+`kraken-spot-balances-*.zip`). `format_site()` les extrait dans `.kraken_temp/`
+puis parse les CSV internes :
+- ledgers.csv (→ `operations_compte-kraken_parsed.csv`)
+- YYYY-MM-DD_balances.csv (→ `positions_compte-kraken_parsed.csv`)
 
 **Output:**
 - Operations (ledgers): CSV standard 9 colonnes sur stdout (capturé par `cpt_update.py`)
@@ -242,8 +283,8 @@ Le script ouvre Chrome, remplit les identifiants, attend la validation 2FA email
 
 ```bash
 # Placer les ZIP manuellement dans dropbox/KRAKEN/ (mode secours)
-cp ~/Downloads/kraken-ledgers-*.zip dropbox/KRAKEN/
-cp ~/Downloads/kraken-balances-*.zip dropbox/KRAKEN/
+cp ~/Downloads/kraken-spot-ledgers-*.zip dropbox/KRAKEN/
+cp ~/Downloads/kraken-spot-balances-*.zip dropbox/KRAKEN/
 
 # Import sans fetch
 ./cpt_update.py -v
@@ -253,12 +294,18 @@ cp ~/Downloads/kraken-balances-*.zip dropbox/KRAKEN/
 
 ### Extraction automatique des ZIP
 
-Le script `cpt_update.py` gère automatiquement l'extraction ZIP (méthode `extract_kraken_zips()`) :
-- Détection ZIP dans `dropbox/KRAKEN/`
-- Extraction des CSV dans `dropbox/KRAKEN/`
-- Archivage des ZIP avec HDS dans `archives/KRAKEN/`
-- Traitement séquentiel des CSV par `cpt_format_KRAKEN.py`
-- Archivage des CSV avec HDS dans `archives/KRAKEN/`
+L'extraction ZIP est faite **par `cpt_format_KRAKEN.py`** (`format_site()` →
+`extract_zips()`), pas par `cpt_update.py` (qui n'a aucune référence Kraken) :
+- Détection des `*.zip` dans `dropbox/KRAKEN/`
+- Extraction des CSV dans un répertoire temporaire `dropbox/KRAKEN/.kraken_temp/`
+  (jamais dans `dropbox/KRAKEN/` lui-même)
+- Renommage selon la convention interne :
+  - `ledgers.csv` → `operations_compte-kraken_parsed.csv`
+  - `*balances*.csv` → `positions_compte-kraken_parsed.csv`
+- Parsing des CSV extraits (opérations + positions) via `process_files()`
+- Suppression de `.kraken_temp/` en fin de traitement (`shutil.rmtree`)
+- L'archivage des ZIP avec HDS dans `archives/KRAKEN/` reste géré par la chaîne
+  d'import générique (`cpt_update.py`)
 
 ### Comptes séparés (pattern WISE)
 
@@ -354,8 +401,8 @@ Les montants des positions sont en USD, pas EUR. Nécessite conversion manuelle 
 ### Vérifications
 
 - [ ] 2 ZIP téléchargés dans `dropbox/KRAKEN/` par le fetch
-- [ ] ZIP extraits automatiquement (CSV créés dans dropbox/KRAKEN/)
-- [ ] ZIP et CSV archivés dans `archives/KRAKEN/` avec HDS
+- [ ] ZIP extraits par `cpt_format_KRAKEN.py` dans `.kraken_temp/` (temp, supprimé en fin de traitement)
+- [ ] ZIP archivés dans `archives/KRAKEN/` avec HDS
 - [ ] Opérations importées (Compte Kraken EUR + Compte Kraken BTC)
 - [ ] Positions importées (Compte Kraken BTC)
 - [ ] Achats crypto pairés correctement (2 opérations symétriques)
@@ -393,7 +440,7 @@ Les montants des positions sont en USD, pas EUR. Nécessite conversion manuelle 
 **Cause:** Fichier balances.csv non trouvé ou mal formaté.
 
 **Solution:**
-1. Vérifier présence de `YYYY-MM-DD_balances.csv` dans dropbox/KRAKEN/
-2. Vérifier format CSV (colonnes asset, value (USD))
-3. Vérifier extraction ZIP réussie
+1. Vérifier présence du ZIP `kraken-spot-balances-*.zip` dans `dropbox/KRAKEN/`
+2. Vérifier que le ZIP contient bien un `*balances*.csv` (colonnes asset, value (USD))
+3. Vérifier l'extraction dans `.kraken_temp/` (logs `-v` du format)
 

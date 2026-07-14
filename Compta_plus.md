@@ -272,9 +272,10 @@ Récapitulatif des fichiers générés par la collecte automatique ou manuelle. 
 | | `Portefeuille - BoursoBank.pdf` | Solde Espèces | Réserve |
 | | `Mes Comptes - BoursoBank.pdf` | Soldes | Chèque, Livret |
 | **SOCGEN** | `Mes comptes en ligne _ SG.pdf` | Synthèse | Tous les soldes |
-| | `Export_XXXXXXXXX_*.csv` | Opérations + Solde | Compte courant, Livrets, LDD, CSL |
-| | `SG_Ebene_operations.pdf` | Opérations | Assurance vie Alice |
-| | `SG_Ebene2_operations.pdf` | Opérations | Assurance vie Alice |
+| | `{numero}.csv` | Opérations + Solde | Compte courant |
+| | `Export_XXXXXXXXX_*.csv` | Opérations + Solde | Livrets, LDD, CSL |
+| | `SG_Ebene_operations.pdf`, `SG_Ebene_operations#*.pdf` | Opérations | Assurance vie Alice |
+| | `SG_Ebene2_operations.pdf`, `SG_Ebene2_operations#*.pdf` | Opérations | Assurance vie Alice |
 | | `SG_Ebene_supports.xlsx` | Positions | Assurance vie Alice |
 | | `SG_Ebene2_supports.xlsx` | Positions | Assurance vie Alice |
 | **NATIXIS** | `Historique et suivi de mes opérations - Natixis Interépargne.pdf` | Opérations + Solde | PEE Alice |
@@ -283,17 +284,17 @@ Récapitulatif des fichiers générés par la collecte automatique ou manuelle. 
 | | `btc_balances.csv` | Soldes | Wallets BTC |
 | **XMR** | `xmr_{wallet}_operations.csv` | Opérations | → xmr_balances.csv |
 | | `xmr_balances.csv` | Soldes | Wallets XMR |
-| **KRAKEN** | `ledgers.csv` | Opérations | → balances.csv |
-| | `balances.csv` | Soldes | Compte Kraken EUR, Compte Kraken BTC |
+| **KRAKEN** | `kraken-spot-ledgers-*.zip` | Opérations | → balances (interne) |
+| | `kraken-spot-balances-*.zip` | Soldes | Compte Kraken EUR, Compte Kraken BTC |
 | **WISE** | `transaction-history.csv` | Opérations | Jambes par devise |
 | | `wise_balances.csv` | Soldes | #Solde par devise (jar) |
 | **ETORO** | `eToroTransactions_*.tsv` | Opérations + Solde | Compte eToro Money (EUR) |
 | | `etoro-account-statement*.xlsx` | Opérations + Solde | Portefeuille eToro Réserve (USD) |
 | | `eToro_accueil.pdf` | Soldes | Compte eToro Money, Portefeuille eToro Réserve |
 | | `eToro_portfolio.pdf` | Positions + Solde | Portefeuille eToro Titres (USD) |
-| **PAYPAL** | `Download*.CSV` | Opérations + Solde | Compte Paypal |
+| **PAYPAL** | `*.CSV` | Opérations + Solde | Compte Paypal |
 | **AMAZON** | `amazon_operations.csv` | Opérations + Solde | Compte Amazon |
-| **MANUEL** | `*.csv`, `*.xlsx` | Opérations + Soldes | Créances, Compléments |
+| **MANUEL** | `*.xlsx` | Opérations + Soldes | Créances, Compléments |
 
 *Note : Voir la variable `EXPECTED_FILES` dans chaque `cpt_format_<NAME>.py` pour les patterns exacts et règles de validation.*
 

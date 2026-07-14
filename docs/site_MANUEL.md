@@ -26,12 +26,31 @@ Feuille **`Import`**, une ligne d'en-tête puis une ligne par opération :
 | E | Equiv | — | équivalent EUR (sinon calculé) |
 | F | Réf | — | référence d'appariement (`-` = à apparier) |
 | G | Catégorie | — | catégorie budgétaire / `@…` |
-| H | **Compte** | oui | doit exister dans la feuille Avoirs |
+| H | **Compte** | oui | non vide au parse ; l'existence dans la feuille Avoirs est contrôlée en aval |
 | I | Commentaire | — | texte libre |
 
 Une ligne de catégorie `#Solde` fixe le solde d'un compte à une date. **Sans
 `#Solde` fourni**, `generate_missing_soldes` génère un **« Σ Solde calculé »**
 (cumul des opérations) — voir `docs/architecture_import.md`.
+
+## Feuille `Positions` (plus-value latente)
+
+Le même `manuel.xlsx` peut porter une seconde feuille, **`Positions`**, destinée à
+alimenter les **positions / plus-value latente (PVL)** : la valorisation d'un titre
+à une date, indépendamment du flux d'opérations. Feuille **optionnelle** — absente,
+elle est simplement ignorée. Une ligne d'en-tête puis une ligne par position :
+
+| Colonne | Champ | Obligatoire | Remarque |
+|---|---|---|---|
+| A | **Date** | oui | `JJ/MM/AAAA` ou date Excel ; seul champ requis au parse (ligne ignorée si vide) |
+| B | Ligne | — | libellé du titre / de la position |
+| C | Montant | — | valorisation (numérique) ; vide → `0` |
+| D | Compte | — | compte de rattachement ; l'existence dans la feuille Avoirs est contrôlée en aval |
+
+Seule la **Date** est validée (non vide) au parse ; `Ligne`, `Montant` et `Compte`
+sont repris tels quels, les contrôles de cohérence intervenant plus loin dans le
+pipeline. Ces lignes ne sont pas des opérations : elles ne passent pas par la
+catégorisation ni l'appariement, mais nourrissent le calcul de PVL.
 
 ## Cadre d'exécution (provisionnement / archivage)
 
