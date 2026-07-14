@@ -16,7 +16,7 @@ Documentation **dev approfondie**, complémentaire des docs de haut niveau :
 | DEGIRO | [`site_DEGIRO.md`](site_DEGIRO.md) | courtier titres, 2FA mobile systématique |
 | eToro | [`site_ETORO.md`](site_ETORO.md) | courtier/crypto, comptes Money + Réserve/Titres USD |
 | Kraken | [`site_KRAKEN.md`](site_KRAKEN.md) | exchange crypto, ZIP ledgers/balances, Turnstile |
-| Wise | [`site_WISE.md`](site_WISE.md) | multidevises, ZIP relevés XLSX |
+| Wise | [`site_WISE.md`](site_WISE.md) | multidevises, export CSV all-transactions |
 | Bitcoin | [`site_BTC.md`](site_BTC.md) | wallets (adresses publiques), API mempool.space |
 | Monero | [`site_XMR.md`](site_XMR.md) | wallets, monero-wallet-cli, nœud daemon |
 

@@ -60,7 +60,7 @@ def format_site(site_dir: Path, verbose: bool = False) -> tuple[list, list]:
 | Responsabilité | Description |
 |----------------|-------------|
 | Trouver ses fichiers | Patterns définis dans le formatteur |
-| Gérer les ZIP | Extraction si nécessaire (KRAKEN, WISE) |
+| Gérer les ZIP | Extraction si nécessaire (KRAKEN ; WISE en repli legacy) |
 | Agréger N fichiers | Une seule passe sur tous les fichiers |
 | Déduplication fichiers | Même nom → garder le plus récent |
 | Vérifier dropbox | Signaler fichiers intrus/manquants |
@@ -95,7 +95,7 @@ def format_site(site_dir: Path, verbose: bool = False) -> tuple[list, list]:
 | BB | Calcul Réserve = Total - Titres |
 | ETORO | Fichiers intermédiaires (PDF → CSV) |
 | KRAKEN | Extraction ZIP, 2 comptes séparés |
-| WISE | Extraction ZIP, 4 devises |
+| WISE | CSV all-transactions → jambes par devise |
 | SG | ETF agrégé, N comptes + M assurances vie |
 | BTC/XMR | Fetch extrait les soldes |
 

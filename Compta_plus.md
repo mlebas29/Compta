@@ -285,7 +285,8 @@ Récapitulatif des fichiers générés par la collecte automatique ou manuelle. 
 | | `xmr_balances.csv` | Soldes | Wallets XMR |
 | **KRAKEN** | `ledgers.csv` | Opérations | → balances.csv |
 | | `balances.csv` | Soldes | Compte Kraken EUR, Compte Kraken BTC |
-| **WISE** | `statement_*.xlsx` (ZIP) | Opérations + Soldes | Par devise (EUR, USD, SGD, SEK) |
+| **WISE** | `transaction-history.csv` | Opérations | Jambes par devise |
+| | `wise_balances.csv` | Soldes | #Solde par devise (jar) |
 | **ETORO** | `eToroTransactions_*.tsv` | Opérations + Solde | Compte eToro Money (EUR) |
 | | `etoro-account-statement*.xlsx` | Opérations + Solde | Portefeuille eToro Réserve (USD) |
 | | `eToro_accueil.pdf` | Soldes | Compte eToro Money, Portefeuille eToro Réserve |

@@ -87,7 +87,7 @@ Chaque module `cpt_format_SITE.py` déclare sa propre `EXPECTED_FILES = [...]` a
 Chaque session reçoit un horodatage unique `HDS_YYYYMMDD_HHMMSS` qui marque tous les fichiers archivés. Permet le `--fallback` (restauration du dernier import) en réinjectant les fichiers archivés dans `dropbox/`.
 
 - Tous les fichiers de `dropbox/` sont archivés (même en erreur).
-- ZIP WISE : seul le ZIP est archivé (XLSX extraits en temp puis supprimés).
+- ZIP (KRAKEN ; WISE en repli legacy) : seul le ZIP est archivé, son contenu extrait en temp puis supprimé.
 - Journal centralisé `logs/journal.log` trace toutes les sessions.
 - Purge synchronisée : N dernières sessions (défaut 10), archives + journal + debug.
 
