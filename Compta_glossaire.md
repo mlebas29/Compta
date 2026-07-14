@@ -6,21 +6,21 @@ Glossaire du projet.
 
 ## A. Termes métier
 
-- **Opération** — transaction financière ; une ligne de la feuille Opérations.
+- **Opération** — transaction financière attachée à un compte ; une ligne de la feuille Opérations.
 - **Position / Solde** — valorisation (balance) d'un compte ou d'un titre à une date donnée.
 - **Relevé / Solde calculé** — solde *relevé* = valeur externe lue d'un relevé bancaire (un écart avec le calcul est signifiant) ; *solde calculé* = synthétisé par l'import, marqué du préfixe `Σ`.
 - **Avoir(s)** — feuille de synthèse donnant le total du patrimoine en euros.
 - **Bien matériel** — actif non bancaire (immobilier, mobilier), saisi manuellement, sans opérations.
 - **Catégorie** — regroupement d'opérations.
 - **Poste budgétaire** — regroupement de catégories (niveau Fixe/Variable).
-- **Portefeuille / Titre** — compte de valeurs mobilières ; un *titre* est une valeur cotée (action, ETF, crypto, métal).
+- **Portefeuille / Titre** — compte de titres ; un *titre* est une valeur cotée en bourse (obligation, action, ETF).
 - **Devise / Devise dérivée** — unité de valeur (EUR, USD, XAU, BTC…) ; une devise *dérivée* est définie par une formule à partir d'une autre (once → gramme d'or).
 - **Correspondance** — règle *regex → catégorie* appliquée à l'import pour la catégorisation automatique.
 - **Collecte** — téléchargement des données depuis les sites Internet vers le dossier local `./dropbox`.
 - **dropbox** — dossier de collecte **local** (`./dropbox`) ; ⚠ sans rapport avec le service Dropbox.
 - **Import** — intégration des données collectées dans `comptes.xlsm`.
 - **Cotation** — mise à jour des cours de change pour valoriser en euros les avoirs en devises non-EUR.
-- **Plus-value latente (PVL)** — gain ou perte non réalisé sur un titre ; détail dans [`Compta_pvl.md`](Compta_pvl.md).
+- **Plus-value latente (PVL)** — gain ou perte non réalisé sur un titre ou valeur non-EUR ; détail dans [`Compta_pvl.md`](Compta_pvl.md).
 - **Appariement / Réf** — mise en paire d'opérations liées (virement, change, achat de titre) ; *Réf* = référence unique de la paire (colonne Réf de la feuille Opérations).
 - **Virement / Change** — transfert entre deux comptes de même devise / conversion entre deux devises.
 - **Ventilation (Patrimoine)** — répartition des avoirs par section patrimoniale.
@@ -47,4 +47,4 @@ Glossaire du projet.
 
 ## C. Termes développeur
 
-Les termes strictement **développeur** (UNO, named range/NR, format conditionnel/CF, monkeypatch, SCHEMA_VERSION, HDS…) sont définis dans [`Compta_dev.md`](Compta_dev.md).
+Les termes strictement **développeur** (UNO, named range/NR, format conditionnel/CF, monkeypatch, HDS…) sont définis dans [`Compta_dev.md`](Compta_dev.md).

@@ -84,7 +84,7 @@ Chaque module `cpt_format_SITE.py` déclare sa propre `EXPECTED_FILES = [...]` a
 
 ### Archivage HDS
 
-Chaque session reçoit un timestamp unique `HDS_YYYYMMDD_HHMMSS` qui tague tous les fichiers archivés. Permet le `--fallback` (restauration du dernier import) en réinjectant les fichiers archivés dans `dropbox/`.
+Chaque session reçoit un horodatage unique `HDS_YYYYMMDD_HHMMSS` qui marque tous les fichiers archivés. Permet le `--fallback` (restauration du dernier import) en réinjectant les fichiers archivés dans `dropbox/`.
 
 - Tous les fichiers de `dropbox/` sont archivés (même en erreur).
 - ZIP WISE : seul le ZIP est archivé (XLSX extraits en temp puis supprimés).
