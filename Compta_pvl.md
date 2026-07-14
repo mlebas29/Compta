@@ -141,3 +141,5 @@ Pour les actifs en **modèle DEV** (portefeuilles), le Montant initial est en de
 Une déclaration fiscale de cession ne se fait **pas** par lecture directe du tableau Plus_value. Elle nécessite un travail dédié : identification des lots cédés, prix d'acquisition pondéré (FIFO, CMP, … selon régime), application des abattements éventuels.
 
 Le tableau Plus_value sert de **point de départ** (notamment pour les métaux et crypto où le Montant initial est déjà en EUR cours d'époque), pas de document fiscal final.
+
+> 📖 Sigles et termes du projet : [`Compta_glossaire.md`](Compta_glossaire.md).

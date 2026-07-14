@@ -218,6 +218,6 @@ Compta [EX] est distribué gratuitement sous licence GNU GPL v3.
 - **GPG** (GNU Privacy Guard) : Outil de cryptographie au standard OpenPGP
 - **GUI** (Graphical User Interface) : Interface graphique
 - **Playwright** : Outil d'automatisation de navigateur, utilisé pour la collecte
-- **Shebang** : Première ligne `#!…` d'un script, qui indique au système quel interpréteur utiliser pour l'exécuter (ici `python3`)
-- **TNR** : Tests de non-régression
 - **WSL** (Windows Subsystem for Linux) : Composant Linux de Microsoft pour Windows
+
+Glossaire complet du projet (vocabulaire métier + sigles) : [`Compta_glossaire.md`](Compta_glossaire.md).

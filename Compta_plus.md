@@ -295,3 +295,5 @@ Récapitulatif des fichiers générés par la collecte automatique ou manuelle. 
 | **MANUEL** | `*.csv`, `*.xlsx` | Opérations + Soldes | Créances, Compléments |
 
 *Note : Voir la variable `EXPECTED_FILES` dans chaque `cpt_format_<NAME>.py` pour les patterns exacts et règles de validation.*
+
+> 📖 Sigles et termes du projet : [`Compta_glossaire.md`](Compta_glossaire.md).

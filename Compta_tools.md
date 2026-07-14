@@ -244,3 +244,5 @@ Le cas Solo exige que le chemin du hub soit libre (erreur explicite sinon).
 Migration ultérieure du hub local vers un distant (VPS, NAS…) : déplacer le
 bare puis `git remote set-url origin <url>` dans chaque clone — aucune autre
 restructuration.
+
+> 📖 Sigles et termes du projet : [`Compta_glossaire.md`](Compta_glossaire.md).

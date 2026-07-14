@@ -14,6 +14,7 @@ Ce document est le **guide d'utilisation** et le point d'entrée de la documenta
 | Mettre à niveau le classeur | [`Compta_upgrade_classeur.md`](Compta_upgrade_classeur.md) |
 | Installer sur macOS ou Windows (WSL) | [`Compta_portage.md`](Compta_portage.md) |
 | Outils de maintenance (CLI) | [`Compta_tools.md`](Compta_tools.md) |
+| Vocabulaire (métier + sigles) | [`Compta_glossaire.md`](Compta_glossaire.md) |
 | Développer / contribuer | [`Compta_dev.md`](Compta_dev.md) (hub développeur) |
 
 # 2. Introduction
@@ -48,13 +49,13 @@ L'App graphique **Comptabilité** :
 
 L'App peut générer automatiquement des opérations (ex : crédit espèces en contrepartie d'un retrait DAB).
 
-Une présence est nécessaire au moment de la collecte lorsque les procédures 2FA (Two Factor Authentication) sont déclenchées. Ces procédures sont inexistantes, occasionnelles ou systématiques, selon les sites.
+Une présence est nécessaire au moment de la collecte lorsque des procédures d'authentification sont déclenchées. Selon les sites ces procédures sont inexistantes, occasionnelles ou systématiques.
 
 Une supervision reste nécessaire ; par exemple pour compléter la catégorisation ou pour relancer la collecte d'un site particulier.
 
 ## Sites pris en charge
 
-Compta est livré avec **11 sites publics** :
+Comptabilité est livrée avec **11 sites publics** :
 
 | Site | Nature |
 |---|---|
@@ -76,15 +77,15 @@ Les connecteurs crypto et multidevises (Kraken, Wise, BTC, XMR, eToro…) sont u
 
 ## Collecte
 
-La collecte est déclenchée pour les sites qui auront été sélectionnés. Un mot de passe maître est nécessaire pour accéder aux identifiants et mots de passe de sites. Les fichiers sont téléchargés dans le dossier de collecte local (`./dropbox`).
+La collecte est déclenchée pour les sites qui auront été sélectionnés. Un mot de passe maître (**P2**), saisi au démarrage de la collecte, est nécessaire pour accéder aux identifiants et mots de passe de sites. Les fichiers sont téléchargés dans le dossier de collecte local (`./dropbox`).
 
-Chaque site est décrit dans l'application (Onglet Sites). On y trouve notamment une procédure manuelle de secours pour la collecte et des indications pour les procédures 2FA.
+Chaque site est décrit dans l'application (Onglet Sites). On y trouve notamment une procédure manuelle de secours pour la collecte et des indications pour les procédures d'authentification.
 
-- **Interaction** - Lorsqu'un site nécessite une action humaine, l'onglet Exécution la signale visuellement (alerte 2FA/CAPTCHA).
+- **Interaction** - Lorsqu'un site nécessite une action humaine, l'onglet Exécution la signale visuellement (alerte d'authentification requise).
 
 - **Visibilité de navigation** - Pour une **action en fenêtre** — saisie d'un code, résolution d'un CAPTCHA, ou login manuel *dans la page* — le navigateur Chrome est rendu visible. Une **2FA mobile** (validation sur le téléphone) ne nécessite aucune fenêtre. Un site peut aussi être **forcé visible** (case « Fenêtre visible » de l'onglet Sites) (Cf. ANNEXE C)
 
-- **Parallélisme** - Afin d'optimiser le temps de collecte, plusieurs sites sont collectés en parallèle, pendant le traitement des autres sites à **interaction humaine** (2FA, un à la fois).  Le classement parallèle/séquentiel est prédéfini (Cf. ANNEXE B) mais tout site peut être ajouté dans le groupe parallèle (Cf. ANNEXE C).
+- **Parallélisme** - Afin d'optimiser le temps de collecte, plusieurs sites sont collectés en parallèle, pendant le traitement des autres sites à **interaction humaine** (authentification, un à la fois).  Le classement parallèle/séquentiel est prédéfini (Cf. ANNEXE B) mais tout site peut être ajouté dans le groupe parallèle (Cf. ANNEXE C).
 
 - **Profilage** -  À chaque collecte, l'App tient à jour un profil de navigation qui sert à repérer qu'un site a **changé de comportement** — une étape qui disparaît ou s'ajoute, une durée qui explose, un fichier attendu manquant, une connexion devenue soudain interactive. Le profil est consultable hors ligne.
 
@@ -122,18 +123,18 @@ La fonction de cotation a pour effet de mettre à jour dans le fichier excel les
 
 ## Mode d'emploi de l'App d'assistance
 
-Le mode opératoire est dirigé par l'interface graphique qui documente les procédures spécifiques de connexion.
+À l'exception de la configuration de sécurité, le mode opératoire est dirigé par l'interface graphique qui documente les procédures spécifiques de connexion.
 
 #### Préalable - Configuration
 
 Avant la première collecte il s'agit de renseigner :
 
 - les identifiants de connexion via GPG ; ceux-là sont stockés dans un fichier chiffré (la copie en clair est à supprimer après chiffrement) ;
-- tous les autres paramètres via l'application Compta ; ceux-là sont stockés pour la plupart dans le classeur (noms de comptes, devises utilisées, etc.). Cette configuration se fait entièrement via l'App, sans toucher au fichier Excel
+- tous les autres paramètres via l'application Comptabilité ; ceux-là sont stockés pour la plupart dans le classeur (noms de comptes, devises utilisées, etc.). Cette configuration se fait entièrement via l'App, sans toucher au fichier Excel
 
 Voir **ANNEXE C** pour le détail de la configuration initiale (identifiants, devises, comptes, catégories, sites).
 
-Une fois la configuration faite, elle n'a besoin d'être reprise que lors de l'ouverture ou la fermeture d'un compte, l'ajout d'une devise, etc.
+> Une fois la configuration faite, elle n'a besoin d'être reprise que lors de l'ouverture ou la fermeture d'un compte, l'ajout d'une devise, un changement de catégorie, etc.
 
 #### Étape 1 - Lancement de l'App
 
@@ -149,9 +150,9 @@ La fenêtre qui s'ouvre présente l'onglet Exécution :
 
 #### Étape 2 - Collecte
 
-Dans l'onglet Exécution, sélectionner les sites voulus puis cliquer sur le bouton "Collecte". L'App demande le mot de passe maitre dans une fenêtre dédiée, puis visite tous les sites sélectionnés pour collecter les données, ce qui peut prendre plusieurs minutes.
+Dans l'onglet Exécution, sélectionner les sites voulus puis cliquer sur le bouton "Collecte". L'App demande le mot de passe maître (**P2**) dans une fenêtre dédiée, puis visite tous les sites sélectionnés pour collecter les données, ce qui peut prendre plusieurs minutes.
 
-> NB : Une présence est nécessaire avec le mobile car certains sites peuvent déclencher une procédure 2FA pendant la collecte.
+> NB : Une présence est nécessaire car certains sites peuvent déclencher une procédure d'authentification (avec ou sans mobile) pendant la collecte.
 
 Quand la collecte est terminée, cliquer sur "Import" pour mettre à jour le fichier **comptes.xlsm** avec les données collectées. On peut aussi attendre pour relancer une collecte avec d'autres sites qui manqueraient.
 
@@ -229,29 +230,53 @@ L'App affiche en permanence une barre de statut en bas de fenêtre avec deux zon
 
 Deux axes **indépendants** gouvernent la collecte de chaque site :
 
-- **Parallélisme** — *parallèle* (collecté en même temps que les autres) ou *séquentiel* (humain requis pendant : 2FA/CAPTCHA/code → un à la fois). Tout site peut être forcé parallèle (cf. ANNEXE C).
-- **Fenêtre** — les fetchers démarrent **headless** (invisible). Une fenêtre n'apparaît que pour une **action en fenêtre** (saisie d'un code, CAPTCHA, login manuel — *dans la page Chrome*) ; une **2FA mobile** (validation sur le téléphone) se fait **sans fenêtre**. Dans tous les cas, l'onglet Exécution **notifie** (alerte 2FA/CAPTCHA). L'ouverture d'une fenêtre Chrome pour un site persiste jusqu'à la fin de collecte du site.
+- **Parallélisme** — *parallèle* (collecté en même temps que les autres) ou *séquentiel* (humain requis pendant : 2FA/CAPTCHA/code/lien e-mail → un à la fois). Tout site peut être forcé parallèle (cf. ANNEXE C).
+- **Fenêtre** — les connecteurs (fetchers) démarrent **headless** (invisible). Une fenêtre n'apparaît que pour une **action en fenêtre** (saisie d'un code, CAPTCHA, login manuel — *dans la page Chrome*) ; une **2FA mobile** (validation sur le téléphone) se fait **sans fenêtre**. Dans tous les cas, l'onglet Exécution **notifie** (alerte d'authentification requise). L'ouverture d'une fenêtre Chrome pour un site persiste jusqu'à la fin de collecte du site.
 
 | Groupe | Sites | Parallélisme | Fenêtre visible | Action utilisateur |
 |---|---|---|---|---|
-| **1. Sans navigateur** (API/RPC) | BTC, XMR | **parallèle** | — | aucune |
+| **1. Sans navigateur** (API/RPC) | BTC, XMR | parallèle | — | aucune |
 | **2. Navigateur, sans interaction** | NATIXIS | séquentiel par défaut | jamais | aucune (login auto, pas de 2FA) |
-| **3. Repli visible automatique** | AMAZON, eToro, Kraken, PayPal, Wise | séquentiel par défaut | à la demande | **action en fenêtre** : login manuel / CAPTCHA / code |
+| **3. Repli visible automatique** | AMAZON, ETORO, KRAKEN, PAYPAL, WISE | séquentiel par défaut | à la demande | **action en fenêtre** : login manuel / CAPTCHA / code |
 | **4. Headless + 2FA mobile** | BOURSOBANK, SOCGEN, DEGIRO | séquentiel par défaut | seulement si l'auto-login échoue (filet) | **2FA mobile** (téléphone) ; login manuel en fenêtre en secours |
 
-**Groupe 3** — fenêtre à la volée quand le site réclame une action *dans la page*, puis poursuite. Wise/Kraken : surveillance du presse-papier pour les liens e-mail (Wise ouvre un nouvel onglet, Kraken navigue dans le même).
+**Groupe 3** — fenêtre à la volée quand le site réclame une action *dans la page*, puis poursuite. WISE/KRAKEN : surveillance du presse-papier pour les liens e-mail (WISE ouvre un nouvel onglet, KRAKEN navigue dans le même).
 
 **Groupe 4** — login **automatique** (identifiants chiffrés ; clavier virtuel OCR pour les deux banques) + **2FA mobile** (validation sur le téléphone) → pas de fenêtre en régime normal ; le **filet** n'ouvre une fenêtre que si l'auto-login est impossible (identifiants absents, site modifié).
 
-> **Connexion** (« Login ») = authentification **complète** d'un site : identification (identifiants) + éventuels **2FA** / **CAPTCHA** / écrans intermédiaires — pas seulement la saisie des identifiants.
+> **Connexion** (« Login ») = authentification **complète** d'un site : identification (identifiants) + éventuels 2FA / CAPTCHA / code / lien e-mail / écrans intermédiaires — pas seulement la saisie des identifiants.
 
 # ANNEXE C - Configuration initiale
 
-La configuration se fait via les onglets de l'App. L'ordre ci-dessous respecte les dépendances entre les éléments.
+La configuration se fait via Terminal ou par les onglets de l'App. L'ordre ci-dessous respecte les dépendances entre les éléments ; l'**interdépendance Compte ↔ Site** est décrite dans les deux sections concernées (§3 Comptes et §5 Sites).
 
-## 1. Identifiants de connexion
+## 1. Identifiants de connexion (Terminal)
 
-Les identifiants des sites financiers sont stockés chiffrés par GPG. `install.sh` pose une copie de travail `config_credentials.md` (gitignorée) depuis le modèle versionné `config_credentials.md.default` ; il reste à la remplir avec les identifiants de chaque site, puis à la chiffrer :
+Les identifiants des sites financiers sont stockés dans le fichier `config_credentials.md.gpg` chiffré par GPG.
+
+Fichier initial vide, non chiffré : `config_credentials.md` posé à l'installation.
+
+- **Présentation formatée** 
+
+| Clé        | Identifiant | Password |
+| ---------- | ----------- | -------- |
+| PAYPAL     |             |          |
+| ETORO      |             |          |
+| BOURSOBANK |             |          |
+
+- **Présentation brute** 
+
+```
+| Clé | Identifiant | Password |
+|-----|-------------|----------|
+| PAYPAL | | |
+| ETORO | | |
+| BOURSOBANK | | |
+```
+
+La clé (nom au choix) est à reporter à l'identique lors de la configuration du site (étape 5).
+
+Il reste à remplir `config_credentials.md` avec les identifiants de chaque site, puis à le chiffrer :
 
 ```bash
 # config_credentials.md est créé par install.sh
@@ -261,7 +286,7 @@ gpg -c config_credentials.md     # → config_credentials.md.gpg (chiffré)
 rm config_credentials.md         # impératif : efface les identifiants en clair
 ```
 
-Le mot de passe GPG (P2) sera demandé à chaque collecte.
+Le mot de passe maître GPG (**P2**) n'est demandé qu'une seule fois par collecte.
 
 ## 2. Devises (onglet Devises)
 
@@ -280,8 +305,10 @@ Créer un compte pour chaque compte bancaire, placement ou portefeuille. Pour ch
 - **Intitulé** : nom libre (ex : "LBP Courant")
 - **Devise** : devise du compte (doit exister, cf. étape 2)
 - **Type** : Courant, Épargne, Titres, PEA...
-- **Site** : site de collecte rattaché (ou N/A pour les comptes sans collecte)
+- **Site** : site de collecte rattaché — ou **N/A** pour les comptes sans collecte
 - **Domiciliation**, **Titulaire**, **Propriété** : attributs patrimoniaux
+
+> **Amorçage sans boucle (Compte ↔ Site)** : un compte se rattache à un site, mais un site se configure à partir de ses comptes (étape 5). Pour éviter cette dépendance circulaire, créez d'abord le compte avec **Site = N/A** ; le rattachement effectif au site se fait en **étape 5**, lors de son activation.
 
 Lorsqu'un compte est rattaché à un site, des **champs techniques** supplémentaires apparaissent selon le site. Ils permettent au collecteur d'identifier le compte sur le site bancaire.
 
@@ -311,13 +338,13 @@ Les **correspondances** (regex → catégorie) permettent la catégorisation aut
 Vous n'activez que les sites correspondant à vos comptes. Pour chacun, le parcours reprend les étapes précédentes de cette annexe :
 
 1. **Identifiants** — la ligne du site dans `config_credentials.md` (§1 ci-dessus).
-2. **Compte(s)** — le ou les comptes rattachés, champ **Site** + champs techniques (§3 ci-dessus).
-3. **Activation** — cocher le site dans l'onglet Sites et cliquer sur le bouton **Enregistrer**.
-4. **Collecte** — le sélectionner dans l'onglet Exécution et lancer (intervention 2FA éventuelle selon le site, cf. ANNEXE B).
+2. **Compte(s)** — rattacher le(s) compte(s) au site : passer leur champ **Site** de N/A à ce site (les champs techniques apparaissent alors, cf. §3).
+3. **Activation** — cocher le site dans l'onglet Sites.
+4. **Collecte** — le sélectionner dans l'onglet Exécution et lancer (intervention d'authentification éventuelle selon le site, cf. ANNEXE B).
 
 Chaque site affiche une zone descriptive qui indique :
 
-- sa procédure de connexion et les éventuelles interventions 2FA
+- sa procédure de connexion et les éventuelles interventions d'authentification
 - les types de comptes collectables
 - les **paramètres techniques** spécifiques
 
@@ -331,9 +358,9 @@ Certains sites possèdent des paramètres modifiables :
 
 - **CLI Monero**, **Dossier wallets**, **Timeout wallet** : pour la collecte Monero
 
-- **Collecte en parallèle** (case à cocher) : force le site dans le groupe de collecte parallèle.
+- **Collecte en parallèle** (case à cocher) : force le site dans le groupe de collecte parallèle (sites navigateur)
 
-- **Fenêtre visible** *(headed)* (case à cocher) : force ce site en navigateur **visible** — réglage **par poste**.
+- **Fenêtre visible** *(headed)* (case à cocher) : force le navigateur en mode **visible** — réglage **par poste** (sites navigateur)
 
 ## 6. Paramètres (onglet Paramètres)
 
@@ -346,6 +373,7 @@ Ajuster si nécessaire :
 
 ## Aller plus loin
 
+- [`Compta_glossaire.md`](Compta_glossaire.md) — glossaire du projet (métier + sigles)
 - [`Compta_plus.md`](Compta_plus.md) — commandes avancées, structuration Excel, dépannage
 - [`Compta_tools.md`](Compta_tools.md) — outils de maintenance et environnement git
 - [`Compta_upgrade_assiste.md`](Compta_upgrade_assiste.md) — mettre à jour l'installation (mode assisté)

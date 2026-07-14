@@ -125,3 +125,5 @@ Les étapes s'exécutent dans l'ordre, automatiquement, après sauvegarde. Un cl
 | 2 | Classeur | `tool_migrate_v4.1.0.py` — schéma 2 → 3 |
 
 Le `SCHEMA_VERSION` ne dit donc pas, à lui seul, tout le chemin : un **événement sur un autre composant** (l'app) ajoute son geste — `upgrade` enchaîne les deux.
+
+> 📖 Sigles et termes du projet : [`Compta_glossaire.md`](Compta_glossaire.md).

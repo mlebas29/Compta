@@ -120,3 +120,5 @@ Pour un classeur **antérieur à v4.0.0**, la mise à niveau la plus simple est 
   ```
 
   Relancer l'app : le nouveau classeur est vierge ; réimporter les données via l'application (collecte + import) ou par copier-coller depuis la sauvegarde.
+
+> 📖 Sigles et termes du projet : [`Compta_glossaire.md`](Compta_glossaire.md).

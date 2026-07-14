@@ -9,6 +9,16 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 
 Les trois derniers sont spécifiques au mode assisté ; 📘 concerne le mode classeur.
 
+## v5.19.1
+| 2026-07-14 | Clarifications documentaires |
+| ---------- | ---------------------------- |
+
+**Détail :**
+
+- **Nouveau glossaire du projet** ([`Compta_glossaire.md`](Compta_glossaire.md)) — vocabulaire métier (opération, appariement, avoir, cotation…) et sigles techniques (2FA, GPG, OCR, P2…) réunis en un seul endroit ; les autres documents y renvoient.
+- **Guide d'utilisation (`Compta.md`) rafraîchi** — configuration initiale (identifiants, ANNEXE C), comportement de collecte par site (ANNEXE B), et terminologie « authentification » clarifiée (2FA / CAPTCHA / code / lien e-mail).
+- **Notification de collecte élargie** — l'alerte d'action requise couvre toutes les formes d'authentification (« Action d'authentification requise »), pas seulement 2FA/CAPTCHA.
+
 ## v5.19.0
 | 2026-07-13 | Collecte fiabilisée |
 | ---------- | ------------------- |

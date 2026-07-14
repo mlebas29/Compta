@@ -78,3 +78,5 @@ Le menu **Outils ▶ Formats** maintient la charte automatiquement :
 | Corriger formats (complet) | + applique la palette graphique. `.bak` auto. |
 
 Les annotations jaune ne sont **jamais** touchées par ces outils.
+
+> 📖 Sigles et termes du projet : [`Compta_glossaire.md`](Compta_glossaire.md).

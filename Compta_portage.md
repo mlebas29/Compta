@@ -237,3 +237,5 @@ L'analyse théorique des autres adaptations (à titre informatif) :
 | Bridge UNO Python | Intégré au Python système | Python embarqué LibreOffice uniquement | **bloquant** |
 
 **Recommandation** : sous Windows, utiliser WSL2 (section précédente), qui évite tout portage.
+
+> 📖 Sigles et termes du projet : [`Compta_glossaire.md`](Compta_glossaire.md).
