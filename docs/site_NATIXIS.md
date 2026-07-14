@@ -16,95 +16,81 @@ Le site utilise un clavier virtuel où les chiffres sont dans le DOM (accessible
 
 **Flux de connexion :**
 1. Sélection langue française (mat-select Angular)
-2. Saisie login (input standard)
+2. Saisie login (input standard) → bouton « Je valide »
 3. Clavier virtuel pour mot de passe (chiffres dans le DOM)
-4. Validation
+4. Validation (bouton « Suivant »)
+5. Assistant « appareil de confiance » à écarter (voir ci-dessous)
 
-**Session persistante :** Le profil Chrome `.chrome_profile_natixis/` sauvegarde la session pour éviter le 2FA répété.
+**Assistant « appareil de confiance » (Natixis 2026) :** Après le mot de passe, le site propose d'enrôler l'appareil (« Simplifiez vos prochaines connexions / Enregistrer un appareil de confiance »). `_dismiss_trusted_device_interstitial()` le franchit en 2 écrans, best-effort (chaque étape est absente si déjà écartée) :
+1. Écran 1 : cliquer **« Plus tard »** (ne PAS enrôler). Sans ça, la page reste sur l'IdP SAML (`/auth`) et la détection de connexion timeoute.
+2. Écran 2 : cocher **« Ne plus proposer ce message »** (best-effort) puis **« Continuer »**.
 
-**Détection de session :** Vérifie l'absence du formulaire de login (`input[data-testid='login-form-input']`).
+Il n'y a **pas** de 2FA classique (SMS/OTP) : le login aboutit directement, mais franchit cet assistant. Le profil Chrome `.chrome_profile_natixis/` persiste la session et la coche « ne plus proposer », si bien que l'assistant est généralement absent aux runs suivants.
+
+**Détection de session :** Vérifie l'absence du formulaire de login (`input[data-testid='login-form-input']`). Connexion confirmée par une URL stable hors du flux login (`!/login && !/auth && readyState complete`).
 
 ## Particularités techniques
 
-### Angular Material UI
+### Collecte par impression PDF (Angular)
 
-**Problème critique :** Le site utilise Angular qui rend les éléments UNIQUEMENT via JavaScript. Les `<app-transaction-card>` ne sont jamais accessibles dans le DOM.
+**Contexte :** Le site est une SPA Angular qui rend tout via JavaScript. Plutôt que de gratter le DOM, le fetch **navigue vers chaque page et l'imprime en PDF** (via CDP `Page.printToPDF`, cf. plus bas). Le parsing des montants/opérations est fait ensuite par `cpt_format_NATIXIS.py` (pdfplumber), pas au moment de la collecte.
 
-**Solution :** Extraction par regex depuis `document.body.innerText` au lieu de parcourir le DOM.
+**Deux pages imprimées :**
+- Positions : `.../front/saving-detail` → `Mon épargne en détail - Natixis Interépargne.pdf`
+- Opérations : `.../front/transactions` → `Historique et suivi de mes opérations - Natixis Interépargne.pdf`
 
-```python
-# NE FONCTIONNE PAS
-operations = driver.find_elements(By.CSS_SELECTOR, "app-transaction-card")
+Avant impression, on attend le rendu Angular (`app-root` attaché + `networkidle` + court `sleep`).
 
-# FONCTIONNE
-text = driver.execute_script("return document.body.innerText;")
-matches = re.findall(pattern, text)
-```
+**Robustesse :** le PDF **positions** est non-bloquant (soldes recalculés à l'import, avec alerte si l'écart est notable) ; seul l'échec du PDF **opérations** fait échouer la collecte.
 
-### Calcul du total
+### Solde
 
-**Important :** Le total affiché "Épargne nette estimée" sur le site ne correspond PAS à la somme des supports HSBC.
-
-**Solution :** Calculer nous-mêmes le total en sommant les 5 supports :
-
-```python
-total_amount = sum([float(s['montant'].replace(',', '.')) for s in supports_data])
-```
+Le solde total est **lu dans le PDF positions** (`Plan d'épargne : XXX,XX EUR`), et non recalculé au fetch. Le nombre de fonds HSBC EE est **dynamique** (dépend de l'allocation du PEE du salarié) : le formatteur détecte chaque ligne `Épargne sur ce fonds : XXX,XX EUR` sans nombre figé.
 
 ## Collection
 
-### Supports (5 fonds HSBC)
+### Fichiers produits par le fetch : 2 PDF
 
-**Fichier généré :** `supports_YYYYMMDD.csv`
+Le fetch imprime les deux PDF listés dans `EXPECTED_FILES` de `cpt_format_NATIXIS.py`, dans `dropbox/NATIXIS/` :
 
-**Format :** `Nom;Montant` (2 colonnes)
+- **`Mon épargne en détail - Natixis Interépargne.pdf`** — positions (fonds HSBC EE) + solde
+- **`Historique et suivi de mes opérations - Natixis Interépargne.pdf`** — historique des opérations
 
-**Supports collectés :** 5 fonds typiques HSBC EE (monétaire, dynamique, équilibré, actions monde, tempéré). La liste exacte dépend de l'allocation du PEE de chaque salarié.
+Ces PDF sont parsés par `process_pdf_printed()` (pdfplumber) : le type est détecté par le texte (`"Historique et suivi"` vs `"Mon épargne en détail"`/`"Estimation au"`), puis les opérations et positions sont extraites. Le nombre de fonds et d'opérations est variable.
 
-**Destination :** Plus_value sheet (traités directement par `cpt_update.py`)
+### Fallback CSV (legacy)
 
-### Opérations
+Le formatteur accepte encore des CSV via des handlers de secours (collecte manuelle) — **ce n'est pas le flux nominal** :
 
-**Fichier généré :** `operations_YYYYMMDD.csv`
+- `operations*.csv` → `Date;Nature;Montant;Statut` (`process_operations`)
+- `supports*.csv` / `positions*.csv` → `Nom;Montant` (`process_positions`)
 
-**Format :** `Date;Nature;Montant;Statut` (4 colonnes)
-
-**Contenu :**
-- 11 opérations historiques (5 dernières années)
-- 1 ligne #Solde (total calculé des 5 supports)
-
-**Regex d'extraction :**
-```python
-pattern = r'(\d{2}/\d{2}/\d{4}).*?([^\n]+?)\s+([\d\s,]+)\s*EUR.*?([\d\s,]+)\s*EUR\s+(Réalisée|En cours)'
-```
-
-Capture : Date, Nature, Montant (colonne 1), Montant (colonne 2), Statut
-
-**Exemple de doublons légitimes :** 3 arbitrages le 06/10/2023 avec le même libellé "Modification de placements" et montant 0,00 (après formatage).
+**Doublons légitimes :** plusieurs arbitrages le même jour peuvent partager le libellé "Modification de placements" et un montant formaté à 0,00.
 
 ## Formatage (cpt_format_NATIXIS.py)
 
 ### Types d'opérations
 
+Le **libellé** et le **montant** sont dérivés de la nature ; la **catégorie** est ensuite déterminée par `inc_categorize.categorize_operation(libelle, SITE)` (config-driven via les patterns du site), qui fournit aussi la réf éventuelle (`opts['ref']`). Les noms de catégories ci-dessous sont donc indicatifs — la vérité est dans la config de catégorisation, pas en dur dans le formatteur.
+
 **1. Arbitrage** ("Modification de placements")
 - Déplacement interne à somme nulle
-- **Montant :** 0,00
-- **Catégorie :** "Arbitrage titres"
-- **Commentaire :** Montant d'origine à titre informatif (ex: "10000,00€")
+- **Montant :** ramené à 0,00
+- **Libellé :** le montant d'origine est **intégré au libellé** : `f"{nature} ({montant}€)"` (ex: `Modification de placements (10000,00€)`)
+- **Commentaire :** vide
 
-**2. Versement** ("INVESTISSEMENT DE VOTRE INTERESSEMENT")
-- Versement employeur
-- **Montant :** Montant réel
-- **Catégorie :** "EMPLOYEUR"
+**2. Versement** ("INVESTISSEMENT DE VOTRE INTERESSEMENT", etc.)
+- Versement employeur / intéressement
+- **Montant :** montant réel
+- **Libellé :** la nature telle quelle
 
 **3. Virement** ("Remboursement des avoirs disponibles")
-- Retrait vers compte bancaire
-- **Montant :** Négatif
-- **Réf :** "-"
-- **Catégorie :** "Virement"
+- Retrait vers compte bancaire — nature commençant par `Remboursement`
+- **Montant :** forcé négatif (préfixe `-`)
+- **Réf :** issue de la catégorisation (`opts['ref']`)
 
 **4. Solde** ("#Solde")
-- Total calculé des 5 supports
+- Ligne de solde (total)
 - **Libellé :** "Relevé compte"
 - **Catégorie :** "#Solde"
 
@@ -112,23 +98,23 @@ Capture : Date, Nature, Montant (colonne 1), Montant (colonne 2), Statut
 
 **Standard 9 champs :** `Date;Libellé;Montant;Devise;Equiv;Réf;Catégorie;Compte;Commentaire`
 
-**Compte :** "PEE EMPLOYEUR Alice"
+**Compte :** unique (`MAX_ACCOUNTS = 1`), résolu paresseusement depuis `config_accounts.json` (`ACCOUNT_NAME`).
 
-**Commentaire :** Vide (sauf pour arbitrages)
+**Commentaire :** toujours vide (le montant d'origine des arbitrages est dans le libellé, pas ici).
 
 ## Import (cpt_update.py)
 
-### Supports → Plus_value
+### Positions → Plus_value
 
-Les supports PEE sont traités comme les supports SG (assurances vie) :
+Les positions PEE sont traitées comme les supports SG (assurances vie). Flux nominal : elles proviennent du **PDF positions** (`process_pdf_printed` → format 4 colonnes `Date;Ligne;Montant;Compte`, stocké via `_pdf_positions` puis réinjecté par `format_site`). En secours, un CSV `supports*.csv`/`positions*.csv` alimente le même `process_positions`.
 
-1. Lecture du CSV `supports_YYYYMMDD.csv`
-2. Parsing : Nom;Montant (format: "44156,42")
+1. Extraction des lignes `Épargne sur ce fonds : XXX,XX EUR` (nombre dynamique de fonds)
+2. Format `Date;Ligne;Montant;Compte`
 3. Mise à jour de la feuille Plus_value
 4. Match par nom de support (recherche partielle)
 5. Update colonnes J (Date SOLDE) et K (SOLDE)
 
-**Mapping compte :** `'supports_': 'PEE EMPLOYEUR Alice'`
+**Compte :** unique, résolu via `ACCOUNT_NAME` (`config_accounts.json`).
 
 ### Opérations → Opérations sheet
 
@@ -181,11 +167,11 @@ Même pattern que `cpt_fetch_ETORO.py`.
 
 **Solution :** Augmenter le `time.sleep()` après `wait_for(state="attached")` (actuellement 1s)
 
-### Total incorrect
+### Solde incorrect / manquant
 
-**Cause :** Le site affiche "Épargne nette estimée" qui peut différer
+**Cause :** ligne `Plan d'épargne : XXX,XX EUR` non trouvée dans le PDF positions (format changé, PDF tronqué)
 
-**Solution :** Notre système calcule le total en sommant les 5 supports (plus fiable)
+**Solution :** vérifier le PDF `Mon épargne en détail`. Le solde en est lu directement ; s'il manque, il est recalculé à l'import à partir des positions (avec alerte si l'écart est notable).
 
 ### Langue en anglais
 
@@ -196,11 +182,11 @@ Même pattern que `cpt_fetch_ETORO.py`.
 2. Faire une connexion manuelle en français
 3. Le profil sauvegarde la préférence
 
-### 2FA répété
+### Assistant « appareil de confiance » réapparaît
 
-**Cause :** Profil Chrome supprimé ou cookies expirés
+**Cause :** Profil Chrome supprimé ou coche « ne plus proposer » perdue → l'assistant post-login revient
 
-**Solution :** Ne jamais supprimer `.chrome_profile_natixis/` en production
+**Solution :** Ne jamais supprimer `.chrome_profile_natixis/`. `_dismiss_trusted_device_interstitial()` le franchit de toute façon (« Plus tard » puis « Continuer ») ; s'il change de libellé, adapter les sélecteurs (`Plus tard`/`Later`, `Continuer`/`Continue`).
 
 ## Commandes utiles
 
@@ -220,8 +206,8 @@ tail -f logs/journal.log
 
 ## Points critiques
 
-- **Angular limitation :** Ne jamais essayer d'accéder aux éléments `<app-*>` dans le DOM, toujours utiliser `innerText` + regex
-- **Profil Chrome :** Critique pour éviter 2FA, sauvegardé dans `.chrome_profile_natixis/`
-- **Total calculé :** Ne pas utiliser "Épargne nette estimée" du site, toujours calculer la somme des 5 supports
-- **Session persistante :** Fonctionne bien, pas de 2FA après la première connexion
-- **CDP printToPDF :** Obligatoire en mode headed (page.pdf() headless uniquement)
+- **Collecte = impression PDF :** on navigue vers chaque page Angular et on l'imprime (CDP `printToPDF`) ; le parsing (opérations, positions, solde) est fait ensuite par pdfplumber dans le formatteur — pas de scraping DOM ni innerText/regex au fetch
+- **Solde lu du PDF :** `Plan d'épargne : XXX,XX EUR` dans le PDF positions ; nombre de fonds dynamique
+- **Profil Chrome :** persiste la session et la coche « ne plus proposer », sauvegardé dans `.chrome_profile_natixis/`
+- **Pas de 2FA classique :** le login aboutit directement mais franchit l'assistant « appareil de confiance » (`_dismiss_trusted_device_interstitial`)
+- **CDP printToPDF :** obligatoire en mode headed (`page.pdf()` headless uniquement)

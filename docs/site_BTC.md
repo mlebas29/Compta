@@ -2,27 +2,69 @@
 
 ## Vue d'ensemble
 
-Collecte automatique des transactions et soldes de 2 wallets Bitcoin via l'API publique mempool.space.
+Collecte automatique des transactions et soldes des wallets Bitcoin via l'API publique mempool.space.
 
 **Type:** Mode automatique (fetch complet)
 **Source:** API REST publique (pas d'authentification)
-**Wallets:** 2 wallets (BlueWallet, Phoenix Lightning)
+**Wallets:** un compte par wallet configuré (N wallets, définis dans `config_accounts.json`)
 **Unité:** SAT (satoshis, 1 BTC = 100,000,000 SAT)
 
 ## Configuration
+
+La configuration est répartie sur deux fichiers :
+- `config.ini [BTC]` : paramètres du site (nom, dossier, URL API, fenêtre temporelle).
+- `config_accounts.json` : la liste des wallets et leurs adresses (un compte par wallet).
 
 ### config.ini
 
 ```ini
 [BTC]
 name = Bitcoin Wallets
-# Vos adresses publiques BTC (exemples ci-dessous — visibles sur la blockchain)
-address_bluewallet = bc1qexamplewalletbluewallet00000000000000
-address_phoenix = bc1qexamplewalletphoenix0000000000000000
+dossier = BTC
 # API publique
 api_url = https://mempool.space/api
 max_days_back = 90
 ```
+
+Aucune adresse ne figure dans `config.ini` — elles vivent dans `config_accounts.json` (voir ci-dessous).
+
+### config_accounts.json
+
+Les wallets et leurs adresses sont déclarés dans la section `BTC` de `config_accounts.json`.
+Chaque compte porte trois champs :
+- `name` : nom du compte tel qu'il apparaît dans le classeur (ex. `Wallet A BTC`) ;
+- `wallet_key` : identifiant court du wallet, sert de préfixe aux fichiers CSV et à la clé de solde ;
+- `addresses` : liste d'une ou plusieurs adresses publiques (les soldes sont sommés).
+
+```json
+{
+  "BTC": {
+    "accounts": [
+      {
+        "name": "Wallet A BTC",
+        "wallet_key": "wallet_a",
+        "addresses": [
+          "bc1q…",
+          "bc1q…"
+        ]
+      },
+      {
+        "name": "Wallet B BTC",
+        "wallet_key": "wallet_b",
+        "addresses": [
+          "bc1q…"
+        ]
+      }
+    ]
+  }
+}
+```
+
+Le code construit `BTC_WALLETS` (fetch) et `BTC_ACCOUNTS` (format) **dynamiquement** depuis ce JSON : ajouter/retirer un wallet = éditer `config_accounts.json`, rien à toucher dans le code.
+
+**Multi-adresses par wallet :** un wallet peut lister plusieurs adresses. Le fetch itère sur chaque adresse (`for address in addresses`), concatène les opérations et **somme les soldes** en un solde unique par compte.
+
+**Adresses étendues (xpub/ypub/zpub) :** si une entrée de `addresses` commence par `xpub`/`ypub`/`zpub` (ou testnet `tpub`/`upub`/`vpub`), elle est traitée en **mode solde-seul** — pas de parsing des transactions individuelles (trop complexe), seul le solde global est récupéré via l'endpoint dédié `/v1/xpub/{address}`.
 
 **Note :** Les adresses Bitcoin sont publiques par nature (visibles sur la blockchain). Pas de credentials requis.
 
@@ -31,8 +73,9 @@ max_days_back = 90
 ### API mempool.space
 
 **Endpoints utilisés :**
-- `GET /api/address/{address}/txs` - Liste des transactions
-- `GET /api/address/{address}` - Balance et statistiques
+- `GET /api/address/{address}/txs` - Liste des transactions (adresse simple)
+- `GET /api/address/{address}` - Balance et statistiques (adresse simple)
+- `GET /api/v1/xpub/{address}` - Balance uniquement (adresse étendue xpub/ypub/zpub)
 
 **Caractéristiques :**
 - Pas d'authentification requise
@@ -69,29 +112,29 @@ max_days_back = 90
 
 ### Tier 1 - Fetch (cpt_fetch_BTC.py)
 
-**Input :** Adresses BTC depuis config.ini
-**Output :** CSV bruts dans dropbox/BTC/
+**Input :** Wallets et adresses BTC depuis config_accounts.json (section `BTC`)
+**Output :** CSV bruts dans dropbox/BTC/ — un `btc_<wallet_key>_operations.csv` par wallet + un `btc_balances.csv` unique
 
 ```
 dropbox/BTC/
-├── btc_bluewallet_operations.csv  (raw)
-├── btc_phoenix_operations.csv     (raw)
-└── btc_balances.csv               (raw)
+├── btc_<wallet_key>_operations.csv  (raw, un par wallet)
+├── …
+└── btc_balances.csv                 (raw, unique)
 ```
 
 **Format raw operations :**
 ```csv
 Date,Label,Amount,Currency,Wallet
-2025-01-10 15:23:45,Received from bc1q...,150000,SAT,bluewallet
-2025-01-09 12:00:00,Sent to bc1q...,-100000,SAT,bluewallet
-2025-01-09 12:00:00,Transaction fee,-1000,SAT,bluewallet
+2025-01-10 15:23:45,Received from bc1q...,150000,SAT,wallet_a
+2025-01-09 12:00:00,Sent to bc1q...,-100000,SAT,wallet_a
+2025-01-09 12:00:00,Transaction fee,-1000,SAT,wallet_a
 ```
 
-**Format raw balances :**
+**Format raw balances :** la colonne `Wallet` porte `{wallet_key.capitalize()} BTC` (remappé vers le nom de compte au format).
 ```csv
 Wallet,Balance,Currency,Date
-BlueWallet BTC,150000,SAT,2025-01-12 16:30:00
-Phoenix Lightning BTC,0,SAT,2025-01-12 16:30:00
+Wallet_a BTC,150000,SAT,2025-01-12 16:30:00
+Wallet_b BTC,0,SAT,2025-01-12 16:30:00
 ...
 ```
 
@@ -105,23 +148,24 @@ Phoenix Lightning BTC,0,SAT,2025-01-12 16:30:00
 **Format operations (9 colonnes) :**
 ```csv
 Date;Libellé;Montant;Devise;Equiv;Réf;Catégorie;Compte;Commentaire
-29/10/2025;Received from bc1q...;1011283;SAT;;;Change;BlueWallet BTC;
-12/01/2026;Solde BTC;1011283;SAT;;;#Solde;BlueWallet BTC;
+29/10/2025;Received from bc1q...;1011283;SAT;;;Change;Wallet A BTC;
+12/01/2026;Solde BTC;1011283;SAT;;;#Solde;Wallet A BTC;
 ```
 
 **Format balances (4 colonnes) :**
 ```csv
 Date;Ligne;Montant;Compte
-12/01/2026;#Solde BlueWallet BTC;8082216;BlueWallet BTC
-12/01/2026;#Solde Phoenix Lightning BTC;0;Phoenix Lightning BTC
+12/01/2026;#Solde Wallet A BTC;8082216;Wallet A BTC
+12/01/2026;#Solde Wallet B BTC;0;Wallet B BTC
 ...
 ```
 
-**Mappings comptes :**
+**Mappings comptes :** construits dynamiquement depuis `config_accounts.json` (préfixe fichier → nom de compte).
 ```python
+# Dérivé de config_accounts.json : { 'btc_<wallet_key>': '<name>' }
 BTC_ACCOUNTS = {
-    'btc_bluewallet': 'BlueWallet BTC',
-    'btc_phoenix': 'Phoenix Lightning BTC',
+    'btc_wallet_a': 'Wallet A BTC',
+    'btc_wallet_b': 'Wallet B BTC',
 }
 ```
 
@@ -162,7 +206,7 @@ Patterns définis dans `inc_category_mappings.py` (section `BTC_PATTERNS`). Voir
 ls -lh dropbox/BTC/         # Vérifier 3 CSV
 
 # Test format
-./cpt_format_BTC.py dropbox/BTC/btc_bluewallet_operations.csv
+./cpt_format_BTC.py dropbox/BTC/btc_<wallet_key>_operations.csv
 ./cpt_format_BTC.py dropbox/BTC/btc_balances.csv
 
 # Test workflow
@@ -177,7 +221,7 @@ ls -lh dropbox/BTC/         # Vérifier 3 CSV
 cat dropbox/BTC/btc_balances.csv
 
 # Vérifier une opération
-cat dropbox/BTC/btc_bluewallet_operations.csv
+cat dropbox/BTC/btc_<wallet_key>_operations.csv
 
 # Statut système
 ./cpt.py --status
@@ -194,7 +238,7 @@ cat dropbox/BTC/btc_bluewallet_operations.csv
 2. Vérifier connexion internet
 3. Tester URL manuellement :
    ```bash
-   curl https://mempool.space/api/address/bc1qexamplewalletbluewallet00000000000000
+   curl https://mempool.space/api/address/bc1q…
    ```
 
 ### Erreur : "No transactions found"
@@ -211,12 +255,12 @@ cat dropbox/BTC/btc_bluewallet_operations.csv
 
 ### Erreur : "Invalid address"
 
-**Cause :** Adresse Bitcoin incorrecte dans config.ini
+**Cause :** Adresse Bitcoin incorrecte dans config_accounts.json
 
 **Solution :**
-1. Vérifier format bc1q... (Bech32)
+1. Vérifier format bc1q... (Bech32) ou xpub/ypub/zpub (adresse étendue)
 2. Tester sur mempool.space web
-3. Corriger config.ini
+3. Corriger l'adresse dans la liste `addresses` du wallet concerné (config_accounts.json)
 
 ### Balance = 0 mais opérations présentes
 
