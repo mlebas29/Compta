@@ -322,6 +322,8 @@ class PayPalFetcher(BaseFetcher):
             self.logger.warning(f"Code invalide: '{code}'")
             return False
 
+        self.logger.user_done()  # code SMS saisi → fin d'attente humaine (#154)
+
         # Saisir le code
         if field_count == 1:
             code_inputs.first.fill(code)

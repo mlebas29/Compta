@@ -201,7 +201,7 @@ def _parse_xlsx(xlsx_file):
     name = Path(xlsx_file).name
     wb = openpyxl.load_workbook(xlsx_file, read_only=True, data_only=True)
     ws = wb['Import'] if 'Import' in wb.sheetnames else wb.active
-    for i, row in enumerate(ws.iter_rows(values_only=True)):
+    for i, row in enumerate(ws.iter_rows(values_only=True, max_col=9)):
         if i == 0 and row[0] == 'Date':
             continue
         vals = [str(v) if v is not None else '' for v in row]
@@ -238,7 +238,7 @@ def _parse_xlsx_positions(xlsx_file):
         wb.close()
         return positions
     ws = wb['Positions']
-    for i, row in enumerate(ws.iter_rows(values_only=True)):
+    for i, row in enumerate(ws.iter_rows(values_only=True, max_col=4)):
         if i == 0 and row[0] == 'Date':
             continue
         if len(row) < 4 or not row[0]:
