@@ -97,7 +97,7 @@ CREDENTIALS_FILE = Path(config.get('paths', 'credentials_file')).expanduser()
 # XMR-specific config
 SITE_NAME = config.get(SITE, 'name', fallback='Monero Wallets')
 CREDENTIAL_ID = config.get(SITE, 'credential_id')                       # mot de passe wallet
-WALLET_RPC_SSH_HOST = config.get(SITE, 'wallet_rpc_ssh_host')           # ex: marc@maillol.labeille.net
+WALLET_RPC_SSH_HOST = config.get(SITE, 'wallet_rpc_ssh_host')           # ex: user@monero-host.example.lan
 WALLET_RPC_PORT = config.getint(SITE, 'wallet_rpc_port', fallback=18083)
 WALLET_RPC_LOCAL_PORT = config.getint(SITE, 'wallet_rpc_local_port', fallback=28083)
 WALLET_RPC_CREDENTIAL_ID = config.get(SITE, 'wallet_rpc_credential_id')  # login RPC wallet-rpc

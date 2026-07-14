@@ -3,14 +3,14 @@
 """
 cpt_format_NATIXIS.py - Convertit les fichiers PEE en format standardisé
 
-Format d'entrée (operations_*.csv):
-  Date;Nature;Montant;Statut
+Entrée NOMINALE : les 2 PDF imprimés par le fetch (Angular, cf. cpt_fetch_NATIXIS.py),
+parsés par pdfplumber (process_pdf_printed) — le type est détecté au texte
+("Historique et suivi" = opérations vs "Mon épargne en détail"/"Estimation au" = positions).
+Le nombre de fonds et d'opérations est variable (dépend de l'allocation du PEE).
 
-Format d'entrée (supports_*.csv):
-  Nom;Montant
-
-Format d'entrée (PDF imprimé):
-  PDF imprimé depuis le site HSBC (fallback collecte manuelle)
+Entrée de SECOURS (collecte manuelle, legacy) — CSV :
+  operations_*.csv : Date;Nature;Montant;Statut  (process_operations)
+  supports_*.csv / positions_*.csv : Nom;Montant  (process_positions)
 
 Format de sortie standardisé (9 champs):
   Date;Libellé;Montant;Devise;Equiv;Réf;Catégorie;Compte;Commentaire
@@ -359,7 +359,9 @@ def process_pdf_printed(file_path):
                 except ValueError:
                     pass
 
-            # Parser les positions ligne par ligne
+            # Parser les positions ligne par ligne. Le nombre de fonds est DYNAMIQUE
+            # (dépend de l'allocation du PEE du salarié) : on détecte chaque bloc, aucun
+            # nombre de fonds n'est figé.
             # Structure :
             #   HSBC EE xxx E (ou G)
             #   Voir la fiche
@@ -409,6 +411,9 @@ def process_pdf_printed(file_path):
 
         # Traitement spécial pour certains types d'opérations
         if "Modification" in nature:
+            # Arbitrage = déplacement interne à somme nulle → montant ramené à 0,00.
+            # Le montant d'origine est préservé DANS le libellé (pas en commentaire :
+            # le commentaire reste vide) pour garder la trace sans fausser le solde.
             libelle = f"{nature} ({montant}€)"
             montant = "0,00"
         elif nature.startswith("Remboursement"):

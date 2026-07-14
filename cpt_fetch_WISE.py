@@ -280,7 +280,9 @@ class WiseFetcher(BaseFetcher):
         solde » par ligne), consomme par le format pour le #Solde (#131, choix b).
 
         Les 5 jars (EUR inclus) sont sur la page du GROUPE multi-devises
-        (« Compte principal »), pas sur /home (qui n'expose que les 4 etrangers).
+        (« Compte principal »), pas sur /home : /home affiche l'EUR comme
+        devise de BASE (non-jar), d'un montant sans rapport avec le vrai jar
+        EUR -> le lire la fausserait ; d'ou le passage par la page groupe.
         On extrait l'id du groupe depuis /home (« MCA - <id> ») -> /groups/<id>,
         puis on lit chaque jar dans les spans `np-option__title` (« <montant> <ISO> »).
         NB : /balances = 404. Id extrait dynamiquement (portable, pas de hardcode).

@@ -383,7 +383,9 @@ def post_process_supports(supports_data, total_valorisation, compte):
     """Hook post-traitement des supports avant émission CSV.
 
     Pass-through public : retourne tous les supports tels quels, dans l'ordre
-    alphabétique. Monkeypatchable depuis `custom/patch_*.py`.
+    alphabétique. Monkeypatchable depuis `custom/patch_*.py` — le cœur public
+    délègue ; l'agrégat ETF (regroupement de plusieurs supports en une ligne)
+    vit dans le patch privé qui surcharge ce hook, pas dans le dépôt public.
 
     Args:
         supports_data: dict {nom_support: valorisation}

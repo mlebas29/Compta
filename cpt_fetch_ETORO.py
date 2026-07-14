@@ -95,6 +95,9 @@ DOWNLOAD_TIMEOUT_S = 120    # 2 min pour téléchargement
 
 class EtoroFetcher(BaseFetcher):
     def __init__(self, verbose=False):
+        # delete_cookies=True : purge les cookies au lancement pour éviter la
+        # contamination OAuth (cookies de session tiers résiduels qui font
+        # redirger le login eToro vers un consentement Facebook/SSO externe).
         super().__init__(caller_file=__file__, verbose=verbose, delete_cookies=True)
 
         # URLs eToro (computed from base_url)

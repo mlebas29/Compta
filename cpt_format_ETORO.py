@@ -149,6 +149,11 @@ def format_amount(amount_str, target_currency='EUR'):
 
 def extract_eur_amount(label):
     """
+    ⚠ Plus appelée : le format ne remplit plus la colonne Equiv (laissée vide),
+    l'équivalent EUR étant établi par cpt_pair lors de l'appariement Money↔Réserve.
+    Conservée à titre de référence pour le format des libellés « Dépôt » (le
+    montant EUR est dans le Détails, pas dans une colonne dédiée).
+
     Extrait le montant EUR d'un libellé
 
     Entrée: "900.00 EUR eToroMoney" ou "Dépôt 900.00 EUR eToroMoney"

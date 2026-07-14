@@ -9,8 +9,7 @@ Usage:
   ./cpt_fetch_BTC.py
 
 Fichiers générés:
-  - dropbox/BTC/btc_bluewallet_operations.csv
-  - dropbox/BTC/btc_phoenix_operations.csv
+  - dropbox/BTC/btc_<wallet_key>_operations.csv  (un par wallet)
   - dropbox/BTC/btc_balances.csv
 """
 
@@ -77,7 +76,12 @@ SITE_NAME = config.get(SITE, 'name', fallback=SITE)
 API_URL = config.get(SITE, 'api_url')
 MAX_DAYS_BACK = config.getint(SITE, 'max_days_back', fallback=90)
 
-# Wallet addresses from config_accounts.json
+# Adresses des wallets : dans config_accounts.json, pas config.ini.
+# Pourquoi : ce sont des données par-compte, plurielles (liste d'adresses par
+# wallet) et dynamiques — config.ini ne porte que les paramètres scalaires du
+# site. Les adresses étant publiques (visibles sur la blockchain), aucune n'est
+# un secret ; le JSON reste néanmoins la seule source (ajout/retrait = édition
+# du JSON, zéro code à toucher — BTC_WALLETS est construit ci-dessous).
 _ACCOUNTS_JSON = BASE_DIR / 'config_accounts.json'
 with open(_ACCOUNTS_JSON, 'r', encoding='utf-8') as _f:
     _btc_config = json.load(_f).get(SITE, {})
@@ -194,7 +198,7 @@ def fetch_btc_wallet(address, wallet_key, api_url, max_days_back):
 
     Args:
         address: Bitcoin address or xpub (extended public key)
-        wallet_key: Wallet identifier (e.g., 'bluewallet')
+        wallet_key: Wallet identifier (e.g., 'wallet_a')
         api_url: API base URL
         max_days_back: Maximum days back from today
 
@@ -350,7 +354,10 @@ def main():
 
     for wallet_key, addresses in BTC_WALLETS.items():
         try:
-            # Fetch all addresses for this wallet
+            # Un wallet peut porter PLUSIEURS adresses (ex. wallet HD qui expose
+            # plusieurs adresses de réception). On itère sur chacune, on
+            # concatène les opérations et on SOMME les soldes → un solde unique
+            # par compte dans le classeur.
             all_operations = []
             total_balance = 0
 

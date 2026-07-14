@@ -413,6 +413,11 @@ def parse_balances_csv(csv_file, verbose=False):
 def format_site(site_dir, verbose=False, logger=None):
     """API pour Update.
 
+    L'extraction des ZIP est faite ICI (Tier 2), pas dans cpt_update : l'import
+    générique n'a aucune logique spécifique Kraken. Les CSV sont extraits dans un
+    temp `.kraken_temp/` (jamais dans dropbox lui-même, qui ne contient que les ZIP
+    à archiver) puis supprimés en fin de traitement.
+
     Note: Le filtrage par date est centralisé dans inc_format.process_files()
     """
     if logger is None:

@@ -30,7 +30,7 @@ _ACCOUNTS_JSON = base_dir() / 'config_accounts.json'
 with open(_ACCOUNTS_JSON, 'r', encoding='utf-8') as _f:
     _btc_config = json.load(_f).get(SITE, {})
 
-# filename prefix → Excel account name (ex: 'btc_bluewallet' → 'BlueWallet BTC')
+# filename prefix → Excel account name (ex: 'btc_wallet_a' → 'Wallet A BTC')
 BTC_ACCOUNTS = {
     f'btc_{a["wallet_key"]}': a['name']
     for a in _btc_config.get('accounts', [])
@@ -51,7 +51,7 @@ EXPECTED_FILES = [
 ]
 
 def detect_account_from_filename(filename):
-    """Detect account from filename: btc_bluewallet_operations.csv → BlueWallet BTC"""
+    """Detect account from filename: btc_wallet_a_operations.csv → Wallet A BTC"""
     for key, account_name in BTC_ACCOUNTS.items():
         if key in filename:
             return account_name

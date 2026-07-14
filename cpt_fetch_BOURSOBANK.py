@@ -153,7 +153,11 @@ class BbFetcher(BaseFetcher):
             self.logger.info("Session active (profil Chrome)")
             return True
 
-        # Login requis — retry avec nouveau clavier randomisé
+        # Login requis — retry avec nouveau clavier randomisé.
+        # Plafond à 2 : BoursoBank bloque le compte 15 min après 3 échecs
+        # d'identification consécutifs. On garde donc une marge d'un essai
+        # (auto-login OCR) avant de basculer sur le login manuel visible,
+        # sans jamais risquer le 3e échec automatique.
         max_retries = 2
         for attempt in range(1, max_retries + 1):
             if attempt > 1:
