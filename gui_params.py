@@ -36,6 +36,19 @@ class ParamsMixin:
         self._add_spinbox(gf, 'Jours max import', 'general', 'max_days_back',
                           0, 365, '0 = illimité')
 
+        # Identifiants — vue GLOBALE de la table chiffrée (créer/supprimer, voir
+        # les orphelins). La contrepartie contextuelle — la réf d'UN site — vit
+        # dans l'onglet Sites, sans liste ni colonne « Utilisé par » puisque le
+        # site y est implicite.
+        idf = ttk.LabelFrame(scroll_frame, text='Identifiants de collecte',
+                             padding=10)
+        idf.pack(fill='x', padx=10, pady=5)
+        ttk.Label(idf, text='Table chiffrée (GPG) des réfs, identifiants et passes '
+                            'des sites — reste éditable à la main (gpg -d / gpg -c).',
+                  style='Hint.TLabel').pack(anchor='w', pady=(0, 6))
+        ttk.Button(idf, text='Gérer les identifiants…',
+                   command=self._open_credentials_manager).pack(anchor='w')
+
         # Appariement — un cadre, deux sous-sections : Générale (params de l'algo) +
         # Spécifique (paires prédéfinies transfer_pairs). #133
         pf = ttk.LabelFrame(scroll_frame, text='Appariement', padding=10)

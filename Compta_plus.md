@@ -121,6 +121,61 @@ Restaure le backup Excel précédent et remet les fichiers collectés dans dropb
 cpt --reset                # Purge archives/dropbox/logs
 ```
 
+## Configuration en ligne de commande
+
+L'App n'est jamais un passage obligé : les fichiers de configuration restent lisibles et modifiables à la main. Ce chemin sert sur une machine sans écran, en dépannage lorsque l'interface graphique ne démarre pas, ou simplement par préférence. Le parcours assisté équivalent est décrit dans [`Compta.md`](Compta.md) ANNEXE C.
+
+### La table d'identifiants
+
+`config_credentials.md.gpg` est un **tableau Markdown chiffré en symétrique**. Rien de plus : `gpg` seul suffit à l'ouvrir et à le refermer, sans l'App.
+
+- **Présentation formatée**
+
+| Réf        | Identifiant | Passe |
+| ---------- | ----------- | ----- |
+| PAYPAL     |             |       |
+| ETORO      |             |       |
+| BOURSOBANK |             |       |
+
+- **Présentation brute**
+
+```
+| Réf | Identifiant | Passe |
+|-----|-------------|-------|
+| PAYPAL | | |
+| ETORO | | |
+| BOURSOBANK | | |
+```
+
+La **Réf** (nom au choix) est à reporter à l'identique lors de la configuration du site ([`Compta.md`](Compta.md) ANNEXE C §4). Les libellés d'en-tête, eux, sont libres : l'App reconnaît l'en-tête à sa **position** — la ligne qui précède le séparateur — pas à son intitulé.
+
+#### Première mise en place
+
+```bash
+# config_credentials.md est créé par install.sh
+# (sinon : cp config_credentials.md.default config_credentials.md)
+# … remplir config_credentials.md …
+gpg -c config_credentials.md     # → config_credentials.md.gpg (chiffré)
+rm config_credentials.md         # impératif : efface les identifiants en clair
+```
+
+#### Modifier la table à la main
+
+```bash
+gpg -d config_credentials.md.gpg > config_credentials.md   # déchiffre
+# … modifier config_credentials.md …
+gpg -c config_credentials.md                               # rechiffre
+rm config_credentials.md                                   # impératif : efface le clair
+```
+
+> ⚠️ Le chemin manuel fait exister une **copie en clair** de vos mots de passe le temps de l'édition : le `rm` final n'est pas optionnel. C'est la différence avec l'App, qui ne pose jamais le clair sur le disque.
+>
+> ⚠️ `gpg -c` demande une **nouvelle** passphrase et la fait confirmer : une faute de frappe produit une table que votre mot de passe habituel n'ouvrira plus. Gardez une copie du `.gpg` avant de rechiffrer.
+
+### Les autres fichiers de configuration
+
+`config.ini` et les `config_*.json` s'éditent de même : ce sont des fichiers texte. Aucun n'est versionné — ils décrivent **votre** installation, et survivent donc aux mises à jour. Le détail de chacun — rôle, ce qui est livré, ce qui est généré à la volée — est tenu à jour dans la table *Configuration* de [`Compta_dev.md`](Compta_dev.md).
+
 ## Mise à jour et modifications locales
 
 ### Mise à jour simple

@@ -7,7 +7,7 @@ Ce document est le **guide d'utilisation** et le point d'entrée de la documenta
 | Découvrir le projet, installer, mettre à jour | [`README.md`](README.md) |
 | Personnaliser le classeur (mode classeur) | [`README.md`](README.md) §Utilisation — mode classeur |
 | **Utiliser l'app d'assistance** (collecte, import, cotations) | **ce document** |
-| Structuration Excel, commandes avancées, dépannage | [`Compta_plus.md`](Compta_plus.md) |
+| Structuration Excel, commandes avancées, configuration en ligne de commande, dépannage | [`Compta_plus.md`](Compta_plus.md) |
 | Comprendre les plus-values latentes | [`Compta_pvl.md`](Compta_pvl.md) |
 | Charte graphique du classeur | [`Compta_charte.md`](Compta_charte.md) |
 | Mettre à jour l'installation (mode assisté) | [`Compta_upgrade_assiste.md`](Compta_upgrade_assiste.md) |
@@ -69,11 +69,11 @@ Comptabilité est livrée avec **11 sites publics** :
 | PAYPAL | Compte PayPal |
 | AMAZON | Carte cadeau Amazon |
 | BTC | Wallets Bitcoin (adresses publiques) |
-| XMR | Wallets Monero (nœud local requis) |
+| XMR | Wallets Monero (nœud distant, par tunnel SSH) |
 
-Les connecteurs crypto et multidevises (Kraken, Wise, BTC, XMR, eToro…) sont utilisables tels quels. Les connecteurs bancaires (SOCGEN, NATIXIS…) dépendent du profil client de la banque ; ce profil est pris en compte via les paramètres techniques des comptes (GUI création de compte). Les restrictions éventuelles propres à chaque site figurent dans sa description (GUI onglet Sites).
+Les connecteurs crypto et multidevises (Kraken, Wise, BTC, eToro…) sont utilisables tels quels — sauf **XMR**, qui interroge un `monero-wallet-rpc` hébergé sur une machine tierce toujours allumée et exige donc un provisionnement à part. Les connecteurs bancaires (SOCGEN, NATIXIS…) dépendent du profil client de la banque ; ce profil est pris en compte via les paramètres techniques des comptes (GUI création de compte). Les restrictions éventuelles propres à chaque site figurent dans sa description (GUI onglet Sites).
 
-**Pour activer les sites qui vous concernent**, voir ANNEXE C — Configuration initiale (§5 Sites).
+**Pour activer les sites qui vous concernent**, voir ANNEXE C — Configuration initiale (§4 Sites).
 
 ## Collecte
 
@@ -123,20 +123,17 @@ La fonction de cotation a pour effet de mettre à jour dans le fichier excel les
 
 ## Mode d'emploi de l'App d'assistance
 
-À l'exception de la configuration de sécurité, le mode opératoire est dirigé par l'interface graphique qui documente les procédures spécifiques de connexion.
+Le mode opératoire est guidé par l'interface graphique qui documente les procédures spécifiques de connexion.
 
-#### Préalable - Configuration
+#### 🚧 Préalable - Configuration
 
-Avant la première collecte il s'agit de renseigner :
+Préalable à la première collecte.
 
-- les identifiants de connexion via GPG ; ceux-là sont stockés dans un fichier chiffré (la copie en clair est à supprimer après chiffrement) ;
-- tous les autres paramètres via l'application Comptabilité ; ceux-là sont stockés pour la plupart dans le classeur (noms de comptes, devises utilisées, etc.). Cette configuration se fait entièrement via l'App, sans toucher au fichier Excel
-
-Voir **ANNEXE C** pour le détail de la configuration initiale (identifiants, devises, comptes, catégories, sites).
+Voir **ANNEXE C** pour le détail de la configuration initiale (devises, comptes, catégories, sites).
 
 > Une fois la configuration faite, elle n'a besoin d'être reprise que lors de l'ouverture ou la fermeture d'un compte, l'ajout d'une devise, un changement de catégorie, etc.
 
-#### Étape 1 - Lancement de l'App
+#### ▶️ Étape 1 - Lancement de l'App
 
 Lancer l'App Comptabilité soit **en cliquant sur le raccourci** (icône € colorée selon le mode : Or pour EX, rouge pour PROD, bleu pour DEV), soit **en ligne de commande** : `cd ~/Compta && ./cpt_gui.py`.
 
@@ -148,7 +145,9 @@ La fenêtre qui s'ouvre présente l'onglet Exécution :
 
 ![](images/Compta.png)
 
-#### Étape 2 - Collecte
+L'App affiche en permanence une barre de statut en bas de fenêtre avec deux zones (Cf. ANNEXE A)
+
+#### 🌐 Étape 2 - Collecte
 
 Dans l'onglet Exécution, sélectionner les sites voulus puis cliquer sur le bouton "Collecte". L'App demande le mot de passe maître (**P2**) dans une fenêtre dédiée, puis visite tous les sites sélectionnés pour collecter les données, ce qui peut prendre plusieurs minutes.
 
@@ -156,7 +155,7 @@ Dans l'onglet Exécution, sélectionner les sites voulus puis cliquer sur le bou
 
 Quand la collecte est terminée, cliquer sur "Import" pour mettre à jour le fichier **comptes.xlsm** avec les données collectées. On peut aussi attendre pour relancer une collecte avec d'autres sites qui manqueraient.
 
-#### Étape 3 - compléments manuels
+#### ✍️ Étape 3 - compléments manuels
 
 Le fichier  **comptes.xlsm** peut alors être ouvert sous LibreOffice, pour une session manuelle afin de :
 
@@ -248,47 +247,11 @@ Deux axes **indépendants** gouvernent la collecte de chaque site :
 
 # ANNEXE C - Configuration initiale
 
-La configuration se fait via Terminal ou par les onglets de l'App. L'ordre ci-dessous respecte les dépendances entre les éléments ; l'**interdépendance Compte ↔ Site** est décrite dans les deux sections concernées (§3 Comptes et §5 Sites).
+La configuration se fait par les onglets de l'App. L'ordre ci-dessous respecte les dépendances entre les éléments ; l'**interdépendance Compte ↔ Site** est décrite dans les deux sections concernées (§2 Comptes et §4 Sites).
 
-## 1. Identifiants de connexion (Terminal)
+> L'App n'est jamais un passage obligé : les fichiers de configuration restent des fichiers texte, lisibles et modifiables à la main. Le chemin en ligne de commande — utile sur une machine sans écran, ou en dépannage — est décrit dans [`Compta_plus.md`](Compta_plus.md) § *Configuration en ligne de commande*.
 
-Les identifiants des sites financiers sont stockés dans le fichier `config_credentials.md.gpg` chiffré par GPG.
-
-Fichier initial vide, non chiffré : `config_credentials.md` posé à l'installation.
-
-- **Présentation formatée** 
-
-| Clé        | Identifiant | Password |
-| ---------- | ----------- | -------- |
-| PAYPAL     |             |          |
-| ETORO      |             |          |
-| BOURSOBANK |             |          |
-
-- **Présentation brute** 
-
-```
-| Clé | Identifiant | Password |
-|-----|-------------|----------|
-| PAYPAL | | |
-| ETORO | | |
-| BOURSOBANK | | |
-```
-
-La clé (nom au choix) est à reporter à l'identique lors de la configuration du site (étape 5).
-
-Il reste à remplir `config_credentials.md` avec les identifiants de chaque site, puis à le chiffrer :
-
-```bash
-# config_credentials.md est créé par install.sh
-# (sinon : cp config_credentials.md.default config_credentials.md)
-# … remplir config_credentials.md …
-gpg -c config_credentials.md     # → config_credentials.md.gpg (chiffré)
-rm config_credentials.md         # impératif : efface les identifiants en clair
-```
-
-Le mot de passe maître GPG (**P2**) n'est demandé qu'une seule fois par collecte.
-
-## 2. Devises (onglet Devises)
+## 1️⃣ Devises (onglet Devises)
 
 Ajouter les devises nécessaires (hors EUR qui est la devise de base). Pour chaque devise :
 
@@ -298,17 +261,17 @@ Ajouter les devises nécessaires (hors EUR qui est la devise de base). Pour chaq
 
 Les devises dérivées (ex : once d'or → gramme d'or) se définissent par une formule à partir d'une devise existante.
 
-## 3. Comptes (onglet Comptes)
+## 2️⃣ Comptes (onglet Comptes)
 
 Créer un compte pour chaque compte bancaire, placement ou portefeuille. Pour chaque compte :
 
 - **Intitulé** : nom libre (ex : "LBP Courant")
-- **Devise** : devise du compte (doit exister, cf. étape 2)
+- **Devise** : devise du compte (doit exister, cf. étape 1)
 - **Type** : Courant, Épargne, Titres, PEA...
 - **Site** : site de collecte rattaché — ou **N/A** pour les comptes sans collecte
 - **Domiciliation**, **Titulaire**, **Propriété** : attributs patrimoniaux
 
-> **Amorçage sans boucle (Compte ↔ Site)** : un compte se rattache à un site, mais un site se configure à partir de ses comptes (étape 5). Pour éviter cette dépendance circulaire, créez d'abord le compte avec **Site = N/A** ; le rattachement effectif au site se fait en **étape 5**, lors de son activation.
+> **Amorçage sans boucle (Compte ↔ Site)** : un compte se rattache à un site, mais un site se configure à partir de ses comptes (étape 4). Pour éviter cette dépendance circulaire, créez d'abord le compte avec **Site = N/A** ; le rattachement effectif au site se fait en **étape 4**, lors de son activation.
 
 Lorsqu'un compte est rattaché à un site, des **champs techniques** supplémentaires apparaissent selon le site. Ils permettent au collecteur d'identifier le compte sur le site bancaire.
 
@@ -325,7 +288,7 @@ Ces champs sont propres à chaque site et n'apparaissent que pour les comptes ra
 
 Les biens matériels (immobilier, mobilier) se créent aussi dans cet onglet (bouton "Bien").
 
-## 4. Catégories et postes (onglet Catégories)
+## 3️⃣ Catégories et postes (onglet Catégories)
 
 Les **postes budgétaires** regroupent les catégories en Fixe ou Variable (ex : Logement, Transport, Loisirs).
 
@@ -333,14 +296,28 @@ Les **catégories** sont les lignes du budget (ex : Loyer, Assurance auto, Resta
 
 Les **correspondances** (regex → catégorie) permettent la catégorisation automatique des opérations à l'import, à partir de leur libellé.
 
-## 5. Sites (onglet Sites)
+## 4️⃣ Sites (onglet Sites)
 
-Vous n'activez que les sites correspondant à vos comptes. Pour chacun, le parcours reprend les étapes précédentes de cette annexe :
+Vous n'activez que les sites correspondant à vos comptes. Pour chacun :
 
-1. **Identifiants** — la ligne du site dans `config_credentials.md` (§1 ci-dessus).
-2. **Compte(s)** — rattacher le(s) compte(s) au site : passer leur champ **Site** de N/A à ce site (les champs techniques apparaissent alors, cf. §3).
+1. **Identifiants** — renseigner la connexion au site (ci-dessous).
+2. **Compte(s)** — rattacher le(s) compte(s) au site : passer leur champ **Site** de N/A à ce site (les champs techniques apparaissent alors, cf. §2).
 3. **Activation** — cocher le site dans l'onglet Sites.
 4. **Collecte** — le sélectionner dans l'onglet Exécution et lancer (intervention d'authentification éventuelle selon le site, cf. ANNEXE B).
+
+### Identifiants de connexion
+
+Les identifiants des sites vivent dans `config_credentials.md.gpg`, une table chiffrée par GPG et protégée par un **mot de passe maître** (**P2**). L'App n'affiche jamais les mots de passe : elle les écrit, ne les relit pas.
+
+Chaque entrée a trois champs :
+
+- **Réf** : nom au choix (ex. `MaBanque-1`), qui désigne l'entrée depuis la configuration du site — c'est le champ *Réf* de l'onglet Sites. Une réf peut servir plusieurs sites, et un même site peut en utiliser deux (Monero : une pour le wallet, une pour le nœud RPC).
+- **Identifiant** : le login du site.
+- **Passe** : le mot de passe du site.
+
+> `config_credentials.md.gpg` reste un **tableau Markdown chiffré en symétrique** : `gpg` seul suffit à l'ouvrir et à le refermer, sans l'App — voir [`Compta_plus.md`](Compta_plus.md) § *Configuration en ligne de commande*. L'App est une commodité, jamais un verrou.
+
+### Description et paramètres
 
 Chaque site affiche une zone descriptive qui indique :
 
@@ -356,20 +333,20 @@ Certains sites possèdent des paramètres modifiables :
 
 - **Dossier Drive**, **Compte Drive** : pour les sites collectés via Google Drive
 
-- **CLI Monero**, **Dossier wallets**, **Timeout wallet** : pour la collecte Monero
+- **Hôte SSH wallet-rpc**, **Réf RPC**, **Timeout refresh**, **Timeout tunnel** : pour la collecte Monero, qui interroge un nœud distant par tunnel SSH
 
 - **Collecte en parallèle** (case à cocher) : force le site dans le groupe de collecte parallèle (sites navigateur)
 
 - **Fenêtre visible** *(headed)* (case à cocher) : force le navigateur en mode **visible** — réglage **par poste** (sites navigateur)
 
-## 6. Paramètres (onglet Paramètres)
+## 5️⃣ Paramètres (onglet Paramètres)
 
 Ajuster si nécessaire :
 
+- **Identifiants de collecte** : ouvre la table (§4) en entier — créer ou supprimer une réf, et repérer via la colonne *Utilisé par* celles qu'aucun site n'utilise. La suppression n'est possible que d'ici : une réf pouvant servir plusieurs sites, on ne juge de son sort qu'en voyant qui s'en sert. Une sauvegarde `.bak` est écrite avant chaque modification
 - **Appariement** : délai max entre opérations liées, tolérance sur les montants
 - **Général** : mode debug, profondeur d'import, rétention des archives
 - **Opérations liées** : règles de génération automatique de contreparties (ex : retrait DAB → Espèces)
-- **Solde auto** : comptes dont le solde est calculé à partir d'une catégorie trigger
 
 ## Aller plus loin
 

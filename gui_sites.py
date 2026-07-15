@@ -1,7 +1,15 @@
 """Mixin onglet Sites pour ConfigGUI."""
 
+from pathlib import Path
+
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, messagebox, simpledialog
+
+import inc_gpg_credentials as gpg_creds
+
+# Clés de config.ini qui désignent une entrée de la table d'identifiants → elles
+# gagnent le bouton « Gérer… ». (XMR en a deux : son login site et son RPC.)
+_CREDENTIAL_KEYS = ('credential_id', 'wallet_rpc_credential_id')
 
 
 class SitesMixin:
@@ -133,7 +141,10 @@ class SitesMixin:
         french_labels = {
             'name': 'Nom',
             'base_url': 'URL',
-            'credential_id': 'Identifiant',
+            # « Réf » et non « Identifiant » : dans la table chiffrée, Réf = la clé
+            # et Identifiant = le login du site. Nommer la clé « Identifiant » ici
+            # faisait dire au même mot deux choses à deux écrans d'écart.
+            'credential_id': 'Réf',
             'max_days_back': 'Jours max',
             'max_reports': 'Nb rapports',
             'dossier': 'Dossier',
@@ -143,7 +154,7 @@ class SitesMixin:
             'wallet_rpc_ssh_host': 'Hôte SSH wallet-rpc',
             'wallet_rpc_port': 'Port wallet-rpc',
             'wallet_rpc_local_port': 'Port tunnel local',
-            'wallet_rpc_credential_id': 'Identifiant RPC',
+            'wallet_rpc_credential_id': 'Réf RPC',
             'refresh_timeout': 'Timeout refresh',
             'tunnel_timeout': 'Timeout tunnel',
             'api_url': 'URL API',
@@ -194,6 +205,13 @@ class SitesMixin:
             ttk.Entry(row, textvariable=var, width=width,
                       state=state).pack(side='left', padx=5)
 
+            # Porte CONTEXTUELLE : la réf de ce site, directement. La vue globale
+            # de la table vit dans Paramètres (cf. _open_credentials_manager).
+            if key in _CREDENTIAL_KEYS:
+                ttk.Button(row, text='Modifier…', width=10,
+                           command=lambda v=var: self._edit_site_credential(v.get())
+                           ).pack(side='left', padx=(0, 5))
+
             if key in hints:
                 ttk.Label(row, text=hints[key],
                           style='Hint.TLabel').pack(side='left')
@@ -222,4 +240,281 @@ class SitesMixin:
             self._site_actif_cb.configure(
                 style='SiteOn.TCheckbutton' if is_on else 'SiteOff.TCheckbutton')
             self._site_actif_text.set('Actif' if is_on else 'Inactif')
+
+    # ------------------------------------------------------------------
+    # Table d'identifiants — CRUD (cf. invariants : inc_gpg_credentials).
+    #
+    # Hors du modèle « édite-et-pars » des onglets config À DESSEIN : chaque
+    # écriture coûte un aller-retour GPG + un backup, donc validation explicite
+    # par dialogue. Même raison qui interdit de peupler une liste déroulante
+    # d'identifiants dans l'onglet : la remplir exigerait de déchiffrer, donc une
+    # demande de passphrase à chaque affichage. On ne déchiffre QUE sur geste.
+    # ------------------------------------------------------------------
+
+    def _credentials_file(self):
+        raw = self.config.get('paths', 'credentials_file',
+                              fallback='./config_credentials.md.gpg')
+        return Path(raw).expanduser()
+
+    def _credential_usage(self):
+        """identifiant → sites qui s'en servent, lu de config.ini — SANS déchiffrer.
+
+        Le lien site→identifiant vit dans config.ini, la table ne le connaît pas :
+        c'est ce qui permet à une clé de rester libre (un site peut en changer, un
+        identifiant peut servir deux sites, XMR en use deux). L'afficher rend le
+        lien lisible sans le graver dans le nommage, et fait ressortir les orphelins.
+        """
+        usage = {}
+        for section in self.config.sections():
+            for key in _CREDENTIAL_KEYS:
+                cid = self.config.get(section, key, fallback='').strip()
+                if not cid:
+                    continue
+                label = section if key == 'credential_id' else f'{section} (rpc)'
+                usage.setdefault(cid, []).append(label)
+        return usage
+
+    def _credential_entry_dialog(self, parent, cid=None, login=''):
+        """Formulaire d'une entrée. cid=None → création. Retourne (réf, id, passe|None).
+
+        Vocabulaire aligné sur la table elle-même : Réf = la clé, Identifiant = le
+        login du site, Passe = le secret. Le mot de passe n'est jamais préchargé
+        (on ne le lit pas pour le gérer) → vide = inchangé.
+        """
+        d = tk.Toplevel(parent)
+        d.title('Modifier la réf' if cid else 'Nouvelle réf')
+        d.transient(parent)
+        out = {}
+        f = ttk.Frame(d, padding=10)
+        f.pack(fill='both', expand=True)
+
+        ttk.Label(f, text='Réf :', width=14).grid(row=0, column=0, sticky='w')
+        v_id = tk.StringVar(value=cid or '')
+        e_id = ttk.Entry(f, textvariable=v_id, width=30)
+        e_id.grid(row=0, column=1, pady=3)
+        if cid:
+            e_id.configure(state='readonly')  # la Réf est la clé : jamais renommée ici
+
+        ttk.Label(f, text='Identifiant :', width=14).grid(row=1, column=0, sticky='w')
+        v_log = tk.StringVar(value=login)
+        e_log = ttk.Entry(f, textvariable=v_log, width=30)
+        e_log.grid(row=1, column=1, pady=3)
+
+        ttk.Label(f, text='Passe :', width=14).grid(row=2, column=0, sticky='w')
+        v_pw = tk.StringVar()
+        ttk.Entry(f, textvariable=v_pw, width=30, show='•').grid(row=2, column=1, pady=3)
+        if cid:
+            ttk.Label(f, text='(vide = inchangé)',
+                      style='Hint.TLabel').grid(row=3, column=1, sticky='w')
+
+        def ok():
+            if not v_id.get().strip():
+                messagebox.showwarning('Champ requis',
+                                       'La réf est obligatoire.', parent=d)
+                return
+            out['v'] = (v_id.get().strip(), v_log.get().strip(), v_pw.get() or None)
+            d.destroy()
+
+        br = ttk.Frame(f)
+        br.grid(row=4, column=0, columnspan=2, pady=(10, 0))
+        ttk.Button(br, text='Valider', command=ok).pack(side='left', padx=4)
+        ttk.Button(br, text='Annuler', command=d.destroy).pack(side='left', padx=4)
+        (e_log if cid else e_id).focus_set()
+        # `grab_set` sur une fenêtre pas encore mappée lève « window not viewable ».
+        d.wait_visibility()
+        d.grab_set()
+        d.wait_window()
+        return out.get('v')
+
+    def _edit_site_credential(self, cid):
+        """Porte CONTEXTUELLE (onglet Sites) : la réf de CE site, directement.
+
+        Ni liste ni colonne « Utilisé par » : le site est implicite, l'afficher
+        serait du bruit. Et pas de suppression — une réf peut servir plusieurs
+        sites (ou aucun) : ça ne se juge que depuis la vue globale (Paramètres).
+        """
+        if not cid:
+            messagebox.showinfo(
+                'Aucune réf', "Ce site n'a pas de réf d'identifiant configurée.",
+                parent=self.root)
+            return
+        path = self._credentials_file()
+        if not path.exists():
+            messagebox.showerror('Table introuvable',
+                                 f"Aucune table d'identifiants à :\n{path}",
+                                 parent=self.root)
+            return
+        pw = simpledialog.askstring("Identifiants", f'Passphrase de {path.name} :',
+                                    show='•', parent=self.root)
+        if not pw:
+            return
+        entries, err = gpg_creds.read_entries(path, pw)
+        if err:
+            messagebox.showerror('Lecture impossible', err, parent=self.root)
+            return
+
+        known = dict(entries)
+        if cid not in known and not messagebox.askyesno(
+                'Réf inconnue',
+                f"La réf « {cid} » n'existe pas encore dans la table.\n\nLa créer ?",
+                parent=self.root):
+            return
+        v = self._credential_entry_dialog(self.root, cid, known.get(cid, ''))
+        if not v:
+            return
+        _, login, pwd = v
+        _, e = gpg_creds.upsert_entry(path, pw, cid, login,
+                                      pwd if cid in known else (pwd or ''))
+        if e:
+            messagebox.showerror('Écriture impossible', e, parent=self.root)
+            return
+        messagebox.showinfo('Enregistré', f'Réf « {cid} » enregistrée.',
+                            parent=self.root)
+
+    def _open_credentials_manager(self, preselect=''):
+        """Porte GLOBALE (onglet Paramètres) : la table entière + « Utilisé par ».
+
+        C'est ici — et ici seulement — qu'on crée, supprime et repère les
+        orphelins : ces gestes exigent de voir qui utilise quoi.
+        """
+        path = self._credentials_file()
+        if not path.exists():
+            messagebox.showerror(
+                'Table introuvable',
+                f"Aucune table d'identifiants à :\n{path}\n\n"
+                "Crée-la d'abord (cf. install.sh), ou corrige "
+                "[paths] credentials_file dans config.ini.",
+                parent=self.root)
+            return
+
+        pw = simpledialog.askstring(
+            "Table d'identifiants", f'Passphrase de {path.name} :',
+            show='•', parent=self.root)
+        if not pw:
+            return
+        entries, err = gpg_creds.read_entries(path, pw)
+        if err:
+            messagebox.showerror('Lecture impossible', err, parent=self.root)
+            return
+
+        dlg = tk.Toplevel(self.root)
+        dlg.title("Identifiants de collecte")
+        dlg.transient(self.root)
+        dlg.geometry('720x380')
+        dlg.minsize(560, 300)
+
+        ttk.Label(dlg, text=f'{path.name} — également éditable à la main '
+                            '(gpg -d / gpg -c)',
+                  style='Hint.TLabel').pack(anchor='w', padx=10, pady=(8, 4))
+
+        # Barre d'actions réservée AVANT l'arbre : `pack` sert les widgets dans
+        # l'ordre de déclaration, donc un arbre en expand=True posé d'abord
+        # chasserait les boutons hors du cadre tant qu'on n'agrandit pas.
+        btn_row = ttk.Frame(dlg)
+        btn_row.pack(side='bottom', fill='x', padx=10, pady=8)
+        grp = ttk.LabelFrame(btn_row, text='Réf', padding=4)
+        grp.pack(side='left')
+
+        tree_f = ttk.Frame(dlg)
+        tree_f.pack(fill='both', expand=True, padx=10)
+        tree = ttk.Treeview(tree_f, columns=('login', 'sites'),
+                            show='tree headings', selectmode='browse')
+        tree.heading('#0', text='Réf')
+        tree.column('#0', width=140)
+        tree.heading('login', text='Identifiant')
+        tree.column('login', width=250)
+        tree.heading('sites', text='Utilisé par')
+        tree.column('sites', width=200)
+        tree.pack(side='left', fill='both', expand=True)
+        sb = ttk.Scrollbar(tree_f, orient='vertical', command=tree.yview)
+        sb.pack(side='right', fill='y')
+        tree.configure(yscrollcommand=sb.set)
+
+        state = {'pw': pw}
+
+        usage = self._credential_usage()
+
+        def refresh(select=None):
+            rows, e = gpg_creds.read_entries(path, state['pw'])
+            if e:
+                messagebox.showerror('Lecture impossible', e, parent=dlg)
+                return
+            tree.delete(*tree.get_children())
+            for cid, login in rows:
+                sites = ', '.join(usage.get(cid, [])) or '⚠ aucun'
+                tree.insert('', 'end', iid=cid, text=cid, values=(login, sites))
+            if select and tree.exists(select):
+                tree.selection_set(select)
+                tree.see(select)
+            _gate()
+
+        def _gate(_evt=None):
+            has = bool(tree.selection())
+            b_edit.configure(state='normal' if has else 'disabled')
+            b_del.configure(state='normal' if has else 'disabled')
+
+        def add():
+            v = self._credential_entry_dialog(dlg)
+            if not v:
+                return
+            cid, login, pwd = v
+            _, e = gpg_creds.upsert_entry(path, state['pw'], cid, login, pwd or '')
+            if e:
+                messagebox.showerror('Écriture impossible', e, parent=dlg)
+                return
+            refresh(select=cid)
+
+        def edit():
+            sel = tree.selection()
+            if not sel:
+                return
+            cid = sel[0]
+            v = self._credential_entry_dialog(dlg, cid, tree.item(cid, 'values')[0])
+            if not v:
+                return
+            _, login, pwd = v
+            _, e = gpg_creds.upsert_entry(path, state['pw'], cid, login, pwd)
+            if e:
+                messagebox.showerror('Écriture impossible', e, parent=dlg)
+                return
+            refresh(select=cid)
+
+        def delete():
+            sel = tree.selection()
+            if not sel:
+                return
+            cid = sel[0]
+            if not messagebox.askyesno(
+                    'Supprimer', f"Supprimer l'identifiant « {cid} » ?\n\n"
+                    "Les sites qui l'utilisent ne pourront plus se connecter.\n"
+                    f"Une sauvegarde {path.name}.bak est conservée.",
+                    parent=dlg):
+                return
+            e = gpg_creds.delete_entry(path, state['pw'], cid)
+            if e:
+                messagebox.showerror('Suppression impossible', e, parent=dlg)
+                return
+            refresh()
+
+        ttk.Button(grp, text='➕', width=3, command=add).pack(side='left', padx=1)
+        b_edit = ttk.Button(grp, text='✏', width=3, command=edit)
+        b_edit.pack(side='left', padx=1)
+        b_del = ttk.Button(grp, text='✖', width=3, command=delete)
+        b_del.pack(side='left', padx=1)
+        ttk.Button(btn_row, text='Fermer', command=dlg.destroy).pack(side='right')
+
+        tree.bind('<<TreeviewSelect>>', _gate)
+        tree.bind('<Double-1>', lambda _e: edit())
+        refresh(select=preselect or None)
+        dlg.wait_visibility()
+        dlg.grab_set()
+        dlg.wait_window()
+        # On lâche la RÉFÉRENCE — on n'efface pas la mémoire : une chaîne Python
+        # est immuable et non écrasable, et Tcl en garde ses propres copies. La
+        # passphrase devient collectable, rien de plus. Vie réelle ≈ celle du
+        # dialogue, là où gpg-agent, lui, la garde 600 s glissantes MAIS en
+        # mémoire verrouillée. Vie plus courte ici, murs plus minces : c'est le
+        # prix du loopback, lequel achète en échange l'impossibilité de
+        # rechiffrer avec une passphrase divergente.
+        state['pw'] = None
 

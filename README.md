@@ -138,12 +138,13 @@ Le classeur d'exemple contient des données fictives à remplacer par les vôtre
 
 ## 7. Utilisation — mode assisté
 
-Le classeur livré est vierge de données personnelles. L'application graphique — à lancer via le raccourci installé (icône €) — guide l'utilisateur à travers les étapes : sélection des sites, collecte, import, vérification. Elle peut aussi être utilisée uniquement pour la gestion du classeur (comptes, catégories, devises, titres) sans activer la collecte. L'app s'utilise également en ligne de commande (collecte, import, appariement, cotations, diagnostics).
+Le classeur livré est **vierge** de données personnelles ou illustratives.
 
-Avant la première collecte il s'agit de renseigner :
+L'application graphique — à lancer via le raccourci installé (icône €) — présente un onglet principal pour la collecte et l'import et des onglets secondaires pour la configuration.
 
-- les identifiants de connexion via GPG ; ceux-là sont stockés dans un fichier chiffré (la copie en clair est à supprimer après chiffrement) ;
-- tous les autres paramètres via l'application Compta ; ceux-là sont stockés pour la plupart dans le classeur (noms de comptes, devises utilisées, etc.).
+L'app s'utilise également en ligne de commande.
+
+Les identifiants de connexion et leurs mots de passe sites sont stockés dans un fichier chiffré GPG, protégé par un mot de passe maître **P2**.
 
 Pour aller plus loin : **Utilisation** ([`Compta.md`](Compta.md))
 
@@ -217,6 +218,7 @@ Compta [EX] est distribué gratuitement sous licence GNU GPL v3.
 - **2FA** (Two-Factor Authentication) : Authentification à deux facteurs
 - **GPG** (GNU Privacy Guard) : Outil de cryptographie au standard OpenPGP
 - **GUI** (Graphical User Interface) : Interface graphique
+- **P2** : Mot de passe maître de la collecte, saisi au démarrage ; il déchiffre le fichier d'identifiants
 - **Playwright** : Outil d'automatisation de navigateur, utilisé pour la collecte
 - **WSL** (Windows Subsystem for Linux) : Composant Linux de Microsoft pour Windows
 

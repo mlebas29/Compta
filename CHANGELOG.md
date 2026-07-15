@@ -9,6 +9,19 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 
 Les trois derniers sont spécifiques au mode assisté ; 📘 concerne le mode classeur.
 
+## v5.20.0
+| 2026-07-15 | Identifiants sites gérés par l'interface graphique |
+| ---------- | -------------------------------------------------- |
+
+**Détail :**
+
+- **Les identifiants de collecte se gèrent dans l'App** — plus besoin de passer par le terminal pour renseigner ou corriger le login et le mot de passe d'un site. Dans l'onglet **Sites**, le bouton **Modifier…** ouvre l'entrée du site ; l'onglet **Paramètres** donne la table entière (créer, supprimer). C'était le dernier réglage qui échappait à l'interface graphique.
+- **Le fichier d'identifiants ne change pas** — il reste une table Markdown chiffrée par GPG, modifiable à la main comme avant ([`Compta_plus.md`](Compta_plus.md) § Configuration en ligne de commande). L'App ne pose jamais vos mots de passe en clair sur le disque, et sauvegarde la table avant chaque modification.
+- **Vocabulaire unifié** — la clé d'une entrée s'appelle désormais **Réf** partout (App et documentation) ; « Identifiant » ne désigne plus que le login du site.
+- **Documentation par site allégée** — chaque `docs/site_*.md` se concentre sur l'essentiel et les pièges ; le détail vit dans le code, qui ne se périme pas. Amazon et PayPal, jamais documentés, le sont désormais.
+- **Glossaire développeur** ([`Compta_dev.md`](Compta_dev.md)) — pendant technique du glossaire utilisateur.
+- **Corrections de collecte** — PayPal (mesure du temps d'attente après le code SMS), saisie manuelle (lecture du fichier accélérée).
+
 ## v5.19.1
 | 2026-07-14 | Clarifications documentaires |
 | ---------- | ---------------------------- |
