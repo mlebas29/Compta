@@ -9,6 +9,15 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 
 Les trois derniers sont spécifiques au mode assisté ; 📘 concerne le mode classeur.
 
+## v5.20.1
+| 2026-07-15 | Premier identifiant : plus de terminal du tout |
+| ---------- | ---------------------------------------------- |
+
+**Détail :**
+
+- **La table d'identifiants se crée depuis l'App** — en v5.20.0, on pouvait *modifier* ses identifiants dans l'interface, mais le tout premier exigeait encore le terminal (`gpg -c`). L'App propose désormais de créer la table au premier usage et demande le mot de passe maître (**P2**), qu'elle fait confirmer. Plus aucune commande à taper.
+- **Plus de mots de passe en clair sur le disque** — l'installation ne dépose plus de fichier `config_credentials.md` en clair à remplir. Si un tel fichier existe déjà (installation antérieure), l'App le reprend, le chiffre, puis **l'efface**.
+
 ## v5.20.0
 | 2026-07-15 | Identifiants sites gérés par l'interface graphique |
 | ---------- | -------------------------------------------------- |

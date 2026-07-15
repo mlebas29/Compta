@@ -274,6 +274,124 @@ class SitesMixin:
                 usage.setdefault(cid, []).append(label)
         return usage
 
+    def _ask_new_passphrase(self, parent):
+        """Passphrase de CRÉATION : saisie deux fois, comparée. Retourne str ou None.
+
+        La confirmation est ici indispensable et ne l'est nulle part ailleurs : à la
+        création il n'existe aucune passphrase de référence, donc rien qui puisse
+        rattraper une faute de frappe. Ailleurs, le déchiffrement amont fait foi.
+        """
+        d = tk.Toplevel(parent)
+        d.title('Nouvelle table d\'identifiants')
+        d.transient(parent)
+        out = {}
+        f = ttk.Frame(d, padding=12)
+        f.pack(fill='both', expand=True)
+        ttk.Label(f, text="Choisis le mot de passe maître (P2) qui protégera tes\n"
+                          "identifiants. Il te sera demandé à chaque collecte.",
+                  justify='left').grid(row=0, column=0, columnspan=2, sticky='w',
+                                       pady=(0, 10))
+        ttk.Label(f, text='Mot de passe :', width=16).grid(row=1, column=0, sticky='w')
+        v1 = tk.StringVar()
+        e1 = ttk.Entry(f, textvariable=v1, width=28, show='•')
+        e1.grid(row=1, column=1, pady=3)
+        ttk.Label(f, text='Confirmer :', width=16).grid(row=2, column=0, sticky='w')
+        v2 = tk.StringVar()
+        ttk.Entry(f, textvariable=v2, width=28, show='•').grid(row=2, column=1, pady=3)
+        ttk.Label(f, text='Sans lui, tes identifiants sont irrécupérables.',
+                  style='Hint.TLabel').grid(row=3, column=1, sticky='w')
+
+        def ok():
+            if not v1.get():
+                messagebox.showwarning('Champ requis',
+                                       'Le mot de passe ne peut pas être vide.',
+                                       parent=d)
+                return
+            if v1.get() != v2.get():
+                messagebox.showwarning('Confirmation',
+                                       'Les deux saisies diffèrent.', parent=d)
+                v2.set('')
+                return
+            out['v'] = v1.get()
+            d.destroy()
+
+        br = ttk.Frame(f)
+        br.grid(row=4, column=0, columnspan=2, pady=(12, 0))
+        ttk.Button(br, text='Créer', command=ok).pack(side='left', padx=4)
+        ttk.Button(br, text='Annuler', command=d.destroy).pack(side='left', padx=4)
+        e1.focus_set()
+        d.wait_visibility()
+        d.grab_set()
+        d.wait_window()
+        return out.get('v')
+
+    def _credentials_unlock(self, parent):
+        """Point d'entrée UNIQUE des deux portes : rend (chemin, passphrase) prêts à
+        l'emploi, ou (None, None) si l'utilisateur renonce.
+
+        **Crée la table si elle n'existe pas** — sans ça, un utilisateur en install
+        fraîche resterait renvoyé au terminal (`gpg -c`) pour son tout premier
+        identifiant, c'est-à-dire au seul geste qui pose ses mots de passe en clair
+        sur le disque. Trois états :
+          1. table chiffrée présente → demander la passphrase (le déchiffrement la valide) ;
+          2. table en CLAIR présente (posée par install.sh, remplie ou non) → la
+             reprendre, la chiffrer, puis **effacer le clair** — on termine le geste
+             qu'install.sh amorce et que l'utilisateur oublie ;
+          3. rien → table vide, ou graine `.default` si elle est livrée.
+        """
+        path = self._credentials_file()
+        clear = path.with_name(path.name[:-4]) if path.name.endswith('.gpg') else None
+
+        if not path.exists():
+            seed, src = None, None
+            if clear and clear.exists():
+                try:
+                    seed = clear.read_text(encoding='utf-8')
+                    src = clear
+                except OSError:
+                    seed = None
+            elif (clear and clear.with_name(clear.name + '.default').exists()):
+                try:
+                    seed = clear.with_name(clear.name + '.default').read_text(encoding='utf-8')
+                except OSError:
+                    seed = None
+            msg = (f"Aucune table d'identifiants à :\n{path}\n\n"
+                   "La créer maintenant ?")
+            if src:
+                msg += (f"\n\nLe fichier en clair {src.name} sera repris, "
+                        "chiffré, puis effacé.")
+            if not messagebox.askyesno("Créer la table", msg, parent=parent):
+                return None, None
+            pw = self._ask_new_passphrase(parent)
+            if not pw:
+                return None, None
+            err = gpg_creds.create_table(path, pw, seed)
+            if err:
+                messagebox.showerror('Création impossible', err, parent=parent)
+                return None, None
+            if src:
+                try:
+                    src.unlink()          # le clair ne survit pas au chiffrement
+                except OSError as e:
+                    messagebox.showwarning(
+                        'Clair non effacé',
+                        f"La table est chiffrée, mais {src.name} n'a pas pu être "
+                        f"supprimé :\n{e}\n\nEfface-le à la main : il contient tes "
+                        "mots de passe en clair.", parent=parent)
+            messagebox.showinfo('Table créée', f'{path.name} est créée et chiffrée.',
+                                parent=parent)
+            return path, pw
+
+        pw = simpledialog.askstring("Identifiants", f'Passphrase de {path.name} :',
+                                    show='•', parent=parent)
+        if not pw:
+            return None, None
+        _, err = gpg_creds.decrypt_table(path, pw)   # valide la passphrase
+        if err:
+            messagebox.showerror('Lecture impossible', err, parent=parent)
+            return None, None
+        return path, pw
+
     def _credential_entry_dialog(self, parent, cid=None, login=''):
         """Formulaire d'une entrée. cid=None → création. Retourne (réf, id, passe|None).
 
@@ -338,15 +456,8 @@ class SitesMixin:
                 'Aucune réf', "Ce site n'a pas de réf d'identifiant configurée.",
                 parent=self.root)
             return
-        path = self._credentials_file()
-        if not path.exists():
-            messagebox.showerror('Table introuvable',
-                                 f"Aucune table d'identifiants à :\n{path}",
-                                 parent=self.root)
-            return
-        pw = simpledialog.askstring("Identifiants", f'Passphrase de {path.name} :',
-                                    show='•', parent=self.root)
-        if not pw:
+        path, pw = self._credentials_unlock(self.root)
+        if not path:
             return
         entries, err = gpg_creds.read_entries(path, pw)
         if err:
@@ -377,24 +488,8 @@ class SitesMixin:
         C'est ici — et ici seulement — qu'on crée, supprime et repère les
         orphelins : ces gestes exigent de voir qui utilise quoi.
         """
-        path = self._credentials_file()
-        if not path.exists():
-            messagebox.showerror(
-                'Table introuvable',
-                f"Aucune table d'identifiants à :\n{path}\n\n"
-                "Crée-la d'abord (cf. install.sh), ou corrige "
-                "[paths] credentials_file dans config.ini.",
-                parent=self.root)
-            return
-
-        pw = simpledialog.askstring(
-            "Table d'identifiants", f'Passphrase de {path.name} :',
-            show='•', parent=self.root)
-        if not pw:
-            return
-        entries, err = gpg_creds.read_entries(path, pw)
-        if err:
-            messagebox.showerror('Lecture impossible', err, parent=self.root)
+        path, pw = self._credentials_unlock(self.root)
+        if not path:
             return
 
         dlg = tk.Toplevel(self.root)

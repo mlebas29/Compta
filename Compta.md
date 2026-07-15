@@ -309,6 +309,8 @@ Vous n'activez que les sites correspondant à vos comptes. Pour chacun :
 
 Les identifiants des sites vivent dans `config_credentials.md.gpg`, une table chiffrée par GPG et protégée par un **mot de passe maître** (**P2**). L'App n'affiche jamais les mots de passe : elle les écrit, ne les relit pas.
 
+À la première utilisation la table n'existe pas encore : l'App propose de la **créer** et demande le mot de passe maître (deux fois, pour écarter la faute de frappe — sans lui, les identifiants seraient irrécupérables). Aucune commande à taper.
+
 Chaque entrée a trois champs :
 
 - **Réf** : nom au choix (ex. `MaBanque-1`), qui désigne l'entrée depuis la configuration du site — c'est le champ *Réf* de l'onglet Sites. Une réf peut servir plusieurs sites, et un même site peut en utiliser deux (Monero : une pour le wallet, une pour le nœud RPC).

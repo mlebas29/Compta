@@ -248,10 +248,11 @@ def _encrypt_table(content: str, gpg_file, passphrase: str) -> Optional[str]:
     gpg_file = Path(gpg_file)
     backup = gpg_file.with_name(gpg_file.name + '.bak')
     tmp = gpg_file.with_name(gpg_file.name + '.tmp')
-    try:
-        shutil.copy2(gpg_file, backup)
-    except OSError as e:
-        return f"Backup impossible, écriture abandonnée : {e}"
+    if gpg_file.exists():                 # rien à sauvegarder à la CRÉATION
+        try:
+            shutil.copy2(gpg_file, backup)
+        except OSError as e:
+            return f"Backup impossible, écriture abandonnée : {e}"
     try:
         res = _run_gpg(['--symmetric', '--output', str(tmp)], passphrase,
                        stdin_data=content.encode('utf-8'))
@@ -305,6 +306,30 @@ def _header_index(lines: List[str]) -> Optional[int]:
                 return j
             return None
     return None
+
+
+EMPTY_TABLE = "| Réf | Identifiant | Passe |\n|-----|-------------|-------|\n"
+
+
+def create_table(gpg_file, passphrase: str,
+                 content: Optional[str] = None) -> Optional[str]:
+    """Crée la table chiffrée. Retourne None si OK, sinon l'erreur.
+
+    SEUL endroit où une passphrase NEUVE est légitime : il n'existe encore aucune
+    passphrase dont diverger, donc rien à valider en amont — c'est à l'appelant de
+    la faire confirmer (deux saisies). Partout ailleurs, la règle inverse tient
+    (cf. docstring du module).
+
+    `content` = graine (une table en clair déjà remplie à reprendre, p.ex.) ;
+    None → table vide avec son seul en-tête.
+    """
+    gpg_file = Path(gpg_file)
+    if gpg_file.exists():
+        return f"La table existe déjà : {gpg_file}"
+    if not passphrase:
+        return "Passphrase vide."
+    return _encrypt_table(content if content is not None else EMPTY_TABLE,
+                          gpg_file, passphrase)
 
 
 def _row_cells(line: str) -> Optional[List[str]]:

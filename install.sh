@@ -639,13 +639,12 @@ else
     warn "config.ini.default absent — créer config.ini manuellement"
 fi
 
-# config_credentials.md : poser la copie de travail depuis le modèle, mais seulement
-# s'il n'existe encore aucun credential (ni clair, ni chiffré) — idempotent : ne pas
-# ré-écraser une saisie en cours ni recréer le modèle vierge après chiffrement + rm.
-if [[ ! -f "config_credentials.md" && ! -f "config_credentials.md.gpg" && -f "config_credentials.md.default" ]]; then
-    cp config_credentials.md.default config_credentials.md
-    ok "config_credentials.md créé depuis le modèle — à remplir, puis chiffrer (gpg -c) et supprimer le clair"
-fi
+# config_credentials.md.gpg : PAS de copie de travail en clair. L'App crée la table
+# chiffrée elle-même au premier usage (onglet Sites), comme elle crée les config_*.json
+# — un identifiant est un réglage comme un autre. Poser ici un .md en clair ne servait
+# qu'au remplissage au terminal, et laissait sur le disque exactement ce que le geste
+# « gpg -c && rm » cherchait à effacer. Le modèle .default reste livré : il sert de
+# graine à l'App, et au chemin manuel (cf. Compta_plus.md).
 
 # config_category_mappings.json : pas de .default — l'app crée un JSON vide
 # automatiquement à la 1re exécution si le fichier est absent.
@@ -703,8 +702,5 @@ if [[ $OS == macos ]]; then
 else
     echo "  1. Lancer : raccourci « Comptabilité [EX] » — ou en terminal : $PYTHON cpt_gui.py"
 fi
-echo "     → L'interface sert aussi de configurateur (comptes, sites, paramètres)"
-echo "  2. Renseigner les credentials :"
-echo "     → remplir config_credentials.md (créé depuis le modèle — voir README.md)"
-echo "     → gpg -c config_credentials.md  &&  rm config_credentials.md   (rm impératif : efface le clair)"
+echo "     → L'interface sert aussi de configurateur (comptes, sites, identifiants, paramètres)"
 echo
