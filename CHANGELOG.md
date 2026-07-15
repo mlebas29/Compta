@@ -16,6 +16,8 @@ Les trois derniers sont spécifiques au mode assisté ; 📘 concerne le mode cl
 **Détail :**
 
 - **La table d'identifiants se crée depuis l'App** — en v5.20.0, on pouvait *modifier* ses identifiants dans l'interface, mais le tout premier exigeait encore le terminal (`gpg -c`). L'App propose désormais de créer la table au premier usage et demande le mot de passe maître (**P2**), qu'elle fait confirmer. Plus aucune commande à taper.
+- **La Réf d'un site se saisit dans l'App** — le champ *Réf* (onglet Sites) était en lecture seule, et n'apparaissait même pas sur une installation neuve : rattacher un identifiant à un site imposait d'éditer `config.ini` à la main. Il est désormais proposé et saisissable sur tous les sites qui se connectent.
+- **Un site sans identifiant se configure d'un seul geste** — sur le site voulu, **Modifier…** suffit : l'App crée la table si besoin, propose une réf portant le nom du site (libre à vous d'en changer), et la rattache au site. Plus besoin de savoir ce qu'est une réf avant de commencer.
 - **Plus de mots de passe en clair sur le disque** — l'installation ne dépose plus de fichier `config_credentials.md` en clair à remplir. Si un tel fichier existe déjà (installation antérieure), l'App le reprend, le chiffre, puis **l'efface**.
 
 ## v5.20.0

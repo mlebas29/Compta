@@ -311,6 +311,8 @@ Les identifiants des sites vivent dans `config_credentials.md.gpg`, une table ch
 
 À la première utilisation la table n'existe pas encore : l'App propose de la **créer** et demande le mot de passe maître (deux fois, pour écarter la faute de frappe — sans lui, les identifiants seraient irrécupérables). Aucune commande à taper.
 
+Le geste est le même qu'ensuite : sur le site à configurer, bouton **Modifier…** à côté du champ *Réf*. Si le site n'a pas encore de réf, l'App en propose une portant son nom — à garder ou à changer — puis la crée et la rattache au site. La table se remplit ainsi site par site.
+
 Chaque entrée a trois champs :
 
 - **Réf** : nom au choix (ex. `MaBanque-1`), qui désigne l'entrée depuis la configuration du site — c'est le champ *Réf* de l'onglet Sites. Une réf peut servir plusieurs sites, et un même site peut en utiliser deux (Monero : une pour le wallet, une pour le nœud RPC).

@@ -2121,7 +2121,11 @@ class DevisesMixin:
             raw = updated
 
         # Onglet Sites — paramètres par site (sauf clés readonly)
-        readonly_keys = {'name', 'base_url', 'credential_id'}
+        # ⚠ Cette liste DOUBLE celle de `gui_sites` (rendu). Elles ont déjà diverge :
+        # tenir les deux, ou une saisie devenue possible à l'écran serait jetée ici
+        # en silence. `credential_id` en est sorti (la Réf est saisissable depuis que
+        # la table se gère dans l'App).
+        readonly_keys = {'name', 'base_url'}
         for (section, key), (vtype, var) in self.tk_vars.items():
             if section.startswith('site_'):
                 if key in readonly_keys:

@@ -165,8 +165,21 @@ class SitesMixin:
             'max_days_back': f'(global : {self.config.get("general", "max_days_back", fallback="90")})',
         }
 
-        readonly_keys = {'name', 'base_url', 'credential_id', 'wallet_rpc_credential_id', 'dossier'}
+        # La Réf est SAISISSABLE depuis que la table se gère dans l'App : une faute
+        # de frappe n'est plus un cul-de-sac muet (« Modifier… » propose de créer la
+        # réf inconnue, et « Utilisé par » montre les orphelines). C'est ce filet qui
+        # justifiait le verrou ; il existe, le verrou tombe.
+        readonly_keys = {'name', 'base_url', 'dossier'}
         override_keys = ['max_days_back']
+
+        # …et elle est PROPOSÉE même absente de config.ini, aux sites navigateur :
+        # config.ini.default n'en fournit à aucun d'eux, donc sans ça une install
+        # fraîche n'offre aucun champ où saisir sa réf — le rattachement site↔réf
+        # resterait un geste terminal. Garde `base_url` = « site navigateur »
+        # (idiome déjà en place ici) : BTC (adresses publiques) et MANUEL (saisie)
+        # n'ont pas de réf et n'en verront pas.
+        if self.config.has_option(site, 'base_url'):
+            override_keys.append('credential_id')
 
         existing_keys = list(self.config.options(site))
         all_keys = existing_keys[:]
@@ -178,6 +191,11 @@ class SitesMixin:
             all_keys.remove('dossier')
             idx = all_keys.index('name') + 1 if 'name' in all_keys else 0
             all_keys.insert(idx, 'dossier')
+        # Réf juste après l'URL : c'est l'ordre du parcours (le site, puis avec quoi
+        # s'y connecter), et sinon un champ ajouté d'office atterrit en dernier.
+        if 'credential_id' in all_keys and 'base_url' in all_keys:
+            all_keys.remove('credential_id')
+            all_keys.insert(all_keys.index('base_url') + 1, 'credential_id')
 
         for key in all_keys:
             if key in ('headed', 'parallel'):
@@ -209,7 +227,7 @@ class SitesMixin:
             # de la table vit dans Paramètres (cf. _open_credentials_manager).
             if key in _CREDENTIAL_KEYS:
                 ttk.Button(row, text='Modifier…', width=10,
-                           command=lambda v=var: self._edit_site_credential(v.get())
+                           command=lambda v=var, s=site: self._edit_site_credential(s, v)
                            ).pack(side='left', padx=(0, 5))
 
             if key in hints:
@@ -343,16 +361,18 @@ class SitesMixin:
         clear = path.with_name(path.name[:-4]) if path.name.endswith('.gpg') else None
 
         if not path.exists():
+            # PAS de graine `.default` : elle sème une réf par site (SOCGEN,
+            # PAYPAL…), c'est-à-dire le modèle « clé = nom de site » que XMR réfute
+            # (un site peut en avoir deux). Elle naîtrait donc pleine d'orphelines
+            # — la colonne « Utilisé par » crierait au loup dès la 1ʳᵉ ouverture,
+            # puisque config.ini ne cite aucune d'elles. Table VIDE : elle se
+            # remplit site par site, et aucune orpheline ne peut exister par
+            # construction. (Le `.default` reste la graine du chemin manuel.)
             seed, src = None, None
             if clear and clear.exists():
                 try:
-                    seed = clear.read_text(encoding='utf-8')
+                    seed = clear.read_text(encoding='utf-8')   # install antérieure
                     src = clear
-                except OSError:
-                    seed = None
-            elif (clear and clear.with_name(clear.name + '.default').exists()):
-                try:
-                    seed = clear.with_name(clear.name + '.default').read_text(encoding='utf-8')
                 except OSError:
                     seed = None
             msg = (f"Aucune table d'identifiants à :\n{path}\n\n"
@@ -392,12 +412,16 @@ class SitesMixin:
             return None, None
         return path, pw
 
-    def _credential_entry_dialog(self, parent, cid=None, login=''):
+    def _credential_entry_dialog(self, parent, cid=None, login='', ref_locked=True):
         """Formulaire d'une entrée. cid=None → création. Retourne (réf, id, passe|None).
 
         Vocabulaire aligné sur la table elle-même : Réf = la clé, Identifiant = le
         login du site, Passe = le secret. Le mot de passe n'est jamais préchargé
         (on ne le lit pas pour le gérer) → vide = inchangé.
+
+        `ref_locked=False` + `cid` pré-rempli = une réf PROPOSÉE, modifiable : sert
+        à suggérer le nom du site quand il n'en a pas encore. Un défaut, pas une
+        contrainte — le débutant n'a rien à deviner, l'habitué garde son nommage.
         """
         d = tk.Toplevel(parent)
         d.title('Modifier la réf' if cid else 'Nouvelle réf')
@@ -410,7 +434,7 @@ class SitesMixin:
         v_id = tk.StringVar(value=cid or '')
         e_id = ttk.Entry(f, textvariable=v_id, width=30)
         e_id.grid(row=0, column=1, pady=3)
-        if cid:
+        if cid and ref_locked:
             e_id.configure(state='readonly')  # la Réf est la clé : jamais renommée ici
 
         ttk.Label(f, text='Identifiant :', width=14).grid(row=1, column=0, sticky='w')
@@ -444,18 +468,20 @@ class SitesMixin:
         d.wait_window()
         return out.get('v')
 
-    def _edit_site_credential(self, cid):
+    def _edit_site_credential(self, site, var):
         """Porte CONTEXTUELLE (onglet Sites) : la réf de CE site, directement.
 
-        Ni liste ni colonne « Utilisé par » : le site est implicite, l'afficher
-        serait du bruit. Et pas de suppression — une réf peut servir plusieurs
-        sites (ou aucun) : ça ne se juge que depuis la vue globale (Paramètres).
+        **Doit se suffire** : c'est le parcours naturel (« je configure SOCGEN, donc
+        j'ai besoin de m'y connecter »), et sur une config vierge c'est la seule
+        porte qu'un débutant pense à pousser. D'où : si le site n'a pas encore de
+        réf, on en PROPOSE une nommée comme lui, on la crée, et on l'écrit dans le
+        champ — plutôt que de le renvoyer deviner un nom dans un champ vide.
+
+        Ni liste ni colonne « Utilisé par » : le site est implicite. Et pas de
+        suppression — une réf peut servir plusieurs sites (ou aucun) : ça ne se juge
+        que depuis la vue globale (Paramètres).
         """
-        if not cid:
-            messagebox.showinfo(
-                'Aucune réf', "Ce site n'a pas de réf d'identifiant configurée.",
-                parent=self.root)
-            return
+        cid = (var.get() or '').strip()
         path, pw = self._credentials_unlock(self.root)
         if not path:
             return
@@ -463,8 +489,24 @@ class SitesMixin:
         if err:
             messagebox.showerror('Lecture impossible', err, parent=self.root)
             return
-
         known = dict(entries)
+
+        if not cid:
+            # Réf proposée = nom du site, modifiable (cf. _credential_entry_dialog).
+            v = self._credential_entry_dialog(self.root, site, '', ref_locked=False)
+            if not v:
+                return
+            cid, login, pwd = v
+            _, e = gpg_creds.upsert_entry(path, pw, cid, login, pwd or '')
+            if e:
+                messagebox.showerror('Écriture impossible', e, parent=self.root)
+                return
+            var.set(cid)          # rattache le site à la réf ; l'autosave persiste
+            messagebox.showinfo(
+                'Enregistré',
+                f"Réf « {cid} » créée et rattachée à {site}.", parent=self.root)
+            return
+
         if cid not in known and not messagebox.askyesno(
                 'Réf inconnue',
                 f"La réf « {cid} » n'existe pas encore dans la table.\n\nLa créer ?",
