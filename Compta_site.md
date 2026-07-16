@@ -228,7 +228,7 @@ Trois onglets, trois fichiers :
 
 ### 4.3 Credentials
 
-Déposer les identifiants chiffrés dans le fichier configuré par `config.ini` section `[paths]` clé `credentials_file` (cf. `config_credentials.md.default` pour le modèle).
+Déposer les identifiants chiffrés dans le fichier configuré par `config.ini` section `[paths]` clé `credentials_file` (cf. `inc_gpg_credentials.py` pour le modèle, et [`Compta_plus.md`](Compta_plus.md) pour le chemin manuel).
 
 ### 4.4 Champs de compte spécifiques au site (`ACCOUNT_FIELDS`)
 

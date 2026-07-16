@@ -155,13 +155,13 @@ Dans l'onglet Exécution, sélectionner les sites voulus puis cliquer sur le bou
 
 Quand la collecte est terminée, cliquer sur "Import" pour mettre à jour le fichier **comptes.xlsm** avec les données collectées. On peut aussi attendre pour relancer une collecte avec d'autres sites qui manqueraient.
 
-#### ✍️ Étape 3 - compléments manuels
+#### 👁️ Étape 3 - compléments manuels
 
 Le fichier  **comptes.xlsm** peut alors être ouvert sous LibreOffice, pour une session manuelle afin de :
 
 * vérifier la bonne collecte et l'import des données (opérations, valorisations)
 
-* vérifier les affectations d'opérations aux catégories de dépenses/revenus
+* vérifier les affectations d'opérations aux catégories de dépenses/revenus ("-" pour non attribué)
 
 * vérifier les appariements d'opérations (virements, changes, titres)
 
@@ -300,26 +300,9 @@ Les **correspondances** (regex → catégorie) permettent la catégorisation aut
 
 Vous n'activez que les sites correspondant à vos comptes. Pour chacun :
 
-1. **Identifiants** — renseigner la connexion au site (ci-dessous).
-2. **Compte(s)** — rattacher le(s) compte(s) au site : passer leur champ **Site** de N/A à ce site (les champs techniques apparaissent alors, cf. §2).
-3. **Activation** — cocher le site dans l'onglet Sites.
-4. **Collecte** — le sélectionner dans l'onglet Exécution et lancer (intervention d'authentification éventuelle selon le site, cf. ANNEXE B).
+1. **Compte(s)** — rattacher le(s) compte(s) au site : passer leur champ **Site** de N/A à ce site (les champs techniques apparaissent alors, cf. §2).
 
-### Identifiants de connexion
-
-Les identifiants des sites vivent dans `config_credentials.md.gpg`, une table chiffrée par GPG et protégée par un **mot de passe maître** (**P2**). L'App n'affiche jamais les mots de passe : elle les écrit, ne les relit pas.
-
-À la première utilisation la table n'existe pas encore : l'App propose de la **créer** et demande le mot de passe maître (deux fois, pour écarter la faute de frappe — sans lui, les identifiants seraient irrécupérables). Aucune commande à taper.
-
-Le geste est le même qu'ensuite : sur le site à configurer, bouton **Modifier…** à côté du champ *Réf*. Si le site n'a pas encore de réf, l'App en propose une portant son nom — à garder ou à changer — puis la crée et la rattache au site. La table se remplit ainsi site par site.
-
-Chaque entrée a trois champs :
-
-- **Réf** : nom au choix (ex. `MaBanque-1`), qui désigne l'entrée depuis la configuration du site — c'est le champ *Réf* de l'onglet Sites. Une réf peut servir plusieurs sites, et un même site peut en utiliser deux (Monero : une pour le wallet, une pour le nœud RPC).
-- **Identifiant** : le login du site.
-- **Passe** : le mot de passe du site.
-
-> `config_credentials.md.gpg` reste un **tableau Markdown chiffré en symétrique** : `gpg` seul suffit à l'ouvrir et à le refermer, sans l'App — voir [`Compta_plus.md`](Compta_plus.md) § *Configuration en ligne de commande*. L'App est une commodité, jamais un verrou.
+2. **Activation** — cocher le site dans l'onglet Sites.
 
 ### Description et paramètres
 
@@ -337,20 +320,29 @@ Certains sites possèdent des paramètres modifiables :
 
 - **Dossier Drive**, **Compte Drive** : pour les sites collectés via Google Drive
 
-- **Hôte SSH wallet-rpc**, **Réf RPC**, **Timeout refresh**, **Timeout tunnel** : pour la collecte Monero, qui interroge un nœud distant par tunnel SSH
+- **Hôte SSH wallet-rpc**, **Timeout refresh**, **Timeout tunnel** : pour la collecte Monero, qui interroge un nœud distant par tunnel SSH
 
 - **Collecte en parallèle** (case à cocher) : force le site dans le groupe de collecte parallèle (sites navigateur)
 
 - **Fenêtre visible** *(headed)* (case à cocher) : force le navigateur en mode **visible** — réglage **par poste** (sites navigateur)
 
+- Le cadre **Authentification** reçoit la *Réf* du site. **Sur un site neuf le champ est vide : vous y saisissez la Réf** — le nom sous lequel ranger ses identifiants dans la table chiffrée (§5), à y créer s'il n'existe pas encore. ⚠️ *Une fois posée*, la **renommer** est déconseillé : elle doit rester en correspondance avec une Réf de la 1ʳᵉ colonne de la table, sinon le site ne retrouve plus son entrée.
+
+  >  Le site Wallet monero a deux noms d'authentification  (un pour le wallet, un pour le nœud RPC).
+
+
 ## 5️⃣ Paramètres (onglet Paramètres)
 
 Ajuster si nécessaire :
 
-- **Identifiants de collecte** : ouvre la table (§4) en entier — créer ou supprimer une réf, et repérer via la colonne *Utilisé par* celles qu'aucun site n'utilise. La suppression n'est possible que d'ici : une réf pouvant servir plusieurs sites, on ne juge de son sort qu'en voyant qui s'en sert. Une sauvegarde `.bak` est écrite avant chaque modification
+- **Table chiffrée (GPG)** : bouton *Éditer* — la table des identifiants, chiffrée par GPG et protégée par un **mot de passe maître** (**P2**), dans `config_credentials.md.gpg` (un site s'y authentifie avec un **identifiant** et un **mot de passe**). **La toute première fois — si la table n'existe pas encore — *Éditer* propose de la créer et demande le mot de passe maître (saisi deux fois).** Ensuite : créer, modifier, renommer ou supprimer les entrées Réf / Identifiant / Passe ; une sauvegarde `.bak` précède chaque modification. ⚠️ Renommer la 1ʳᵉ colonne (Réf) oblige à corriger la valeur correspondante dans le cadre *Authentification* du site associé (§4)
 - **Appariement** : délai max entre opérations liées, tolérance sur les montants
 - **Général** : mode debug, profondeur d'import, rétention des archives
 - **Opérations liées** : règles de génération automatique de contreparties (ex : retrait DAB → Espèces)
+
+
+
+> `config_credentials.md.gpg` reste un **tableau Markdown chiffré en symétrique** : `gpg` seul suffit à l'ouvrir et à le refermer, sans l'App — voir [`Compta_plus.md`](Compta_plus.md) § *Configuration en ligne de commande*. L'App est une commodité, jamais un verrou.
 
 ## Aller plus loin
 

@@ -639,13 +639,6 @@ else
     warn "config.ini.default absent — créer config.ini manuellement"
 fi
 
-# config_credentials.md.gpg : PAS de copie de travail en clair. L'App crée la table
-# chiffrée elle-même au premier usage (onglet Sites), comme elle crée les config_*.json
-# — un identifiant est un réglage comme un autre. Poser ici un .md en clair ne servait
-# qu'au remplissage au terminal, et laissait sur le disque exactement ce que le geste
-# « gpg -c && rm » cherchait à effacer. Le modèle .default reste livré : il sert de
-# graine à l'App, et au chemin manuel (cf. Compta_plus.md).
-
 # config_category_mappings.json : pas de .default — l'app crée un JSON vide
 # automatiquement à la 1re exécution si le fichier est absent.
 

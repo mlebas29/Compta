@@ -239,7 +239,7 @@ max_days_back = 90
 # Notes techniques :
 # - Fetch via monero-wallet-cli (commandes directes)
 # - 1 wallet : Cake Wallet XMR
-# - Passwords dans credentials.md.gpg (CrMo-DE-M)
+# - Mots de passe (wallet + RPC) dans la table chiffrée (Réfs ci-dessous)
 # - Unit\u00e9 : XMR (pas atomic units)
 [XMR]
 name = Monero Wallets
@@ -250,10 +250,10 @@ wallet_rpc_ssh_host = user@monero-host.example.lan
 # Port du wallet-rpc côté serveur (bindé localhost là-bas) + port local du tunnel SSH
 wallet_rpc_port = 18083
 wallet_rpc_local_port = 28083
-# Login RPC du wallet-rpc (GPG) — format : | SiWaRpc-M | username | password |
-wallet_rpc_credential_id = SiWaRpc-M
-# Mot de passe du wallet (GPG) — envoyé à open_wallet via le tunnel chiffré
-credential_id = CrMo-M
+# Login RPC du wallet-rpc (GPG) — Réf d'une entrée de la table chiffrée (à saisir)
+wallet_rpc_credential_id =
+# Mot de passe du wallet (GPG) — Réf d'une entrée de la table chiffrée (à saisir)
+credential_id =
 # Fenêtre d'historique des opérations + délais (secondes)
 max_days_back = 90
 refresh_timeout = 300

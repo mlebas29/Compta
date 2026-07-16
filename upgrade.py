@@ -82,6 +82,21 @@ def _run_bash(snippet):
     return p.returncode, ((p.stdout or '') + (p.stderr or '')).rstrip()
 
 
+# Le pull efface déjà ce que l'amont retire — mais il CALE ENTIER (donc tout l'upgrade)
+# si la copie locale a été modifiée. Ces gabarits ne portent rien à sauver.
+# Retirable quand toutes les instances auront franchi v5.21.0.
+_RETIRED_FILES = ('config_credentials.md.default',)
+
+
+def _drop_retired_files():
+    """Efface les gabarits retirés du dépôt — AVANT le pull, sinon trop tard."""
+    for name in _RETIRED_FILES:
+        p = BASE_DIR / name
+        if p.exists():
+            p.unlink()
+            print(f'{GREEN}✓{NC} gabarit obsolète retiré : {name}')
+
+
 def resilient_pull():
     """Pull PUB --ff-only, résilient. PUB seul (le PRV custom/ = sync privé).
 
@@ -709,6 +724,7 @@ def main():
             print(f'   {behind} commit(s) à tirer — l\'apply ferait le pull ff.')
     else:
         print(f'{YELLOW}--- Pull PUB (résilient) ---{NC}')
+        _drop_retired_files()
         status = resilient_pull()
         if status in ('offline', 'diverged'):
             # Transport KO ou divergence : on ne peut pas amener le clone à jour →

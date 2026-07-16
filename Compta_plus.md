@@ -147,14 +147,12 @@ L'App n'est jamais un passage obligé : les fichiers de configuration restent li
 | BOURSOBANK | | |
 ```
 
-La **Réf** (nom au choix) est à reporter à l'identique lors de la configuration du site ([`Compta.md`](Compta.md) ANNEXE C §4). Les libellés d'en-tête, eux, sont libres : l'App reconnaît l'en-tête à sa **position** — la ligne qui précède le séparateur — pas à son intitulé.
+La **Réf** (nom au choix) est à reporter à l'identique dans le champ `credential_id` du cadre *Authentification* de chaque site (onglet Sites ; [`Compta.md`](Compta.md) ANNEXE C §4) — c'est ce report qui fait le pont entre `config.ini` et la table. Les libellés d'en-tête, eux, sont libres : l'App reconnaît l'en-tête à sa **position** — la ligne qui précède le séparateur — pas à son intitulé.
 
 #### Première mise en place
 
 ```bash
-# config_credentials.md est créé par install.sh
-# (sinon : cp config_credentials.md.default config_credentials.md)
-# … remplir config_credentials.md …
+# … créer config_credentials.md avec l'en-tête ci-dessus, puis le remplir …
 gpg -c config_credentials.md     # → config_credentials.md.gpg (chiffré)
 rm config_credentials.md         # impératif : efface les identifiants en clair
 ```

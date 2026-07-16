@@ -28,8 +28,9 @@ Invariants du CRUD (les tenir, ils portent la sûreté du geste) :
   - Le CLAIR ne touche jamais le disque (pipes uniquement), et la passphrase ne
     passe jamais par la ligne de commande (`ps` la verrait) : fd dédié.
   - Backup avant toute écriture, puis remplacement atomique.
-  - Les mots de passe ne remontent jamais à l'appelant (`read_entries` rend
-    (id, login)) : la GUI n'a pas à les afficher pour les gérer.
+  - `read_entries` rend (id, login) par défaut ; le mot de passe n'est joint que
+    sur `with_password=True`, réservé à la porte « Table chiffrée » qui l'affiche
+    (table déjà déchiffrée sous les yeux → le montrer évite les fautes de frappe).
 """
 
 import os
@@ -375,15 +376,20 @@ def _format_row(cred_id: str, login: str, password: str) -> str:
     return f"| {cred_id} | {login} | {password} |"
 
 
-def read_entries(gpg_file, passphrase: str) -> Tuple[Optional[list], Optional[str]]:
-    """Liste les entrées : [(id, login), ...]. Les mots de passe NE remontent PAS.
+def read_entries(gpg_file, passphrase: str,
+                 with_password: bool = False) -> Tuple[Optional[list], Optional[str]]:
+    """Liste les entrées : [(id, login), ...], ou [(id, login, passe), ...] si
+    `with_password`. Retourne (entrées, None) ou (None, erreur).
 
-    Retourne (entrées, None) ou (None, erreur).
+    Le mot de passe ne remonte que sur demande EXPLICITE : la porte « Table chiffrée »
+    l'affiche (le voir évite les fautes de frappe, et la table est déjà déchiffrée
+    sous les yeux) ; les autres appelants s'en passent.
     """
     content, err = decrypt_table(gpg_file, passphrase)
     if err:
         return None, err
-    rows = [(c[0], c[1]) for c in _entries(content.splitlines()).values()]
+    rows = [(c[0], c[1], c[2]) if with_password else (c[0], c[1])
+            for c in _entries(content.splitlines()).values()]
     return rows, None
 
 
