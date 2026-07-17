@@ -141,6 +141,14 @@ class WiseFetcher(BaseFetcher):
             except Exception as e:
                 self.logger.warning(f"Soldes non collectés (comptes auto-calculés): {e}")
 
+            # 3b. Rendements Wise Assets (« Depuis le début ») par devise à intérêts.
+            #     Sert au booking du delta d'intérêt côté import (compte fusionné).
+            self.step("Intérêts")
+            try:
+                self.fetch_interest()
+            except Exception as e:
+                self.logger.warning(f"Rendements non collectés: {e}")
+
             # 4. Résumé
             self.logger.info("=" * 50)
             self.logger.info(f"Fichier:     {csv_path.name}")
@@ -324,7 +332,8 @@ class WiseFetcher(BaseFetcher):
         except PlaywrightTimeout:
             self.logger.warning("Cartes de solde non apparues (page lente ?)")
         self.dismiss_cookies()
-        self._dump_page_debug("balances_group", force=self.verbose)
+        # force=True (rodage) : capte le marqueur « Investis avec Intérêts » sur les cartes.
+        self._dump_page_debug("balances_group", force=True)
 
         # Chaque jar = un span de titre d'option « <montant> <ISO> » (les codes
         # ISO sont dans le texte visible sur la page groupe ; les transactions,
@@ -364,6 +373,69 @@ class WiseFetcher(BaseFetcher):
                 f.write(f"{cur},{_norm(amt)}\n")
         self.downloads.append(out)
         self.logger.info(f"Soldes ecrits: {out.name} ({len(seen)} devises: {','.join(seen)})")
+
+    # Devises à intérêts (Wise Assets) et leur balance-id. RODAGE : IDs connus
+    # (EUR/USD, tirés des URLs/relevés). À terme : dérivés du marqueur « Investis
+    # avec Intérêts » lu sur la page groupe → zéro hardcode.
+    _INTEREST_BALANCES = {'EUR': '107036465', 'USD': '107039643'}
+
+    def fetch_interest(self):
+        """Cumul de rendements Wise Assets (« Depuis le début ») par devise à
+        intérêts -> dropbox/WISE/wise_interest.csv (« DEVISE,cumul » par ligne).
+
+        Le cumul (« Depuis le début », PAS « Mensuels »/« Annuels » qui repartent
+        de zéro) alimente le booking du delta d'intérêt à l'import (compte fusionné).
+        Sélecteurs rodés s.209 : chip role=radio aria-label « Rendements totaux » ;
+        valeur = h2[aria-label] « Rendements depuis le ... +98,21 EUR » (auto-validant).
+        """
+        import re
+        lines = []
+        for cur, bal_id in self._INTEREST_BALANCES.items():
+            url = f"{self.base_url}/balances/{bal_id}/holding-money"
+            self.logger.info(f"Rendements {cur} : {url}")
+            try:
+                self.page.goto(url, wait_until="domcontentloaded")
+                time.sleep(3)
+                self.dismiss_cookies()
+                # Basculer sur le CUMUL (defaut = « Mensuels » -> clic obligatoire).
+                try:
+                    chip = self.page.locator('[role="radio"][aria-label="Rendements totaux"]')
+                    if chip.count() > 0:
+                        chip.first.click()
+                        time.sleep(2)
+                        self.logger.info(f"  « Depuis le début » selectionne ({cur})")
+                    else:
+                        self.logger.warning(f"  chip « Rendements totaux » absent ({cur}) - voir dump")
+                        self._dump_page_debug(f"interest_{cur}", force=True)
+                except Exception as e:
+                    self.logger.warning(f"  clic « Depuis le début » ({cur}): {e}")
+                # Valeur dans le h2[aria-label] ; « depuis » confirme le cumul.
+                label = None
+                try:
+                    label = self.page.locator('h2[aria-label]').first.get_attribute('aria-label', timeout=5000)
+                except Exception:
+                    pass
+                if label and 'depuis' in label.lower():
+                    m = re.search(r'([+\-]?[0-9][0-9\s.,\xa0]*)\s*' + cur, label)
+                    if m:
+                        raw = ''.join(ch for ch in m.group(1) if not ch.isspace())
+                        v = raw.replace(',', '.') if (',' in raw and '.' not in raw) else raw.replace(',', '')
+                        lines.append(f"{cur},{v}")
+                        self.logger.info(f"  rendement total {cur} = {v} (« {label.strip()} »)")
+                    else:
+                        self.logger.warning(f"  montant illisible dans « {label} » ({cur})")
+                else:
+                    self.logger.warning(f"  cumul {cur} non confirme (h2={label!r}) - voir dump")
+                    self._dump_page_debug(f"interest_{cur}", force=True)
+            except Exception as e:
+                self.logger.warning(f"  echec holding-money {cur}: {e}")
+                self._dump_page_debug(f"interest_{cur}_err", force=True)
+        if lines:
+            out = self.dropbox_dir / 'wise_interest.csv'
+            with open(out, 'w', encoding='utf-8') as f:
+                f.write('\n'.join(lines) + '\n')
+            self.downloads.append(out)
+            self.logger.info(f"Rendements ecrits: {out.name} ({len(lines)} devise(s))")
 
     def dismiss_cookies(self):
         """Ferme la popup cookies (Reject/Refuser en priorité)."""
