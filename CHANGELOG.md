@@ -9,6 +9,15 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 
 Les trois derniers sont spécifiques au mode assisté ; 📘 concerne le mode classeur.
 
+## v5.21.0
+| 2026-07-18 | Wise : les intérêts (Wise Assets) suivis et réconciliés |
+| ---------- | ------------------------------------------------------- |
+
+**Détail :**
+
+- **Les intérêts Wise Assets sont désormais suivis** — le rendement d'un solde Wise rémunéré n'apparaît pas dans les transactions (il est crédité au solde). Il est collecté à part (« Rendements depuis le début ») et booké à l'import, de sorte que le compte se réconcilie.
+- **Une incohérence lève une alarme** — si le rendement collecté ne colle pas aux transactions (un virement manquant serait sinon absorbé dans l'intérêt), le solde n'est pas posé et le compte remonte en « ⚠ Solde calculé » à vérifier.
+
 ## v5.20.2
 | 2026-07-16 | Identifiants : le site et la table chiffrée, chacun sa porte |
 | ---------- | ------------------------------------------------------------ |
