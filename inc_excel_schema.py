@@ -406,3 +406,56 @@ def read_cotations_meta_uno(doc):
         dec = ws.getCellByPosition(dec_col, r0).getValue() if dec_col is not None else None
         meta[code] = {'famille': fam, 'decimals': _cot_decimals(dec)}
     return meta
+
+
+# Marqueurs de ligne-modèle / sentinelle des tableaux (ignorés au scan).
+_OP_SENTINELS = ('⚓', '✓')
+
+
+def iter_operations(wb, compte=None, categorie=None):
+    """Générateur des opérations (feuille Opérations), **borné par named range**
+    (jamais `ws.max_row`), filtré optionnellement par `compte` et/ou `categorie`
+    (comparaison casse-insensible). Yield un dict par ligne de données :
+    {row, date, montant, devise, equiv, réf, libellé, catégorie, compte, commentaire}.
+
+    Lecteur PARTAGÉ : centralise le motif « ColResolver + scan OP + filtre »
+    au lieu de le redupliquer (cf. get_account_balance / load_existing_operations,
+    à converger — #125). Openpyxl, valeurs brutes (le parsing reste au caller).
+    """
+    ws = wb[SHEET_OPERATIONS]
+    cr = ColResolver.from_openpyxl(wb)
+    r0, r1 = cr.rows('OPcompte')
+    if not r0:
+        return
+    cols = {k: cr._cols.get('OP' + k) for k in
+            ('date', 'montant', 'devise', 'equiv_euro', 'réf', 'libellé',
+             'catégorie', 'compte', 'commentaire')}
+    if not cols['compte']:
+        return
+    cat_lc = categorie.strip().lower() if categorie else None
+
+    def _cell(row, key):
+        ci = cols[key]
+        return ws.cell(row, ci).value if ci else None
+
+    for row in range(r0, r1 + 1):
+        cpt = _cell(row, 'compte')
+        if not cpt or cpt in _OP_SENTINELS:
+            continue
+        if compte is not None and cpt != compte:
+            continue
+        cat = _cell(row, 'catégorie')
+        if cat_lc is not None and str(cat or '').strip().lower() != cat_lc:
+            continue
+        yield {
+            'row': row,
+            'date': _cell(row, 'date'),
+            'montant': _cell(row, 'montant'),
+            'devise': _cell(row, 'devise'),
+            'equiv': _cell(row, 'equiv_euro'),
+            'réf': _cell(row, 'réf'),
+            'libellé': _cell(row, 'libellé'),
+            'catégorie': cat,
+            'compte': cpt,
+            'commentaire': _cell(row, 'commentaire'),
+        }

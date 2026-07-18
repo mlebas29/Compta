@@ -366,6 +366,172 @@ def read_balances_soldes(site_dir, date_str, verbose=False):
 
 
 # ============================================================================
+# INTÉRÊTS WISE ASSETS — op C-déduit + cross-check d'alarme (#166)
+# ============================================================================
+#
+# Wise Assets verse un rendement (« intérêt ») qui grossit le solde SANS ligne
+# de transaction (invisible au CSV all-transactions). Sur un compte fusionné
+# (cash + intérêts en 1 compte/devise), il faut donc INJECTER l'intérêt à
+# l'import pour que Σ(ops) = #Solde. On procède en deux temps (cf. CLAUDE #166) :
+#
+#   OPÉRATION (C-déduit) : delta = (B − S_prev) − Δcash
+#     B      = solde groupe fetché (wise_balances.csv, = cash + intérêt cumulé)
+#     S_prev = dernier #Solde posé sur le compte (classeur)
+#     Δcash  = Σ des legs cash de CETTE collecte postérieurs à S_prev
+#   → op catégorie « Intérêts » de montant delta ; réconcilie toujours.
+#
+#   ALARME (témoin indépendant) : le cumul déduit doit coller au cumul scrapé.
+#     cumul = Σ(ops « Intérêts » du compte au classeur) + delta   (auto-suivi)
+#     C     = cumul « Depuis le début » scrapé (wise_interest.csv)
+#   → si |cumul − C| > tol : un virement manque au CSV (il serait absorbé dans
+#     l'intérêt). On émet un warning et on NE POSE PAS le #Solde → le compte
+#     (à relevé attendu) remonte en « ⚠ Solde calculé » au classeur.
+#
+# La base d'intérêt = Σ des ops « Intérêts » du compte (aucun marqueur dédié).
+# La fusion initiale doit donc booker le cumul de départ en catégorie
+# « Intérêts » sur le compte cash (et non en @Virement).
+
+_INTEREST_TOL = 0.05  # € : > arrondis cumulés, < un vrai virement manqué
+
+
+def _read_interest_cumul(site_dir):
+    """{devise: cumul} depuis wise_interest.csv (« DEVISE,±cumul »). Absent → {}."""
+    f = Path(site_dir) / 'wise_interest.csv'
+    if not f.exists():
+        return {}
+    out = {}
+    for line in f.read_text(encoding='utf-8').splitlines():
+        line = line.strip()
+        if not line or ',' not in line:
+            continue
+        cur, val = line.split(',', 1)
+        try:
+            out[cur.strip().upper()] = float(val.strip())
+        except ValueError:
+            pass
+    return out
+
+
+def _read_account_state(account):
+    """(dernier #Solde, sa date, Σ ops « Intérêts ») de `account` au classeur.
+
+    Garde d'existence (patron cpt_format_MANUEL) : sans classeur (TNR isolé) →
+    (None, None, 0.0), et le formatteur retombe sur un #Solde direct sans intérêt.
+    Lecture via le lecteur partagé inc_excel_schema.iter_operations (pas de scan
+    OP dupliqué).
+    """
+    from inc_excel_schema import iter_operations
+    wb_path = base_dir() / 'comptes.xlsm'
+    if not wb_path.exists():
+        return None, None, 0.0
+    wb = openpyxl.load_workbook(wb_path, data_only=True)
+    try:
+        last_solde = last_date = None
+        sum_interest = 0.0
+        for op in iter_operations(wb, compte=account):
+            mont = op['montant']
+            if mont is None:
+                continue
+            cat = str(op['catégorie'] or '').strip().lower()
+            if cat == '#solde':
+                last_solde = float(mont)                 # dernier gagne (ordre chrono)
+                last_date = op['date']
+            elif cat == 'intérêts':
+                try:
+                    sum_interest += float(mont)
+                except (TypeError, ValueError):
+                    pass
+        return last_solde, last_date, sum_interest
+    finally:
+        wb.close()
+
+
+def _as_date(v):
+    """datetime | date | str('%d/%m/%Y') → date (ou None)."""
+    if v is None:
+        return None
+    if isinstance(v, datetime):
+        return v.date()
+    if hasattr(v, 'year') and not isinstance(v, str):
+        return v
+    try:
+        return datetime.strptime(str(v).strip(), '%d/%m/%Y').date()
+    except ValueError:
+        return None
+
+
+def build_soldes_and_interest(site_dir, ops_csv, date_str, verbose=False, logger=None):
+    """Lignes #Solde par devise + ops d'intérêt Wise Assets (#166).
+
+    - Devise SANS intérêt (absente de wise_interest.csv) → #Solde = B (inchangé).
+    - Devise À intérêt → op « Intérêts » (delta C-déduit) + #Solde = B, SAUF si
+      le cross-check |cumul − C| échoue : alors warning + PAS de #Solde
+      (→ « ⚠ Solde calculé » au classeur, un virement manque probablement).
+    """
+    from inc_logging import Logger
+    log_ = logger or Logger(SITE, verbose=verbose)
+    bal = Path(site_dir) / 'wise_balances.csv'
+    if not bal.exists():
+        return []
+    balances = {}
+    for line in bal.read_text(encoding='utf-8').splitlines():
+        line = line.strip()
+        if not line or ',' not in line:
+            continue
+        cur, amt = line.split(',', 1)
+        try:
+            balances[cur.strip().upper()] = float(amt.strip())
+        except ValueError:
+            pass
+    cumuls = _read_interest_cumul(site_dir)
+
+    def _solde(cur, account, B):
+        return (date_str, f'Relevé {account}', f'{B:.2f}', cur, '', '', '#Solde', account, '')
+
+    out = []
+    for cur, B in balances.items():
+        account = CURRENCY_ACCOUNTS.get(cur)
+        if not account:
+            log_.verbose(f"solde devise {cur} sans compte configuré — ignoré")
+            continue
+        if cur not in cumuls:
+            out.append(_solde(cur, account, B))
+            continue
+
+        C = cumuls[cur]
+        S_prev, S_prev_date, prior_interest = _read_account_state(account)
+        if S_prev is None:
+            # Pas de #Solde antérieur (TNR isolé, ou compte neuf) → delta indéductible.
+            log_.verbose(f"{cur} : pas de #Solde antérieur → #Solde direct, intérêt non déduit")
+            out.append(_solde(cur, account, B))
+            continue
+
+        d_prev = _as_date(S_prev_date)
+        delta_cash = 0.0
+        for o in ops_csv:
+            if o[3] != cur:
+                continue
+            od = _as_date(o[0])
+            if d_prev is None or (od and od > d_prev):
+                delta_cash += float(o[2])
+        delta_interest = (B - S_prev) - delta_cash
+        cumul = prior_interest + delta_interest
+
+        if abs(cumul - C) > _INTEREST_TOL:
+            log_.warning(
+                f"{account} : intérêt incohérent — cumul déduit {cumul:.2f} ≠ "
+                f"cumul Wise {C:.2f} (écart {cumul - C:+.2f}). #Solde NON posé "
+                f"(virement manquant ?).")
+            continue  # withhold #Solde → ⚠ Solde calculé ; pas d'op intérêt douteuse
+
+        if abs(delta_interest) >= 0.005:
+            out.append((date_str, 'Intérêts Wise', f'{delta_interest:.2f}', cur, '', '',
+                        'Intérêts', account, f'cumul={C:.2f}'))
+        out.append(_solde(cur, account, B))
+    return out
+
+
+# ============================================================================
 # API POUR UPDATE - NOUVELLE INTERFACE
 # ============================================================================
 
@@ -406,15 +572,16 @@ def format_site(site_dir, verbose=False, logger=None):
                                        verbose, SITE, logger=logger)
             all_operations.extend(ops_csv)
 
-            # #Solde par devise depuis wise_balances.csv (fetch, #131 choix b) —
-            # daté de la dernière opération importée. Absent → auto-calculé.
+            # #Solde par devise (wise_balances.csv) + ops d'intérêt Wise Assets
+            # (#166), datés de la dernière opération importée. Absent → auto-calculé.
             dates = [o[0] for o in ops_csv if o and o[0]]
             if dates:
                 try:
                     last = max(dates, key=lambda d: datetime.strptime(d, '%d/%m/%Y'))
                 except ValueError:
                     last = dates[-1]
-                all_operations.extend(read_balances_soldes(site_dir, last, verbose))
+                all_operations.extend(
+                    build_soldes_and_interest(site_dir, ops_csv, last, verbose, logger))
 
             if list(site_dir.glob('*.zip')) or list(site_dir.glob('statement_*.xlsx')):
                 logger.warning(
