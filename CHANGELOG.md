@@ -27,6 +27,7 @@ Les trois derniers sont spécifiques au mode assisté ; 📘 concerne le mode cl
 - **Deux endroits, deux rôles** — côté **Sites**, le cadre *Authentification* reçoit la *Réf* du site : le nom qui désigne ses identifiants dans la table (saisie libre, aucun mot de passe maître demandé). Côté **Paramètres**, *Table chiffrée (GPG) → Éditer* gère la table elle-même. Vous faites le lien en reportant la même Réf des deux côtés.
 - **La table s'affiche en entier** — les trois colonnes *Réf / Identifiant / Passe* sont visibles et éditables ; voir le mot de passe évite les fautes de frappe silencieuses. Le fichier reste chiffré, jamais posé en clair sur le disque.
 - **Plus de gabarit livré** — `config_credentials.md.default` est retiré (l'App crée la table toute seule) ; la mise à jour l'efface au passage.
+- **Documentation** mise à jour (Compta.md)
 
 ## v5.20.1
 | 2026-07-15 | Premier identifiant : plus de terminal du tout |
