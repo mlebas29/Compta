@@ -95,9 +95,23 @@ def format_site(site_dir: Path, verbose: bool = False) -> tuple[list, list]:
 | BB | Calcul Réserve = Total - Titres |
 | ETORO | Fichiers intermédiaires (PDF → CSV) |
 | KRAKEN | Extraction ZIP, 2 comptes séparés |
-| WISE | CSV all-transactions → jambes par devise |
+| WISE | CSV all-transactions → jambes par devise ; **booking d'intérêt lit le classeur** (exception, cf. ci-dessous) |
 | SG | ETF agrégé, N comptes + M assurances vie |
 | BTC/XMR | Fetch extrait les soldes |
+
+### Exception documentée — WISE lit le classeur en phase format
+
+Un formatteur est censé être une **fonction pure de ses fichiers dropbox** (cf. *Responsabilités du formatteur*) ; lire le classeur relève de la phase **import** (`generate_missing_soldes` le fait légitimement pour synthétiser des #Solde). **WISE déroge** : `cpt_format_WISE.build_soldes_and_interest` → `_read_account_state` lit `comptes.xlsm` (`prior_interest = Σ` des ops « Intérêts » du compte cash, dernier `#Solde`). Ce n'est donc pas *lire le classeur* qui est fautif — c'est de la **logique de phase-import placée dans la phase-format**.
+
+**Pourquoi** — l'intérêt Wise Assets est une **réconciliation contre le grand livre** : la source externe ne donne qu'un **cumul** `C` (`wise_interest.csv`), jamais l'intérêt de la période → il faut le déduire par différence avec l'état accumulé du classeur (`delta = (B − S_prev) − Δcash`) et cross-checker `Σ(Intérêts au classeur) = C`. Le savoir « WISE » vivant dans le formatteur, la logique est posée là.
+
+**C'est borné** : lecture **seule**, **gardée** (pas de classeur → repli gracieux sur `#Solde` direct, sans intérêt), via le lecteur partagé `inc_excel_schema.iter_operations`, **confiné au chemin intérêt** (le reste du formatteur reste un traducteur pur).
+
+**Rançons à connaître** :
+- Le chemin intérêt **n'est pas isolable en TNR** : sans classeur il retombe sur `#Solde` direct → la réconciliation n'est jamais exercée en isolation (lié au chantier fixture WISE, todo #169).
+- **Ordre** : `_read_account_state` lit l'état **sur disque AVANT** le lot courant → `prior_interest` = imports précédents, pas le lot en cours (correct, mais non-évident).
+
+**Remède connu (non fait, sans urgence)** : remonter le booking d'intérêt en **phase import**, au même étage que `generate_missing_soldes` (où lire le grand livre est légitime) → restaure la pureté du formatteur, au prix d'éclater la logique WISE ou d'un hook post-import générique.
 
 ## Configurations (données, pas code)
 
