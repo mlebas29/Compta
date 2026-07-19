@@ -531,7 +531,7 @@ class EtoroFetcher(BaseFetcher):
             export_btn.first.wait_for(state="visible", timeout=15000)
         except PlaywrightTimeout:
             self.logger.error("Bouton 'Export' introuvable sur /wallet/account/EUR")
-            self._dump_page_debug("money_no_export_btn")
+            self._dump_page_debug("money_no_export_btn", force=True)
             return None
 
         export_btn.first.click(force=True)
@@ -567,10 +567,10 @@ class EtoroFetcher(BaseFetcher):
                 self.logger.debug(f"Dates remplies: {start_str} → {end_str}")
             except Exception as e:
                 self.logger.warning(f"Erreur remplissage dates: {e}")
-                self._dump_page_debug("money_date_fill_error")
+                self._dump_page_debug("money_date_fill_error", force=True)
         else:
             self.logger.warning(f"Champs date non trouvés ({date_count}) — dates par défaut")
-            self._dump_page_debug("money_no_date_fields")
+            self._dump_page_debug("money_no_date_fields", force=True)
 
         # Cliquer le bouton Exporter du formulaire (scopé dans le dialog CDK)
         submit_btn = dialog.locator("button:has-text('Exporter'), button:has-text('Export')")
@@ -602,7 +602,7 @@ class EtoroFetcher(BaseFetcher):
 
         except PlaywrightTimeout:
             self.logger.error(f"Timeout téléchargement Money TSV ({DOWNLOAD_TIMEOUT_S}s)")
-            self._dump_page_debug("money_download_timeout")
+            self._dump_page_debug("money_download_timeout", force=True)
             return None
         except Exception as e:
             self.logger.error(f"Erreur téléchargement Money: {e}")
@@ -641,7 +641,7 @@ class EtoroFetcher(BaseFetcher):
             xls_btn.wait_for(state="visible", timeout=30000)
         except PlaywrightTimeout:
             self.logger.error("Bouton Excel introuvable")
-            self._dump_page_debug("reserve_no_xls_btn")
+            self._dump_page_debug("reserve_no_xls_btn", force=True)
             return None
 
         self.logger.debug("Bouton Excel trouvé")
@@ -677,7 +677,7 @@ class EtoroFetcher(BaseFetcher):
 
         except PlaywrightTimeout:
             self.logger.error(f"Timeout téléchargement Reserve XLSX ({DOWNLOAD_TIMEOUT_S}s)")
-            self._dump_page_debug("reserve_download_timeout")
+            self._dump_page_debug("reserve_download_timeout", force=True)
             return None
         except Exception as e:
             self.logger.error(f"Erreur téléchargement Reserve: {e}")
@@ -765,23 +765,6 @@ class EtoroFetcher(BaseFetcher):
         path = re.sub(r'^/[a-z]{2}(?=/)', '', path)
         return any(path.startswith(p) for p in authenticated_paths)
 
-    def _dump_page_debug(self, label, force=False):
-        """Sauvegarde le HTML et un screenshot pour debug."""
-        if not self.debug and not force:
-            return
-        debug_dir = LOGS_DIR / 'debug'
-        debug_dir.mkdir(parents=True, exist_ok=True)
-
-        html_file = debug_dir / f'etoro_{label}.html'
-        html = self.page.content()
-        with open(html_file, 'w', encoding='utf-8') as f:
-            f.write(html)
-        self.logger.debug(f"HTML sauvegardé: {html_file}")
-
-        png_file = debug_dir / f'etoro_{label}.png'
-        self.page.screenshot(path=str(png_file))
-        self.logger.debug(f"Screenshot sauvegardé: {png_file}")
-
     def run(self):
         """Execute le workflow de fetch eToro complet.
 
@@ -841,8 +824,8 @@ class EtoroFetcher(BaseFetcher):
                 import traceback
                 traceback.print_exc()
             return False
-        finally:
-            self.close()
+        # Pas de `finally: self.close()` : fetch_main ferme APRÈS son filet
+        # dump_failure('echec_run') — fermer ici l'aveuglerait (page détruite). #177
 
 
 if __name__ == '__main__':

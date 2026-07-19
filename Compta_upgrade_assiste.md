@@ -82,6 +82,7 @@ _Le **nombre** dans la colonne d’un composant = le marqueur de schéma que la 
 
 | Version | Classeur | Config | App | Outil | Effet |
 |---|:--:|:--:|:--:|---|---|
+| v5.22.0 | 🔧 📘 `3` |  |  | `tool_migrate_ctrl_changes_round.py` | Contrôles BALANCES « Changes Eq € » enveloppée de ROUND (fin d'un faux ⚠ par résidu flottant, #176) |
 | v5.16.0 | 🔧 📘 `3` |  |  | `tool_migrate_add_legende_soldes.py` | légende des libellés #Solde (Relevé / Σ / ⚠ Solde calculé) dans la table conventions |
 | v5.14.1 | 🔧 `3` |  |  | `tool_migrate_pvl_min_ancrage.py` | ancrage PVL au premier #Solde (MIN, fin du re-ancrage mort) |
 | v5.14.1 | 📘 |  |  |  | classeur exemple livré (intègre la migration pvl_min_ancrage) |

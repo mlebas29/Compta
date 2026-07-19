@@ -9,6 +9,15 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 
 Les trois derniers sont spécifiques au mode assisté ; 📘 concerne le mode classeur.
 
+## v5.22.0 🔧 📘
+| 2026-07-19 | Contrôles : fin d'une fausse alerte d'équilibre (résidu d'arrondi) |
+| ---------- | ----------------------------------------------------------------- |
+
+**Détail :**
+
+- **Contrôles (BALANCES) 🔧** — la ligne « Changes Eq € » pouvait déclencher une fausse alerte ⚠ à cause d'un résidu d'arrondi minuscule (de l'ordre de 10⁻¹⁴, affiché « 0,00 »), sans aucun déséquilibre réel. La formule est désormais arrondie comme ses voisines (Virements, Titres). Correction appliquée automatiquement à la mise à niveau ; présente dans les classeurs exemple et vierge.
+- **Fiabilité du diagnostic de collecte** — en cas d'échec de collecte, l'état de la page est capturé au bon moment, avant qu'une navigation interne ne l'écrase (eToro, Société Générale, DEGIRO).
+
 ## v5.21.2
 | 2026-07-19 | Société Générale : nouvel écran de sécurité franchi automatiquement |
 | ---------- | ------------------------------------------------------------------- |

@@ -29,7 +29,10 @@
       "summary": "ancrage PVL au premier #Solde (MIN, fin du re-ancrage mort)" },
     { "id": "legende_soldes", "tool": "tool_migrate_add_legende_soldes.py", "schema_from": 3, "schema_to": 3,
       "idempotent": true, "app_version": "5.16.0", "badges": ["🔧", "📘"],
-      "summary": "légende des libellés #Solde (Relevé / Σ / ⚠ Solde calculé) dans la table conventions" }
+      "summary": "légende des libellés #Solde (Relevé / Σ / ⚠ Solde calculé) dans la table conventions" },
+    { "id": "ctrl_changes_round", "tool": "tool_migrate_ctrl_changes_round.py", "schema_from": 3, "schema_to": 3,
+      "idempotent": true, "app_version": "5.22.0", "badges": ["🔧", "📘"],
+      "summary": "Contrôles BALANCES « Changes Eq € » enveloppée de ROUND (fin d'un faux ⚠ par résidu flottant, #176)" }
   ],
   "_note_config_migrations": "Pendant config des migrations classeur, MARKER-DRIVEN (#98, cf. Compta_coherence.md). Chemin = entrées dont schema_to > config_schema_version relevé, jusqu'à CONFIG_SCHEMA_VERSION (code). Forme du schema_to = gravité : décimal (0.1, 0.2) → avertit, entier → bloque, ABSENT → entrée SILENCIEUSE rejouée systématiquement (run-all). Le « run-all sans gating » d'avant #98 ne vaut donc plus que pour les entrées silencieuses. Contrat DUR maintenu : tout outil est idempotent + auto-gated sur l'état réel du config.ini (jamais re-clobbée si reconfig manuelle ultérieure) ; valider en le lançant 2×. Invariant : max(config schema_to) == inc_excel_schema.CONFIG_SCHEMA_VERSION. app_version sert au rendu + au balayage, jamais à gater l'exécution.",
   "config_migrations": [

@@ -330,9 +330,13 @@ class DegiroFetcher(BaseFetcher):
 
         except PlaywrightTimeout:
             self.logger.error(f"Timeout téléchargement {filename}")
+            # Dump AVANT le return : le 2e appel (Account) re-navigue et écrase
+            # cette page. #177
+            self._dump_page_debug(f"download_fail_{filename.split('.')[0]}", force=True)
             return None
         except Exception as e:
             self.logger.error(f"Erreur téléchargement {filename}: {e}")
+            self._dump_page_debug(f"download_fail_{filename.split('.')[0]}", force=True)
             return None
 
     def run(self):

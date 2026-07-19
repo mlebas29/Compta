@@ -630,6 +630,15 @@ class SgFetcher(BaseFetcher):
 
         self.logger.error(f"Timeout 2FA après {TIMEOUT_2FA}s")
 
+    def _fail(self, label):
+        """Capture la page (force=True) puis renvoie None. Chaque export SG
+        re-navigue en tête (goto about:blank) → sans capture ici, la page
+        fautive est écrasée par l'export suivant et le diagnostic est perdu
+        (#177 ; coût réel s.213). Le label identifie le point d'échec."""
+        safe = re.sub(r'[^\w-]', '_', str(label))
+        self._dump_page_debug(f'export_fail_{safe}', force=True)
+        return None
+
     def download_csv_compte_courant(self):
         """Télécharge le CSV du compte courant via la page de téléchargement.
 
@@ -746,7 +755,7 @@ class SgFetcher(BaseFetcher):
             )
             if download_link.count() == 0:
                 self.logger.error("Bouton 'Télécharger' non trouvé")
-                return None
+                return self._fail('cpt_courant_no_btn')
 
             try:
                 with self.page.expect_download(timeout=30000) as download_info:
@@ -769,12 +778,11 @@ class SgFetcher(BaseFetcher):
                 if self._alert_text:
                     self.logger.error(f"Alerte SG: {self._alert_text}")
                 self.logger.error("Timeout téléchargement compte courant")
-                self._dump_page_debug('download_fail_cpt_courant', force=True)
-                return None
+                return self._fail('cpt_courant_timeout')
 
         except Exception as e:
             self.logger.error(f"Erreur export compte courant: {e}")
-            return None
+            return self._fail('cpt_courant_error')
 
     def export_epargne_csv(self, compte_info):
         """Exporte le CSV d'un compte épargne via URL directe.
@@ -806,7 +814,7 @@ class SgFetcher(BaseFetcher):
                 export_btn.first.wait_for(state="visible", timeout=10000)
             except PlaywrightTimeout:
                 self.logger.error(f"  Bouton export non trouvé pour {nom}")
-                return None
+                return self._fail(f'epargne_{nom}_no_btn')
 
             # Télécharger
             try:
@@ -831,11 +839,11 @@ class SgFetcher(BaseFetcher):
 
             except PlaywrightTimeout:
                 self.logger.error(f"  Timeout téléchargement {nom}")
-                return None
+                return self._fail(f'epargne_{nom}_timeout')
 
         except Exception as e:
             self.logger.error(f"  Erreur export {nom}: {e}")
-            return None
+            return self._fail(f'epargne_{nom}_error')
 
     def export_all_epargne_csv(self):
         """Exporte les CSV de tous les comptes épargne (hors compte courant).
@@ -895,7 +903,7 @@ class SgFetcher(BaseFetcher):
                 download_btn.first.wait_for(state="visible", timeout=10000)
             except PlaywrightTimeout:
                 self.logger.error(f"  Bouton téléchargement non trouvé pour {nom}")
-                return None
+                return self._fail(f'supports_{file_key}_no_btn')
 
             # Télécharger
             try:
@@ -919,11 +927,11 @@ class SgFetcher(BaseFetcher):
 
             except PlaywrightTimeout:
                 self.logger.error(f"  Timeout téléchargement supports {nom}")
-                return None
+                return self._fail(f'supports_{file_key}_timeout')
 
         except Exception as e:
             self.logger.error(f"  Erreur export supports {nom}: {e}")
-            return None
+            return self._fail(f'supports_{file_key}_error')
 
     def export_all_assurances_vie_supports(self):
         """Télécharge les supports de toutes les assurances vie.
@@ -986,13 +994,13 @@ class SgFetcher(BaseFetcher):
                 time.sleep(3)
             except PlaywrightTimeout:
                 self.logger.error(f"  Bouton 'Suivre mes opérations' non trouvé pour {nom}")
-                return None
+                return self._fail(f'ops_{file_key}_no_btn')
 
             return self.save_page_as_pdf(output_filename)
 
         except Exception as e:
             self.logger.error(f"  Erreur opérations {nom}: {e}")
-            return None
+            return self._fail(f'ops_{file_key}_error')
 
     def print_all_assurances_vie_operations_pdf(self):
         """Imprime les opérations de toutes les assurances vie en PDF.

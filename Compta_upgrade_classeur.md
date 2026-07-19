@@ -13,6 +13,7 @@ Vous tenez le classeur à la main, sans `upgrade` (pour le mode assisté en un g
 
 | Version | Classeur | Effet |
 |---|:--:|---|
+| v5.22.0 | 📘 | Contrôles BALANCES « Changes Eq € » enveloppée de ROUND (fin d'un faux ⚠ par résidu flottant, #176) |
 | v5.16.0 | 📘 | légende des libellés #Solde (Relevé / Σ / ⚠ Solde calculé) dans la table conventions |
 | v5.14.1 | 📘 | classeur exemple livré (intègre la migration pvl_min_ancrage) |
 | v5.0.1 | 📘 | classeur exemple livré (intègre la migration v5.0.0) |
@@ -24,6 +25,13 @@ Vous tenez le classeur à la main, sans `upgrade` (pour le mode assisté en un g
 **Notes :**
 
 - **drill (devise)** = modèle « une colonne par devise → colonnes génériques avec menu déroulant » (chantier v4.0.0).
+
+
+## v5.22.0 🔧 📘 — Contrôles : fin d'une fausse alerte d'équilibre (« Changes Eq € »)
+
+`SCHEMA_VERSION` inchangé (reste à 3) : correction de formule idempotente. Dans la feuille **Contrôles**, le contrôle **BALANCES** compare la ligne « Changes Eq € » à zéro **exact** ; or sa formule était la **seule des trois** (avec « Virements € » et « Titres € ») à ne pas être arrondie → un résidu d'arrondi minuscule (de l'ordre de 10⁻¹⁴, affiché « 0,00 ») déclenchait une **fausse alerte ⚠**, sans aucun déséquilibre réel. Corrigé en enveloppant la formule de `ROUND(…;0)`, comme ses voisines.
+
+**Mise à niveau** — récupérer le nouvel exemple [`comptes_exemple.xlsx`](https://github.com/mlebas29/Compta/raw/main/comptes_exemple.xlsx) (il intègre la correction), ou reporter à la main sur la cellule « Changes Eq € » (colonne €) : `=ROUND(<formule existante>;0)`.
 
 
 ## v5.14.1 🔧 📘 — Ancrage PVL au premier `#Solde` (métaux / crypto / devises)
