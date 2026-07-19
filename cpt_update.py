@@ -625,31 +625,6 @@ class ComptaUpdater:
         except Exception as e:
             self.logger.error(f"Erreur purge logs: {e}")
 
-    def cleanup_debug_files(self):
-        """Supprime tous les fichiers dans logs/debug/
-
-        Appelé au début de chaque session pour nettoyer les fichiers
-        intermédiaires de la session précédente (screenshots, HTML, tmp.csv).
-        """
-        if not DEBUG_DIR.exists():
-            return
-
-        try:
-            deleted_count = 0
-            for debug_file in DEBUG_DIR.glob('*'):
-                if debug_file.is_file():
-                    try:
-                        debug_file.unlink()
-                        deleted_count += 1
-                    except Exception:
-                        pass
-
-            if deleted_count > 0:
-                self.logger.verbose(f"Fichiers debug nettoyés: {deleted_count}")
-
-        except Exception as e:
-            self.logger.error(f"Erreur nettoyage debug: {e}")
-
     def restore_fallback(self):
         """Restaure la dernière session en inversant les déplacements HDS
 
@@ -964,9 +939,6 @@ class ComptaUpdater:
 
     def process_dropbox(self):
         """Traite tous les fichiers dans le répertoire dropbox selon la convention de nommage"""
-        # Nettoyage fichiers debug de la session précédente
-        self.cleanup_debug_files()
-
         if not DROPBOX_DIR.exists():
             self.logger.error(f"Répertoire dropbox inexistant: {DROPBOX_DIR}")
             return False

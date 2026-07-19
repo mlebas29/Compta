@@ -269,10 +269,18 @@ class SgFetcher(BaseFetcher):
     def _verify_connection(self):
         """Vérifie la connexion en naviguant vers la page téléchargement."""
         self.logger.info("Vérification de la connexion...")
+        # Franchir l'interstitiel obligatoire « Sensibilisation contre la fraude »
+        # que SG interpose après un login RÉUSSI (2 étapes, ~07/2026) — sinon
+        # l'accès aux comptes reste bloqué et on lit un faux « session expirée ».
+        self._dismiss_fraud_interstitial()
         # Si déjà sur la page téléchargement, pas besoin de re-naviguer
         if self.page.locator("#compte").count() > 0:
             self.logger.info("Connexion réussie")
             return True
+        # Pas connecté d'emblée → capturer l'écran post-mot-de-passe AVANT le
+        # goto (qui l'écrase). C'est la page qui tranche : 2FA renommée /
+        # « mot de passe incorrect » / sélecteur #compte changé (#149/#167).
+        self._dump_page_debug('post_login', force=True)
         self.page.goto(
             f"{self.base_url}/restitution/tel_telechargement.html",
             wait_until="domcontentloaded", timeout=30000
@@ -285,6 +293,59 @@ class SgFetcher(BaseFetcher):
         except PlaywrightTimeout:
             self.logger.error("Session expirée après authentification")
             return False
+
+    def _dismiss_fraud_interstitial(self, max_steps=4):
+        """Franchit l'écran obligatoire « Sensibilisation contre la fraude » que
+        SG interpose après un login RÉUSSI (2 étapes, URL /informations-bad,
+        apparu ~07/2026). Le login est OK mais l'accès aux comptes reste bloqué
+        tant que l'écran n'est pas parcouru → clic sur le CTA primaire (« Suivant »
+        puis le bouton final) jusqu'à en sortir. Même famille que la pédagogie
+        VeraCash / l'assistant NATIXIS. No-op si l'écran est absent."""
+        def _on_screen():
+            try:
+                url = self.page.evaluate("window.location.href") or ''
+            except Exception:
+                url = ''
+            try:
+                title = self.page.title() or ''
+            except Exception:
+                title = ''
+            return 'informations-bad' in url or 'Sensibilisation contre la fraude' in title
+
+        if not _on_screen():
+            return
+        self.logger.info("Écran « Sensibilisation contre la fraude » — franchissement...")
+        for _ in range(max_steps):
+            if not _on_screen():
+                break
+            # Le CTA primaire (« Terminer la lecture » puis « Suivant ») est
+            # DISABLED tant que le contenu n'est pas lu → scroller en bas (arme
+            # le flag de lecture) PUIS force-enable + clic JS (même idiome que le
+            # bouton Valider du login, qui est aussi livré disabled par SG).
+            self.page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+            time.sleep(1)
+            clicked = self.page.evaluate("""
+                () => {
+                    const btn = document.querySelector('button.stl_btn--primary--default');
+                    if (!btn) return false;
+                    btn.removeAttribute('disabled');
+                    btn.disabled = false;
+                    btn.click();
+                    return true;
+                }
+            """)
+            if not clicked:
+                self.logger.warning("Interstitiel fraude : CTA primaire introuvable")
+                break
+            time.sleep(1)
+            try:
+                self.page.wait_for_load_state("networkidle", timeout=8000)
+            except Exception:
+                pass
+        if _on_screen():
+            self.logger.warning("Interstitiel « fraude » toujours présent après franchissement")
+        else:
+            self.logger.info("Interstitiel « fraude » franchi")
 
     def _dismiss_cookies(self):
         """Ferme le popup cookies si présent."""

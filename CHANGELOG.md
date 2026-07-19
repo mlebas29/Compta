@@ -9,6 +9,18 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 
 Les trois derniers sont spécifiques au mode assisté ; 📘 concerne le mode classeur.
 
+## v5.21.2
+| 2026-07-19 | Société Générale : nouvel écran de sécurité franchi automatiquement |
+| ---------- | ------------------------------------------------------------------- |
+
+**Détail :**
+
+- Société Générale interpose depuis peu un écran « Sensibilisation contre la fraude » après la connexion. Il est désormais franchi automatiquement — sans ça, la collecte échouait sur un faux « session expirée ».
+
+- Fiabilité du diagnostic de collecte : en cas d'échec de connexion, l'état de la page est capturé au bon moment et n'est plus effacé par l'import suivant.
+
+
+
 ## v5.21.1
 | 2026-07-19 | Wise : correction d'alertes |
 | ---------- | --------------------------- |

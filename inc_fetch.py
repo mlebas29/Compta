@@ -376,6 +376,11 @@ class BaseFetcher:
         par le site : son propre indicateur de session active). Renvoie True si
         connecté avant `timeout_s`, False sinon. Best-effort (une exception du
         check n'interrompt pas l'attente)."""
+        # #149 (angle mort) : capturer l'état de l'échec AUTOMATIQUE ICI, avant
+        # que relaunch_headed() ne remplace self.page par le formulaire manuel.
+        # Sinon le dump 'echec_run' final (fetch_main) montre la page manuelle,
+        # pas la réponse du site au login auto. Couvre tout site à filet manuel.
+        self.dump_failure('auto_login_fail')
         if not (self.debug or self._headed):
             self.relaunch_headed()
         try:
