@@ -340,7 +340,8 @@ Récapitulatif des fichiers générés par la collecte automatique ou manuelle. 
 | **KRAKEN** | `kraken-spot-ledgers-*.zip` | Opérations | → balances (interne) |
 | | `kraken-spot-balances-*.zip` | Soldes | Compte Kraken EUR, Compte Kraken BTC |
 | **WISE** | `transaction-history.csv` | Opérations | Jambes par devise |
-| | `wise_balances.csv` | Soldes | #Solde par devise (jar) |
+| | `wise_balances.csv` | Soldes | #Solde par devise |
+| | `wise_interest.csv` | Intérêts | Cumul Wise Assets → op « Intérêts » |
 | **ETORO** | `eToroTransactions_*.tsv` | Opérations + Solde | Compte eToro Money (EUR) |
 | | `etoro-account-statement*.xlsx` | Opérations + Solde | Portefeuille eToro Réserve (USD) |
 | | `eToro_accueil.pdf` | Soldes | Compte eToro Money, Portefeuille eToro Réserve |

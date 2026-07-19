@@ -42,6 +42,7 @@ EXPECTED_FILES = [
     ('transaction-history*.csv', 'glob', '0-1'),
     ('all-transactions*.csv', 'glob', '0-1'),
     ('wise_balances.csv', 'exact', '0-1'),   # soldes par devise (#Solde, #131 choix b)
+    ('wise_interest.csv', 'exact', '0-1'),   # cumul d'intérêt Wise Assets (fetch_interest, #166)
 ]
 
 def log(message, verbose=False):
@@ -289,7 +290,19 @@ def parse_all_transactions_csv(csv_file, verbose=False):
     with open(csv_file, newline='', encoding='utf-8-sig') as f:
         rows = list(csv.reader(f))
 
-    data = [r for r in rows[1:] if r and _TXN_TYPE_RE.match((r[0] or '').strip())]
+    data = []
+    for r in rows[1:]:
+        if not r:
+            continue
+        ident = (r[0] or '').strip()
+        if _TXN_TYPE_RE.match(ident):
+            data.append(r)
+        elif ident:
+            # Type non géré (4ᵉ type Wise ? cashback/remise de solde…) : NE PAS
+            # l'écarter en silence (#173). Un crédit ignoré ferait diverger le solde
+            # cash scrapé de Σ(ops cash) → le cross-check d'intérêt (#166) le lirait
+            # en « virement manquant » sans que la vraie cause soit visible.
+            log(f"Type de transaction non géré, ligne ignorée : {ident!r}", verbose=True)
     data.reverse()  # Wise exporte du plus récent au plus ancien → on remet ancien→récent
 
     operations = []

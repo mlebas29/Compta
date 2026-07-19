@@ -28,7 +28,7 @@ Workflow:
      puis (si demandée) lien email Wise copié dans le clipboard
   3. /all-transactions → bouton « Télécharger » → tiroir → format CSV → download
   4. Soldes : /home → id du groupe multi-devises → /groups/<id> → lecture des
-     jars par devise (« Compte principal »)
+     soldes par devise (« Compte principal »)
 
 Fichiers générés (dropbox/WISE/):
   - transaction-history.csv  (toutes les opérations, toutes devises)
@@ -287,12 +287,12 @@ class WiseFetcher(BaseFetcher):
         """Lit les soldes par devise -> dropbox/WISE/wise_balances.csv (« DEVISE,
         solde » par ligne), consomme par le format pour le #Solde (#131, choix b).
 
-        Les 5 jars (EUR inclus) sont sur la page du GROUPE multi-devises
+        Les 5 soldes-devises (EUR inclus) sont sur la page du GROUPE multi-devises
         (« Compte principal »), pas sur /home : /home affiche l'EUR comme
-        devise de BASE (non-jar), d'un montant sans rapport avec le vrai jar
-        EUR -> le lire la fausserait ; d'ou le passage par la page groupe.
+        devise de BASE, d'un montant sans rapport avec le vrai solde EUR
+        -> le lire la fausserait ; d'ou le passage par la page groupe.
         On extrait l'id du groupe depuis /home (« MCA - <id> ») -> /groups/<id>,
-        puis on lit chaque jar dans les spans `np-option__title` (« <montant> <ISO> »).
+        puis on lit chaque solde-devise dans les spans `np-option__title` (« <montant> <ISO> »).
         NB : /balances = 404. Id extrait dynamiquement (portable, pas de hardcode).
         Nav pure `goto` : pas de wait_for_load_state('networkidle') (la SPA ne
         devient jamais idle -> timeout inutile) ; on attend juste la condition ciblee.
@@ -321,7 +321,7 @@ class WiseFetcher(BaseFetcher):
             return
         self.logger.info(f"Groupe multi-devises: {group_id}")
 
-        # 2. /groups/<id> -> les 5 jars
+        # 2. /groups/<id> -> les 5 soldes-devises
         url = f"{self.base_url}/groups/{group_id}"
         self.logger.info(f"Lecture des soldes: {url}")
         self.page.goto(url, wait_until="domcontentloaded")
@@ -335,7 +335,7 @@ class WiseFetcher(BaseFetcher):
         # force=True (rodage) : capte le marqueur « Investis avec Intérêts » sur les cartes.
         self._dump_page_debug("balances_group", force=True)
 
-        # Chaque jar = un span de titre d'option « <montant> <ISO> » (les codes
+        # Chaque solde-devise = un span de titre d'option « <montant> <ISO> » (les codes
         # ISO sont dans le texte visible sur la page groupe ; les transactions,
         # elles, ne portent pas cette classe -> pas de pollution).
         pairs = self.page.evaluate(r"""
