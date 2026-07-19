@@ -9,6 +9,18 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 
 Les trois derniers sont spécifiques au mode assisté ; 📘 concerne le mode classeur.
 
+## v5.21.1
+| 2026-07-19 | Wise : correction d'alertes |
+| ---------- | --------------------------- |
+
+**Détail :**
+
+- Le fichier de rendement Wise (`wise_interest.csv`) n'est plus signalé comme « fichier inattendu » à l'import.
+
+- Un type de transaction Wise non reconnu est désormais **signalé** dans le journal au lieu d'être ignoré silencieusement (un crédit inconnu fausserait sinon la réconciliation du solde).
+
+  
+
 ## v5.21.0
 | 2026-07-18 | Wise : les intérêts (Wise Assets) suivis et réconciliés |
 | ---------- | ------------------------------------------------------- |
