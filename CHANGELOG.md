@@ -9,6 +9,15 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 
 Les trois derniers sont spécifiques au mode assisté ; 📘 concerne le mode classeur.
 
+## v5.23.0 🔧 ⚙️
+| 2026-07-20 | Crédit Mutuel pris en charge ; l'arrondi Contrôles de la v5.22.0 s'applique enfin sur les classeurs à nombreux comptes |
+| ---------- | ------------------------------------------------------------------------------------------------------------------- |
+
+**Détail :**
+
+- **Crédit Mutuel** — nouveau site pris en charge (banque : comptes courants, livrets, prêts). Il se configure comme les autres banques (identifiants + validation 2FA sur mobile) et importe un seul export Excel multi-comptes ; chaque compte se déclare avec son RIB. La configuration gagne une section `[MUTUEL]` à la mise à niveau ⚙️.
+- **Contrôles (BALANCES) 🔧** — la correction d'arrondi « Changes Eq € » introduite en v5.22.0 **échouait sur les classeurs comportant beaucoup de comptes** (le bloc de contrôle y est repoussé plus bas), **sans modifier le classeur** ; elle **s'applique enfin** à cette mise à niveau. Les classeurs déjà corrigés (peu de comptes) ne sont pas retouchés.
+
 ## v5.22.0 🔧 📘
 | 2026-07-19 | Contrôles : fin d'une fausse alerte d'équilibre (résidu d'arrondi) |
 | ---------- | ----------------------------------------------------------------- |
