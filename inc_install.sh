@@ -85,6 +85,80 @@ normalize_config() {  # $1=config.ini
         changed=1; ok "clé : seafile_comptes_file → classeur_externe"
     fi
 
+    # Sections ACTIVES du modèle (config.ini.default) absentes de la config → les
+    # ajouter (nouveau site promu au public, p. ex.). Additif et idempotent : ne
+    # touche jamais une section existante ; ne copie que les sections à clés
+    # ACTIVES (un bloc purement commenté du modèle est ignoré). Miroir fixeur du
+    # détecteur check_config_obsolete « section [X] manquante » (inc_update.py).
+    local def; def="$(dirname "$f")/config.ini.default"
+    if [[ -f "$def" ]]; then
+        local sec
+        while IFS= read -r sec; do
+            [[ -n "$sec" ]] || continue
+            grep -qE "^\[${sec}\]" "$f" && continue          # déjà présente → skip
+            if [[ -z "${DRY_RUN:-}" ]]; then
+                # bloc [sec] du modèle jusqu'à la section suivante, en élaguant
+                # les lignes vides/commentaires de queue (= l'en-tête du bloc suivant).
+                {
+                    printf '\n'
+                    awk -v s="[$sec]" '
+                        $0==s {grab=1}
+                        grab && /^\[/ && $0!=s {stop=1}
+                        grab && !stop {buf[n++]=$0}
+                        END {
+                            while (n>0 && (buf[n-1] ~ /^[[:space:]]*$/ || buf[n-1] ~ /^[[:space:]]*#/)) n--
+                            for (i=0; i<n; i++) print buf[i]
+                        }
+                    ' "$def"
+                } >> "$f"
+            fi
+            changed=1; ok "section : [$sec] ajoutée depuis config.ini.default"
+        done < <(awk '
+            /^\[/ {sec=$0; gsub(/[][]/, "", sec)}
+            /^[[:space:]]*[A-Za-z0-9_]+[[:space:]]*=/ && sec {active[sec]=1}
+            END {for (s in active) print s}
+        ' "$def")
+
+        # Clés ACTIVES du modèle absentes d'une section DÉJÀ présente (clé nouvelle
+        # ajoutée à une section existante de config.ini.default). Additif, idempotent :
+        # la ligne verbatim du modèle est insérée juste après l'en-tête de section.
+        # Tourne APRÈS l'ajout de section (une section neuve arrive déjà complète).
+        local defline kname
+        while IFS=$'\t' read -r sec defline; do
+            [[ -n "$sec" && -n "$defline" ]] || continue
+            if [[ -z "${DRY_RUN:-}" ]]; then
+                awk -v s="[$sec]" -v line="$defline" \
+                    '{print} $0==s {print line}' "$f" > "$f.tmp" && mv "$f.tmp" "$f"
+            fi
+            kname=${defline%%=*}; kname=${kname// /}
+            changed=1; ok "clé : [$sec] $kname ajoutée depuis config.ini.default"
+        done < <(awk '
+            FNR==NR {
+                if ($0 ~ /^\[/) { dsec=$0; gsub(/[][]/, "", dsec) }
+                else if (dsec != "" && $0 ~ /^[[:space:]]*[A-Za-z0-9_]+[[:space:]]*=/) {
+                    line=$0; sub(/^[[:space:]]*/, "", line)
+                    eq=index(line, "="); k=substr(line, 1, eq-1); sub(/[[:space:]]+$/, "", k)
+                    dkey[dsec SUBSEP k]=$0
+                }
+                next
+            }
+            {
+                if ($0 ~ /^\[/) { fsec=$0; gsub(/[][]/, "", fsec); fseen[fsec]=1 }
+                else if (fsec != "" && $0 ~ /^[[:space:]]*[A-Za-z0-9_]+[[:space:]]*=/) {
+                    line=$0; sub(/^[[:space:]]*/, "", line)
+                    eq=index(line, "="); k=substr(line, 1, eq-1); sub(/[[:space:]]+$/, "", k)
+                    fkey[fsec SUBSEP k]=1
+                }
+            }
+            END {
+                for (key in dkey) {
+                    split(key, a, SUBSEP); s=a[1]; k=a[2]
+                    if (fseen[s] && !(key in fkey)) print s "\t" dkey[key]
+                }
+            }
+        ' "$def" "$f")
+    fi
+
     [[ $changed -eq 0 ]] && ok "config déjà normalisée (rien à migrer)"
     # Sonde effective-state (#121) : sous DRY_RUN, rc 3 = la normalisation CHANGERAIT
     # quelque chose, rc 0 = rien. En réel l'écriture a eu lieu → rc 0.

@@ -55,12 +55,13 @@ Une supervision reste nécessaire ; par exemple pour compléter la catégorisati
 
 ## Sites pris en charge
 
-Comptabilité est livrée avec **11 sites publics** :
+Comptabilité est livrée avec **12 sites publics** :
 
 | Site | Nature |
 |---|---|
 | SOCGEN | Banque (Société Générale) |
 | BOURSOBANK | Banque en ligne |
+| MUTUEL | Banque (Crédit Mutuel) |
 | NATIXIS | Épargne salariale (PEE) |
 | DEGIRO | Courtier (titres) |
 | ETORO | Courtier / crypto |
@@ -237,7 +238,7 @@ Deux axes **indépendants** gouvernent la collecte de chaque site :
 | **1. Sans navigateur** (API/RPC) | BTC, XMR | parallèle | — | aucune |
 | **2. Navigateur, sans interaction** | NATIXIS | séquentiel par défaut | jamais | aucune (login auto, pas de 2FA) |
 | **3. Repli visible automatique** | AMAZON, ETORO, KRAKEN, PAYPAL, WISE | séquentiel par défaut | à la demande | **action en fenêtre** : login manuel / CAPTCHA / code |
-| **4. Headless + 2FA mobile** | BOURSOBANK, SOCGEN, DEGIRO | séquentiel par défaut | seulement si l'auto-login échoue (filet) | **2FA mobile** (téléphone) ; login manuel en fenêtre en secours |
+| **4. Headless + 2FA mobile** | BOURSOBANK, SOCGEN, DEGIRO, MUTUEL | séquentiel par défaut | seulement si l'auto-login échoue (filet) | **2FA mobile** (téléphone) ; login manuel en fenêtre en secours |
 
 **Groupe 3** — fenêtre à la volée quand le site réclame une action *dans la page*, puis poursuite. WISE/KRAKEN : surveillance du presse-papier pour les liens e-mail (WISE ouvre un nouvel onglet, KRAKEN navigue dans le même).
 
@@ -283,6 +284,7 @@ Ces champs sont propres à chaque site et n'apparaissent que pour les comptes ra
 |------|------------------|
 | **SOCGEN** | Type SG (principal / épargne / assurance_vie), Numéro, ID technique, Clé fichiers (selon le type) |
 | **BOURSOBANK** | Numéro de compte |
+| **MUTUEL** | RIB (numéro de compte, clé de rapprochement) |
 | **BTC** | Clé wallet, Adresses publiques |
 | **XMR** | Clé, Nom du portefeuille |
 

@@ -163,6 +163,20 @@ dossier = BOURSOBANK
 base_url = https://clients.boursobank.com
 
 # ============================================================================
+# MUTUEL - Crédit Mutuel (comptes courants, livrets, prêts)
+# ============================================================================
+# Convention : cpt_fetch_MUTUEL.py + cpt_format_MUTUEL.py
+#              dropbox/MUTUEL/ + archives/MUTUEL/
+# Notes techniques :
+# - Playwright Chrome headless (repli fenêtre visible), login auto (GPG), 2FA systématique (téléphone)
+# - Un seul export Excel multi-comptes (tous_comptes.xlsx)
+# - Comptes déclarés par RIB (clé de rapprochement, onglet Comptes)
+[MUTUEL]
+name = Crédit Mutuel
+dossier = MUTUEL
+base_url = https://www.creditmutuel.fr
+
+# ============================================================================
 # DEGIRO - Courtier en ligne
 # ============================================================================
 # Convention : cpt_fetch_DEGIRO.py + cpt_format_DEGIRO.py

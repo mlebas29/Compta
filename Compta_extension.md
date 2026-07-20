@@ -64,7 +64,9 @@ Un PRV **Solo** sort donc du fork en **Hub local** : l'outillage (git nu `push`/
 
 ## 2. Code — étendre par le code privé
 
-Le code public reste **vierge** : aucune mention de `custom/`. Le chargement du code privé résidant dans `custom/` est dynamique via **`inc_bootstrap.py`** (importé par tous les points d'entrée) — si `custom/` existe, il est ajouté à `sys.path`, tous les `custom/patch_*.py` sont importés (ordre alphabétique), et les sites privés sont découverts par scan glob. Contrat **fail-fast** : un patch qui lève à l'import bloque le démarrage (traceback explicite) ; un chargement réussi est silencieux.
+Le code public reste **vierge** : aucune mention de `custom/`. Le chargement du code privé résidant dans `custom/` est dynamique via **`inc_bootstrap.py`** (importé par tous les points d'entrée) — si `custom/` existe, il est ajouté **en tête de `sys.path`**, tous les `custom/patch_*.py` sont importés (ordre alphabétique), et les sites privés sont découverts par scan glob. Contrat **fail-fast** : un patch qui lève à l'import bloque le démarrage (traceback explicite) ; un chargement réussi est silencieux.
+
+**Précédence — le privé prévaut sur le public.** `custom/` étant inséré en **tête** de `sys.path`, un module `custom/cpt_*_<NAME>.py` **masque** (shadow) son homonyme public à la racine : c'est le même mécanisme d'override que le monkeypatch, appliqué aux modules entiers. La surcharge est **silencieuse** (aucune erreur, aucun avertissement) — d'où le piège de promotion documenté en [§3](#3-sites--ajouter-un-connecteur).
 
 ### Mise en place et contenu
 
@@ -109,3 +111,12 @@ Règle stricte : **aucun nom de site privé, jeu de test ou doc privée** dans `
 ## 3. Sites — ajouter un connecteur
 
 Ajouter un site = fournir **deux modules** : `cpt_fetch_<NAME>.py` (collecte) et `cpt_format_<NAME>.py` (mise en forme) — en **public** (racine) ou en **privé** (`custom/`, à l'identique). La recette détaillée est dans **[`Compta_site.md`](Compta_site.md)**.
+
+### Promouvoir un site privé en public
+
+Un site privé (dans `custom/`) assez générique pour être public — une banque grand public, p. ex. — se promeut en quatre gestes :
+
+1. **Anonymiser AVANT le 1er commit PUB.** Le *code* est en général déjà neutre (la donnée réelle vit dans `config_accounts.json`, gitignoré) ; seuls les **exemples de docstring/commentaire** fuient (numéros de compte/RIB, noms de produits, codes identifiant une personne ou une géo) → remplacer par des placeholders génériques. Le faire avant le premier commit public = **zéro historique à purger** (l'idéal ; cf. garde d'anonymisation à la publication).
+2. **Déplacer les deux modules** `custom/` → racine, exécutables comme leurs pairs.
+3. **Câbler la config GUI.** Ajouter la section `[SITE]` à `config.ini.default` (`name`/`dossier`/`base_url`). Le marqueur `base_url` = « site navigateur » → la GUI rend le **cadre Authentification** (champ `credential_id`) sur une install fraîche ; les champs de compte suivent le hook `ACCOUNT_FIELDS`. Sans cette section, un clone public neuf ne peut **ni activer ni configurer** le site.
+4. **Supprimer la copie `custom/` sur CHAQUE instance.** Par précédence ([§2](#2-code--étendre-par-le-code-privé)), un `custom/cpt_*_<SITE>.py` résiduel **continue de gagner** après un pull PUB — silencieusement (le vieux code tourne, corrections et anonymisation inertes). La promotion n'est complète sur un poste **que sa copie privée effacée**.

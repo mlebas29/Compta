@@ -333,6 +333,7 @@ Récapitulatif des fichiers générés par la collecte automatique ou manuelle. 
 | | `SG_Ebene2_supports.xlsx` | Positions | Assurance vie Alice |
 | **NATIXIS** | `Historique et suivi de mes opérations - Natixis Interépargne.pdf` | Opérations + Solde | PEE Alice |
 | | `Mon épargne en détail - Natixis Interépargne.pdf` | Positions | PEE Alice |
+| **MUTUEL** | `tous_comptes.xlsx` | Opérations + Soldes | Synthèse « Vos comptes » (tous les comptes, prêts inclus) |
 | **BTC** | `btc_{wallet}_operations.csv` | Opérations | → btc_balances.csv |
 | | `btc_balances.csv` | Soldes | Wallets BTC |
 | **XMR** | `xmr_{wallet}_operations.csv` | Opérations | → xmr_balances.csv |

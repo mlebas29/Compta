@@ -155,22 +155,25 @@ def check_config_obsolete(config_path):
         for key in sorted({o.lower() for o in user.options(sec)} - known_global):
             warnings.append(
                 f'config.ini : clé obsolète [{sec}] {key} — absente de '
-                f'config.ini.default ; lance ./install_fix.sh pour normaliser.')
+                f'config.ini.default ; upgrade.py la rattrape si un renommage '
+                f'est prévu, sinon retire-la à la main.')
     for sec, keys in default_active.items():
         if not user.has_section(sec):
             if keys:
                 warnings.append(
-                    f'config.ini : section [{sec}] manquante (présente dans config.ini.default).')
+                    f'config.ini : section [{sec}] manquante (présente dans '
+                    f'config.ini.default) ; lance upgrade.py pour la rattraper.')
             continue
         for key in sorted(keys - {o.lower() for o in user.options(sec)}):
             warnings.append(
-                f'config.ini : clé manquante [{sec}] {key} (active dans config.ini.default).')
+                f'config.ini : clé manquante [{sec}] {key} (active dans '
+                f'config.ini.default) ; lance upgrade.py pour la rattraper.')
     if user.has_option('general', 'mode'):
         raw = user.get('general', 'mode', raw=True).strip()
         if raw.upper() not in VALID_MODES:
             warnings.append(
                 f'config.ini : mode « {raw} » invalide (attendu : '
-                f'{"/".join(sorted(VALID_MODES))}) ; lance ./install_fix.sh.')
+                f'{"/".join(sorted(VALID_MODES))}) ; lance upgrade.py.')
     return warnings
 
 
@@ -557,14 +560,15 @@ def startup_config_advice(config_path, base_dir, code_marker=None):
     """Avis config au démarrage — ordre canonique partagé CLI + GUI (1 seule source
     pour que les deux appelants ne divergent JAMAIS).
 
-    Gating mutuellement exclusif :
+    Gating mutuellement exclusif — les DEUX branches renvoient à **upgrade.py**
+    (l'ombrelle : pull + migrations classeur + config_migrations + normalize_config ;
+    install_fix n'en est qu'un sous-outil local). Le split n'est plus « quel geste »
+    mais « quel MESSAGE » :
       1. check_config_schema D'ABORD (marqueur ⚙️ en retard ? — #98, marker-driven).
-      2. marqueur en retard → cet avis SEUL : upgrade honore le composant config
-         (install_fix normalize ET les config_migrations via apply_benign) → citer
-         en plus le générique check_config_obsolete (qui ne renvoie qu'à install_fix)
-         serait redondant.
-         sinon → check_config_obsolete (filet générique, toujours-ON) : il ne reste
-         alors que du générique à normaliser, son renvoi vers install_fix est juste.
+      2. marqueur en retard → cet avis SEUL (message marqueur) ; citer en plus le
+         générique check_config_obsolete serait redondant (même geste : upgrade).
+         sinon → check_config_obsolete (filet générique, toujours-ON) : décrit la
+         dérive précise (section/clé/mode) — même renvoi upgrade.py.
 
     Le DÉMARRAGE NE MUTE JAMAIS (ni marqueur ni config) — upgrade SEUL résout.
 

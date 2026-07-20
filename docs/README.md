@@ -12,6 +12,7 @@ Documentation **dev approfondie**, complémentaire des docs de haut niveau :
 |---|---|---|
 | Société Générale | [`site_SOCGEN.md`](site_SOCGEN.md) | banque, OCR clavier virtuel, agrégat ETF (patch privé) |
 | BoursoBank | [`site_BOURSOBANK.md`](site_BOURSOBANK.md) | OCR hybride, plafond 2 tentatives / 15 min |
+| Crédit Mutuel | [`site_MUTUEL.md`](site_MUTUEL.md) | banque, 2FA systématique, un export Excel multi-comptes, jointure par RIB |
 | NATIXIS (PEE) | [`site_NATIXIS.md`](site_NATIXIS.md) | épargne salariale, sortie PDF, assistant « appareil de confiance » |
 | DEGIRO | [`site_DEGIRO.md`](site_DEGIRO.md) | courtier titres, 2FA push mobile |
 | eToro | [`site_ETORO.md`](site_ETORO.md) | courtier/crypto, modale relevé à ne pas fermer, positions auto-PDF |
