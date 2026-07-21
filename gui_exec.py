@@ -281,10 +281,10 @@ class ExecMixin:
         doc_btn.pack(side='right', padx=(8, 0))
         self._popup_menus.append(doc_menu)
 
-        ttk.Button(files_btn_frame, text='Archives',
-                   command=self._exec_open_archives).pack(side='right', padx=(8, 0))
-        ttk.Button(files_btn_frame, text='Dropbox',
-                   command=self._exec_open_dropbox).pack(side='right', padx=(8, 0))
+        # Pas de boutons Dropbox/Archives : ils ouvraient les dossiers racine dont les
+        # sous-dossiers portent les noms internes (dropbox/SOCGEN/, …) → ré-exposeraient
+        # le nom interne, qu'on masque en GUI. Le dossier de dépôt de secours est donné,
+        # au nom exact, dans la procédure de secours de la description (onglet Sites).
         ttk.Button(files_btn_frame, text='Journal',
                    command=self._exec_open_journal).pack(side='right', padx=(8, 0))
 
@@ -631,24 +631,6 @@ class ExecMixin:
                                  parent=self.root)
             return
         self._open_with_libreoffice(path)
-
-    def _exec_open_dropbox(self):
-        path = (self.config_path.parent /
-                self.config.get('paths', 'dropbox', fallback='./dropbox')).resolve()
-        if path.exists():
-            self._open_path(path)
-        else:
-            messagebox.showinfo('Dropbox', f'Répertoire introuvable :\n{path}',
-                                parent=self.root)
-
-    def _exec_open_archives(self):
-        path = (self.config_path.parent /
-                self.config.get('paths', 'archives', fallback='./archives')).resolve()
-        if path.exists():
-            self._open_path(path)
-        else:
-            messagebox.showinfo('Archives', f'Répertoire introuvable :\n{path}',
-                                parent=self.root)
 
     # ----------------------------------------------------------------
     # EXÉCUTION : subprocess dans un thread

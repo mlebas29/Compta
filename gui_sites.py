@@ -146,7 +146,6 @@ class SitesMixin:
             'base_url': 'URL',
             'max_days_back': 'Jours max',
             'max_reports': 'Nb rapports',
-            'dossier': 'Dossier',
             'drive_folder': 'Dossier Drive',
             'drive_account': 'Compte Drive',
             'poll_timeout': 'Timeout collecte (s)',
@@ -168,7 +167,7 @@ class SitesMixin:
         # doit AUSSI être retiré de `readonly_keys` dans `_save_config` (gui_devises),
         # sinon la saisie serait jetée en silence. `base_url`/`dossier` restent gelés
         # (dossier orpheline la dropbox ; base_url peut casser le login).
-        readonly_keys = {'base_url', 'dossier'}
+        readonly_keys = {'base_url'}
         override_keys = ['max_days_back']
 
         # Les réfs sortent de la boucle générique : elles ont leur cadre, en lecture
@@ -186,8 +185,8 @@ class SitesMixin:
             all_keys.insert(idx, 'dossier')
 
         for key in all_keys:
-            if key in ('headed', 'parallel'):
-                continue  # rendus en cases à cocher ci-dessus
+            if key in ('headed', 'parallel', 'dossier'):
+                continue  # headed/parallel = cases à cocher ; dossier = nom interne (masqué)
             val = self.config.get(site, key, fallback='')
             row = ttk.Frame(frame)
             row.pack(fill='x', pady=1)
@@ -268,8 +267,14 @@ class SitesMixin:
                 ttk.Label(row_clone, text='(a des comptes — vide-le d’abord)',
                           style='Hint.TLabel').pack(side='left', padx=(6, 0))
 
-        # Description (lecture seule : source = DESCRIPTION dans cpt_fetch_<site>.py)
+        # Description (lecture seule : source = DESCRIPTION dans cpt_fetch_<site>.py).
+        # Le nom interne (= dossier) n'apparaît qu'ICI, dans la procédure de secours :
+        # on y réécrit le dossier au nom RÉEL du site sélectionné → correct pour un clone
+        # (dropbox/WISE/ → dropbox/WISE2/), no-op pour un site d'origine.
+        import re as _re
         desc_text = self.site_descriptions.get(site, '')
+        _dossier = self.config.get(site, 'dossier', fallback=site)
+        desc_text = _re.sub(r'dropbox/[A-Za-z0-9_]+/', f'dropbox/{_dossier}/', desc_text)
         self.site_desc_text.config(state='normal')
         self.site_desc_text.delete('1.0', 'end')
         self.site_desc_text.insert('1.0', desc_text)
@@ -326,33 +331,20 @@ class SitesMixin:
                 return p
         return None
 
-    def _suggest_section_id(self, source):
-        """Propose un id de section libre dérivé de la source (SOURCE2, SOURCE3…)."""
+    def _suggest_suffix(self, source):
+        """Plus petit suffixe entier ≥ 2 tel que « source+suffixe » soit libre
+        (ni section ni connecteur fetch/format existant)."""
         i = 2
         while (self.config.has_section(f'{source}{i}')
-               or self._resolve_connector('cpt_fetch_', f'{source}{i}')):
+               or self._resolve_connector('cpt_fetch_', f'{source}{i}')
+               or self._resolve_connector('cpt_format_', f'{source}{i}')):
             i += 1
-        return f'{source}{i}'
-
-    def _validate_new_section(self, sec):
-        """Message d'erreur si l'id de section neuf est invalide/pris, sinon None."""
-        import re
-        if not sec:
-            return "L'id de section est obligatoire."
-        if not re.match(r'^[A-Z][A-Z0-9_]*$', sec):
-            return ("Id invalide : majuscules, chiffres et « _ » "
-                    "(commence par une lettre). Ex. CREDMUT2.")
-        if sec in ('GENERAL', 'PAIRING', 'COMPARISON', 'PATHS', 'SITES', 'MANUEL'):
-            return f"« {sec} » est un nom réservé."
-        if self.config.has_section(sec):
-            return f"La section « {sec} » existe déjà."
-        if (self._resolve_connector('cpt_fetch_', sec)
-                or self._resolve_connector('cpt_format_', sec)):
-            return f"Un connecteur « {sec} » existe déjà sur le disque."
-        return None
+        return i
 
     def _clone_dialog(self, source, src_name):
-        """Saisie id de section + nom affiché. Retourne (section, nom) ou None."""
+        """UN seul champ : le Nom (affiché, requis). Le nom interne (source+suffixe libre)
+        est attribué automatiquement et JAMAIS montré. Retourne (section, nom) ou None."""
+        new_section = f'{source}{self._suggest_suffix(source)}'
         d = tk.Toplevel(self.root)
         d.title('Dupliquer un accès')
         d.transient(self.root)
@@ -360,47 +352,32 @@ class SitesMixin:
         f = ttk.Frame(d, padding=12)
         f.pack(fill='both', expand=True)
 
-        ttk.Label(f, text=f"Duplication de « {src_name} » ({source}).\n"
+        ttk.Label(f, text=f"Duplication de « {src_name} ».\n"
                           "Même connecteur ; credential et comptes DISTINCTS.",
                   justify='left').grid(row=0, column=0, columnspan=2,
                                        sticky='w', pady=(0, 10))
 
-        ttk.Label(f, text='Id de section :', width=16).grid(row=1, column=0, sticky='w')
-        v_sec = tk.StringVar(value=self._suggest_section_id(source))
-        e_sec = ttk.Entry(f, textvariable=v_sec, width=28)
-        e_sec.grid(row=1, column=1, pady=3, sticky='w')
-        ttk.Label(f, text='(interne : fichier, dropbox, profil — ex. CREDMUT2)',
+        ttk.Label(f, text='Nom :', width=10).grid(row=1, column=0, sticky='w')
+        v_name = tk.StringVar(value='')
+        e_name = ttk.Entry(f, textvariable=v_name, width=28)
+        e_name.grid(row=1, column=1, pady=3, sticky='w')
+        ttk.Label(f, text='(ce qui s’affiche — ex. Crédit Mutuel Alice)',
                   style='Hint.TLabel').grid(row=2, column=1, sticky='w')
 
-        ttk.Label(f, text='Nom affiché :', width=16).grid(row=3, column=0, sticky='w')
-        # Placeholder « bis » (pas « (2) ») : l'onglet Exécution affiche « nom (N) »
-        # avec N = fichiers collectés → un suffixe numérique entre parenthèses s'y
-        # confondrait. L'utilisateur remplace de toute façon par le titulaire.
-        v_name = tk.StringVar(value=f'{src_name} bis')
-        e_name = ttk.Entry(f, textvariable=v_name, width=28)
-        e_name.grid(row=3, column=1, pady=3, sticky='w')
-        ttk.Label(f, text='(ce que tu vois, ex. Crédit Mutuel Alice)',
-                  style='Hint.TLabel').grid(row=4, column=1, sticky='w')
-
         def ok():
-            sec = v_sec.get().strip().upper()
             name = v_name.get().strip()
-            err = self._validate_new_section(sec)
-            if err:
-                messagebox.showwarning('Id invalide', err, parent=d)
-                return
             if not name:
-                messagebox.showwarning('Champ requis',
-                                       'Le nom affiché est obligatoire.', parent=d)
+                messagebox.showwarning('Champ requis', 'Le nom est obligatoire.',
+                                       parent=d)
                 return
-            out['v'] = (sec, name)
+            out['v'] = (new_section, name)
             d.destroy()
 
         br = ttk.Frame(f)
-        br.grid(row=5, column=0, columnspan=2, pady=(12, 0))
+        br.grid(row=3, column=0, columnspan=2, pady=(12, 0))
         ttk.Button(br, text='Dupliquer', command=ok).pack(side='left', padx=4)
         ttk.Button(br, text='Annuler', command=d.destroy).pack(side='left', padx=4)
-        e_sec.focus_set()
+        e_name.focus_set()
         d.wait_visibility()
         d.grab_set()
         d.wait_window()
@@ -452,11 +429,20 @@ class SitesMixin:
         # Authentification affiché pour saisie ; désactivée par défaut).
         from cpt_gui import append_config_section
         base_url = self.config.get(source, 'base_url', fallback='')
-        pairs = [('name', new_name), ('dossier', new_section), ('base_url', base_url)]
+        # `dossier` = nom de site (= section) ; `name` (étiquette) seulement si fournie
+        # (sinon la liste retombe sur le nom de site via fallback).
+        pairs = [('dossier', new_section), ('base_url', base_url)]
+        if new_name:
+            pairs.insert(0, ('name', new_name))
         self.config_raw = append_config_section(self.config_raw, new_section, pairs)
         with open(self.config_path, 'w', encoding='utf-8') as fh:
             fh.write(self.config_raw)
         self.config.read_string(self.config_raw)
+
+        # Le clone partage le connecteur → même description (sinon vide : site_descriptions
+        # est bâti au démarrage, avant l'existence du clone).
+        if hasattr(self, 'site_descriptions'):
+            self.site_descriptions[new_section] = self.site_descriptions.get(source, '')
 
         # Rafraîchir l'état GUI (site désactivé par défaut) + reconstruire l'onglet.
         if new_section not in self.all_sites:
@@ -466,7 +452,7 @@ class SitesMixin:
 
         messagebox.showinfo(
             'Accès dupliqué',
-            f"« {new_name} » créé (section {new_section}).\n\n"
+            f"« {new_name or new_section} » créé (site {new_section}).\n\n"
             "À compléter avant de l'activer :\n"
             "• le secret (cadre Authentification + onglet Paramètres → Secrets) ;\n"
             "• les comptes et leurs RIB (onglet Avoirs).",

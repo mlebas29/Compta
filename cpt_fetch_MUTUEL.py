@@ -50,6 +50,12 @@ comptes visibles. Déclarer chaque compte avec son RIB dans l'onglet Comptes
 Systématique, à chaque connexion : validation sur l'app mobile Crédit Mutuel
 (côté téléphone → pas de fenêtre en régime normal). Se coordonner avec le
 titulaire. Une fenêtre ne s'ouvre qu'en secours, pour un login manuel.
+
+══════ Collecte manuelle de secours ══════
+
+Si l'auto-collecte échoue : se connecter au site Crédit Mutuel, menu
+« Téléchargement », exporter TOUS les comptes au format Excel, puis
+   → déposer le fichier (tous_comptes.xlsx) dans dropbox/MUTUEL/
 """
 
 
