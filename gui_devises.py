@@ -2125,7 +2125,7 @@ class DevisesMixin:
         # tenir les deux, ou une saisie devenue possible à l'écran serait jetée ici
         # en silence. (Les réfs, elles, ne passent plus par les tk_vars : elles
         # s'écrivent dans le geste qui les crée — cf. gui_sites._write_site_key.)
-        readonly_keys = {'name', 'base_url'}
+        readonly_keys = {'base_url'}  # `name` désormais éditable (cf. gui_sites)
         for (section, key), (vtype, var) in self.tk_vars.items():
             if section.startswith('site_'):
                 if key in readonly_keys:

@@ -41,7 +41,15 @@ class ExecMixin:
         par-run). Appelé au build et à l'entrée de l'onglet (_on_tab_changed)."""
         want = self._exec_enabled_sites()
         if set(want) == set(self._exec_site_vars):
-            return                          # rien n'a bougé → préserve la sélection
+            # Ensemble activé inchangé → ne PAS reconstruire (préserve la sélection
+            # par-run), mais rafraîchir les LIBELLÉS : le nom de présentation a pu
+            # changer dans l'onglet Sites (édite-et-pars) → sinon périmé ici jusqu'au
+            # redémarrage (la garde de set ne voyait pas un changement de nom seul).
+            for site, cb in self._exec_site_widgets.items():
+                name = self.config.get(site, 'name', fallback=site)
+                self._exec_site_names[site] = name
+                cb.configure(text=name + self._dropbox_file_count(site))
+            return
         prev = {s: v.get() for s, v in self._exec_site_vars.items()}
         for w in self._exec_sites_grid.winfo_children():
             w.destroy()

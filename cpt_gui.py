@@ -125,6 +125,35 @@ def write_config_section_key(raw_text, section, key, new_value):
     return None
 
 
+def append_config_section(raw_text, section, pairs):
+    """Ajoute une nouvelle section `[section]` (avec ses paires clé=val) à la fin du
+    texte brut config.ini. Append PUR (jamais un dump configparser) → commentaires et
+    mise en forme du reste préservés. `pairs` = itérable de (key, value)."""
+    block = '\n'.join([f'[{section}]'] + [f'{k} = {v}' for k, v in pairs])
+    return raw_text.rstrip('\n') + '\n\n' + block + '\n'
+
+
+def remove_config_section(raw_text, section):
+    """Retire la section `[section]` (en-tête + ses lignes jusqu'à la section suivante
+    ou la fin) du texte brut config.ini. Suppression PURE ligne-à-ligne (jamais un dump
+    configparser) → le reste du fichier est préservé tel quel."""
+    lines = raw_text.split('\n')
+    out, skipping = [], False
+    for line in lines:
+        stripped = line.strip()
+        if stripped == f'[{section}]':
+            skipping = True
+            # absorbe une ligne blanche de séparation juste avant l'en-tête
+            while out and out[-1].strip() == '':
+                out.pop()
+            continue
+        if skipping and re.match(r'^\[.+\]', stripped):
+            skipping = False
+        if not skipping:
+            out.append(line)
+    return '\n'.join(out)
+
+
 # ============================================================================
 # CONFIGS JSON — fonctions ré-exportées depuis inc_config_io (module neutre,
 # sans dépendance tkinter pour permettre l'usage depuis LO Python 3.8 etc.)
