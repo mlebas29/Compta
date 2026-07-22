@@ -9,6 +9,14 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 
 Les trois derniers sont spécifiques au mode assisté ; 📘 concerne le mode classeur.
 
+## v5.25.0
+| 2026-07-22 | Mise à jour de l'application depuis l'interface (bouton « Mettre à jour »), sans terminal |
+| ---------- | --------------------------------------------------------------------------------------- |
+
+**Détail :**
+
+- **Mise à jour depuis l'application** — quand une nouvelle version est disponible, un indicateur **« Mettre à jour »** apparaît en barre de statut. Un clic ferme l'application, installe la mise à jour (réversible) et la **redémarre automatiquement** — plus besoin de terminal ni de `upgrade.py`. La méthode manuelle en terminal reste disponible (dépannage, cf. `Compta_upgrade_assiste.md`).
+
 ## v5.24.0
 | 2026-07-22 | Plusieurs accès à une même banque : duplication d'un accès depuis l'onglet Sites |
 | ---------- | ------------------------------------------------------------------------------- |

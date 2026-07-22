@@ -1,18 +1,26 @@
-# Mise à jour (mode assisté)
+# Mise à jour — mécanisme et méthode manuelle (avancé)
 
-## Méthode
+> **En usage normal, rien de ceci n'est nécessaire** : la mise à jour se fait depuis l'application, par le bouton **« Mettre à jour »** (un indicateur apparaît en barre de statut quand une version est disponible ; un clic l'installe et redémarre l'application). Ce document décrit le **mécanisme sous-jacent** et la **méthode manuelle en terminal** — utiles au **dépannage** (GUI indisponible) et au **développement**.
 
-La mise à jour de l'application, de ses réglages et du classeur se fait désormais avec `upgrade.py`. Ce geste unique :
+## Mécanisme du bouton « Mettre à jour »
+
+Le bouton ne fait qu'**automatiser** la méthode manuelle ci-dessous, sans terminal :
+
+- **Détection** — l'application signale une mise à jour quand le classeur/config local est **en retard** sur le code, **ou** quand une **version publiée supérieure** existe (interrogation best-effort de GitHub au démarrage).
+- **Exécution** — au clic (après confirmation), l'application se ferme proprement ; un **lanceur détaché** prend le relais derrière une fenêtre de progression, exécute la mise à jour (le même `upgrade.py`), puis **relance l'application**. En cas d'échec, le redémarrage le signale.
+- **Traces** — `logs/journal.log` (démarrage/fermeture + mise à jour), `logs/upgrade.log` (détail).
+
+*Détail d'implémentation (lanceur détaché, `curl`, journalisation) : voir `Compta_dev.md`.*
+
+## Méthode manuelle (terminal)
+
+`upgrade.py` — le geste unique sous le bouton. Il :
 
 - remplace les anciennes procédures (`git pull` + scripts `tool_migrate_*` enchaînés à la main, re-clone manuel) ;
-- met à jour automatiquement les **marqueurs** de chaque composant (cf. la *Carte* ci-dessous).
+- met à jour automatiquement les **marqueurs** de chaque composant (cf. la *Carte* ci-dessous) ;
+- est **réversible** (une sauvegarde précède toute modification ; un lancement sans effet ne laisse pas de sauvegarde) et **idempotent**.
 
-L'outil est :
-
-- **réversible** : avant toute modification, une sauvegarde est faite (config, classeur, version du code). Un lancement qui ne change rien ne laisse pas de sauvegarde.
-- **idempotent** : un 2ᵉ passage ne refait rien d'inutile.
-
-Deux façons de le lancer (A distante, B locale) ; une échappatoire manuelle pour le dépannage ou le **cas trivial** (`git pull` suffit : pas de badge, ni outil, ni marqueur).
+Deux façons de le lancer (A distante, B locale) ; le **cas trivial** (`git pull` suffit : pas de badge, ni outil, ni marqueur) reste manuel.
 
 ### A — Méthode distante
 

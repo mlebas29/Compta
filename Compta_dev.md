@@ -13,6 +13,7 @@ Documentation technique pour le contributeur ou le mainteneur. Décrit l'archite
 | Étendre Compta (dual, custom/, monkeypatches) | [`Compta_extension.md`](Compta_extension.md) |
 | Tests de non-régression (TNR) | [`Compta_tests.md`](Compta_tests.md) |
 | Cohérence install / upgrade / démarrage (marqueurs par composant) | [`Compta_coherence.md`](Compta_coherence.md) |
+| Mise à jour assistée (bouton « Mettre à jour », lanceur détaché) | [`Compta_upgrade_assiste.md`](Compta_upgrade_assiste.md) + § ci-dessous |
 | Outils maintenance, git (git nu, `tool_audit_git` status/align) | [`Compta_tools.md`](Compta_tools.md) |
 | Guide utilisateur (concepts, PVL, portage, charte, mise à niveau) | [`Compta.md`](Compta.md) |
 
@@ -311,6 +312,18 @@ Liste complète : `requirements.txt` (Python) + `install.sh` (système).
 5. **Filtrage temporel** : `max_days_back` dans `config.ini` (défaut 90 jours) évite les doublons avec d'anciennes opérations manuelles.
 6. **Catégorisation** : patterns dans `inc_category_mappings.py` (code) + `config_category_mappings.json` (utilisateur), utilisable par tous les formateurs via `inc_categorize.categorize_operation(libelle, SITE)`.
 7. **TNR avant commit** — toute modif qui touche `cpt_format_*`, `cpt_update`, `cpt_pair`, `inc_excel_*` doit passer au moins `roundtrip` + `fast` (cf. [`Compta_tests.md`](Compta_tests.md)).
+
+## Mise à jour assistée — mécanisme du bouton « Mettre à jour »
+
+Vue utilisateur : [`Compta_upgrade_assiste.md`](Compta_upgrade_assiste.md). Ici, l'implémentation (source de vérité = `upgrade_launcher.py` + `cpt_gui.py`, bien commentés).
+
+- **Pourquoi un lanceur détaché** — `upgrade.py` refuse de tourner GUI/classeur ouverts (garde `_classeur_busy` : verrou LibreOffice + `pgrep cpt_gui`), car il pull|reclone le code qui tourne **et** pilote LibreOffice → impossible en interne process. Donc : la GUI copie **`upgrade_launcher.py` dans `/tmp`** (clone-indépendant, un reclone remplace le dossier) et le **spawn détaché** (`start_new_session` → survit à la mort de la GUI, contrairement au daemon attaché) ; la GUI se ferme (`_on_close`), le lanceur attend sa mort (`--gui-pid` + verrou LO), exécute `upgrade.py` derrière un **splash Tk minimal**, puis relance la GUI.
+- **Déclencheur (indicateur barre de statut)** — `A` local (`check_schema_compat`/`check_config_schema` : classeur/config en retard) **∨** `B` distant (version publiée supérieure). `B` est **obligatoire** pour un poste qui ne pull jamais (sinon `A` reste silencieux, l'indicateur n'apparaît jamais).
+- **🔴 Réseau = `curl`, JAMAIS `urllib`** — le python.org macOS n'a pas le magasin de certificats système → `urllib` casse en HTTPS (`CERTIFICATE_VERIFY_FAILED`). `curl -fsSL` passe par Secure Transport → marche Mac+Linux (comme le bootstrap d'`upgrade.py`). Vaut pour le poll `B` **et** le téléchargement du lanceur.
+- **Base = `SCRIPT_DIR`, pas `get_base_dir()`** — en mode EX, `get_base_dir()` dérive de `sys.argv[0]` (fragile au point d'entrée) ; le clone à mettre à jour = là où vit `cpt_gui.py` = `SCRIPT_DIR` (invariant).
+- **Poll `B` cible github/main (publié)**, pas le remote local → un poste en avance sur le publié (DEV) n'a **aucun faux indicateur** (auto-scope).
+- **Journalisation 2 niveaux** — `logs/journal.log` (jalons cycle de vie + upgrade, **append**), `logs/upgrade.log` (transcript, **overwrite**), `logs/upgrade_status.json` (`{rc,ok}` → bandeau d'échec au redémarrage).
+- **Test sans vraie version supérieure** — env `COMPTA_FORCE_UPDATE=1` (terminal) ou fichier sentinelle `.force_update` dans le clone (**one-shot**, marche via le dock macOS qui n'hérite pas de l'env).
 
 ## Glossaire développeur
 
