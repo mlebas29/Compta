@@ -24,6 +24,7 @@ from datetime import datetime, timedelta
 import signal
 import subprocess
 import sys
+import tempfile
 import threading
 import tkinter as tk
 try:
@@ -42,10 +43,12 @@ import inc_mode
 import inc_update
 import json
 from inc_uno import check_env
+from inc_logging import Logger
 
 with open(Path(__file__).parent / 'config_gui_help.json', encoding='utf-8') as _f:
     FRAME_HELP = json.load(_f)
 from inc_excel_schema import (
+    APP_VERSION,
     SHEET_AVOIRS, SHEET_CONTROLES, SHEET_BUDGET, SHEET_OPERATIONS, SHEET_COTATIONS,
     SHEET_PLUS_VALUE,
     DEVISE_SOURCES,
@@ -60,6 +63,22 @@ SCRIPT_DIR = Path(__file__).parent
 DEFAULT_CONFIG = SCRIPT_DIR / 'config.ini'
 DEFAULT_JSON = SCRIPT_DIR / 'config_category_mappings.json'
 DEFAULT_ACCOUNTS = SCRIPT_DIR / 'config_accounts.json'
+
+
+# ============================================================================
+# JOURNAL DE CYCLE DE VIE (#181) — jalons GUI dans le journal PARTAGÉ
+# ============================================================================
+# journal.log = même fichier que collecte/import (BASE_DIR/logs) → un seul fil
+# narratif GUI↔collecte↔upgrade, lisible en post-mortem à distance (juf).
+_LOGS_DIR = inc_mode.get_base_dir() / 'logs'
+try:
+    _LOGS_DIR.mkdir(parents=True, exist_ok=True)
+except Exception:
+    pass
+_journal = Logger(script_name='cpt_gui', journal_file=_LOGS_DIR / 'journal.log')
+
+# Canal d'amorçage upgrade (#181) — MÊME hôte anonyme que le curl d'upgrade.py.
+_REPO_URL_RAW = 'https://raw.githubusercontent.com/mlebas29/Compta/main'
 
 
 # ============================================================================
@@ -396,6 +415,16 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DaemonClientMixin,
             btn.bind('<Button-1>',
                      lambda e, w=btn, t=help_text: self._show_help_tooltip(w, t))
 
+        # Indicateur « mise à jour » (#181) — masqué par défaut, packé à droite
+        # quand un déclencheur A (marqueur local) ∨ B (version distante) se lève.
+        self._update_reason = None
+        self._upgrade_launching = False
+        self._update_var = tk.StringVar(value='')
+        self._update_label = ttk.Label(status_frame, textvariable=self._update_var,
+                                        style='Hint.TLabel', cursor='hand2',
+                                        foreground='#b35a00')
+        self._update_label.bind('<Button-1>', self._on_update_clicked)
+
         # Lecture Contrôles A1 (synthèse) au démarrage
         if self.xlsx_path:
             self._refresh_status_bar()
@@ -408,6 +437,10 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DaemonClientMixin,
         # avant que la fenêtre principale soit mappée passe derrière → focus
         # issue. Le delay laisse le mainloop afficher root d'abord.
         self.root.after(300, self._check_startup_health)
+
+        # Vérification « mise à jour » (#181) — différée, best-effort (le poll
+        # distant est async : ne bloque jamais le démarrage).
+        self.root.after(700, self._start_update_check)
 
         # Workarounds bug Tk Linux X11 :
         # (1) clic externe (autre app) → polling focus_displayof() ferme menus
@@ -1326,7 +1359,141 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DaemonClientMixin,
             messagebox.showwarning('Environnement Compta', env_msg,
                                    parent=self.root)
 
+    # ------------------------------------------------------------------
+    # Mise à jour (#181) : déclencheur A (marqueur local) ∨ B (version distante)
+    # ------------------------------------------------------------------
+
+    def _start_update_check(self):
+        """Au démarrage : (1) rattrape un échec de MàJ précédent, (2) déclencheur
+        A local, (3) déclencheur B distant en tâche de fond. Best-effort."""
+        # Hook de test (#181) : COMPTA_FORCE_UPDATE=1 force l'indicateur pour
+        # dogfooder le click-through sans attendre une vraie version supérieure.
+        if os.environ.get('COMPTA_FORCE_UPDATE'):
+            self._show_update_indicator('⬆ Mise à jour disponible (test)', 'remote')
+            return
+        # (1) échec de la dernière MàJ ? (upgrade_status.json posé par le lanceur)
+        try:
+            sp = _LOGS_DIR / 'upgrade_status.json'
+            if sp.exists():
+                st = json.loads(sp.read_text(encoding='utf-8'))
+                sp.unlink()                       # consommé (pas de renotif au boot suivant)
+                if not st.get('ok'):
+                    self._show_update_indicator('⚠ Dernière mise à jour échouée', 'failed')
+                    return
+        except Exception:
+            pass
+        # (2) déclencheur A — marqueur LOCAL (code en avance sur classeur/config)
+        if self._local_upgrade_pending():
+            self._show_update_indicator('⬆ Mise à jour requise', 'local')
+            return
+        # (3) déclencheur B — version distante, async best-effort
+        threading.Thread(target=self._remote_update_check, daemon=True).start()
+
+    def _local_upgrade_pending(self):
+        """Déclencheur A : migration classeur/config en attente (post-pull/align)."""
+        try:
+            if self.xlsx_path and inc_update.check_schema_compat(self.xlsx_path):
+                return True
+            return inc_update.check_config_schema(self.config_path).get('verdict') == 'advise'
+        except Exception:
+            return False
+
+    def _remote_update_check(self):
+        """Déclencheur B (thread) : GET version distante, compare, notifie."""
+        remote = self._remote_app_version()
+        if not remote:
+            return
+        try:
+            def _v(s):
+                return tuple(int(x) for x in s.strip().split('.'))
+            if _v(remote) > _v(APP_VERSION):
+                # retour au thread principal Tk pour toucher les widgets
+                self.root.after(0, lambda: self._show_update_indicator(
+                    f'⬆ Mise à jour disponible (v{remote})', 'remote'))
+        except Exception:
+            pass
+
+    @staticmethod
+    def _remote_app_version():
+        """APP_VERSION sur main (raw github, anonyme, best-effort → None si KO)."""
+        import urllib.request
+        try:
+            with urllib.request.urlopen(
+                    f'{_REPO_URL_RAW}/inc_excel_schema.py', timeout=5) as r:
+                txt = r.read(20000).decode('utf-8', 'replace')
+            m = re.search(r'APP_VERSION\s*=\s*["\']([0-9.]+)["\']', txt)
+            return m.group(1) if m else None
+        except Exception:
+            return None
+
+    def _show_update_indicator(self, text, reason):
+        """Rend l'indicateur visible en barre de statut (cliquable)."""
+        self._update_reason = reason
+        self._update_var.set(f'  {text}  ')
+        try:
+            self._update_label.pack(side='right', padx=(0, 5))
+        except Exception:
+            pass
+
+    def _on_update_clicked(self, event=None):
+        """Clic sur l'indicateur → confirmation → lance la mise à jour."""
+        if self._update_reason == 'failed':
+            if not messagebox.askyesno(
+                    'Mise à jour',
+                    'La dernière mise à jour a échoué (détails : menu Outils → '
+                    'journal, et logs/upgrade.log).\n\nRelancer la mise à jour '
+                    'maintenant ?', parent=self.root):
+                return
+        else:
+            if not messagebox.askyesno(
+                    'Mise à jour',
+                    "Une mise à jour va être installée.\n\nL'application va se "
+                    'fermer, se mettre à jour, puis redémarrer automatiquement.'
+                    '\n\nContinuer ?', parent=self.root):
+                return
+        self._launch_upgrade()
+
+    def _launch_upgrade(self):
+        """Copie le lanceur dans /tmp (clone-indépendant), le spawn DÉTACHÉ, puis
+        ferme proprement la GUI (le lanceur relancera). Lock anti-double-clic."""
+        if self._upgrade_launching:
+            return
+        self._upgrade_launching = True
+        base = inc_mode.get_base_dir()
+        try:
+            tmp = Path(tempfile.gettempdir()) / 'compta_upgrade_launcher.py'
+            shutil.copy2(base / 'upgrade_launcher.py', tmp)
+            cmd = [sys.executable, str(tmp),
+                   '--base', str(base),
+                   '--python', sys.executable,
+                   '--gui-pid', str(os.getpid())]
+            if self.xlsx_path:
+                cmd += ['--xlsx', str(self.xlsx_path)]
+            subprocess.Popen(cmd, start_new_session=True)
+        except Exception as e:
+            self._upgrade_launching = False
+            messagebox.showerror('Mise à jour',
+                                 f'Impossible de lancer la mise à jour :\n{e}',
+                                 parent=self.root)
+            return
+        self._closing_for_upgrade = True
+        self._on_close()
+
+    def _log_lifecycle(self, prefix, message):
+        """Jalon de cycle de vie GUI → journal.log SEUL (#181, pas de spam console).
+
+        Trace démarrage / fermeture (et fermeture-pour-mise-à-jour) pour
+        reconstituer le fil GUI↔upgrade dans un post-mortem à distance (juf).
+        Best-effort : jamais bloquant.
+        """
+        try:
+            ts = datetime.now().strftime('%H:%M:%S')
+            _journal.write_to_journal(f'{ts} cpt_gui {prefix} {message}')
+        except Exception:
+            pass
+
     def run(self):
+        self._log_lifecycle('▶', f'GUI démarrée v{APP_VERSION} [{self._mode_label}]')
         self.root.mainloop()
 
 

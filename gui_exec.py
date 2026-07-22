@@ -854,6 +854,11 @@ class ExecMixin:
 
     def _on_close(self):
         """Fermeture fenêtre : confirmation si exécution en cours."""
+        # #181 : jalon de fermeture AVANT le teardown (survit même s'il lève).
+        if hasattr(self, '_log_lifecycle'):
+            self._log_lifecycle(
+                '■', 'GUI fermée'
+                + (' pour mise à jour' if getattr(self, '_closing_for_upgrade', False) else ''))
         # #107 « édite-et-pars » : persister l'onglet config courant (no-op si
         # rien changé) — l'utilisateur peut fermer sans avoir quitté l'onglet.
         if hasattr(self, '_autosave_config_tab'):
