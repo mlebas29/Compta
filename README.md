@@ -154,6 +154,8 @@ Pour aller plus loin : **Utilisation** ([`Compta.md`](Compta.md))
 
 Il y a plusieurs axes d'extension :
 
+- Le classeur peut être enrichi par d'autres tables ou feuilles (autres présentations de données)
+
 - L'ajout d'un site bancaire peut être intégré au code public ou conservé en partie privée sans toucher au code public.
 
 - Hors les sites, il est possible d'ajouter des "monkeypatch" qui modifient le comportement de l'app sans altérer le code public.

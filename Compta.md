@@ -320,6 +320,8 @@ Certains sites possèdent des paramètres modifiables :
 
 - **Nb rapports** : nombre de rapports à télécharger
 
+- **Nom** : le nom affiché du site (ex. « Crédit Mutuel Alice ») — modifiable librement, propre à ce poste. Le nom technique interne (dossier de collecte) n'apparaît plus qu'à titre indicatif dans la procédure manuelle de secours.
+
 - **Dossier Drive**, **Compte Drive** : pour les sites collectés via Google Drive
 
 - **Hôte SSH wallet-rpc**, **Timeout refresh**, **Timeout tunnel** : pour la collecte Monero, qui interroge un nœud distant par tunnel SSH
@@ -331,6 +333,17 @@ Certains sites possèdent des paramètres modifiables :
 - Le cadre **Authentification** reçoit la *Réf* du site. **Sur un site neuf le champ est vide : vous y saisissez la Réf** — le nom sous lequel ranger ses identifiants dans la table chiffrée (§5), à y créer s'il n'existe pas encore. ⚠️ *Une fois posée*, la **renommer** est déconseillé : elle doit rester en correspondance avec une Réf de la 1ʳᵉ colonne de la table, sinon le site ne retrouve plus son entrée.
 
   >  Le site Wallet monero a deux noms d'authentification  (un pour le wallet, un pour le nœud RPC).
+
+
+### Plusieurs accès à une même banque
+
+Un même établissement peut demander **plusieurs accès distincts** (deux identifiants, deux profils de comptes — ex. un compte perso et un compte joint au Crédit Mutuel). Sous la description d'un site navigateur, le bouton **« Dupliquer cet accès… »** crée un **accès frère** :
+
+- il **partage le code du connecteur** avec l'accès d'origine — aucune copie à maintenir, une correction profite aux deux ;
+- il naît **désactivé**, avec le seul **Nom** que vous saisissez ; rattachez-lui ensuite ses comptes et son authentification comme un site neuf ;
+- il est **local à ce poste** (jamais publié).
+
+Le bouton **« Supprimer cet accès… »** retire un accès **à condition qu'il soit vide** (aucun compte rattaché — sinon vous orphelineriez des lignes du classeur) : videz-le d'abord en repassant ses comptes à N/A.
 
 
 ## 5️⃣ Paramètres (onglet Paramètres)

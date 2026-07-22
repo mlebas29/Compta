@@ -9,6 +9,15 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 
 Les trois derniers sont spécifiques au mode assisté ; 📘 concerne le mode classeur.
 
+## v5.24.0
+| 2026-07-22 | Plusieurs accès à une même banque : duplication d'un accès depuis l'onglet Sites |
+| ---------- | ------------------------------------------------------------------------------- |
+
+**Détail :**
+
+- **Plusieurs accès à une même banque** — l'onglet Sites permet de **dupliquer un accès** (« Dupliquer cet accès… ») pour gérer un second identifiant sur le même établissement (ex. compte perso + compte joint). L'accès frère partage le connecteur d'origine, naît désactivé et se configure comme un site neuf. Un bouton **« Supprimer cet accès… »** retire un accès vide.
+- **Nom d'affichage modifiable** — le nom sous lequel un site apparaît est désormais éditable ; le nom technique interne est masqué (visible seulement dans la procédure manuelle de secours).
+
 ## v5.23.0 🔧 ⚙️
 | 2026-07-20 | Crédit Mutuel pris en charge ; l'arrondi Contrôles de la v5.22.0 s'applique enfin sur les classeurs à nombreux comptes |
 | ---------- | ------------------------------------------------------------------------------------------------------------------- |
