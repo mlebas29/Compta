@@ -1366,9 +1366,19 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DaemonClientMixin,
     def _start_update_check(self):
         """Au démarrage : (1) rattrape un échec de MàJ précédent, (2) déclencheur
         A local, (3) déclencheur B distant en tâche de fond. Best-effort."""
-        # Hook de test (#181) : COMPTA_FORCE_UPDATE=1 force l'indicateur pour
-        # dogfooder le click-through sans attendre une vraie version supérieure.
-        if os.environ.get('COMPTA_FORCE_UPDATE'):
+        # Hook de test (#181) : force l'indicateur pour dogfooder le click-through
+        # sans attendre une vraie version supérieure. Deux vecteurs :
+        #  - env COMPTA_FORCE_UPDATE=1 (terminal) ;
+        #  - fichier sentinelle `.force_update` dans le clone → marche AUSSI via le
+        #    dock macOS (qui n'hérite PAS de l'env du shell). `touch .force_update`,
+        #    lancer normalement, puis `rm .force_update`.
+        _sentinel = SCRIPT_DIR / '.force_update'
+        if os.environ.get('COMPTA_FORCE_UPDATE') or _sentinel.exists():
+            if _sentinel.exists():
+                try:
+                    _sentinel.unlink()   # one-shot : simule une vraie MàJ (pas de retour au reboot)
+                except Exception:
+                    pass
             self._show_update_indicator('⬆ Mise à jour disponible (test)', 'remote')
             return
         # (1) échec de la dernière MàJ ? (upgrade_status.json posé par le lanceur)
