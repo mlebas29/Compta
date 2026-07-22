@@ -1415,13 +1415,18 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DaemonClientMixin,
 
     @staticmethod
     def _remote_app_version():
-        """APP_VERSION sur main (raw github, anonyme, best-effort → None si KO)."""
-        import urllib.request
+        """APP_VERSION sur main (raw github, anonyme, best-effort → None si KO).
+
+        curl (PAS urllib) : le python.org macOS n'a pas le magasin de certs
+        système → urllib casse en HTTPS (CERTIFICATE_VERIFY_FAILED). curl passe."""
         try:
-            with urllib.request.urlopen(
-                    f'{_REPO_URL_RAW}/inc_excel_schema.py', timeout=5) as r:
-                txt = r.read(20000).decode('utf-8', 'replace')
-            m = re.search(r'APP_VERSION\s*=\s*["\']([0-9.]+)["\']', txt)
+            r = subprocess.run(
+                ['curl', '-fsSL', '--max-time', '5',
+                 f'{_REPO_URL_RAW}/inc_excel_schema.py'],
+                capture_output=True, text=True)
+            if r.returncode != 0:
+                return None
+            m = re.search(r'APP_VERSION\s*=\s*["\']([0-9.]+)["\']', r.stdout)
             return m.group(1) if m else None
         except Exception:
             return None
@@ -1459,7 +1464,11 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DaemonClientMixin,
         if self._upgrade_launching:
             return
         self._upgrade_launching = True
-        base = inc_mode.get_base_dir()
+        # SCRIPT_DIR (dossier de ce module), PAS get_base_dir() : en mode EX ce
+        # dernier dérive de sys.argv[0] (fragile au point d'entrée — un lanceur
+        # tiers, ou le diag depuis /tmp, donnerait une mauvaise base). Le clone à
+        # mettre à jour = là où CE code vit = SCRIPT_DIR (robuste, invariant).
+        base = SCRIPT_DIR
         try:
             tmp = Path(tempfile.gettempdir()) / 'compta_upgrade_launcher.py'
             shutil.copy2(base / 'upgrade_launcher.py', tmp)

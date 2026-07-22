@@ -31,7 +31,6 @@ import subprocess
 import sys
 import tempfile
 import time
-import urllib.request
 from datetime import datetime
 from pathlib import Path
 
@@ -124,10 +123,13 @@ def _run_upgrade(python, base):
     """Télécharge l'amorce fraîche puis l'exécute headless ; transcript →
     logs/upgrade.log (overwrite). Retourne ('offline', detail) | ('done', rc)."""
     tmp_upgrade = Path(tempfile.gettempdir()) / 'compta_upgrade.py'
-    try:
-        urllib.request.urlretrieve(UPGRADE_URL, tmp_upgrade)   # anonyme, public
-    except Exception as e:
-        return ('offline', f'{e}')
+    # curl (PAS urllib) : le python.org macOS n'utilise pas le magasin de certs
+    # système → urllib échoue en HTTPS (CERTIFICATE_VERIFY_FAILED) ; curl passe
+    # par Secure Transport → marche Mac+Linux, comme le bootstrap d'upgrade.py.
+    dl = subprocess.run(['curl', '-fsSL', UPGRADE_URL, '-o', str(tmp_upgrade)],
+                        capture_output=True, text=True)
+    if dl.returncode != 0 or not tmp_upgrade.exists():
+        return ('offline', (dl.stderr or f'curl rc={dl.returncode}').strip())
 
     log = base / 'logs' / 'upgrade.log'
     try:
