@@ -750,10 +750,15 @@ class ExecMixin:
         self._exec_process = None
         self._exec_refresh_file_counts()
 
-        # Recharger les comptes si le fichier a pu être modifié par le subprocess
+        # Recharger les comptes seulement si l'import a réussi (état sûr).
         if returncode == 0 and self.xlsx_path and self.xlsx_path.exists():
             self._load_accounts_data()
             self._populate_accounts_tree()
+
+        # Rafraîchir la barre d'état MÊME en cas d'échec : un import qui plante
+        # peut avoir muté partiellement le classeur → la barre ne doit pas
+        # rester périmée (#178). La lecture ZIP est défensive (fallback + pass).
+        if self.xlsx_path and self.xlsx_path.exists():
             self._refresh_status_bar()
 
     def _exec_stop(self):

@@ -27,11 +27,6 @@ import sys
 import tempfile
 import threading
 import tkinter as tk
-try:
-    from inotify_simple import INotify, flags as iflags
-    HAS_INOTIFY = True
-except ImportError:
-    HAS_INOTIFY = False
 from copy import copy
 from tkinter import ttk, messagebox
 from pathlib import Path
@@ -499,33 +494,85 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DaemonClientMixin,
             pass
 
     # ----------------------------------------------------------------
-    # FILE WATCHER — rafraîchit la barre d'état sur modification externe
+    # FILE WATCHER — rafraîchit la barre d'état sur mutation du classeur
+    # OU des fichiers config (indicateur ⚙ de cohérence).
+    #
+    # Poll mtime porté par la boucle Tk (root.after) : mono-thread, sans
+    # lock, PORTABLE (Linux + macOS, contrairement à l'ancien inotify
+    # Linux-only). C'est un FILET : les mutations GUI gardent leur refresh
+    # synchrone immédiat (réactivité) ; le watcher rattrape les chemins
+    # non couverts (édition config, échec d'import partiel), les futurs,
+    # et les éditions EXTERNES du classeur dans LibreOffice.
+    #
+    # Anti-doublon : `_refresh_status_bar` enregistre lui-même le mtime des
+    # fichiers qu'il vient de lire (`_watched_mtimes`) → un refresh explicite
+    # « consomme » le changement, le watcher reste muet derrière.
     # ----------------------------------------------------------------
 
-    def _start_file_watcher(self):
-        """Démarre un thread inotify surveillant comptes.xlsm."""
-        self._inotify_stop = threading.Event()
-        if not HAS_INOTIFY or not self.xlsx_path:
-            return
-        t = threading.Thread(target=self._file_watcher_loop, daemon=True)
-        t.start()
+    _WATCH_INTERVAL_MS = 1500  # cadence du poll ; latence externe ≤ 2 ticks
 
-    def _file_watcher_loop(self):
-        """Thread inotify : surveille CLOSE_WRITE sur le xlsm et ses .bak."""
-        ino = INotify()
-        watch_dir = str(Path(self.xlsx_path).parent)
-        ino.add_watch(watch_dir, iflags.CLOSE_WRITE | iflags.MOVED_TO)
-        target_name = Path(self.xlsx_path).name
-        while not self._inotify_stop.is_set():
-            for event in ino.read(timeout=1000):
-                if event.name == target_name:
-                    self.root.after(200, self._refresh_status_bar)
-        ino.close()
+    def _watched_files(self):
+        """Liste des fichiers dont la barre d'état dépend : le classeur
+        (Contrôles A1, Avoirs L2) + le bloc config lu par `_check_coherence`
+        (indicateur ⚙)."""
+        files = []
+        if self.xlsx_path:
+            files.append(self.xlsx_path)
+        cfg_dir = self.config_path.parent
+        files.append(self.config_path)
+        files.append(self.accounts_json_path)
+        files.append(self.cotations_json_path)
+        files.append(self.pipeline_json_path)
+        files.append(cfg_dir / 'config_category_mappings.json')
+        return files
+
+    def _mtime_snapshot(self):
+        """Cliché {chemin: mtime} des fichiers surveillés. Absent → None
+        (apparition/disparition compte comme un changement)."""
+        snap = {}
+        for p in self._watched_files():
+            try:
+                snap[str(p)] = os.stat(p).st_mtime
+            except OSError:
+                snap[str(p)] = None
+        return snap
+
+    def _start_file_watcher(self):
+        """Démarre le poll mtime (re-planifié dans la boucle Tk)."""
+        self._watch_pending = None
+        self._watch_stopped = False
+        self._file_watch_tick()
+
+    def _file_watch_tick(self):
+        """Un tick : si un mtime a bougé depuis le dernier refresh ET s'est
+        stabilisé (identique au tick précédent = écriture terminée), rafraîchit
+        la barre. Le refresh ré-enregistre `_watched_mtimes` → pas de re-trigger."""
+        if getattr(self, '_watch_stopped', False):
+            return
+        try:
+            current = self._mtime_snapshot()
+            known = getattr(self, '_watched_mtimes', None)
+            if known is not None and current != known:
+                if current == self._watch_pending:
+                    # Stable sur 2 ticks → l'écriture est finie.
+                    self._refresh_status_bar()
+                    self._watch_pending = None
+                else:
+                    # Changement en cours → attendre la stabilité.
+                    self._watch_pending = current
+            else:
+                self._watch_pending = None
+        except Exception:
+            pass
+        try:
+            self.root.after(self._WATCH_INTERVAL_MS, self._file_watch_tick)
+        except Exception:
+            pass
 
     def _stop_file_watcher(self):
-        """Arrête le thread inotify."""
-        if hasattr(self, '_inotify_stop'):
-            self._inotify_stop.set()
+        """Arrête le poll mtime (appelé à la fermeture, cf. gui_exec._on_close).
+        Coupe la re-planification `root.after` du prochain tick."""
+        self._watch_stopped = True
 
     @staticmethod
     def _parse_nr_ref(ref):
@@ -699,6 +746,16 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DaemonClientMixin,
 
         except Exception:
             pass
+        finally:
+            # Enregistrer l'état des fichiers lus : le watcher (poll mtime)
+            # ne re-déclenchera que si un mtime bouge APRÈS ce refresh.
+            # Pris en dernier — après les éventuels auto-fixes de
+            # _check_coherence (qui écrivent config_accounts/mappings.json) —
+            # pour ne pas se re-trigger sur sa propre écriture.
+            try:
+                self._watched_mtimes = self._mtime_snapshot()
+            except Exception:
+                pass
 
     def _check_schema_version(self):
         """Vérifie la version du schéma classeur (Contrôles!K2) vs l'application.
