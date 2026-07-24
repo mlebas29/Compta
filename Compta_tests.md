@@ -18,12 +18,18 @@ Ce document décrit l'utilisation des TNR publics livrés avec Compta. Audience 
 | `build` | ~48 s | Construction allégée (4 comptes, 5 titres, 15 opérations via pipe MANUEL) |
 | `reverse` | ~105 s | Teardown complet du build (purge + delete jusqu'au template) |
 | `fetch` | variable | Collecte réelle des sites de la config réelle (config.ini) dans un dossier dédié jetable (sandbox) |
+| `download` | ~4 s | Plomberie de collecte (téléchargement + garde anti-HTML) sur un site FICTIF local — hermétique, sans credential ni réseau |
+| `install` | variable | Provisioning des dépendances Python dans un environnement vierge jetable (venv) — détecte une dépendance oubliée |
 
 Sur Mac, compter ×1.5 à ×2.5 selon le scénario (sauf `fetch`, dont la durée dépend du site et de la saisie humaine).
 
 Les sept premiers sont **automatisables** et comparent le classeur produit à un classeur de **référence**.
 
-`fetch` est à part : il lance la **vraie collecte** d'un site — la seule couche que les autres ne touchent pas. Il n'est pas automatisable (mot de passe GPG, double authentification) et n'a pas de classeur de référence (les données changent à chaque collecte).
+Les trois derniers ne comparent pas de classeur — ils vérifient les couches que les autres ne touchent pas :
+
+- `fetch` lance la **vraie collecte** d'un site. Il n'est **pas** automatisable (mot de passe GPG, double authentification) et n'a pas de référence (les données changent à chaque collecte).
+- `download` exerce la **plomberie partagée** de la collecte (téléchargement d'un fichier, garde qui refuse une page HTML servie à la place d'un relevé) contre un site **fictif local** : automatisable, sans credential ni réseau externe (navigateur requis).
+- `install` provisionne les dépendances dans un **environnement Python vierge** (venv jetable) et vérifie qu'elles s'importent : automatisable, attrape une dépendance oubliée dans `requirements.txt`.
 
 ## Mise en œuvre
 
@@ -43,7 +49,7 @@ Depuis la racine `~/Compta/dev/`, via le shebang (sélectionne automatiquement l
 # ... etc
 ```
 
-> Sur Mac, ne pas lancer `python3 tests/...` : le `python3` système n'a pas UNO (6 runners sur 7 ont le shebang `python3-uno`). Utiliser le shebang `./tests/...` ou `python3-uno tests/...`.
+> Sur Mac, ne pas lancer `python3 tests/...` pour les scénarios **classeur** : le `python3` système n'a pas UNO (leur shebang est `python3-uno`). Utiliser le shebang `./tests/...` ou `python3-uno tests/...`. Les scénarios `fetch` / `download` / `install` se lancent, eux, avec le `python3` **habituel** (pas d'UNO).
 
 Chaque TNR est autonome. Pas d'ordre obligatoire — sauf si tu veux comparer un teardown à son setup (cf. `light_build` → `light_reverse`, `build` → `reverse`).
 
@@ -148,6 +154,39 @@ python3 tests/tnr_fetch.py --list       # inventaire (actif / configuré)
 
 **Périmètre** : collecteurs par navigateur. Ceux qui passent par une interface de programmation (sans navigateur) sont ignorés. Un site sans credential sur la machine est ignoré.
 
+### `download` (plomberie de collecte, hermétique)
+
+**Objet** : le complément **automatisable** de `fetch`. Il exerce la couche **partagée** par tous les collecteurs — cycle lancement/exécution/fermeture du navigateur, motif téléchargement → sauvegarde, et le **garde anti-HTML** (#137, qui refuse d'enregistrer une page de connexion servie en HTTP 200 à la place d'un relevé) — sans jamais toucher un vrai site.
+
+**Que fait-il ?** Deux couches :
+
+- **unit** : vérifie le garde sur des octets connus (HTML, CSV, PDF, vide). Aucune dépendance navigateur → tourne **partout**, y compris sur un serveur nu.
+- **live** : démarre un petit serveur local (`http.server`, port choisi par l'OS) et lance un collecteur **fictif** qui télécharge deux fichiers : un CSV valide (doit être **conservé** et parsé → au moins une opération), et une page de connexion HTML servie comme un téléchargement (le garde **doit la rejeter et la supprimer**). Navigateur requis → **ignoré proprement** si Chrome est absent.
+
+**Ne couvre PAS** les sélecteurs propres à chaque vrai site (impossible sans leur DOM) → complémentaire de `fetch`, pas substitut.
+
+**Prérequis** : `python3` habituel (pas d'UNO) ; navigateur Playwright pour la couche *live*. Aucun credential, aucun réseau externe.
+
+```bash
+python3 tests/tnr_download.py
+```
+
+### `install` (dépendances en environnement vierge)
+
+**Objet** : attraper les régressions d'**install** que le smoke DEV ne voit pas (sur une machine déjà équipée, `pip` répond « already satisfied » — aveugle par construction) : une dépendance oubliée dans `requirements.txt`, ou la fonction de provisioning cassée.
+
+**Que fait-il ?** Crée un environnement Python **jetable et vierge** (venv, zéro paquet tiers), y lance la **vraie** fonction de provisioning (`install_python_deps`, sourcée depuis `inc_install.sh` — pas de réimplémentation), puis vérifie que (1) les paquets déclarés s'importent et (2) les modules cœur de l'appli s'importent dans ce venv — un `import` neuf oublié dans `requirements.txt` casse ici.
+
+**Limite (assumée)** : un venv n'est pas *externally-managed* → il ne reproduit **ni** le refus PEP 668 **ni** le `sys.path` figé au démarrage. Ces deux cas exigent une vraie machine nue (piste : conteneur jetable, non couverte ici). Ce scénario couvre la régression la plus **fréquente** (complétude des dépendances), pas la fidélité machine-nue.
+
+**Coût** : un `pip install` complet en venv frais (playwright, pdfplumber, Pillow…) — plusieurs minutes au premier run, puis rapide (cache pip). → scénario **lourd / pré-release**, hors boucle rapide.
+
+**Prérequis** : `python3` habituel avec le module `venv` (standard). Aucun LibreOffice, aucun credential.
+
+```bash
+python3 tests/tnr_install.py
+```
+
 ## Quand lancer quel TNR
 
 Guide selon le type de modification dans le code :
@@ -162,7 +201,9 @@ Guide selon le type de modification dans le code :
 | Formats / charte v3.6 (`inc_formats`, `tool_fix_formats`) | `example` (couverture complète) |
 | Plus_value, multi-devises, cotations | `example` (cas multi-devise large) |
 | Collecte : `cpt_fetch_*`, sélecteurs, garde anti-HTML | `fetch` (manuel, par site — double authentification) |
-| Avant un tag de release | les 7 automatiques ; `fetch` à part (manuel, à jouer par site si des collecteurs ont changé) |
+| Plomberie de collecte partagée (`inc_fetch` / `BaseFetcher`, garde anti-HTML) | `download` (automatique, hermétique) |
+| `install.sh` / `inc_install.sh` / `requirements.txt` | `install` (venv vierge) |
+| Avant un tag de release | les 7 automatiques + `download` ; `install` (dépendances) ; `fetch` à part (manuel, à jouer par site si des collecteurs ont changé) |
 
 Si pressé : `roundtrip` + `fast` (~30 s) couvre la moitié des régressions structurelles courantes. Pour un PR sérieux, ajouter `build` + `reverse` (~3 min). Avant un release, lancer les 7.
 
@@ -179,4 +220,4 @@ Quand un TNR retourne `✗` :
 
 ## Notes par scénario
 
-Chaque scénario a un `tests/tnr/<scenario>/notes.md` qui détaille les spécificités de comparaison (colonnes ignorées, tolérances, warn_only, restrictions connues).
+Chaque scénario **classeur** a un `tests/tnr/<scenario>/notes.md` qui détaille les spécificités de comparaison (colonnes ignorées, tolérances, warn_only, restrictions connues). Les scénarios `fetch` / `download` / `install` ne comparent pas de classeur → pas de `notes.md`.

@@ -46,6 +46,8 @@ tests/*
 !tests/tnr_reverse.py
 !tests/tnr_example.py
 !tests/tnr_fetch.py
+!tests/tnr_download.py
+!tests/tnr_install.py
 !tests/tnr/
 tests/tnr/*
 !tests/tnr/roundtrip/
@@ -55,6 +57,9 @@ tests/tnr/*
 !tests/tnr/build/
 !tests/tnr/reverse/
 !tests/tnr/example/
+!tests/tnr/download/
+!tests/tnr/download/cpt_fetch_FIXTURE.py
+!tests/tnr/download/cpt_format_FIXTURE.py
 # Fixtures partagées (config.ini + JSON anonymisés) — re-inclure dossier puis fichiers (sinon ignore global des config*)
 !tests/tnr/fixtures/
 !tests/tnr/fixtures/config.ini

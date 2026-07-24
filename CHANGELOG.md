@@ -9,6 +9,14 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 
 Les trois derniers sont spécifiques au mode assisté ; 📘 concerne le mode classeur.
 
+## v5.26.0
+| 2026-07-24 | Outillage de test (contributeurs) — sans effet sur l'utilisation. |
+| ---------- | ----------------------------------------------------------------- |
+
+**Détail :**
+
+- **Outillage de test (contributeurs)** — deux nouveaux TNR : `download` (plomberie de collecte — téléchargement + garde anti-HTML — sur un site fictif local, hermétique et automatisable) et `install` (provisioning des dépendances Python dans un environnement vierge, pour attraper une dépendance oubliée). Documentés dans [`Compta_tests.md`](Compta_tests.md). Aucun changement de comportement de l'application ni du classeur.
+
 ## v5.25.2
 | 2026-07-24 | Mise à jour : une dépendance installée est prise en compte sans relancer |
 | ---------- | ---------------------------------------------------------------------- |
