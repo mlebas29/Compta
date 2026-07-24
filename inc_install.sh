@@ -335,3 +335,29 @@ EOF
         ok "Bundle installé ($APP_BUNDLE)"
     fi
 }
+
+# --- Dépendances Python ------------------------------------------------------
+# Installe requirements.txt (+ custom/requirements.txt si présent) dans le python
+# donné. SOURCE UNIQUE partagée par install.sh (provisioning) ET upgrade.py
+# (après la phase A : un clone frais peut apporter de nouvelles deps).
+# HEADLESS-safe : AUCUN sudo (les paquets système sont, eux, seulement suggérés
+# par install.sh via pkg_hint). Relatif au cwd = le clone. Retourne non-0 si pip
+# échoue → le caller (upgrade) le sait.
+install_python_deps() {  # $1=python (défaut: python3)
+    local py="${1:-python3}"
+    # PEP 668 (Ubuntu ≥ 23.04, Debian ≥ 12, Homebrew Python) : pip refuse
+    # d'installer hors d'un venv si EXTERNALLY-MANAGED est présent.
+    local pip_extra="" py_stdlib
+    py_stdlib=$("$py" -c "import sysconfig; print(sysconfig.get_path('stdlib'))") || return 1
+    if [[ -f "$py_stdlib/EXTERNALLY-MANAGED" ]]; then
+        warn "PEP 668 détecté — ajout de --break-system-packages"
+        pip_extra="--break-system-packages"
+    fi
+    "$py" -m pip install -r requirements.txt $pip_extra || return 1
+    ok "requirements.txt installé"
+    # Cadre privé (custom/, dépôt PRV) : dépendances de ses sites/extensions, si présent.
+    if [[ -f custom/requirements.txt ]]; then
+        "$py" -m pip install -r custom/requirements.txt $pip_extra || return 1
+        ok "custom/requirements.txt installé (cadre privé)"
+    fi
+}

@@ -632,9 +632,38 @@ def _load_brain():
     if not (BASE_DIR / 'inc_update.py').exists():
         return False
     sys.path.insert(0, str(BASE_DIR))
-    import inc_update as _iu
+    try:
+        import inc_update as _iu
+    except ImportError as e:
+        # inc_update.py EXISTE mais une dépendance manque (openpyxl…) : machine à
+        # moitié installée (install.sh jamais réussi — ex. PEP 668 sur un vieux
+        # install.sh). Le fix ACTIF est _ensure_python_deps (appelé avant) ; ce
+        # garde est la CEINTURE si l'install pip a échoué → message clair au lieu
+        # d'un traceback brut. Les callers distinguent ce cas de « clone trop
+        # ancien » via l'existence de inc_update.py.
+        print(f'{RED}✗{NC} Dépendance Python manquante ({getattr(e, "name", None) or e}) — '
+              f'lance ./install.sh dans {BASE_DIR}, puis relance upgrade.', file=sys.stderr)
+        return False
     inc_update = _iu
     return True
+
+
+def _ensure_python_deps():
+    """Installe/actualise les deps Python du clone frais via
+    `inc_install.install_python_deps` (SOURCE UNIQUE partagée avec install.sh).
+    Appelé après la phase A, avant `_load_brain`. Cible `sys.executable` (le
+    python qui importera ensuite `inc_update`). HEADLESS-safe (aucun sudo).
+    Best-effort : un échec est signalé mais on poursuit — le garde ImportError de
+    `_load_brain` rattrape avec un message clair."""
+    print(f'{YELLOW}--- Dépendances Python ---{NC}')
+    rc, out = _run_bash(_INC + f'install_python_deps "{sys.executable}"')
+    if rc == 0:
+        print(f'{GREEN}✓{NC} dépendances Python à jour')
+    else:
+        print(f'{YELLOW}⚠{NC} install des dépendances Python incomplète (rc {rc}).')
+        tail = (out or '').strip().splitlines()
+        if tail:
+            print('   ' + tail[-1])
 
 
 def _fetch_reclone(repo):
@@ -688,8 +717,9 @@ def main():
     # --liste / --restore opèrent sur des snapshots existants : pas de phase A.
     if args.liste or args.restore:
         if not _load_brain():
-            print(f'{RED}✗{NC} Outillage absent ({BASE_DIR}/inc_update.py) — clone trop ancien.',
-                  file=sys.stderr)
+            if not (BASE_DIR / 'inc_update.py').exists():
+                print(f'{RED}✗{NC} Outillage absent ({BASE_DIR}/inc_update.py) — clone trop ancien.',
+                      file=sys.stderr)
             return 1
         return _list_snapshots() if args.liste else _restore(args.restore, args.only or 'all')
 
@@ -760,11 +790,24 @@ def main():
             snapshot = _take_snapshot()
             _, head_before = _git('rev-parse', 'HEAD')
 
+    # --- Dépendances Python (post-phase-A) : le clone frais peut apporter de
+    # nouvelles deps ; les poser AVANT de charger le cerveau (inc_update importe
+    # openpyxl). Résout le cas « machine à moitié installée » (install.sh jamais
+    # réussi) et « une release ajoute une dépendance ». Headless-safe (aucun sudo).
+    if args.check:
+        print(f'{YELLOW}--- Dépendances Python (simulé) ---{NC}')
+        print('   → l\'apply installerait requirements.txt (pip, PEP 668 géré).')
+    else:
+        _ensure_python_deps()
+
     # --- Cerveau FRAIS (post-phase-A), importé depuis le clone cible ---
     if not _load_brain():
-        print(f'{RED}✗{NC} Outillage absent ({BASE_DIR}/inc_update.py) — clone trop ancien.',
-              file=sys.stderr)
-        print('   → relance SANS --check : la phase A (pull/reclone) installe l\'outillage.')
+        # _load_brain a déjà signalé le cas « dépendance manquante » (inc_update.py
+        # présent) ; ici on ne parle QUE du cas « clone trop ancien » (absent).
+        if not (BASE_DIR / 'inc_update.py').exists():
+            print(f'{RED}✗{NC} Outillage absent ({BASE_DIR}/inc_update.py) — clone trop ancien.',
+                  file=sys.stderr)
+            print('   → relance SANS --check : la phase A (pull/reclone) installe l\'outillage.')
         return 1
 
     xlsx = BASE_DIR / 'comptes.xlsm'

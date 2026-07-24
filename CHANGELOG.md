@@ -9,6 +9,15 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 
 Les trois derniers sont spécifiques au mode assisté ; 📘 concerne le mode classeur.
 
+## v5.25.1
+| 2026-07-24 | Fiabilisation de la mise à jour et de l'installation |
+| ---------- | ---------------------------------------------------- |
+
+**Détail :**
+
+- **Mise à jour plus robuste** — la mise à jour (bouton « Mettre à jour » ou méthode manuelle) **installe désormais les dépendances Python** dont la nouvelle version a besoin. Auparavant, une version ajoutant une dépendance pouvait empêcher l'application de redémarrer après la mise à jour ; et sur une machine dont l'installation initiale n'avait jamais abouti, la mise à jour s'interrompait sans message clair. L'installation des dépendances est maintenant gérée au même endroit que lors de l'installation.
+- **Indicateur d'état plus fidèle** — la barre d'état (Contrôles, cohérence des réglages) se rafraîchit aussi après une modification **externe** du classeur (édité dans LibreOffice) ou après un import interrompu.
+
 ## v5.25.0
 | 2026-07-22 | Mise à jour de l'application depuis l'interface (bouton « Mettre à jour »), sans terminal |
 | ---------- | --------------------------------------------------------------------------------------- |

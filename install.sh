@@ -399,23 +399,9 @@ fi
 echo
 echo "--- [3/8] Installation dépendances Python ---"
 
-# PEP 668 (Ubuntu ≥ 23.04, Debian ≥ 12, Homebrew Python) : pip refuse
-# d'installer hors d'un venv si EXTERNALLY-MANAGED est présent.
-PIP_EXTRA=""
-PY_STDLIB=$($PYTHON -c "import sysconfig; print(sysconfig.get_path('stdlib'))")
-if [[ -f "$PY_STDLIB/EXTERNALLY-MANAGED" ]]; then
-    warn "PEP 668 détecté — ajout de --break-system-packages"
-    PIP_EXTRA="--break-system-packages"
-fi
-
-$PYTHON -m pip install -r requirements.txt $PIP_EXTRA
-ok "requirements.txt installé"
-
-# Cadre privé (custom/, dépôt PRV) : dépendances de ses sites/extensions, si présent.
-if [[ -f custom/requirements.txt ]]; then
-    $PYTHON -m pip install -r custom/requirements.txt $PIP_EXTRA
-    ok "custom/requirements.txt installé (cadre privé)"
-fi
+# Deps Python (PEP 668 géré, + custom/requirements.txt si présent). Logique
+# factorée dans inc_install.sh → SOURCE UNIQUE partagée avec upgrade.py.
+install_python_deps "$PYTHON"
 
 # Python embarqué LibreOffice (macOS) : openpyxl indispensable pour les scripts UNO
 # (tool_fix_formats, tool_controles) lancés via le wrapper python3-uno sur Mac.
