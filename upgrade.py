@@ -659,6 +659,18 @@ def _ensure_python_deps():
     rc, out = _run_bash(_INC + f'install_python_deps "{sys.executable}"')
     if rc == 0:
         print(f'{GREEN}✓{NC} dépendances Python à jour')
+        # Rendre visibles au process COURANT les deps qui viennent d'être posées :
+        # Python fige sys.path au démarrage. Sur une machine nue, le user-site
+        # (~/.local/.../site-packages) n'existait pas → absent de sys.path
+        # (site.addsitedir saute les dirs absents) ; un dir déjà présent a, lui,
+        # son listing caché par le finder d'import. On (ré)ajoute le user-site +
+        # invalide les caches → _load_brain voit openpyxl au MÊME run (sinon il
+        # faudrait un 2ᵉ lancement). Diagnostiqué sur HP:Export (s.219).
+        import site as _site, importlib as _il
+        _us = _site.getusersitepackages()
+        if _us and Path(_us).is_dir() and _us not in sys.path:
+            _site.addsitedir(_us)
+        _il.invalidate_caches()
     else:
         print(f'{YELLOW}⚠{NC} install des dépendances Python incomplète (rc {rc}).')
         tail = (out or '').strip().splitlines()

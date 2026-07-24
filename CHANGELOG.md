@@ -9,6 +9,14 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 
 Les trois derniers sont spécifiques au mode assisté ; 📘 concerne le mode classeur.
 
+## v5.25.2
+| 2026-07-24 | Mise à jour : une dépendance installée est prise en compte sans relancer |
+| ---------- | ---------------------------------------------------------------------- |
+
+**Détail :**
+
+- **Mise à jour en un seul geste** — quand la mise à jour installe une dépendance Python (nouvelle, ou machine encore incomplète), celle-ci est désormais prise en compte **dans la foulée**, sans avoir à relancer la mise à jour une seconde fois (complément de la v5.25.1).
+
 ## v5.25.1
 | 2026-07-24 | Fiabilisation de la mise à jour et de l'installation |
 | ---------- | ---------------------------------------------------- |
