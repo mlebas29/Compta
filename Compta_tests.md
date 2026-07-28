@@ -40,7 +40,7 @@ Les trois derniers ne comparent pas de classeur — ils vérifient les couches q
 
 ### Lancement
 
-Depuis la racine `~/Compta/dev/`, via le shebang (sélectionne automatiquement le bon Python : `python3-uno` sur Mac, système sur Linux) :
+Depuis la racine `~/Compta/`, via le shebang (sélectionne automatiquement le bon Python : `python3-uno` sur Mac, système sur Linux) :
 
 ```bash
 ./tests/tnr_roundtrip.py
