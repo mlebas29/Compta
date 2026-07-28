@@ -36,6 +36,7 @@ from openpyxl.styles import PatternFill
 
 import inc_mode
 import inc_update
+import inc_bugreport
 import json
 from inc_uno import check_env
 from inc_logging import Logger
@@ -409,6 +410,17 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DaemonClientMixin,
             btn.pack(side='right', padx=(0, 5))
             btn.bind('<Button-1>',
                      lambda e, w=btn, t=help_text: self._show_help_tooltip(w, t))
+
+        # Bouton « Signaler un problème » (#187) — dépôt d'un bundle de
+        # diagnostic sur le canal privé. Affiché SEULEMENT si l'endpoint est
+        # configuré (config.ini [bugreport]) → invisible sur un poste non câblé.
+        self._bugreport_sending = False
+        if inc_bugreport.is_configured():
+            self._bugreport_label = ttk.Label(
+                status_frame, text='  ⚑ Signaler un problème  ',
+                style='Hint.TLabel', cursor='hand2', foreground='#555')
+            self._bugreport_label.pack(side='right', padx=(0, 5))
+            self._bugreport_label.bind('<Button-1>', self._on_bugreport_clicked)
 
         # Indicateur « mise à jour » (#181) — masqué par défaut, packé à droite
         # quand un déclencheur A (marqueur local) ∨ B (version distante) se lève.
@@ -1554,6 +1566,107 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DaemonClientMixin,
             return
         self._closing_for_upgrade = True
         self._on_close()
+
+    # --- Signaler un problème (#187) -------------------------------------
+    def _on_bugreport_clicked(self, event=None):
+        """Clic sur « Signaler un problème ». Si la clé de dépôt n'existe pas
+        encore (premier usage d'un poste), on la génère et on affiche la
+        publique à transmettre à l'administrateur ; sinon on ouvre le dialogue."""
+        if self._bugreport_sending:
+            return
+        if not inc_bugreport.key_exists():
+            try:
+                _created, pub = inc_bugreport.ensure_key()
+            except Exception as e:
+                messagebox.showerror('Signaler un problème',
+                                     f"Impossible de préparer l'envoi :\n{e}",
+                                     parent=self.root)
+                return
+            self._show_bugreport_activation(pub)
+            return
+        self._show_bugreport_dialog()
+
+    def _show_bugreport_activation(self, pubkey):
+        """Premier usage : la clé vient d'être créée → l'administrateur doit
+        l'autoriser avant que l'envoi fonctionne."""
+        win = tk.Toplevel(self.root)
+        win.title("Activer l'envoi de rapports")
+        win.transient(self.root)
+        ttk.Label(win, text=(
+            "Pour activer l'envoi de rapports, cette ligne doit être transmise "
+            "à l'administrateur (une seule fois), puis réessaie :"),
+            wraplength=460, justify='left').pack(padx=12, pady=(12, 6), anchor='w')
+        txt = tk.Text(win, height=3, wrap='char')
+        txt.insert('1.0', pubkey)
+        txt.configure(state='disabled')
+        txt.pack(fill='x', padx=12)
+        bar = ttk.Frame(win)
+        bar.pack(fill='x', padx=12, pady=10)
+        ttk.Button(bar, text='Copier', command=lambda: (
+            self.root.clipboard_clear(), self.root.clipboard_append(pubkey))
+            ).pack(side='left')
+        ttk.Button(bar, text='Fermer', command=win.destroy).pack(side='right')
+
+    def _show_bugreport_dialog(self):
+        """Dialogue : description libre + option classeur → envoi."""
+        win = tk.Toplevel(self.root)
+        win.title('Signaler un problème')
+        win.transient(self.root)
+        ttk.Label(win, text=("Décris le problème (ce qui s'est passé, ce que tu "
+                  "attendais) :"), wraplength=460, justify='left').pack(
+                  padx=12, pady=(12, 4), anchor='w')
+        txt = tk.Text(win, height=6, width=60, wrap='word')
+        txt.pack(fill='both', expand=True, padx=12)
+        txt.focus_set()
+        inc_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(win, variable=inc_var,
+            text=("Joindre mes données comptables (classeur) — utile si un "
+                  "montant est faux")).pack(padx=12, pady=(6, 0), anchor='w')
+        ttk.Label(win, text="Aucun mot de passe n'est envoyé.",
+                  style='Hint.TLabel').pack(padx=12, pady=(2, 0), anchor='w')
+        bar = ttk.Frame(win)
+        bar.pack(fill='x', padx=12, pady=10)
+
+        def _send():
+            desc = txt.get('1.0', 'end').strip()
+            include = inc_var.get()
+            win.destroy()
+            self._do_bugreport_send(desc, include)
+
+        ttk.Button(bar, text='Envoyer', command=_send).pack(side='right')
+        ttk.Button(bar, text='Annuler', command=win.destroy).pack(
+            side='right', padx=(0, 6))
+
+    def _do_bugreport_send(self, description, include_classeur):
+        """Fabrique + envoie en tâche de fond (réseau) ; retour via root.after."""
+        self._bugreport_sending = True
+        try:
+            self._bugreport_label.configure(text='  ⚑ Envoi en cours…  ')
+        except Exception:
+            pass
+
+        def _worker():
+            try:
+                ok, msg = inc_bugreport.report(description, include_classeur)
+            except Exception as e:
+                ok, msg = False, str(e)
+            self.root.after(0, lambda: self._bugreport_done(ok, msg))
+
+        threading.Thread(target=_worker, daemon=True).start()
+
+    def _bugreport_done(self, ok, msg):
+        self._bugreport_sending = False
+        try:
+            self._bugreport_label.configure(text='  ⚑ Signaler un problème  ')
+        except Exception:
+            pass
+        if ok:
+            messagebox.showinfo('Signaler un problème',
+                                'Rapport envoyé. Merci !\n\n' + msg,
+                                parent=self.root)
+        else:
+            messagebox.showerror('Signaler un problème',
+                                 "L'envoi a échoué :\n" + msg, parent=self.root)
 
     def _log_lifecycle(self, prefix, message):
         """Jalon de cycle de vie GUI → journal.log SEUL (#181, pas de spam console).

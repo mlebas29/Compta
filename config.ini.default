@@ -7,6 +7,16 @@
 # DEV  = développement du dual, push (thème bleu)
 mode = EX
 
+# ===== SIGNALEMENT DE BUG (#187) — bouton GUI « Signaler un problème », OPTIONNEL =====
+# Dépôt d'un bundle de diagnostic sur un serveur de dépôt privé (SSH forced-command,
+# clé ~/.ssh/compta_bugdrop). Renseigner bugreport_host UNIQUEMENT sur un poste du
+# cercle connu dont la clé est autorisée côté serveur ; absent/vide = bouton masqué.
+# Ce sont des CLÉS de [general] (PAS une section, qui serait prise pour un site).
+# Commentées → connues de check_config_obsolete (ni obsolète ni manquante).
+# Réservé au cercle connu (renseigné par l'administrateur qui accompagne).
+#bugreport_host =
+#bugreport_user = bugdrop
+
 # ===== VERSION HONORÉE — RETIRÉE (#98) =====
 # Ancien marqueur d'app (#99), remplacé par le marqueur de schéma config ci-dessous
 # (modèle de cohérence — cf. Compta_coherence.md). Le code ne la lit plus. Pierre

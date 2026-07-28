@@ -221,6 +221,8 @@ L'App affiche en permanence une barre de statut en bas de fenêtre avec deux zon
 - **Statut** (gauche) : état des Contrôles, coloré selon 3 niveaux — vert (OK), orange (Divers/Appariements/Balances), rouge (Comptes/Catégories/Inconnus/Formules). Cliquable pour afficher le détail des 7 contrôles.
 - **Total Avoirs** (droite) : total EUR lu depuis Avoirs L2 (cached value de la formule Total, mise à jour à chaque sauvegarde).
 
+**Signaler un problème** (si activé sur ton poste) : un bouton « ⚑ Signaler un problème » apparaît dans la barre de statut. Un clic ouvre un champ où décrire ce qui s'est passé ; à l'envoi, un rapport de diagnostic (journaux, version) part vers l'administrateur qui t'accompagne. **Aucun mot de passe n'est jamais envoyé.** La première fois, l'App affiche une ligne à lui transmettre pour activer l'envoi (une seule fois).
+
 **Checks de cohérence au démarrage GUI :**
 - Formules Contrôles → Avoirs : détection de références cassées
 - Sites orphelins dans la configuration JSON

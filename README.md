@@ -199,7 +199,8 @@ La partie GUI fonctionne pour les distributions **Linux Ubuntu** et dérivés (*
 
 ## 11. Signaler un bug
 
-- **Sur GitHub** : ouvrir une [Issue](https://github.com/mlebas29/Compta/issues) avec la description du problème et le message d'erreur éventuel
+- **Depuis l'application** (si ton installation est configurée pour) : bouton **« ⚑ Signaler un problème »** dans la barre de statut. Décris ce qui s'est passé et envoie ; un rapport de diagnostic (journaux, version) part **en privé** vers l'administrateur qui t'accompagne. **Aucun mot de passe n'est envoyé.** Adapté à un usage en cercle restreint (famille, proches) où quelqu'un assure le support.
+- **Sur GitHub** : ouvrir une [Issue](https://github.com/mlebas29/Compta/issues) avec la description du problème et le message d'erreur éventuel — **sans données personnelles** (une issue est publique).
 - **En ligne de commande** (nécessite [GitHub CLI](https://cli.github.com/)) :
   ```bash
   gh issue create --title "Bug: description" --body "Détail du problème"
