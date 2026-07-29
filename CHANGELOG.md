@@ -9,6 +9,14 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 
 Les trois derniers sont spécifiques au mode assisté ; 📘 concerne le mode classeur.
 
+## v5.27.0
+| 2026-07-29 | Nouveau : bouton « Signaler un problème » (installations configurées). |
+| ---------- | --------------------------------------------------------------------- |
+
+**Détail :**
+
+- **Signaler un problème** — sur une installation configurée pour, un bouton « ⚑ Signaler un problème » (barre de statut) envoie un rapport de diagnostic (journaux, version ; en option le classeur et les fichiers récents des banques) **en privé** à l'administrateur qui accompagne. **Aucun mot de passe n'est jamais transmis.** Pensé pour un usage en cercle restreint (famille, proches) ; sans effet si l'installation n'est pas configurée pour.
+
 ## v5.26.0
 | 2026-07-24 | Outillage de test (contributeurs) — sans effet sur l'utilisation. |
 | ---------- | ----------------------------------------------------------------- |

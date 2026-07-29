@@ -16,7 +16,9 @@ site). Feature non configurée (host vide) → l'appelant (GUI) masque le bouton
 Contenu du bundle (recos #187) :
   • noyau systématique : journal.log, logs/debug/*, logs/upgrade.log,
     rapport.txt (version/OS/python/date), description.txt (texte utilisateur) ;
-  • à la demande : comptes.xlsm + config*.json (bug « chiffre faux ») ;
+  • à la demande : comptes.xlsm + config*.json (« chiffre faux ») + dropbox/
+    (imports en attente) + archives/ des 30 derniers jours (fichiers parsés,
+    pour un « import raté ») ;
   • JAMAIS : config_credentials.md.gpg (défense en profondeur — valeur
     diagnostique nulle, perte = compromission totale offline-attaquable).
 """
@@ -29,6 +31,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -130,6 +133,26 @@ def _add_path(tar, path, arcname):
             filter=lambda ti: None if Path(ti.name).name in _NEVER else ti)
 
 
+def _add_recent(tar, path, arcname, days=30):
+    """Ajoute un dossier en ne gardant que les FICHIERS récents (< `days`
+    jours), secrets exclus. Les DOSSIERS sont toujours conservés : sinon un
+    dossier au mtime ancien couperait la récursion de tarfile et masquerait
+    ses fichiers récents. Sert à embarquer les archives d'import récentes
+    (fichiers réellement parsés) sans traîner tout l'historique."""
+    if not path.exists():
+        return
+    cutoff = time.time() - days * 86400
+
+    def _filt(ti):
+        if ti.isdir():
+            return ti  # garder → permet la récursion dans le sous-arbre
+        if Path(ti.name).name in _NEVER:
+            return None
+        return ti if ti.mtime >= cutoff else None
+
+    tar.add(str(path), arcname=arcname, filter=_filt)
+
+
 def build_bundle(description='', include_classeur=False):
     """Fabrique le tar.gz de diagnostic dans un fichier temporaire. Retourne son
     Path. L'appelant le supprime après envoi."""
@@ -145,11 +168,21 @@ def build_bundle(description='', include_classeur=False):
         _add_path(tar, logs / 'journal.log', 'logs/journal.log')
         _add_path(tar, logs / 'upgrade.log', 'logs/upgrade.log')
         _add_path(tar, logs / 'debug', 'logs/debug')
-        # À la demande : données comptables (sensible mais utile « chiffre faux »).
+        # À la demande : données comptables (sensible). Couvre « chiffre faux »
+        # (classeur) ET « import raté » (fichiers réellement parsés) :
+        #   - dropbox/ en entier : imports en attente (petit) ;
+        #   - archives/ des 30 derniers jours : fichiers récemment importés
+        #     (source du parsing), sans traîner tout l'historique bancaire.
         if include_classeur:
+            cfg = _config()
             _add_path(tar, base / 'comptes.xlsm', 'comptes.xlsm')
             for js in sorted(base.glob('config*.json')):
                 _add_path(tar, js, js.name)
+            _add_path(tar, base / cfg.get('paths', 'dropbox',
+                                          fallback='./dropbox'), 'dropbox')
+            _add_recent(tar, base / cfg.get('paths', 'archives',
+                                            fallback='./archives'),
+                        'archives', days=30)
     return Path(tmp)
 
 
@@ -164,7 +197,9 @@ def send_bundle(bundle_path, timeout=60):
     if not KEY_PATH.exists():
         return False, "Clé compta_bugdrop absente (activation requise)."
     cmd = [
-        'ssh', '-i', str(KEY_PATH),
+        'ssh', '-T', '-i', str(KEY_PATH),   # -T : pas de pseudo-tty → pas de
+                                            # « Pseudo-terminal will not be
+                                            # allocated… » mêlé au message serveur
         '-o', 'BatchMode=yes',
         '-o', 'StrictHostKeyChecking=accept-new',
         '-o', 'ConnectTimeout=15',
@@ -179,8 +214,11 @@ def send_bundle(bundle_path, timeout=60):
     except Exception as e:
         return False, f"Échec de l'envoi : {e}"
     if proc.returncode == 0:
-        msg = (proc.stderr or proc.stdout or '').strip()
-        return True, msg or "Rapport envoyé."
+        raw = (proc.stderr or proc.stdout or '').strip()
+        # Garder la réponse du serveur (« Rapport reçu… »), écarter le bruit ssh.
+        lines = [l for l in raw.splitlines()
+                 if l.strip() and 'pseudo-terminal' not in l.lower()]
+        return True, (lines[-1].strip() if lines else '') or "Rapport envoyé."
     return False, (proc.stderr or proc.stdout or f'rc={proc.returncode}').strip()
 
 

@@ -1620,8 +1620,9 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DaemonClientMixin,
         txt.focus_set()
         inc_var = tk.BooleanVar(value=False)
         ttk.Checkbutton(win, variable=inc_var,
-            text=("Joindre mes données comptables (classeur) — utile si un "
-                  "montant est faux")).pack(padx=12, pady=(6, 0), anchor='w')
+            text=("Joindre mes données (classeur + fichiers récents des banques) "
+                  "— utile si un montant est faux ou un import a échoué")).pack(
+                  padx=12, pady=(6, 0), anchor='w')
         ttk.Label(win, text="Aucun mot de passe n'est envoyé.",
                   style='Hint.TLabel').pack(padx=12, pady=(2, 0), anchor='w')
         bar = ttk.Frame(win)
@@ -1645,6 +1646,22 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DaemonClientMixin,
         except Exception:
             pass
 
+        # Fenêtre d'attente : le build + upload du bundle prend quelques
+        # secondes → meubler le trou entre « Envoyer » et la box de retour.
+        self._bugreport_wait = tk.Toplevel(self.root)
+        self._bugreport_wait.title('Envoi du rapport')
+        self._bugreport_wait.transient(self.root)
+        self._bugreport_wait.resizable(False, False)
+        # Neutraliser la croix de fermeture pendant l'envoi.
+        self._bugreport_wait.protocol('WM_DELETE_WINDOW', lambda: None)
+        ttk.Label(self._bugreport_wait, justify='center',
+                  text='Envoi du rapport en cours…\nMerci de patienter.').pack(
+                  padx=24, pady=(18, 10))
+        pb = ttk.Progressbar(self._bugreport_wait, mode='indeterminate',
+                             length=240)
+        pb.pack(padx=24, pady=(0, 18))
+        pb.start(12)
+
         def _worker():
             try:
                 ok, msg = inc_bugreport.report(description, include_classeur)
@@ -1660,6 +1677,14 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DaemonClientMixin,
             self._bugreport_label.configure(text='  ⚑ Signaler un problème  ')
         except Exception:
             pass
+        # Fermer la fenêtre d'attente avant d'afficher le résultat.
+        wait = getattr(self, '_bugreport_wait', None)
+        if wait is not None:
+            try:
+                wait.destroy()
+            except Exception:
+                pass
+            self._bugreport_wait = None
         if ok:
             messagebox.showinfo('Signaler un problème',
                                 'Rapport envoyé. Merci !\n\n' + msg,
