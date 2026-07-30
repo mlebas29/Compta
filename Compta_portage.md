@@ -102,7 +102,7 @@ cd ~/Compta && ./cpt_gui.py
 
 - **Popup Command Line Tools** — sur un Mac neuf sans Xcode/CLT, `git clone` déclenche une fenêtre macOS proposant d'installer les *Command Line Tools* (~1 Go, quelques minutes). Accepter, attendre la fin, relancer la commande.
 - **`pip3` vs `python3 -m pip` (Ventura)** — si `sudo port select --set pip pip311` n'a pas été exécuté, `pip3` dans le PATH peut résoudre vers le `pip` des Command Line Tools Apple — donc installer dans un site-packages différent du `python3` détecté par `install.sh`. Toujours utiliser `python3 -m pip install …` (c'est ce que fait `install.sh`).
-- **PATH `~/.local/bin`** — `install.sh` dépose le wrapper `python3-uno` dans `~/.local/bin`. Si ce chemin n'est pas dans votre PATH (le script émet alors un *warning* en fin d'install), ajouter :
+- **PATH `~/.local/bin`** — `install.sh` dépose le wrapper `python3-uno` dans `~/.local/bin`. Si ce chemin n'est pas dans ton PATH (le script émet alors un *warning* en fin d'install), ajouter :
   ```
   export PATH="$HOME/.local/bin:$PATH"
   ```

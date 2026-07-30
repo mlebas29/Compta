@@ -166,13 +166,13 @@ gpg -c config_credentials.md                               # rechiffre
 rm config_credentials.md                                   # impératif : efface le clair
 ```
 
-> ⚠️ Le chemin manuel fait exister une **copie en clair** de vos mots de passe le temps de l'édition : le `rm` final n'est pas optionnel. C'est la différence avec l'App, qui ne pose jamais le clair sur le disque.
+> ⚠️ Le chemin manuel fait exister une **copie en clair** de tes mots de passe le temps de l'édition : le `rm` final n'est pas optionnel. C'est la différence avec l'App, qui ne pose jamais le clair sur le disque.
 >
-> ⚠️ `gpg -c` demande une **nouvelle** passphrase et la fait confirmer : une faute de frappe produit une table que votre mot de passe habituel n'ouvrira plus. Gardez une copie du `.gpg` avant de rechiffrer.
+> ⚠️ `gpg -c` demande une **nouvelle** passphrase et la fait confirmer : une faute de frappe produit une table que ton mot de passe habituel n'ouvrira plus. Garde une copie du `.gpg` avant de rechiffrer.
 
 ### Les autres fichiers de configuration
 
-`config.ini` et les `config_*.json` s'éditent de même : ce sont des fichiers texte. Aucun n'est versionné — ils décrivent **votre** installation, et survivent donc aux mises à jour. Le détail de chacun — rôle, ce qui est livré, ce qui est généré à la volée — est tenu à jour dans la table *Configuration* de [`Compta_dev.md`](Compta_dev.md).
+`config.ini` et les `config_*.json` s'éditent de même : ce sont des fichiers texte. Aucun n'est versionné — ils décrivent **ton** installation, et survivent donc aux mises à jour. Le détail de chacun — rôle, ce qui est livré, ce qui est généré à la volée — est tenu à jour dans la table *Configuration* de [`Compta_dev.md`](Compta_dev.md).
 
 ## Mise à jour et modifications locales
 
@@ -182,15 +182,15 @@ rm config_credentials.md                                   # impératif : efface
 cd ~/Compta && git pull
 ```
 
-Cette commande télécharge les dernières modifications depuis le dépôt distant et les applique. Si vous n'avez modifié aucun fichier versionné, tout se passe automatiquement.
+Cette commande télécharge les dernières modifications depuis le dépôt distant et les applique. Si tu n'as modifié aucun fichier versionné, tout se passe automatiquement.
 
 ### Fichiers personnels hors versionnement
 
 Les fichiers de configuration personnels (`config.ini` et les `config_*.json`) ne sont pas versionnés par git — voir la table Configuration de [`Compta_dev.md`](Compta_dev.md) pour la liste détaillée. Ils ne sont donc jamais affectés par `git pull`.
 
-### Si vous avez modifié des fichiers versionnés
+### Si tu as modifié des fichiers versionnés
 
-Si vous avez modifié un script ou un fichier versionné (par exemple un formateur `cpt_format_*.py`), `git pull` peut échouer avec un message du type :
+Si tu as modifié un script ou un fichier versionné (par exemple un formateur `cpt_format_*.py`), `git pull` peut échouer avec un message du type :
 
 ```
 error: Your local changes to the following files would be overwritten by merge
@@ -199,9 +199,9 @@ error: Your local changes to the following files would be overwritten by merge
 **Méthode recommandée — mettre de côté puis réappliquer :**
 
 ```bash
-git stash                  # Met vos modifications de côté
+git stash                  # Met tes modifications de côté
 git pull                   # Télécharge la mise à jour
-git stash pop              # Réapplique vos modifications
+git stash pop              # Réapplique tes modifications
 ```
 
 Si `git stash pop` signale un conflit (les mêmes lignes ont été modifiées des deux côtés), git insère des marqueurs dans le fichier concerné :
@@ -210,11 +210,11 @@ Si `git stash pop` signale un conflit (les mêmes lignes ont été modifiées de
 <<<<<<< Updated upstream
     ligne de la version distante
 =======
-    votre ligne modifiée
+    ta ligne modifiée
 >>>>>>> Stashed changes
 ```
 
-Ouvrez le fichier, choisissez la version à garder (ou combinez les deux), puis supprimez les marqueurs `<<<<<<<`, `=======`, `>>>>>>>`. Ensuite :
+Ouvre le fichier, choisis la version à garder (ou combine les deux), puis supprime les marqueurs `<<<<<<<`, `=======`, `>>>>>>>`. Ensuite :
 
 ```bash
 git add le_fichier_corrigé.py
@@ -224,10 +224,10 @@ git stash drop             # Supprime le stash résolu
 **Alternatives rapides :**
 
 ```bash
-# Garder votre version pour un fichier (ignorer la mise à jour distante)
+# Garder ta version pour un fichier (ignorer la mise à jour distante)
 git checkout --ours le_fichier.py
 
-# Garder la version distante (abandonner votre modification)
+# Garder la version distante (abandonner ta modification)
 git checkout --theirs le_fichier.py
 ```
 
@@ -239,7 +239,7 @@ Après une **réécriture d'historique** du dépôt (versions marquées 🔄 dan
 fatal: refusing to merge unrelated histories
 ```
 
-Ce n'est **pas** un conflit de modification : l'historique a été réinitialisé côté distant. La bonne réponse est de **re-cloner** — vos fichiers privés (`config.ini`, `config_*.json`, `comptes.xlsm`, `custom/`…) sont sauvegardés puis restaurés automatiquement :
+Ce n'est **pas** un conflit de modification : l'historique a été réinitialisé côté distant. La bonne réponse est de **re-cloner** — tes fichiers privés (`config.ini`, `config_*.json`, `comptes.xlsm`, `custom/`…) sont sauvegardés puis restaurés automatiquement :
 
 ```bash
 ./reclone.sh --reclone --yes
@@ -263,7 +263,7 @@ git diff le_fichier.py     # Modifications d'un fichier spécifique
 
 ### Annuler toutes les modifications locales
 
-Pour revenir à l'état du dépôt (perte de toutes vos modifications) :
+Pour revenir à l'état du dépôt (perte de toutes tes modifications) :
 
 ```bash
 git checkout .             # Restaure tous les fichiers versionnés

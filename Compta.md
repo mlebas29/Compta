@@ -1,6 +1,6 @@
 # 1. Présentation
 
-Ce document est le **guide d'utilisation** et le point d'entrée de la documentation utilisateur. Selon votre besoin :
+Ce document est le **guide d'utilisation** et le point d'entrée de la documentation utilisateur. Selon ton besoin :
 
 | Besoin | Document |
 |---|---|
@@ -27,7 +27,7 @@ La gestion comptable a pour but de centraliser dans un tableur :
 
 * les autres **valeurs de biens matériels** (immobilier ...)
 
-Le tableur **comptes.xlsm** présente ces données et les synthétise selon différentes vues : postes budgétaires, [plus values latentes](Compta_pvl.md), répartitions patrimoniales. Il détecte aussi des incohérences telles que des écarts entre  soldes calculés et soldes relevés.
+Le tableur **comptes.xlsm** présente ces données et les synthétise selon différentes vues : postes budgétaires, [plus values latentes](Compta_pvl.md), répartitions patrimoniales. Il détecte aussi des incohérences telles que des écarts entre soldes calculés et soldes relevés.
 
 Les tâches de la gestion comptable :
 
@@ -74,7 +74,7 @@ Comptabilité est livrée avec **12 sites publics** :
 
 Les connecteurs crypto et multidevises (Kraken, Wise, BTC, eToro…) sont utilisables tels quels — sauf **XMR**, qui interroge un `monero-wallet-rpc` hébergé sur une machine tierce toujours allumée et exige donc un provisionnement à part. Les connecteurs bancaires (SOCGEN, NATIXIS…) dépendent du profil client de la banque ; ce profil est pris en compte via les paramètres techniques des comptes (GUI création de compte). Les restrictions éventuelles propres à chaque site figurent dans sa description (GUI onglet Sites).
 
-**Pour activer les sites qui vous concernent**, voir ANNEXE C — Configuration initiale (§4 Sites).
+**Pour activer les sites qui te concernent**, voir ANNEXE C — Configuration initiale (§4️⃣ Sites).
 
 ## Collecte
 
@@ -86,9 +86,9 @@ Chaque site est décrit dans l'application (Onglet Sites). On y trouve notamment
 
 - **Visibilité de navigation** - Pour une **action en fenêtre** — saisie d'un code, résolution d'un CAPTCHA, ou login manuel *dans la page* — le navigateur Chrome est rendu visible. Une **2FA mobile** (validation sur le téléphone) ne nécessite aucune fenêtre. Un site peut aussi être **forcé visible** (case « Fenêtre visible » de l'onglet Sites) (Cf. ANNEXE C)
 
-- **Parallélisme** - Afin d'optimiser le temps de collecte, plusieurs sites sont collectés en parallèle, pendant le traitement des autres sites à **interaction humaine** (authentification, un à la fois).  Le classement parallèle/séquentiel est prédéfini (Cf. ANNEXE B) mais tout site peut être ajouté dans le groupe parallèle (Cf. ANNEXE C).
+- **Parallélisme** - Afin d'optimiser le temps de collecte, plusieurs sites sont collectés en parallèle, pendant le traitement des autres sites à **interaction humaine** (authentification, un à la fois). Le classement parallèle/séquentiel est prédéfini (Cf. ANNEXE B) mais tout site peut être ajouté dans le groupe parallèle (Cf. ANNEXE C).
 
-- **Profilage** -  À chaque collecte, l'App tient à jour un profil de navigation qui sert à repérer qu'un site a **changé de comportement** — une étape qui disparaît ou s'ajoute, une durée qui explose, un fichier attendu manquant, une connexion devenue soudain interactive. Le profil est consultable hors ligne.
+- **Profilage** - À chaque collecte, l'App tient à jour un profil de navigation qui sert à repérer qu'un site a **changé de comportement** — une étape qui disparaît ou s'ajoute, une durée qui explose, un fichier attendu manquant, une connexion devenue soudain interactive. Le profil est consultable hors ligne.
 
 ## Import
 
@@ -114,7 +114,7 @@ L'App fait une recherche d'appariement sur toute opération éligible (Réf="-" 
 
 En cas d'ambiguïté (plusieurs candidats indiscernables), les opérations restent non appariées pour vérification manuelle.
 
-Les seuils (délai max, tolérance montants) sont paramétrables dans l'App  (onglet Paramètres).
+Les seuils (délai max, tolérance montants) sont paramétrables dans l'App (onglet Paramètres).
 
 Certaines opérations prédéfinies peuvent être appariées automatiquement (onglet Paramètres).
 
@@ -126,17 +126,9 @@ La fonction de cotation a pour effet de mettre à jour dans le fichier excel les
 
 Le mode opératoire est guidé par l'interface graphique qui documente les procédures spécifiques de connexion.
 
-#### 🚧 Préalable - Configuration
+#### ▶️ Lancement de l'App
 
-Préalable à la première collecte.
-
-Voir **ANNEXE C** pour le détail de la configuration initiale (devises, comptes, catégories, sites).
-
-> Une fois la configuration faite, elle n'a besoin d'être reprise que lors de l'ouverture ou la fermeture d'un compte, l'ajout d'une devise, un changement de catégorie, etc.
-
-#### ▶️ Étape 1 - Lancement de l'App
-
-Lancer l'App Comptabilité soit **en cliquant sur le raccourci** (icône € colorée selon le mode : Or pour EX, rouge pour PROD, bleu pour DEV), soit **en ligne de commande** : `cd ~/Compta && ./cpt_gui.py`.
+Lancer l'App Comptabilité soit **en cliquant sur le raccourci** (icône € colorée Or), soit **en ligne de commande** : `cd ~/Compta && ./cpt_gui.py`.
 
 > En lancement terminal, le Dock (macOS) ou la barre des tâches affiche l'icône de l'interpréteur Python (une « fusée »), pas l'icône € colorée — c'est normal : le raccourci (bundle `.app` / `.desktop`) n'est pas impliqué. L'icône du mode n'apparaît qu'au lancement *via le raccourci*.
 
@@ -146,19 +138,46 @@ La fenêtre qui s'ouvre présente l'onglet Exécution :
 
 ![](images/Compta.png)
 
-L'App affiche en permanence une barre de statut en bas de fenêtre avec deux zones (Cf. ANNEXE A)
+Dans la zone Résultat de l'onglet principal on voit s'afficher le résultat du **contrôle de cohérence au démarrage** :
 
-#### 🌐 Étape 2 - Collecte
+- Formules Contrôles → Avoirs : détection de références cassées
+- Sites orphelins (sans compte rattaché)
+- Catégories absentes du Budget
+
+L'App affiche en permanence une barre de statut en bas de fenêtre, avec deux parties :
+
+**Barre de statut — partie gauche :**
+
+- **Statut** : état des Contrôles, coloré selon 3 niveaux — vert (OK), orange (Divers/Appariements/Balances), rouge (Comptes/Catégories/Inconnus/Formules). Cliquable pour afficher le détail des 7 contrôles. (Cf. ANNEXE A)
+- **Total Avoirs** : total EUR lu depuis Avoirs L2, mis à jour à chaque sauvegarde.
+
+**Barre de statut — partie droite :**
+
+- **Signaler un problème** (si activé sur ton poste) : un bouton « ⚑ Signaler un problème » apparaît dans la barre de statut. Un clic ouvre un champ où décrire ce qui s'est passé ; à l'envoi, un rapport de diagnostic (journaux, version) part vers l'administrateur qui t'accompagne. **Aucun mot de passe n'est jamais envoyé.** La première fois, l'App affiche une ligne à lui transmettre pour activer l'envoi (une seule fois).
+
+- **Mettre à niveau** la version de l'app : le bouton s'affiche au démarrage lorsque la version courante est en retard par rapport à la version la plus récente sur GitHub.
+
+#### 🚧 Configuration
+
+Préalable à la première collecte.
+
+Voir **ANNEXE C** pour le détail de la configuration initiale (devises, comptes, catégories, sites).
+
+> Une fois la configuration faite, elle n'a besoin d'être reprise que lors de l'ouverture ou la fermeture d'un compte, l'ajout d'une devise, un changement de catégorie, etc.
+
+#### 🌐 Collecte
 
 Dans l'onglet Exécution, sélectionner les sites voulus puis cliquer sur le bouton "Collecte". L'App demande le mot de passe maître (**P2**) dans une fenêtre dédiée, puis visite tous les sites sélectionnés pour collecter les données, ce qui peut prendre plusieurs minutes.
 
 > NB : Une présence est nécessaire car certains sites peuvent déclencher une procédure d'authentification (avec ou sans mobile) pendant la collecte.
 
-Quand la collecte est terminée, cliquer sur "Import" pour mettre à jour le fichier **comptes.xlsm** avec les données collectées. On peut aussi attendre pour relancer une collecte avec d'autres sites qui manqueraient.
+On peut relancer une ou plusieurs collectes avec une sélection de sites différente ou identique.
 
-#### 👁️ Étape 3 - compléments manuels
+Quand la collecte est terminée, cliquer sur "Import" pour mettre à jour le fichier **comptes.xlsm** avec toutes les données collectées.
 
-Le fichier  **comptes.xlsm** peut alors être ouvert sous LibreOffice, pour une session manuelle afin de :
+#### 👁️ Compléments à la collecte
+
+Après l'import, le fichier **comptes.xlsm** peut être ouvert sous LibreOffice, pour une session manuelle afin de :
 
 * vérifier la bonne collecte et l'import des données (opérations, valorisations)
 
@@ -169,8 +188,6 @@ Le fichier  **comptes.xlsm** peut alors être ouvert sous LibreOffice, pour une 
 * vérifier l'absence d'erreur (Cf. ANNEXE A - Contrôles Excel)
 
 * corriger si nécessaire
-
-
 
 # 4. Cotations
 
@@ -215,19 +232,6 @@ Le contrôle **Formules** surveille des cellules d'alarme posées dans les feuil
 
 Diagnostic détaillé : `./tool_controles.py` (ou `-v` pour le mode verbeux).
 
-**Barre de statut GUI :**
-
-L'App affiche en permanence une barre de statut en bas de fenêtre avec deux zones :
-- **Statut** (gauche) : état des Contrôles, coloré selon 3 niveaux — vert (OK), orange (Divers/Appariements/Balances), rouge (Comptes/Catégories/Inconnus/Formules). Cliquable pour afficher le détail des 7 contrôles.
-- **Total Avoirs** (droite) : total EUR lu depuis Avoirs L2 (cached value de la formule Total, mise à jour à chaque sauvegarde).
-
-**Signaler un problème** (si activé sur ton poste) : un bouton « ⚑ Signaler un problème » apparaît dans la barre de statut. Un clic ouvre un champ où décrire ce qui s'est passé ; à l'envoi, un rapport de diagnostic (journaux, version) part vers l'administrateur qui t'accompagne. **Aucun mot de passe n'est jamais envoyé.** La première fois, l'App affiche une ligne à lui transmettre pour activer l'envoi (une seule fois).
-
-**Checks de cohérence au démarrage GUI :**
-- Formules Contrôles → Avoirs : détection de références cassées
-- Sites orphelins dans la configuration JSON
-- Catégories absentes du Budget
-
 # ANNEXE B - Comportement de collecte par site
 
 Deux axes **indépendants** gouvernent la collecte de chaque site :
@@ -250,7 +254,7 @@ Deux axes **indépendants** gouvernent la collecte de chaque site :
 
 # ANNEXE C - Configuration initiale
 
-La configuration se fait par les onglets de l'App. L'ordre ci-dessous respecte les dépendances entre les éléments ; l'**interdépendance Compte ↔ Site** est décrite dans les deux sections concernées (§2 Comptes et §4 Sites).
+La configuration se fait par les onglets de l'App. L'ordre ci-dessous respecte les dépendances entre les éléments ; l'**interdépendance Compte ↔ Site** est décrite dans les deux sections concernées (§2️⃣ Comptes et §4️⃣ Sites).
 
 > L'App n'est jamais un passage obligé : les fichiers de configuration restent des fichiers texte, lisibles et modifiables à la main. Le chemin en ligne de commande — utile sur une machine sans écran, ou en dépannage — est décrit dans [`Compta_plus.md`](Compta_plus.md) § *Configuration en ligne de commande*.
 
@@ -269,16 +273,16 @@ Les devises dérivées (ex : once d'or → gramme d'or) se définissent par une 
 Créer un compte pour chaque compte bancaire, placement ou portefeuille. Pour chaque compte :
 
 - **Intitulé** : nom libre (ex : "LBP Courant")
-- **Devise** : devise du compte (doit exister, cf. étape 1)
+- **Devise** : devise du compte (doit exister, cf. §1️⃣)
 - **Type** : Courant, Épargne, Titres, PEA...
 - **Site** : site de collecte rattaché — ou **N/A** pour les comptes sans collecte
 - **Domiciliation**, **Titulaire**, **Propriété** : attributs patrimoniaux
 
-> **Amorçage sans boucle (Compte ↔ Site)** : un compte se rattache à un site, mais un site se configure à partir de ses comptes (étape 4). Pour éviter cette dépendance circulaire, créez d'abord le compte avec **Site = N/A** ; le rattachement effectif au site se fait en **étape 4**, lors de son activation.
+> **Amorçage sans boucle (Compte ↔ Site)** : un compte se rattache à un site, mais un site se configure à partir de ses comptes (§4️⃣). Pour éviter cette dépendance circulaire, crée d'abord le compte avec **Site = N/A** ; le rattachement effectif au site se fait en **§4️⃣**, lors de son activation.
 
 Lorsqu'un compte est rattaché à un site, des **champs techniques** supplémentaires apparaissent selon le site. Ils permettent au collecteur d'identifier le compte sur le site bancaire.
 
-Ces champs sont propres à chaque site et n'apparaissent que pour les comptes rattachés. 
+Ces champs sont propres à chaque site et n'apparaissent que pour les comptes rattachés.
 
 **L'onglet Sites** aide à acquérir la valeur de certains champs techniques
 
@@ -302,9 +306,9 @@ Les **correspondances** (regex → catégorie) permettent la catégorisation aut
 
 ## 4️⃣ Sites (onglet Sites)
 
-Vous n'activez que les sites correspondant à vos comptes. Pour chacun :
+Tu n'actives que les sites correspondant à tes comptes. Pour chacun :
 
-1. **Compte(s)** — rattacher le(s) compte(s) au site : passer leur champ **Site** de N/A à ce site (les champs techniques apparaissent alors, cf. §2).
+1. **Compte(s)** — rattacher le(s) compte(s) au site : passer leur champ **Site** de N/A à ce site (les champs techniques apparaissent alors, cf. §2️⃣).
 
 2. **Activation** — cocher le site dans l'onglet Sites.
 
@@ -332,32 +336,28 @@ Certains sites possèdent des paramètres modifiables :
 
 - **Fenêtre visible** *(headed)* (case à cocher) : force le navigateur en mode **visible** — réglage **par poste** (sites navigateur)
 
-- Le cadre **Authentification** reçoit la *Réf* du site. **Sur un site neuf le champ est vide : vous y saisissez la Réf** — le nom sous lequel ranger ses identifiants dans la table chiffrée (§5), à y créer s'il n'existe pas encore. ⚠️ *Une fois posée*, la **renommer** est déconseillé : elle doit rester en correspondance avec une Réf de la 1ʳᵉ colonne de la table, sinon le site ne retrouve plus son entrée.
+- Le cadre **Authentification** reçoit la *Réf* du site. **Sur un site neuf le champ est vide : tu y saisis la Réf** — le nom sous lequel ranger ses identifiants dans la table chiffrée (§5️⃣), à y créer s'il n'existe pas encore. ⚠️ *Une fois posée*, la **renommer** est déconseillé : elle doit rester en correspondance avec une Réf de la 1ʳᵉ colonne de la table, sinon le site ne retrouve plus son entrée.
 
-  >  Le site Wallet monero a deux noms d'authentification  (un pour le wallet, un pour le nœud RPC).
-
+  > Le site Wallet monero a deux noms d'authentification (un pour le wallet, un pour le nœud RPC).
 
 ### Plusieurs accès à une même banque
 
 Un même établissement peut demander **plusieurs accès distincts** (deux identifiants, deux profils de comptes — ex. un compte perso et un compte joint au Crédit Mutuel). Sous la description d'un site navigateur, le bouton **« Dupliquer cet accès… »** crée un **accès frère** :
 
 - il **partage le code du connecteur** avec l'accès d'origine — aucune copie à maintenir, une correction profite aux deux ;
-- il naît **désactivé**, avec le seul **Nom** que vous saisissez ; rattachez-lui ensuite ses comptes et son authentification comme un site neuf ;
+- il naît **désactivé**, avec le seul **Nom** que tu saisis ; rattache-lui ensuite ses comptes et son authentification comme un site neuf ;
 - il est **local à ce poste** (jamais publié).
 
-Le bouton **« Supprimer cet accès… »** retire un accès **à condition qu'il soit vide** (aucun compte rattaché — sinon vous orphelineriez des lignes du classeur) : videz-le d'abord en repassant ses comptes à N/A.
-
+Le bouton **« Supprimer cet accès… »** retire un accès **à condition qu'il soit vide** (aucun compte rattaché — sinon tu orphelinerais des lignes du classeur) : vide-le d'abord en repassant ses comptes à N/A.
 
 ## 5️⃣ Paramètres (onglet Paramètres)
 
 Ajuster si nécessaire :
 
-- **Table chiffrée (GPG)** : bouton *Éditer* — la table des identifiants, chiffrée par GPG et protégée par un **mot de passe maître** (**P2**), dans `config_credentials.md.gpg` (un site s'y authentifie avec un **identifiant** et un **mot de passe**). **La toute première fois — si la table n'existe pas encore — *Éditer* propose de la créer et demande le mot de passe maître (saisi deux fois).** Ensuite : créer, modifier, renommer ou supprimer les entrées Réf / Identifiant / Passe ; une sauvegarde `.bak` précède chaque modification. ⚠️ Renommer la 1ʳᵉ colonne (Réf) oblige à corriger la valeur correspondante dans le cadre *Authentification* du site associé (§4)
+- **Table chiffrée (GPG)** : bouton *Éditer* — la table des identifiants, chiffrée par GPG et protégée par un **mot de passe maître** (**P2**), dans `config_credentials.md.gpg` (un site s'y authentifie avec un **identifiant** et un **mot de passe**). **La toute première fois — si la table n'existe pas encore — *Éditer* propose de la créer et demande le mot de passe maître (saisi deux fois).** Ensuite : créer, modifier, renommer ou supprimer les entrées Réf / Identifiant / Passe ; une sauvegarde `.bak` précède chaque modification. ⚠️ Renommer la 1ʳᵉ colonne (Réf) oblige à corriger la valeur correspondante dans le cadre *Authentification* du site associé (§4️⃣)
 - **Appariement** : délai max entre opérations liées, tolérance sur les montants
 - **Général** : mode debug, profondeur d'import, rétention des archives
 - **Opérations liées** : règles de génération automatique de contreparties (ex : retrait DAB → Espèces)
-
-
 
 > `config_credentials.md.gpg` reste un **tableau Markdown chiffré en symétrique** : `gpg` seul suffit à l'ouvrir et à le refermer, sans l'App — voir [`Compta_plus.md`](Compta_plus.md) § *Configuration en ligne de commande*. L'App est une commodité, jamais un verrou.
 

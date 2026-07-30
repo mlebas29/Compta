@@ -1,9 +1,9 @@
 # Mise à niveau du classeur (mode classeur)
 
-Vous tenez le classeur à la main, sans `upgrade` (pour le mode assisté en un geste, voir [`Compta_upgrade_assiste.md`](Compta_upgrade_assiste.md)). **Deux chemins :**
+Tu tiens le classeur à la main, sans `upgrade` (pour le mode assisté en un geste, voir [`Compta_upgrade_assiste.md`](Compta_upgrade_assiste.md)). **Deux chemins :**
 
-- soit **partir du classeur exemple le plus récent** ([`comptes_exemple.xlsx`](https://github.com/mlebas29/Compta/raw/main/comptes_exemple.xlsx)) et y reporter **vos propres données** ;
-- soit **partir de votre classeur** et y reporter à la main les évolutions décrites ci-dessous (en vous aidant de l'exemple au besoin).
+- soit **partir du classeur exemple le plus récent** ([`comptes_exemple.xlsx`](https://github.com/mlebas29/Compta/raw/main/comptes_exemple.xlsx)) et y reporter **tes propres données** ;
+- soit **partir de ton classeur** et y reporter à la main les évolutions décrites ci-dessous (en t'aidant de l'exemple au besoin).
 
 <!-- bloc généré : ./tool_render_upgrade_map.py --mode classeur — ne pas éditer à la main -->
 

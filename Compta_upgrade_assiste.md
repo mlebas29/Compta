@@ -70,7 +70,7 @@ La restauration **sauvegarde l'état courant d'abord** (elle est donc elle-même
 
 ## Carte des mises à jour
 
-**Inventaire** de ce que chaque version apporte, par composant (**dérivé de `upgrade_map.json`**, source unique) — c'est le **catalogue**, *pas votre chemin* : celui-ci dépend de votre instance, `upgrade.py --check` le montre. Le badge dit l'intention ; une **butée** 🧱 marque la profondeur où le rattrapage automatique s'arrête (en deçà : manuel).
+**Inventaire** de ce que chaque version apporte, par composant (**dérivé de `upgrade_map.json`**, source unique) — c'est le **catalogue**, *pas ton chemin* : celui-ci dépend de ton instance, `upgrade.py --check` le montre. Le badge dit l'intention ; une **butée** 🧱 marque la profondeur où le rattrapage automatique s'arrête (en deçà : manuel).
 
 <!-- bloc généré : ./tool_render_upgrade_map.py --mode assiste — ne pas éditer à la main -->
 
@@ -79,7 +79,7 @@ La restauration **sauvegarde l'état courant d'abord** (elle est donc elle-même
 > *cumulatif* = `upgrade` rattrape le retard accumulé · *informatif* = aucune action · *ponctuel* = à traiter au moment (pas de rattrapage)
 
 - 🔧 *(cumulatif)* migration de structure du classeur — `upgrade` l'applique automatiquement (sauvegarde préalable → réversible)
-- 📘 *(informatif)* contenu : nouveau classeur exemple — votre classeur migré reste en place
+- 📘 *(informatif)* contenu : nouveau classeur exemple — ton classeur migré reste en place
 - ⚙️ *(cumulatif)* config à normaliser — `upgrade` la normalise (rattrapage)
 - 🔄 *(ponctuel)* re-clonage du dépôt (réécriture d'historique git) — `upgrade` re-clone automatiquement (sauvegarde complète → réversible)
 - 🧱 *(ponctuel)* butée d'automatisation (profondeur de rattrapage) — profondeur où le rattrapage automatique s'arrête → recréer le classeur depuis le template (cf. Compta_upgrade_classeur.md)
@@ -111,9 +111,9 @@ _**À chaque mise à jour**, `upgrade` vérifie aussi (et corrige si nécessaire
 
 Le « chemin » peut toucher trois composants — **classeur**, **config**, **app** — et chacun se détermine différemment.
 
-**Côté classeur**, `upgrade` ne rejoue pas les versions une à une : il calcule le **chemin de migration** entre deux numéros de schéma — l'**origine** (le `SCHEMA_VERSION` inscrit dans votre classeur) et la **cible** (celui du code installé) — puis enchaîne les migrateurs qui couvrent l'intervalle.
+**Côté classeur**, `upgrade` ne rejoue pas les versions une à une : il calcule le **chemin de migration** entre deux numéros de schéma — l'**origine** (le `SCHEMA_VERSION` inscrit dans ton classeur) et la **cible** (celui du code installé) — puis enchaîne les migrateurs qui couvrent l'intervalle.
 
-**Côté config**, même principe : un marqueur de schéma (`config_schema_version`, inscrit dans votre `config.ini`) donne l'**origine**, le code donne la **cible**, et `upgrade` joue les migrations de config qui couvrent l'intervalle. S'y ajoute une **vérification générique**, toujours active, qui remet en conformité les réglages obsolètes (renommages hérités…) sans dépendre du marqueur — une config déjà à jour reste **intacte**.
+**Côté config**, même principe : un marqueur de schéma (`config_schema_version`, inscrit dans ton `config.ini`) donne l'**origine**, le code donne la **cible**, et `upgrade` joue les migrations de config qui couvrent l'intervalle. S'y ajoute une **vérification générique**, toujours active, qui remet en conformité les réglages obsolètes (renommages hérités…) sans dépendre du marqueur — une config déjà à jour reste **intacte**.
 
 **Côté app**, ni numéro de version ni script dédié : c'est l'**état réel du dépôt git** qui tranche. `upgrade` tente un `git pull` ; s'il avance normalement, rien de plus. Mais si l'**historique a été réécrit** (un `git pull` ne peut pas le traverser), il **re-clone automatiquement** l'installation — sauvegarde complète conservée — c'est la 🔄 (ex. v5.1.0).
 
