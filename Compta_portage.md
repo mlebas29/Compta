@@ -1,8 +1,8 @@
-# Compta — Portage sur d'autres OS
+# Compta — Installation & portage
 
 L'application est développée sous **Linux Ubuntu 22.04+** et dérivés (Zorin, Mint).
 Elle a été portée et validée sur **macOS** (Ventura Intel) et fonctionne sous **Windows 11 via WSL2**.
-Ce document décrit les prérequis et particularités de chaque plateforme.
+Ce document décrit l'**installation détaillée** et les particularités de chaque plateforme.
 
 ## Linux (référence)
 

@@ -1,20 +1,19 @@
 # Compta
 
-**Tout votre patrimoine familial, centralisé et tenu à jour automatiquement — dans un classeur qui reste le vôtre.**
+**Tout ton patrimoine familial, centralisé et tenu à jour automatiquement — dans un classeur qui reste le tien.**
 
 ## 1. Présentation
 
-Compta suit un patrimoine familial **diversifié** (plusieurs banques, titres, crypto, métaux précieux, multi-devises) et lui épargne la saisie manuelle : il **collecte** vos données sur vos sites financiers, les **importe**, les **catégorise** et les **apparie** — pour alimenter des feuilles de synthèse **patrimoine**, **plus-values** et **budget**.
+Compta suit un patrimoine familial **diversifié** (plusieurs banques, titres, crypto, métaux précieux, multi-devises) et lui épargne la saisie manuelle : il **collecte** tes données sur tes sites financiers, les **importe**, les **catégorise** et les **apparie** — pour alimenter des feuilles de synthèse **patrimoine**, **plus-values** et **budget**.
 
-**Vos données ne quittent jamais votre machine.** Tout vit dans un classeur Excel/LibreOffice que *vous* contrôlez : ni cloud, ni abonnement, ni service en ligne à qui confier vos finances. Gratuit et open source (GPL v3).
+**Tes données ne quittent jamais ta machine.** Tout vit dans un classeur Excel/LibreOffice que *tu* contrôles : ni cloud, ni abonnement, ni service en ligne à qui confier tes finances. Gratuit et open source (GPL v3).
 
 Deux composants :
 
-1. un **classeur** `comptes.xlsm` — vos données brutes **et** leurs synthèses ;
+1. un **classeur** `comptes.xlsm` — tes données brutes **et** leurs synthèses ;
 2. une **application d'assistance** (optionnelle) — gère la structure du classeur et collecte depuis les sites.
 
 **Pour qui ?** Une famille dont les avoirs sont assez variés pour que le suivi à la main devienne pénible, et qui préfère **garder la main sur ses données** plutôt que de les confier à une app en ligne.
-
 
 | Mode classeur | Mode assisté |
 |:---:|:---:|
@@ -42,8 +41,6 @@ Les environnements supportés sont : **Linux**, **MacOS**, **Windows 11**, dans 
 
 ![](images/Compta.png)
 
-
-
 ## 2. Fonctions
 
 Le classeur :
@@ -67,39 +64,28 @@ et aussi :
 - **Configuration** du tableur : création/modification/suppression des comptes, devises, titres, catégories, postes budgétaires
 - **Configuration** des paramètres de collecte
 
-
-
 ## 3. Installation
 
 |  | Mode classeur | Mode assisté |
 |---|:-:|:-:|
 | **Prérequis** | Excel ou équivalent (1) | Linux ou MacOS ou Windows 11 |
 | **Livré** | Classeur avec données d'exemple | Classeur vierge + application |
-| **Action** | Télécharger [`comptes_exemple.xlsx`](https://github.com/mlebas29/Compta/raw/main/comptes_exemple.xlsx) | Tout télécharger et installer |
+| **Action** | Télécharger [`comptes_exemple.xlsx`](https://github.com/mlebas29/Compta/raw/main/comptes_exemple.xlsx) | Tout télécharger et installer (2) |
 
 (1) Doit supporter les nouvelles fonctions XLOOKUP.
 
-La documentation est au format Markdown (`.md`) : lisible sur GitHub, ou localement avec un éditeur Markdown (Typora…).
-
-Le principe est de télécharger via `git` et d'utiliser un outil d'installation idempotent, c'est-à-dire réutilisable plusieurs fois jusqu'à installation complète au cas où une intervention manuelle serait requise.
-
-Pour **Linux**, le shell script `install.sh` installe les dépendances Python, le navigateur Playwright/Chrome, et le raccourci bureau. Il installe ou met à niveau automatiquement **LibreOffice ≥ 24.8**. En cas de prérequis manquant, il indique la commande d'installation de package correspondante. Après quoi il suffira de relancer le script.
+(2) En ligne de commande — cloner via `git` puis lancer `install.sh` (idempotent, réutilisable jusqu'à installation complète) :
 
 ```bash
 sudo apt update && sudo apt install -y git
 git clone https://github.com/mlebas29/Compta.git ~/Compta
 cd ~/Compta && ./install.sh
-# Compta peut être remplacé par un autre nom
+# ~/Compta le dossier d'installation peut être nommé autrement
 ```
 
-Pour **Windows 11** c'est la même procédure, après avoir installé WSL2 qui permet de faire tourner Linux sur Windows sans machine virtuelle à gérer.
+`install.sh` installe les dépendances (Python, Playwright/Chrome, raccourci) et LibreOffice ≥ 24.8 ; il signale tout prérequis manquant.
 
-Pour **MacOS** la procédure est plus spécifique, avec une installation manuelle de **LibreOffice 24.8** et d'un **Python avec Tk ≥ 8.6**.
-
-Pour aller plus loin avec Windows et MacOS :  [Compta_portage.md](Compta_portage.md)
-
-
-
+**Détail par système — Linux, macOS, Windows 11 (WSL2) → [`Compta_portage.md`](Compta_portage.md).**
 
 ## 4. Mise à jour
 
@@ -110,20 +96,20 @@ Les évolutions sont tracées sur GitHub dans [`CHANGELOG.md`](https://github.co
 | Télécharger  [`comptes_exemple.xlsx`](https://github.com/mlebas29/Compta/raw/main/comptes_exemple.xlsx) | Depuis l'application (*) |
 | Consulter [`Compta_upgrade_classeur.md`](https://github.com/mlebas29/Compta/blob/main/Compta_upgrade_classeur.md) |  |
 
-(*)  **Depuis l'application** au démarrage : quand une nouvelle version est disponible, un indicateur *« Mettre à jour »* apparaît ; un clic l'installe et redémarre l'application. 
+(*)  **Depuis l'application** au démarrage : quand une nouvelle version est disponible, un indicateur *« Mise à jour »* apparaît ; un clic l'installe et redémarre l'application.
 
 ## 5. Documentation
 
 La documentation est organisée autour de deux points d'entrée :
 
-- 📘 **Utilisation** → [`Compta.md`](Compta.md) — guide d'utilisation du mode assisté, et **index de la doc utilisateur** 
+- 📘 **Utilisation** → [`Compta.md`](Compta.md) — guide d'utilisation du mode assisté, et **index de la doc utilisateur**
 - 🛠️ **Technique** → [`Compta_dev.md`](Compta_dev.md) — pour les activités de développement
 
-
+Elle est au format Markdown (`.md`) : lisible sur GitHub, ou localement avec un éditeur Markdown (Typora…).
 
 ## 6. Utilisation — mode classeur
 
-Le classeur d'exemple contient des données fictives à remplacer par les vôtres.
+Le classeur d'exemple contient des données fictives à remplacer par les tiennes.
 
 **Conseils de personnalisation :**
 
@@ -131,8 +117,6 @@ Le classeur d'exemple contient des données fictives à remplacer par les vôtre
 - Supprimer et ajouter librement les **lignes d'opérations** (feuille Opérations)  en conservant la cohérence avec les lignes #Solde de chaque compte ; a minima avec la plus récente
 - Conserver au moins **une ligne par tableau de données** (Opérations, Avoirs, Plus_value, Cotations) pour préserver les formules et le format — les nouvelles lignes se créent par copier/coller d'une ligne existante
 - Modifier avec prudence la structure des feuilles (colonnes, en-têtes et pieds de tableaux, formules, noms définis)
-
-
 
 ## 7. Utilisation — mode assisté
 
@@ -145,8 +129,6 @@ L'app s'utilise également en ligne de commande.
 Les identifiants de connexion et leurs mots de passe sites sont stockés dans un fichier chiffré GPG, protégé par un mot de passe maître **P2**.
 
 Pour aller plus loin : **Utilisation** ([`Compta.md`](Compta.md))
-
-
 
 ## 8. Extensibilité
 
@@ -164,8 +146,6 @@ Il y a plusieurs axes d'extension :
 
 Pour aller plus loin : **[`Compta_extension.md`](Compta_extension.md)**
 
-
-
 ## 9. Vérifications
 
 Environnements sur lesquels installation, GUI et collecte sont effectivement vérifiés :
@@ -177,8 +157,6 @@ Environnements sur lesquels installation, GUI et collecte sont effectivement vé
 |      Windows 11 - WSL/Ubuntu 22      | Installation, GUI, Collecte |
 
 Grâce au système WSL de Microsoft qui simule parfaitement Linux, l'App de base Linux tourne quasiment sans adaptation sur Windows. Pour MacOS, le portage demande plus d'attention en raison d'une architecture différente, bien que cousine pour l'OS, notamment avec LibreOffice et Python.
-
-
 
 ## 10. Restrictions
 
@@ -195,24 +173,18 @@ Limites connues, valables même lorsque les prérequis sont réunis :
 
 La partie GUI fonctionne pour les distributions **Linux Ubuntu** et dérivés (**Zorin, Mint**) - avec **GNOME, KDE, XFCE…** en session **X11** (ou XWayland).
 
-
-
 ## 11. Signaler un bug
 
-- **Depuis l'application** (si ton installation est configurée pour) : bouton **« ⚑ Signaler un problème »** dans la barre de statut. Décris ce qui s'est passé et envoie ; un rapport de diagnostic (journaux, version) part **en privé** vers l'administrateur qui t'accompagne. **Aucun mot de passe n'est envoyé.** Adapté à un usage en cercle restreint (famille, proches) où quelqu'un assure le support.
+- **Depuis l'application** (si ton installation est configurée pour cela)
 - **Sur GitHub** : ouvrir une [Issue](https://github.com/mlebas29/Compta/issues) avec la description du problème et le message d'erreur éventuel — **sans données personnelles** (une issue est publique).
 - **En ligne de commande** (nécessite [GitHub CLI](https://cli.github.com/)) :
   ```bash
   gh issue create --title "Bug: description" --body "Détail du problème"
   ```
 
-
-
 ## 12. Licence
 
-Compta [EX] est distribué gratuitement sous licence GNU GPL v3.
-
-
+Compta est distribué gratuitement sous licence GNU GPL v3.
 
 ## 13. Glossaire
 

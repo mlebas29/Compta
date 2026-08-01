@@ -12,7 +12,7 @@ Ce document est le **guide d'utilisation** et le point d'entrée de la documenta
 | Charte graphique du classeur | [`Compta_charte.md`](Compta_charte.md) |
 | Mettre à jour l'installation (mode assisté) | [`Compta_upgrade_assiste.md`](Compta_upgrade_assiste.md) |
 | Mettre à niveau le classeur | [`Compta_upgrade_classeur.md`](Compta_upgrade_classeur.md) |
-| Installer sur macOS ou Windows (WSL) | [`Compta_portage.md`](Compta_portage.md) |
+| Installation détaillée (Linux, macOS, Windows) | [`Compta_portage.md`](Compta_portage.md) |
 | Outils de maintenance (CLI) | [`Compta_tools.md`](Compta_tools.md) |
 | Vocabulaire (métier + sigles) | [`Compta_glossaire.md`](Compta_glossaire.md) |
 | Développer / contribuer | [`Compta_dev.md`](Compta_dev.md) (hub développeur) |
@@ -155,7 +155,7 @@ L'App affiche en permanence une barre de statut en bas de fenêtre, avec deux pa
 
 - **Signaler un problème** (si activé sur ton poste) : un bouton « ⚑ Signaler un problème » apparaît dans la barre de statut. Un clic ouvre un champ où décrire ce qui s'est passé ; à l'envoi, un rapport de diagnostic (journaux, version) part vers l'administrateur qui t'accompagne. **Aucun mot de passe n'est jamais envoyé.** La première fois, l'App affiche une ligne à lui transmettre pour activer l'envoi (une seule fois).
 
-- **Mettre à niveau** la version de l'app : le bouton s'affiche au démarrage lorsque la version courante est en retard par rapport à la version la plus récente sur GitHub.
+- **Mise à jour** de l'app : le bouton s'affiche au démarrage lorsque la version courante est en retard par rapport à la version la plus récente sur GitHub.
 
 #### 🚧 Configuration
 
