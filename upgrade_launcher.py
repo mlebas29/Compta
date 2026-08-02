@@ -222,13 +222,13 @@ def _run_with_splash(args):
         return
 
     root = tk.Tk()
-    root.title('Mise à jour de Comptabilité')
+    root.title('Mise à jour de Compta')
     root.resizable(False, False)
     root.protocol('WM_DELETE_WINDOW', lambda: None)   # infermable tant que non fini
 
     frame = ttk.Frame(root, padding=20)
     frame.pack(fill='both', expand=True)
-    ttk.Label(frame, text='Mise à jour de Comptabilité',
+    ttk.Label(frame, text='Mise à jour de Compta',
               font=('TkDefaultFont', 12, 'bold')).pack(pady=(0, 10))
     status_var = tk.StringVar(value='Préparation…')
     ttk.Label(frame, textvariable=status_var, width=48).pack(pady=(0, 12))

@@ -67,6 +67,11 @@ DEFAULT_ACCOUNTS = SCRIPT_DIR / 'config_accounts.json'
 # journal.log = même fichier que collecte/import (BASE_DIR/logs) → un seul fil
 # narratif GUI↔collecte↔upgrade, lisible en post-mortem à distance (juf).
 _LOGS_DIR = inc_mode.get_base_dir() / 'logs'
+# Actions manuelles post-upgrade (#189) : geste que le code ne peut pas faire (ex.
+# re-épingler le Dock macOS après renommage de bundle). Écrit par inc_install.sh
+# (_register_manual_action), affiché en barre de statut jusqu'à acquittement. Jamais
+# peuplé sur Linux (le .desktop se réécrit en place) → indicateur transparent.
+_MANUAL_ACTIONS_FILE = _LOGS_DIR / 'manual_actions'
 try:
     _LOGS_DIR.mkdir(parents=True, exist_ok=True)
 except Exception:
@@ -223,7 +228,7 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DaemonClientMixin,
         self._mode_accent = accent
         self.root = tk.Tk(className=wm_class)
         from inc_excel_schema import APP_VERSION
-        self.root.title(f'Comptabilité v{APP_VERSION} [{self._mode_label}]')
+        self.root.title(f'Compta v{APP_VERSION} [{self._mode_label}]')
         self.root.geometry('1200x880')
         self.root.minsize(1000, 600)
         self.root.report_callback_exception = self._handle_tk_exception
@@ -432,6 +437,21 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DaemonClientMixin,
                                         foreground='#b35a00')
         self._update_label.bind('<Button-1>', self._on_update_clicked)
 
+        # Indicateur « action manuelle » (#189) — masqué par défaut, packé à droite
+        # si `logs/manual_actions` est non vide (geste post-upgrade non-automatisable,
+        # ex. re-pin Dock macOS). Persistant jusqu'à acquittement. Transparent Linux
+        # (le fichier n'y est jamais écrit).
+        self._manual_action_var = tk.StringVar(value='')
+        # Couleur DISTINCTE de l'indicateur MàJ (#b35a00 orange) — les deux peuvent
+        # coexister (ex. « MàJ échouée » + re-pin en attente), tous deux ⚠ ; le bleu
+        # sépare « geste manuel à faire » de « mise à jour ». Hors palette Statut
+        # (vert/orange/rouge) pour ne pas parasiter sa sémantique de cohérence. #189.
+        self._manual_action_label = ttk.Label(status_frame,
+                                               textvariable=self._manual_action_var,
+                                               style='Hint.TLabel', cursor='hand2',
+                                               foreground='#1a6b8a')
+        self._manual_action_label.bind('<Button-1>', self._on_manual_action_clicked)
+
         # Lecture Contrôles A1 (synthèse) au démarrage
         if self.xlsx_path:
             self._refresh_status_bar()
@@ -448,6 +468,10 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DaemonClientMixin,
         # Vérification « mise à jour » (#181) — différée, best-effort (le poll
         # distant est async : ne bloque jamais le démarrage).
         self.root.after(700, self._start_update_check)
+
+        # Actions manuelles en attente (#189) — indicateur persistant, indépendant
+        # de la MàJ (peuvent coexister). Simple lecture de fichier ; no-op si vide.
+        self.root.after(500, self._check_manual_actions)
 
         # Workarounds bug Tk Linux X11 :
         # (1) clic externe (autre app) → polling focus_displayof() ferme menus
@@ -1413,8 +1437,8 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DaemonClientMixin,
 
         Limité à `check_env()` (présence du wrapper python3-uno). Les
         exceptions daemon sont désormais loggées dans `logs/journal.log` via
-        inc_logging — accessible via le menu Outils/journal — plutôt que
-        rejouées en popup intrusif au démarrage suivant.
+        inc_logging — accessible via le bouton « Journal » (onglet Exécution) —
+        plutôt que rejouées en popup intrusif au démarrage suivant.
         """
         # Forcer la fenêtre au premier plan (focus issue Mac)
         try:
@@ -1524,9 +1548,9 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DaemonClientMixin,
         if self._update_reason == 'failed':
             if not messagebox.askyesno(
                     'Mise à jour',
-                    'La dernière mise à jour a échoué (détails : menu Outils → '
-                    'journal, et logs/upgrade.log).\n\nRelancer la mise à jour '
-                    'maintenant ?', parent=self.root):
+                    'La dernière mise à jour a échoué (détails : bouton '
+                    '« Journal » de l\'onglet Exécution, et logs/upgrade.log).'
+                    '\n\nRelancer la mise à jour maintenant ?', parent=self.root):
                 return
         else:
             if not messagebox.askyesno(
@@ -1566,6 +1590,49 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DaemonClientMixin,
             return
         self._closing_for_upgrade = True
         self._on_close()
+
+    # --- Actions manuelles post-upgrade (#189) ---------------------------
+    def _read_manual_actions(self):
+        """Actions manuelles en attente (une par ligne dans `logs/manual_actions`).
+        Retourne [] si le fichier est absent/vide → indicateur masqué (cas Linux)."""
+        try:
+            if _MANUAL_ACTIONS_FILE.exists():
+                return [ln.strip() for ln in
+                        _MANUAL_ACTIONS_FILE.read_text(encoding='utf-8').splitlines()
+                        if ln.strip()]
+        except Exception:
+            pass
+        return []
+
+    def _check_manual_actions(self):
+        """Au démarrage : indicateur persistant si des actions sont en attente.
+        Simple lecture de fichier (pas une sonde de cohérence) ; no-op si vide."""
+        actions = self._read_manual_actions()
+        if not actions:
+            return
+        noun = 'action à faire' if len(actions) == 1 else 'actions à faire'
+        self._manual_action_var.set(f'  ⚠ {len(actions)} {noun}  ')
+        try:
+            self._manual_action_label.pack(side='right', padx=(0, 5))
+        except Exception:
+            pass
+
+    def _on_manual_action_clicked(self, event=None):
+        """Clic → liste les actions ; « Oui » = acquitte (efface le fichier +
+        masque l'indicateur), « Non » = laisse en attente (persistant)."""
+        actions = self._read_manual_actions()
+        if not actions:
+            self._manual_action_label.pack_forget()
+            return
+        body = ('À faire après la dernière mise à jour :\n\n'
+                + '\n\n'.join(f'• {a}' for a in actions)
+                + '\n\nMarquer comme fait ?')
+        if messagebox.askyesno('Action à faire', body, parent=self.root):
+            try:
+                _MANUAL_ACTIONS_FILE.unlink()
+            except Exception:
+                pass
+            self._manual_action_label.pack_forget()
 
     # --- Signaler un problème (#187) -------------------------------------
     def _on_bugreport_clicked(self, event=None):
@@ -1718,7 +1785,7 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DaemonClientMixin,
 def main():
     import argparse
     parser = argparse.ArgumentParser(
-        description='GUI Comptabilité')
+        description='GUI Compta')
     parser.add_argument('--config', '-c', default=str(DEFAULT_CONFIG),
                         help=f'Chemin config.ini (défaut: {DEFAULT_CONFIG})')
     parser.add_argument('--json', '-j', default=str(DEFAULT_JSON),

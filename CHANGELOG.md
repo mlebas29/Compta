@@ -9,6 +9,14 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 
 Les trois derniers sont spécifiques au mode assisté ; 📘 concerne le mode classeur.
 
+## v5.28.0
+| 2026-08-02 | L'application s'appelle désormais « Compta » (au lieu de « Comptabilité »). |
+| ---------- | -------------------------------------------------------------------------- |
+
+**Détail :**
+
+- **Renommage « Comptabilité » → « Compta »** — nom unifié avec le projet : titre de la fenêtre, raccourci de bureau, et sur **macOS** le bundle `Compta.app`. Sur **Linux/WSL**, le raccourci se met à jour tout seul. Sur **macOS**, l'ancien `Comptabilité.app` est retiré au profit de `Compta.app` : après la mise à jour, **re-épingle « Compta » au Dock** (Finder → Applications) — l'App te le rappelle par un indicateur « action à faire » en barre de statut, jusqu'à ce que ce soit fait.
+
 ## v5.27.0
 | 2026-07-29 | Nouveau : bouton « Signaler un problème » (installations configurées). |
 | ---------- | --------------------------------------------------------------------- |

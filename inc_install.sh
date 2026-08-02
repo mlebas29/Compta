@@ -204,7 +204,7 @@ ensure_custom_frame() {  # $1=install_dir (défaut: répertoire courant)
 _desktop_linux_content() {  # $1=install_dir $2=label $3=icon $4=wm_class
     cat <<EOF
 [Desktop Entry]
-Name=Comptabilité ${2}
+Name=Compta ${2}
 Comment=Gestion comptable — collecte, import et appariement
 Exec=sh -c 'PATH="\$HOME/.local/bin:\$PATH" exec python3 ${1}/cpt_gui.py'
 Path=${1}
@@ -223,6 +223,18 @@ export PATH="\$HOME/.local/bin:/opt/local/bin:/usr/local/bin:/opt/homebrew/bin:\
 cd "${1}"
 exec "${2}" cpt_gui.py
 EOF
+}
+
+# Enregistre une action manuelle post-install/upgrade, persistée jusqu'à
+# acquittement par la GUI (fichier plein-texte, une action par ligne ; idempotent).
+# N'est peuplé QUE quand un geste non-automatisable a réellement lieu (ex. re-pin du
+# Dock macOS après renommage de bundle) → jamais écrit sur Linux → transparent. #189.
+_register_manual_action() {  # $1=install_dir  $2=message
+    local _f="$1/logs/manual_actions"
+    mkdir -p "$1/logs"
+    if [[ ! -f "$_f" ]] || ! grep -Fqx -- "$2" "$_f" 2>/dev/null; then
+        printf '%s\n' "$2" >> "$_f"
+    fi
 }
 
 setup_desktop() {  # $1=install_dir  $2=mode (EX|PROD|DEV)
@@ -250,7 +262,7 @@ setup_desktop() {  # $1=install_dir  $2=mode (EX|PROD|DEV)
             fi
         elif [[ $OS == macos ]]; then
             local _sfx=""; [[ "$INSTALL_MODE" != EX ]] && _sfx=" $INSTALL_MODE"
-            local _exe="$HOME/Applications/Comptabilité${_sfx}.app/Contents/MacOS/Comptabilité${_sfx}"
+            local _exe="$HOME/Applications/Compta${_sfx}.app/Contents/MacOS/Compta${_sfx}"
             local _pyabs; _pyabs=$(command -v "$PY")
             if [[ -f "$_exe" && "$(_macos_exec_content "$INSTALL_DIR" "$_pyabs")" == "$(cat "$_exe")" ]]; then
                 ok "Raccourci : déjà à jour (mode $INSTALL_MODE)"; return 0
@@ -272,16 +284,26 @@ setup_desktop() {  # $1=install_dir  $2=mode (EX|PROD|DEV)
     elif [[ $OS == macos ]]; then
         local APPS_DIR="$HOME/Applications"
         # Nom/ID de bundle par mode (EX = défaut) pour que DEV et PROD coexistent
-        # sur le même Mac — sinon collision sur "Comptabilité.app" (cf. dual).
+        # sur le même Mac — sinon collision sur "Compta.app" (cf. dual).
         local _suffix="" _idsuffix=""
         if [[ "$INSTALL_MODE" != EX ]]; then
             _suffix=" $INSTALL_MODE"
             _idsuffix=".$(printf '%s' "$INSTALL_MODE" | tr 'A-Z' 'a-z')"
         fi
-        local APP_NAME="Comptabilité$_suffix"
+        local APP_NAME="Compta$_suffix"
         local APP_BUNDLE="$APPS_DIR/${APP_NAME}.app"
         local APP_ID="net.labeille.compta$_idsuffix"
         mkdir -p "$APPS_DIR"
+        # Renommage « Comptabilité » → « Compta » (#189) : retirer l'ancien bundle
+        # homonyme s'il subsiste, et enregistrer l'action « re-épingler au Dock »
+        # (le code ne peut pas re-pinner le Dock). Idempotent : no-op une fois migré.
+        local _old_bundle="$APPS_DIR/Comptabilité$_suffix.app"
+        if [[ -d "$_old_bundle" ]]; then
+            rm -rf "$_old_bundle"
+            _register_manual_action "$INSTALL_DIR" \
+                "Re-épingle « $APP_NAME » au Dock : Finder → Applications → glisse « $APP_NAME.app » vers le Dock (l'ancien raccourci « Comptabilité$_suffix » a été retiré)."
+            ok "Ancien bundle « Comptabilité$_suffix.app » retiré — renommage → « $APP_NAME »"
+        fi
         rm -rf "$APP_BUNDLE"
         mkdir -p "$APP_BUNDLE/Contents/MacOS" "$APP_BUNDLE/Contents/Resources"
 

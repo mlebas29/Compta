@@ -41,7 +41,7 @@ Les tâches de la gestion comptable :
 
 # 3. App d'assistance
 
-L'App graphique **Comptabilité** :
+L'App graphique **Compta** :
 
 - automatise la quasi totalité de ces tâches
 - dispense de connaissances Excel pour la configuration
@@ -55,7 +55,7 @@ Une supervision reste nécessaire ; par exemple pour compléter la catégorisati
 
 ## Sites pris en charge
 
-Comptabilité est livrée avec **12 sites publics** :
+Compta est livrée avec **12 sites publics** :
 
 | Site | Nature |
 |---|---|
@@ -128,7 +128,7 @@ Le mode opératoire est guidé par l'interface graphique qui documente les proc�
 
 #### ▶️ Lancement de l'App
 
-Lancer l'App Comptabilité soit **en cliquant sur le raccourci** (icône € colorée Or), soit **en ligne de commande** : `cd ~/Compta && ./cpt_gui.py`.
+Lancer l'App Compta soit **en cliquant sur le raccourci** (icône € colorée Or), soit **en ligne de commande** : `cd ~/Compta && ./cpt_gui.py`.
 
 > En lancement terminal, le Dock (macOS) ou la barre des tâches affiche l'icône de l'interpréteur Python (une « fusée »), pas l'icône € colorée — c'est normal : le raccourci (bundle `.app` / `.desktop`) n'est pas impliqué. L'icône du mode n'apparaît qu'au lancement *via le raccourci*.
 

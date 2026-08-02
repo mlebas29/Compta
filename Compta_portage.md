@@ -87,7 +87,7 @@ Sur Mac, deux interpréteurs Python distincts interviennent : le **Python applic
 
 ### Lancement
 
-L'installeur crée `~/Applications/Comptabilité.app` (bundle macOS, icône ICNS) — épinglable au Dock.
+L'installeur crée `~/Applications/Compta.app` (bundle macOS, icône ICNS) — épinglable au Dock.
 
 Ligne de commande :
 ```bash
@@ -112,7 +112,7 @@ cd ~/Compta && ./cpt_gui.py
 
   Recharger avec `source ~/.zshrc` (resp. `.bash_profile`) ou ouvrir un nouveau terminal.
 
-  NB : le **lancement via le Dock** (`~/Applications/Comptabilité.app`) n'est **pas** concerné — le launcher du bundle injecte déjà ce PATH. La note ci-dessus ne vaut que pour le lancement en ligne de commande (CLI / shebangs `python3-uno`).
+  NB : le **lancement via le Dock** (`~/Applications/Compta.app`) n'est **pas** concerné — le launcher du bundle injecte déjà ce PATH. La note ci-dessus ne vaut que pour le lancement en ligne de commande (CLI / shebangs `python3-uno`).
 
 **Usage quotidien :**
 
@@ -211,7 +211,7 @@ Pour lancer l'application depuis le bureau Windows sans ouvrir manuellement un t
    ```
    wsl.exe -d Ubuntu-24.04 -- bash -lc "cd ~/Compta && ./cpt_gui.py"
    ```
-3. Nommer le raccourci **Comptabilité**
+3. Nommer le raccourci **Compta**
 4. Clic droit → **Épingler à la barre des tâches**
 5. Optionnel : clic droit sur le raccourci → **Propriétés** → champ "Exécuter" → **Réduite** (pour masquer le terminal)
 

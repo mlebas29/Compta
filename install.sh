@@ -676,10 +676,10 @@ echo "------------------------------------------------------------"
 echo " Prochaines étapes :"
 echo "------------------------------------------------------------"
 if [[ $OS == macos ]]; then
-    echo "  1. Lancer : « Comptabilité.app » (~/Applications — Launchpad/Spotlight)"
+    echo "  1. Lancer : « Compta.app » (~/Applications — Launchpad/Spotlight)"
     echo "     → préférer le bundle au terminal (PATH/interpréteur gérés), cf. Compta.md § Lancement"
 else
-    echo "  1. Lancer : raccourci « Comptabilité [EX] » — ou en terminal : $PYTHON cpt_gui.py"
+    echo "  1. Lancer : raccourci « Compta [EX] » — ou en terminal : $PYTHON cpt_gui.py"
 fi
 echo "     → L'interface sert aussi de configurateur (comptes, sites, identifiants, paramètres)"
 echo

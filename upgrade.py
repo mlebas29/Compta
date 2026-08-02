@@ -327,7 +327,7 @@ def _classeur_busy(xlsx):
     # shell qui porte cette commande pgrep dans sa propre ligne.
     rc, out = _run_bash("pgrep -f '[c]pt_gui.py'")
     if rc == 0 and out.strip():
-        reasons.append('application Comptabilité (cpt_gui) en cours')
+        reasons.append('application Compta (cpt_gui) en cours')
     return reasons
 
 
@@ -898,6 +898,20 @@ def main():
         # apply_benign (write_config_schema, run OK) ; le composant Classeur par son
         # outil de migration (NR dans le .xlsm). Plus de stamp d'app (honored_version
         # retiré) : l'app n'a pas de marqueur, git porte sa version.
+
+    # Actions manuelles (#189) : geste que l'upgrade ne peut pas faire (ex. re-pin
+    # Dock macOS après renommage de bundle). Écrites par inc_install.sh dans
+    # logs/manual_actions ; rappelées ici en fin de run (la GUI a son indicateur).
+    try:
+        _maf = BASE_DIR / 'logs' / 'manual_actions'
+        _acts = ([ln.strip() for ln in _maf.read_text(encoding='utf-8').splitlines()
+                  if ln.strip()] if _maf.exists() else [])
+    except Exception:
+        _acts = []
+    if _acts:
+        print(f'\n{YELLOW}⚠ Action(s) manuelle(s) à effectuer :{NC}')
+        for _a in _acts:
+            print(f'   • {_a}')
 
     return 1 if (failed or mig.get('blocked')) else 0
 
