@@ -17,6 +17,8 @@ Les trois derniers sont spécifiques au mode assisté ; 📘 concerne le mode cl
 
 - **Renommage « Comptabilité » → « Compta »** — nom unifié avec le projet : titre de la fenêtre, raccourci de bureau, et sur **macOS** le bundle `Compta.app`. Sur **Linux/WSL**, le raccourci se met à jour tout seul. Sur **macOS**, l'ancien `Comptabilité.app` est retiré au profit de `Compta.app` : après la mise à jour, **re-épingle « Compta » au Dock** (Finder → Applications) — l'App te le rappelle par un indicateur « action à faire » en barre de statut, jusqu'à ce que ce soit fait.
 
+- **Documentation** — l'ensemble du guide utilisateur passe au **tutoiement** ; la section *Installation* du README est allégée, le détail par système étant regroupé dans [`Compta_portage.md`](Compta_portage.md) (désormais « Installation & portage ») ; libellés d'écran corrigés (indicateur « Mise à jour », renvoi au bouton « Journal »).
+
 ## v5.27.0
 | 2026-07-29 | Nouveau : bouton « Signaler un problème » (installations configurées). |
 | ---------- | --------------------------------------------------------------------- |
