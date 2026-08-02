@@ -16,8 +16,6 @@ Ce document est le **guide d'utilisation** et le point d'entrée de la documenta
 | Outils de maintenance (CLI) | [`Compta_tools.md`](Compta_tools.md) |
 | Vocabulaire (métier + sigles) | [`Compta_glossaire.md`](Compta_glossaire.md) |
 | Développer / contribuer | [`Compta_dev.md`](Compta_dev.md) (hub développeur) |
-| Architecture de développement (git, machines, IA) | [`Compta_architecture.md`](Compta_architecture.md) |
-| Développement assisté par l'IA (fichiers `CLAUDE*`) | [`Compta_CLAUDE.md`](Compta_CLAUDE.md) |
 
 # 2. Introduction
 
