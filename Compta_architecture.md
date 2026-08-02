@@ -9,28 +9,29 @@
 > git est une base de données spécialisée dans le cycle de vie du code d'un projet informatique. Un dépôt git (repository) est matérialisé par un sous-dossier `.git` dans le dossier de l'application.
 
 ```
-  ┌───────────────────────────────────────────────────────────────┐
-  │                          GitHub                               │  https://github.com
-  │                           PUB                                 │  Unique dépôt public du projet Compta
-  └────┬──────────────────────────────┬────────────────────┬──────┘
-       │                              │                    │  
-       │                              │                    │
-  ┌────┴────────────┐                 │                    │
-  │      VPS        │                 │                    │         Serveur privé (hébergement OVH)
-  │  PUB  +  PRV    │                 │                    │         2 dépôts (public + privé)
-  └──┬───────────┬──┘                 │                    │
-     │           │                    │                    │
-     │           │                    │                    │
-  ┌──┴─────┐ ┌───┴──────────┐  ┌──────┴─────┐  ┌───────────┴───┐
-  │MacBook │ │    PC        │  │     PC     │  │ Poste tiers   │    Machines privées
-  │PUB+PRV │ │ PUB+PRV      │  │    PUB     │  │    PUB        │    Dépôts public / privés
-  └────────┘ └──────────────┘  └────────────┘  └───────────────┘
-       Développement                    Utilisation
-
-Le PC fonctionne en dual boot avec une partition Linux et une partition Windows 11 WSL
-La partition Linux est elle même duale avec 2 instances Compta, l'une de développement, l'autre d'utilisation
-Le VPS a un accès public pour faciliter le nomadisme développement
+ +-----------------------------------------+
+ |                 GitHub                  |
+ |                   PUB                   |
+ +---+-----------------------+---------+---+
+     |                       |         |
+     |                       |         |
+ +---+-----------+           |         |
+ |      VPS      |           |         |
+ |   PUB + PRV   |           |         |
+ +---+---------+-+           |         |
+     |         |             |         |
+     |         |             |         |
+ +---+---+ +---+---+     +---+---+ +---+---+
+ |MacBook| |  PC   |     |  PC   | | Tiers |
+ |PUB+PRV| |PUB+PRV|     |  PUB  | |  PUB  |
+ +-------+ +-------+     +-------+ +-------+
+   Développement          Utilisation
 ```
+
+**Légende.** **GitHub** : l'unique dépôt PUB public ([github.com](https://github.com)). **VPS** : serveur privé (hébergement OVH) portant les **deux** dépôts de référence (PUB + PRV). **Machines** : chaque poste porte le dépôt **PUB** — et **PRV** en plus pour le développement ; **Tiers** = un poste d'utilisation tierce.
+
+- Le **PC** fonctionne en **dual boot** (partition Linux + partition Windows 11 / WSL) ; sa partition **Linux** est elle-même **duale** — deux instances Compta, l'une de développement, l'autre d'utilisation.
+- Le **VPS** a un accès public pour faciliter le **nomadisme** du développement.
 
 ## Dépôts git 
 
