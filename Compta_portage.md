@@ -121,6 +121,29 @@ cd ~/Compta && ./cpt_gui.py
 - **Clipboard** — `pyperclip` natif (utilise `pbcopy`/`pbpaste`), aucune dépendance externe (pas de `xclip` requis).
 - **MacPorts sudo** — `sudo` ignore le PATH utilisateur sur Mac. Utiliser le chemin absolu : `sudo /opt/local/bin/port ...`.
 
+## Raccourcis (lanceur / Dock) — retirer ou ré-épingler
+
+Le raccourci de lancement diffère selon l'OS ; le retirer ou le réparer se fait à la main.
+
+### Linux
+
+Le raccourci est le fichier `~/.local/share/applications/cpt_gui_<MODE>.desktop` (`<MODE>` = `EX`, `DEV` ou `PROD`).
+
+- **Retirer** : `rm ~/.local/share/applications/cpt_gui_<MODE>.desktop` puis `update-desktop-database ~/.local/share/applications`.
+- **Détacher de la barre des tâches / des favoris** (GNOME, KDE…) : clic droit sur l'icône → *Retirer des favoris*.
+
+> Un **renommage** de l'app (ex. « Comptabilité » → « Compta » en v5.28.0) ne demande **aucun geste** sur Linux : le fichier `.desktop` garde son nom, seul le libellé affiché change au prochain `install.sh`/`upgrade` — l'épingle survit.
+
+### macOS
+
+Le raccourci est le bundle `~/Applications/<Nom>.app`, épinglable au Dock.
+
+- **Retirer un bundle** : le glisser à la Corbeille (ou `rm -rf ~/Applications/<Nom>.app`).
+- **Retirer l'épingle du Dock** : clic droit sur l'icône du Dock → *Options → Retirer du Dock*. Une épingle **morte** (bundle supprimé) affiche « ? » → même geste.
+- **Ré-épingler** : Finder → *Applications* → glisser `Compta.app` vers le Dock. (Ou : lancer l'app, puis clic droit sur son icône active dans le Dock → *Options → Garder dans le Dock*.)
+
+> **Après un renommage de l'app** (« Comptabilité » → « Compta », v5.28.0), `install.sh`/`upgrade` créent `Compta.app` et retirent l'ancien `Comptabilité.app` — mais le **Dock ne peut pas être ré-épinglé par le code**. L'App te le rappelle par un indicateur « action à faire » (barre de statut) : retire l'ancienne épingle et glisse `Compta.app` au Dock (ci-dessus).
+
 ## Windows 11 — via WSL2
 
 **WSL2** (Windows Subsystem for Linux) permet de faire tourner un Linux complet dans Windows 11, sans machine virtuelle à gérer. **WSLg** (intégré) affiche les fenêtres Linux nativement sur le bureau Windows.
