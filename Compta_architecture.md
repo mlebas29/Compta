@@ -1,8 +1,8 @@
 # Compta — Architecture de développement avec git & l'IA
 
-> Comment le code et les fichiers de Compta sont organisés en dépôts git, comment ils circulent entre les machines de **développement** et d'**utilisation**, et comment l'assistant IA est utilisé. 
+> Comment le code et les fichiers de Compta sont organisés en dépôts git, comment ils circulent entre les machines de **développement** et d'**utilisation**, et comment l'assistant IA est utilisé.
 >
-> Pour la présentation de l'app, voir [`README.md`](README.md) 
+> Pour la présentation de l'app, voir [`README.md`](README.md).
 
 
 
@@ -28,15 +28,21 @@
    Développement          Utilisation
 ```
 
-**Légende.** **GitHub** : l'unique dépôt PUB public ([github.com](https://github.com)). **VPS** : serveur privé (hébergement OVH) portant les **deux** dépôts de référence (PUB + PRV). **Machines** : chaque poste porte le dépôt **PUB** — et **PRV** en plus pour le développement ; **Tiers** = un poste d'utilisation tierce.
+**Les 3 niveaux :**
 
-- Le **PC** fonctionne en **dual boot** (partition Linux + partition Windows 11 / WSL) ; sa partition **Linux** est elle-même **duale** — deux instances Compta, l'une de développement, l'autre d'utilisation.
-- Le **VPS** a un accès public pour faciliter le **nomadisme** du développement.
+- **GitHub** : l'unique dépôt PUB public ([github.com](https://github.com)).
+- **VPS** : serveur privé (hébergement OVH) portant les **deux** dépôts de référence public + privé (PUB + PRV).
+- **Machines privées** : chaque poste porte le dépôt **PUB** — et **PRV** en plus pour le développement ; **Tiers** = un poste d'utilisation tierce.
 
-## Dépôts git 
 
-Une machine peut héberger plusieurs instances Compta. Une instance Compta est matérialisée par un répertoire et un raccourci
-Chaque instance Compta porte un dépôt PUB et optionnellement un dépôt PRV ; ces deux dépôts git sont indépendants :
+
+> Le **PC** fonctionne en **dual boot** (partition Linux + partition Windows 11 / WSL) ; sa partition **Linux** est elle-même **duale** — deux instances Compta, l'une de développement, l'autre d'utilisation.
+>
+> Le **VPS** a un accès public pour faciliter le **nomadisme** du développement.
+
+## Dépôts git
+
+Une machine peut héberger plusieurs instances Compta ; une instance est un répertoire (avec son raccourci de lancement), portant un dépôt **PUB** — et un dépôt **PRV** (`custom/`) en développement. Contenu de chacun :
 
 | Dépôt | Contenu |
 |---|---|
@@ -60,11 +66,9 @@ Seul le **PC Linux** est *dual* — DEV et PROD y cohabitent (deux instances, m�
 
 ### CLI
 
-Compta est développé avec l'assistant **Claude Code** (CLI d'Anthropic). Cet assistant est installé sur le poste de travail afin de pouvoir lire et modifier ou exécuter sous contrôle utilisateur.
+Compta est développé avec l'assistant **Claude Code** (CLI d'Anthropic). Cet assistant est installé sur le poste de travail Linux, Mac ou Windows afin de pouvoir lire et modifier ou exécuter sous contrôle utilisateur.
 
-Le CLI peut fonctionner dans un terminal Linux ordinaire (claude) ou dans une App (claude-desktop)
-
- voir [claude.com/claude-code](https://claude.com/claude-code) pour l'installer.
+Le CLI peut fonctionner dans un terminal ou une console ordinaire (`claude`), ou dans une App (`claude-desktop`). Voir [claude.com/claude-code](https://claude.com/claude-code) pour l'installer.
 
 ### Mémoire
 
