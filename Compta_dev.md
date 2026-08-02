@@ -11,6 +11,7 @@ Documentation technique pour le contributeur ou le mainteneur. Décrit l'archite
 | Ajouter un site (fetch + format) | [`Compta_site.md`](Compta_site.md) |
 | Internals par connecteur (auth, parsing, gotchas) | [`docs/`](docs/README.md) |
 | Étendre Compta (dual, custom/, monkeypatches) | [`Compta_extension.md`](Compta_extension.md) |
+| Architecture de développement (dépôts git, machines, publication, IA) | [`Compta_architecture.md`](Compta_architecture.md) |
 | Tests de non-régression (TNR) | [`Compta_tests.md`](Compta_tests.md) |
 | Cohérence install / upgrade / démarrage (marqueurs par composant) | [`Compta_coherence.md`](Compta_coherence.md) |
 | Mise à jour assistée (bouton « Mettre à jour », lanceur détaché) | [`Compta_upgrade_assiste.md`](Compta_upgrade_assiste.md) + § ci-dessous |
