@@ -21,7 +21,7 @@ Deux composants :
 
 ### Mode classeur
 
-Le classeur `comptes.xlsm` est utilisable seul avec toute application compatible Excel. L'utilisateur importe manuellement les données financières (xls, PDF, zip, txt, html, CSV) et gère lui-même ses avoirs, comptes, devises, catégories, portefeuilles, etc.
+Le classeur `comptes.xlsm` est utilisable seul avec toute application compatible Excel. Tu importes manuellement les données financières (xls, PDF, zip, txt, html, CSV) et gères toi-même tes avoirs, comptes, devises, catégories, portefeuilles, etc.
 
 **→ Ce mode convient pour une comptabilité simple, peu diversifiée.**
 
@@ -29,7 +29,7 @@ Le classeur `comptes.xlsm` est utilisable seul avec toute application compatible
 
 L'application graphique s'intercale entre le classeur et les sites financiers.
 
-L'utilisateur peut vouloir une assistance complète ou partielle (soit configuration, soit collecte).
+Tu peux vouloir une assistance complète ou partielle (soit configuration, soit collecte).
 
 Ce mode supporte les interventions manuelles dans le classeur. Par exemple pour ajouter, supprimer ou modifier des opérations ou des biens. L'important est de conserver les éléments structurants (tableaux, en-têtes, pieds, formules ...)
 
@@ -152,7 +152,7 @@ Environnements sur lesquels installation, GUI et collecte sont effectivement vé
 
 |    Environnement    |   Vérifications   |
 | :---------------------------------: | :--------------: |
-|       Linux Zorin et Mint (Ubuntu 22)       |     Installation, GUI, Collecte     |
+|       Linux Zorin (Ubuntu 22) et Mint 22 (Ubuntu 24.04)       |     Installation, GUI, Collecte     |
 | MacOS Ventura |     Installation, GUI, Collecte     |
 |      Windows 11 - WSL/Ubuntu 22      | Installation, GUI, Collecte |
 

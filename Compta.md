@@ -126,7 +126,7 @@ La fonction de cotation a pour effet de mettre à jour dans le fichier excel les
 
 Le mode opératoire est guidé par l'interface graphique qui documente les procédures spécifiques de connexion.
 
-#### ▶️ Lancement de l'App
+### ▶️ Lancement de l'App
 
 Lancer l'App Compta soit **en cliquant sur le raccourci** (icône € colorée Or), soit **en ligne de commande** : `cd ~/Compta && ./cpt_gui.py`.
 
@@ -157,7 +157,7 @@ L'App affiche en permanence une barre de statut en bas de fenêtre, avec deux pa
 
 - **Mise à jour** de l'app : le bouton s'affiche au démarrage lorsque la version courante est en retard par rapport à la version la plus récente sur GitHub.
 
-#### 🚧 Configuration
+### 🚧 Configuration
 
 Préalable à la première collecte.
 
@@ -165,7 +165,7 @@ Voir **ANNEXE C** pour le détail de la configuration initiale (devises, comptes
 
 > Une fois la configuration faite, elle n'a besoin d'être reprise que lors de l'ouverture ou la fermeture d'un compte, l'ajout d'une devise, un changement de catégorie, etc.
 
-#### 🌐 Collecte
+### 🌐 Collecte
 
 Dans l'onglet Exécution, sélectionner les sites voulus puis cliquer sur le bouton "Collecte". L'App demande le mot de passe maître (**P2**) dans une fenêtre dédiée, puis visite tous les sites sélectionnés pour collecter les données, ce qui peut prendre plusieurs minutes.
 
@@ -175,7 +175,7 @@ On peut relancer une ou plusieurs collectes avec une sélection de sites différ
 
 Quand la collecte est terminée, cliquer sur "Import" pour mettre à jour le fichier **comptes.xlsm** avec toutes les données collectées.
 
-#### 👁️ Compléments à la collecte
+### 👁️ Compléments à la collecte
 
 Après l'import, le fichier **comptes.xlsm** peut être ouvert sous LibreOffice, pour une session manuelle afin de :
 
@@ -199,7 +199,12 @@ Les cotations sont effectuées depuis 3 sites publics :
 
 # 5. Pour approfondir
 
-Plus d'information dans **Compta\_plus.md** (installation, commandes avancées, dépannage).
+- [`Compta_plus.md`](Compta_plus.md) — installation, commandes avancées, structuration Excel, dépannage
+- [`Compta_glossaire.md`](Compta_glossaire.md) — glossaire du projet (métier + sigles)
+- [`Compta_tools.md`](Compta_tools.md) — outils de maintenance et environnement git
+- [`Compta_upgrade_assiste.md`](Compta_upgrade_assiste.md) — mettre à jour l'installation (mode assisté)
+- [`Compta_upgrade_classeur.md`](Compta_upgrade_classeur.md) — migrations du classeur, par version
+- [`Compta_dev.md`](Compta_dev.md) — documentation développeur (architecture, contributeur)
 
 # ANNEXE A - Contrôles Excel
 
@@ -361,11 +366,4 @@ Ajuster si nécessaire :
 
 > `config_credentials.md.gpg` reste un **tableau Markdown chiffré en symétrique** : `gpg` seul suffit à l'ouvrir et à le refermer, sans l'App — voir [`Compta_plus.md`](Compta_plus.md) § *Configuration en ligne de commande*. L'App est une commodité, jamais un verrou.
 
-## Aller plus loin
-
-- [`Compta_glossaire.md`](Compta_glossaire.md) — glossaire du projet (métier + sigles)
-- [`Compta_plus.md`](Compta_plus.md) — commandes avancées, structuration Excel, dépannage
-- [`Compta_tools.md`](Compta_tools.md) — outils de maintenance et environnement git
-- [`Compta_upgrade_assiste.md`](Compta_upgrade_assiste.md) — mettre à jour l'installation (mode assisté)
-- [`Compta_upgrade_classeur.md`](Compta_upgrade_classeur.md) — migrations du classeur, par version
-- [`Compta_dev.md`](Compta_dev.md) — documentation développeur (architecture, contributeur)
+Glossaire complet et autres guides : voir **§5 — Pour approfondir** ci-dessus.

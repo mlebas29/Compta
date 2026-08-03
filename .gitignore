@@ -83,3 +83,6 @@ rebuild.sh
 
 # macOS
 .DS_Store
+
+# Fichiers de travail Aider (historique, cache) — ne pas versionner
+.aider*
