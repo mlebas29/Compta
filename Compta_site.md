@@ -223,7 +223,7 @@ Une fois la section présente, relancer `cpt_gui.py` : FOO apparaît dans l'ongl
 Trois onglets, trois fichiers :
 
 - **onglet Sites** → `config.ini` : coche `[sites] enabled = …, FOO` et édite les champs de la section `[FOO]`.
-- **onglet Comptes** → `config_accounts.json` : liste des comptes attachés à FOO.
+- **onglet Avoirs** → `config_accounts.json` : liste des comptes attachés à FOO.
 - **onglet Catégories** → `config_category_mappings.json` : patterns regex de catégorisation.
 
 ### 4.3 Credentials
@@ -242,7 +242,7 @@ ACCOUNT_FIELDS = [
 ]
 ```
 
-Chaque tuple est `(libellé, clé, widget, options)` — `widget` ∈ `'entry'` / `'combo'` (`options` = la liste pour un combo, sinon `None`). Le dialogue « Ajouter un compte » de l'onglet Comptes affiche alors ces champs (tous **requis**) ; leurs valeurs sont persistées dans l'entrée du compte de `config_accounts.json` sous la `clé` indiquée, où le formateur les relit (ex. mapping RIB → nom de compte).
+Chaque tuple est `(libellé, clé, widget, options)` — `widget` ∈ `'entry'` / `'combo'` (`options` = la liste pour un combo, sinon `None`). Le dialogue « Ajouter un compte » de l'onglet Avoirs affiche alors ces champs (tous **requis**) ; leurs valeurs sont persistées dans l'entrée du compte de `config_accounts.json` sous la `clé` indiquée, où le formateur les relit (ex. mapping RIB → nom de compte).
 
 Mécanisme : `inc_format.get_account_fields()` lit `ACCOUNT_FIELDS` du module ; `gui_accounts._site_account_fields` y retombe pour tout site non câblé en dur. **Aucune modification du cœur** (pas de nom de site dans le code public) — la déclaration vit entièrement dans le module du site, `custom/` compris.
 

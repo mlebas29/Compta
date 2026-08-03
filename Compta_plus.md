@@ -271,7 +271,7 @@ git checkout .             # Restaure tous les fichiers versionnés
 
 ## Dépannage
 
-Signification des erreurs : voir **Compta.md** (Annexe A - Contrôles Excel).
+Signification des erreurs : voir **Compta.md** (Annexe A - Contrôles du classeur).
 Les outils de diagnostic sont décrits dans [`Compta_tools.md`](Compta_tools.md).
 
 ### Erreur COMPTES

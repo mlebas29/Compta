@@ -10,7 +10,7 @@ Usage:
 Cinq onglets :
   - Exécution : lancement collecte/import, outils système
   - Sites : liste des sites activés/désactivés + détails par site
-  - Comptes : visualisation/édition de la feuille Avoirs de comptes.xlsm
+  - Avoirs : visualisation/édition de la feuille Avoirs de comptes.xlsm
   - Catégories : édition des patterns config_category_mappings.json
   - Paramètres : sections general, pairing, comparison de config.ini
 """

@@ -1,4 +1,4 @@
-# 1. Présentation
+# 1. Trouver le bon document
 
 Ce document est le **guide d'utilisation** et le point d'entrée de la documentation utilisateur. Selon ton besoin :
 
@@ -10,12 +10,14 @@ Ce document est le **guide d'utilisation** et le point d'entrée de la documenta
 | Structuration Excel, commandes avancées, configuration en ligne de commande, dépannage | [`Compta_plus.md`](Compta_plus.md) |
 | Comprendre les plus-values latentes | [`Compta_pvl.md`](Compta_pvl.md) |
 | Charte graphique du classeur | [`Compta_charte.md`](Compta_charte.md) |
-| Mettre à jour l'installation (mode assisté) | [`Compta_upgrade_assiste.md`](Compta_upgrade_assiste.md) |
+| Mise à jour de l'app : mécanisme et méthode manuelle (avancé) | [`Compta_upgrade_assiste.md`](Compta_upgrade_assiste.md) |
 | Mettre à niveau le classeur | [`Compta_upgrade_classeur.md`](Compta_upgrade_classeur.md) |
 | Installation détaillée (Linux, macOS, Windows) | [`Compta_portage.md`](Compta_portage.md) |
 | Outils de maintenance (CLI) | [`Compta_tools.md`](Compta_tools.md) |
 | Vocabulaire (métier + sigles) | [`Compta_glossaire.md`](Compta_glossaire.md) |
 | Développer / contribuer | [`Compta_dev.md`](Compta_dev.md) (hub développeur) |
+
+Ce tableau est le **seul index de la doc utilisateur** : il n'est pas répété ailleurs (la doc développeur a le sien, dans [`Compta_dev.md`](Compta_dev.md)). Le présent document se termine par trois annexes — **A** (contrôles du classeur), **B** (comportement de collecte par site), **C** (configuration initiale).
 
 # 2. Introduction
 
@@ -84,15 +86,15 @@ Chaque site est décrit dans l'application (Onglet Sites). On y trouve notamment
 
 - **Interaction** - Lorsqu'un site nécessite une action humaine, l'onglet Exécution la signale visuellement (alerte d'authentification requise).
 
-- **Visibilité de navigation** - Pour une **action en fenêtre** — saisie d'un code, résolution d'un CAPTCHA, ou login manuel *dans la page* — le navigateur Chrome est rendu visible. Une **2FA mobile** (validation sur le téléphone) ne nécessite aucune fenêtre. Un site peut aussi être **forcé visible** (case « Fenêtre visible » de l'onglet Sites) (Cf. ANNEXE C)
+- **Visibilité de navigation** - Les connecteurs démarrent **invisibles** (*headless*) ; une fenêtre Chrome n'apparaît que si le site réclame une action *dans la page*. Le détail par site est en **ANNEXE B** ; un site peut aussi être **forcé visible** (case « Fenêtre visible » de l'onglet Sites, cf. ANNEXE C).
 
-- **Parallélisme** - Afin d'optimiser le temps de collecte, plusieurs sites sont collectés en parallèle, pendant le traitement des autres sites à **interaction humaine** (authentification, un à la fois). Le classement parallèle/séquentiel est prédéfini (Cf. ANNEXE B) mais tout site peut être ajouté dans le groupe parallèle (Cf. ANNEXE C).
+- **Parallélisme** - Les sites **sans navigateur** (API/RPC) sont collectés **en parallèle** ; les sites **navigateur** passent **un à la fois**, pour que deux demandes d'authentification ne se chevauchent pas. Le classement par défaut est en **ANNEXE B** ; tout site peut être forcé en parallèle (cf. ANNEXE C).
 
 - **Profilage** - À chaque collecte, l'App tient à jour un profil de navigation qui sert à repérer qu'un site a **changé de comportement** — une étape qui disparaît ou s'ajoute, une durée qui explose, un fichier attendu manquant, une connexion devenue soudain interactive. Le profil est consultable hors ligne.
 
 ## Import
 
-L'import concerne toutes les collectes (dossier de collecte)
+L'import verse dans le classeur **toutes** les données présentes dans le dossier de collecte — quels que soient les sites collectés, et quel que soit le nombre de collectes qui ont précédé.
 
 Les opérations collectées ne sont importées que si elles sont nouvelles, en considérant leur libellé, leur date, leur montant et devise.
 
@@ -120,7 +122,17 @@ Certaines opérations prédéfinies peuvent être appariées automatiquement (on
 
 ## Cotations
 
-La fonction de cotation a pour effet de mettre à jour dans le fichier excel les montants en Euro des avoirs exprimés en devises non Euro.
+La fonction de cotation met à jour dans le classeur les montants en euro des avoirs exprimés en devises non euro (devises étrangères, cryptomonnaies, métaux précieux).
+
+Les cours sont relevés sur trois sources publiques, sans identifiant ni mot de passe. Elles ne font donc **pas** partie des sites de collecte listés plus haut et ne s'activent pas dans l'onglet Sites :
+
+| Source | Sert à |
+|---|---|
+| Yahoo Finance | Métaux précieux |
+| CoinGecko | Cryptomonnaies |
+| Frankfurter (BCE) | Devises |
+
+Une source de repli facultative prend le relais si la principale ne répond pas (par défaut : Kraken en repli de CoinGecko pour les cryptos). Les devises dérivées (cf. ANNEXE C §1️⃣) sont calculées par formule, sans appel réseau.
 
 ## Mode d'emploi de l'App d'assistance
 
@@ -132,23 +144,25 @@ Lancer l'App Compta soit **en cliquant sur le raccourci** (icône € colorée O
 
 > En lancement terminal, le Dock (macOS) ou la barre des tâches affiche l'icône de l'interpréteur Python (une « fusée »), pas l'icône € colorée — c'est normal : le raccourci (bundle `.app` / `.desktop`) n'est pas impliqué. L'icône du mode n'apparaît qu'au lancement *via le raccourci*.
 
-![](cpt_gui_export.png)
+![Icône de l'App](cpt_gui_export.png)
 
 La fenêtre qui s'ouvre présente l'onglet Exécution :
 
-![](images/Compta.png)
+![Onglet Exécution de l'App](images/Compta.png)
 
-Dans la zone Résultat de l'onglet principal on voit s'afficher le résultat du **contrôle de cohérence au démarrage** :
+Dans la zone Résultat de l'onglet Exécution s'affiche le **contrôle de cohérence au démarrage** : il vérifie que ta configuration et ton classeur sont accordés (à ne pas confondre avec les **Contrôles du classeur**, qui portent sur la comptabilité elle-même — cf. ANNEXE A).
 
-- Formules Contrôles → Avoirs : détection de références cassées
-- Sites orphelins (sans compte rattaché)
-- Catégories absentes du Budget
+En temps normal : **`✓ Cohérence vérifiée`**. Sinon, trois types de messages peuvent apparaître :
+
+- **`[AUTO-FIX]`** — l'App a réparé seule un fichier de config ; simple compte rendu, rien à faire.
+- **`[ATTENTION]`** — un point à corriger (formule Contrôles cassée, site sans compte, devise sans cotation, clé `config.ini` obsolète…) ; le message indique quoi faire.
+- **`⚠ version de schéma`** — le classeur n'est pas à la version attendue : ce message **remplace** tout le reste, voir [`Compta_upgrade_classeur.md`](Compta_upgrade_classeur.md).
 
 L'App affiche en permanence une barre de statut en bas de fenêtre, avec deux parties :
 
 **Barre de statut — partie gauche :**
 
-- **Statut** : état des Contrôles, coloré selon 3 niveaux — vert (OK), orange (Divers/Appariements/Balances), rouge (Comptes/Catégories/Inconnus/Formules). Cliquable pour afficher le détail des 7 contrôles. (Cf. ANNEXE A)
+- **Statut** : état des **Contrôles du classeur**, coloré selon 3 niveaux — vert (OK), orange (Divers/Appariements/Balances), rouge (Comptes/Catégories/Inconnus/Formules). Cliquable pour afficher le détail des 7 contrôles. (Cf. ANNEXE A)
 - **Total Avoirs** : total EUR lu depuis Avoirs L2, mis à jour à chaque sauvegarde.
 
 **Barre de statut — partie droite :**
@@ -159,9 +173,9 @@ L'App affiche en permanence une barre de statut en bas de fenêtre, avec deux pa
 
 ### 🚧 Configuration
 
-Préalable à la première collecte.
+Préalable à la première collecte. Sollicite les 4 onglets secondaires : Sites, Avoirs, Catégories, Paramètres
 
-Voir **ANNEXE C** pour le détail de la configuration initiale (devises, comptes, catégories, sites).
+Voir **ANNEXE C** pour le détail de la configuration initiale (devises, comptes, catégories, sites, paramètres).
 
 > Une fois la configuration faite, elle n'a besoin d'être reprise que lors de l'ouverture ou la fermeture d'un compte, l'ajout d'une devise, un changement de catégorie, etc.
 
@@ -173,11 +187,15 @@ Dans l'onglet Exécution, sélectionner les sites voulus puis cliquer sur le bou
 
 On peut relancer une ou plusieurs collectes avec une sélection de sites différente ou identique.
 
-Quand la collecte est terminée, cliquer sur "Import" pour mettre à jour le fichier **comptes.xlsm** avec toutes les données collectées.
+### 📥 Import
 
-### 👁️ Compléments à la collecte
+Quand la collecte est terminée, cliquer sur **"Import"** pour mettre à jour **comptes.xlsm**.
 
-Après l'import, le fichier **comptes.xlsm** peut être ouvert sous LibreOffice, pour une session manuelle afin de :
+L'import catégorise et apparie au passage, et reste réversible via **"Annuler l'import"** : portée, dédoublonnage, option *Import soldes* et historique des annulations sont décrits au **§ Import** ci-dessus.
+
+### 👁️ Vérification après import
+
+Le fichier **comptes.xlsm** peut ensuite être ouvert sous LibreOffice, pour une session manuelle afin de :
 
 * vérifier la bonne collecte et l'import des données (opérations, valorisations)
 
@@ -185,28 +203,17 @@ Après l'import, le fichier **comptes.xlsm** peut être ouvert sous LibreOffice,
 
 * vérifier les appariements d'opérations (virements, changes, titres)
 
-* vérifier l'absence d'erreur (Cf. ANNEXE A - Contrôles Excel)
+* vérifier l'absence d'erreur (Cf. ANNEXE A - Contrôles du classeur)
 
 * corriger si nécessaire
 
-# 4. Cotations
+### 💱 Cotations
 
-Les cotations sont effectuées depuis 3 sites publics :
+Cliquer sur **"Cotations"** pour rafraîchir les cours des devises, cryptomonnaies et métaux précieux (cf. § *Cotations* ci-dessus). C'est ce qui donne leur valeur en euro aux avoirs non libellés en euro.
 
-- Métaux précieux (Yahoo Finance)
-- Cryptomonnaies (CoinGecko)
-- Devises (Frankfurter/BCE)
+À rafraîchir à ta convenance — rien ne l'impose. 
 
-# 5. Pour approfondir
-
-- [`Compta_plus.md`](Compta_plus.md) — installation, commandes avancées, structuration Excel, dépannage
-- [`Compta_glossaire.md`](Compta_glossaire.md) — glossaire du projet (métier + sigles)
-- [`Compta_tools.md`](Compta_tools.md) — outils de maintenance et environnement git
-- [`Compta_upgrade_assiste.md`](Compta_upgrade_assiste.md) — mettre à jour l'installation (mode assisté)
-- [`Compta_upgrade_classeur.md`](Compta_upgrade_classeur.md) — migrations du classeur, par version
-- [`Compta_dev.md`](Compta_dev.md) — documentation développeur (architecture, contributeur)
-
-# ANNEXE A - Contrôles Excel
+# ANNEXE A - Contrôles du classeur
 
 Dans **comptes.xlsm** Feuille Contrôles, cellule A1.
 
@@ -241,15 +248,15 @@ Diagnostic détaillé : `./tool_controles.py` (ou `-v` pour le mode verbeux).
 
 Deux axes **indépendants** gouvernent la collecte de chaque site :
 
-- **Parallélisme** — *parallèle* (collecté en même temps que les autres) ou *séquentiel* (humain requis pendant : 2FA/CAPTCHA/code/lien e-mail → un à la fois). Tout site peut être forcé parallèle (cf. ANNEXE C).
+- **Parallélisme** — *parallèle* (en même temps que les autres) ou *séquentiel* (un à la fois). Défaut selon la **nature du connecteur** : sans navigateur (API/RPC) → **parallèle** ; avec navigateur → **séquentiel** par précaution (il *peut* réclamer l'écran : CAPTCHA, code…). Un navigateur qui ne prompte jamais peut être forcé parallèle par poste (cf. ANNEXE C) — **NATIXIS** l'est d'origine.
 - **Fenêtre** — les connecteurs (fetchers) démarrent **headless** (invisible). Une fenêtre n'apparaît que pour une **action en fenêtre** (saisie d'un code, CAPTCHA, login manuel — *dans la page Chrome*) ; une **2FA mobile** (validation sur le téléphone) se fait **sans fenêtre**. Dans tous les cas, l'onglet Exécution **notifie** (alerte d'authentification requise). L'ouverture d'une fenêtre Chrome pour un site persiste jusqu'à la fin de collecte du site.
 
 | Groupe | Sites | Parallélisme | Fenêtre visible | Action utilisateur |
 |---|---|---|---|---|
 | **1. Sans navigateur** (API/RPC) | BTC, XMR | parallèle | — | aucune |
-| **2. Navigateur, sans interaction** | NATIXIS | séquentiel par défaut | jamais | aucune (login auto, pas de 2FA) |
-| **3. Repli visible automatique** | AMAZON, ETORO, KRAKEN, PAYPAL, WISE | séquentiel par défaut | à la demande | **action en fenêtre** : login manuel / CAPTCHA / code |
-| **4. Headless + 2FA mobile** | BOURSOBANK, SOCGEN, DEGIRO, MUTUEL | séquentiel par défaut | seulement si l'auto-login échoue (filet) | **2FA mobile** (téléphone) ; login manuel en fenêtre en secours |
+| **2. Navigateur, sans interaction** | NATIXIS | parallèle | jamais | aucune (login auto, pas de 2FA) |
+| **3. Repli visible automatique** | AMAZON, ETORO, KRAKEN, PAYPAL, WISE | séquentiel | à la demande | **action en fenêtre** : login manuel / CAPTCHA / code |
+| **4. Headless + 2FA mobile** | BOURSOBANK, SOCGEN, DEGIRO, MUTUEL | séquentiel | seulement si l'auto-login échoue (filet) | **2FA mobile** (téléphone) ; login manuel en fenêtre en secours |
 
 **Groupe 3** — fenêtre à la volée quand le site réclame une action *dans la page*, puis poursuite. WISE/KRAKEN : surveillance du presse-papier pour les liens e-mail (WISE ouvre un nouvel onglet, KRAKEN navigue dans le même).
 
@@ -259,11 +266,14 @@ Deux axes **indépendants** gouvernent la collecte de chaque site :
 
 # ANNEXE C - Configuration initiale
 
-La configuration se fait par les onglets de l'App. L'ordre ci-dessous respecte les dépendances entre les éléments ; l'**interdépendance Compte ↔ Site** est décrite dans les deux sections concernées (§2️⃣ Comptes et §4️⃣ Sites).
+La configuration se fait par les onglets de l'App — **Avoirs** (devises, comptes, biens, titres), **Catégories**, **Sites**, **Paramètres**. L'ordre ci-dessous suit les dépendances entre les éléments, avec deux exceptions à connaître d'avance :
+
+- l'**interdépendance Compte ↔ Site**, traitée dans les deux sections concernées (§2️⃣ et §4️⃣) ;
+- le **renvoi §4️⃣ → §5️⃣** : activer un site suppose une entrée dans la table chiffrée des identifiants, qui se crée en §5️⃣. Si tu configures ton premier site, ouvre §5️⃣ en parallèle — ou crée la table d'abord, puis reviens en §4️⃣.
 
 > L'App n'est jamais un passage obligé : les fichiers de configuration restent des fichiers texte, lisibles et modifiables à la main. Le chemin en ligne de commande — utile sur une machine sans écran, ou en dépannage — est décrit dans [`Compta_plus.md`](Compta_plus.md) § *Configuration en ligne de commande*.
 
-## 1️⃣ Devises (onglet Devises)
+## 1️⃣ Devises (onglet Avoirs, groupe de boutons « Devise »)
 
 Ajouter les devises nécessaires (hors EUR qui est la devise de base). Pour chaque devise :
 
@@ -273,7 +283,9 @@ Ajouter les devises nécessaires (hors EUR qui est la devise de base). Pour chaq
 
 Les devises dérivées (ex : once d'or → gramme d'or) se définissent par une formule à partir d'une devise existante.
 
-## 2️⃣ Comptes (onglet Comptes)
+## 2️⃣ Comptes (onglet Avoirs, groupe de boutons « Compte »)
+
+L'onglet **Avoirs** liste comptes et biens groupés par site ; les boutons du bas sont groupés par nature — **Compte**, **Bien**, **Titre**, **Devise** — chacun avec ajout ➕, modification ✏, suppression ✖ (et purge des opérations ♲ pour un compte).
 
 Créer un compte pour chaque compte bancaire, placement ou portefeuille. Pour chaque compte :
 
@@ -366,4 +378,3 @@ Ajuster si nécessaire :
 
 > `config_credentials.md.gpg` reste un **tableau Markdown chiffré en symétrique** : `gpg` seul suffit à l'ouvrir et à le refermer, sans l'App — voir [`Compta_plus.md`](Compta_plus.md) § *Configuration en ligne de commande*. L'App est une commodité, jamais un verrou.
 
-Glossaire complet et autres guides : voir **§5 — Pour approfondir** ci-dessus.
