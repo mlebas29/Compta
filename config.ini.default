@@ -156,6 +156,8 @@ base_url = https://particuliers.societegenerale.fr
 name = NATIXIS
 dossier = NATIXIS
 base_url = https://hsbc.epargnants.votreepargnesalariale.com/front/dashboard
+# Sans interaction ni fenêtre → collecté en parallèle (override du défaut navigateur→séquentiel)
+parallel = true
 
 # ============================================================================
 # BOURSOBANK - Comptes bancaires et titres
