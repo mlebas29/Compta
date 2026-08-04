@@ -189,6 +189,7 @@ def compare_values_with_threshold(ws_result, ws_expected, skip_rows, value_col, 
         if key in expected_values and result_val is not None:
             exp_row, exp_val = expected_values[key]
             if exp_val != 0:
+                # AMPLITUDE (sans signe) : c'est elle qui franchit le seuil et qui trie.
                 variation = abs(result_val - exp_val) / abs(exp_val)
                 if variation > threshold:
                     variations.append((key, exp_val, result_val, variation))
@@ -198,7 +199,11 @@ def compare_values_with_threshold(ws_result, ws_expected, skip_rows, value_col, 
         warnings.append(f"  Variations > {threshold*100:.0f}% ({len(variations)} lignes):")
         for key, exp_val, res_val, var in variations[:max_display]:
             label = ' | '.join(k for k in key if k)[:50]
-            warnings.append(f"    {label}: {exp_val:.2f} → {res_val:.2f} ({var*100:+.1f}%)")
+            # …mais on AFFICHE le sens : `var` est une amplitude, la formater en `+.1f`
+            # collait un « + » à toutes les lignes, y compris aux baisses (vécu s.227 :
+            # « TESLA 3410.31 → 2849.76 (+16.4%) »). Le signe se relit sur les valeurs.
+            signed = (res_val - exp_val) / abs(exp_val)
+            warnings.append(f"    {label}: {exp_val:.2f} → {res_val:.2f} ({signed*100:+.1f}%)")
         if len(variations) > max_display:
             warnings.append(f"    ... et {len(variations) - max_display} autres")
 

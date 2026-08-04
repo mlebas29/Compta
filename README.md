@@ -29,7 +29,7 @@ Le classeur `comptes.xlsm` est utilisable seul avec toute application compatible
 
 ### Mode assisté
 
-L'application graphique s'intercale entre le classeur et les sites financiers.
+L'application s'intercale entre le classeur et les sites financiers. Elle fonctionne avec une interface graphique (**GUI**) ou en ligne de commande.
 
 Tu peux vouloir une assistance complète ou partielle (soit configuration, soit collecte).
 
@@ -51,7 +51,7 @@ Le classeur :
 - présente une feuille **plus/moins-values latentes**
 - présente une feuille **budget**
 
-L'application graphique automatise :
+L'application automatise :
 
 - **Collecte** des données depuis les sites bancaires et financiers (via Playwright/Chrome)
 - **Import** des opérations collectées dans le tableur (déduplication automatique)
@@ -62,7 +62,7 @@ L'application graphique automatise :
 et aussi :
 
 - **Configuration** du tableur : création/modification/suppression des comptes, devises, titres, catégories, postes budgétaires
-- **Configuration** des paramètres de collecte
+- **Configuration** des paramètres de collecte ou appariement
 
 ## 3. Installation
 
@@ -74,7 +74,9 @@ et aussi :
 
 (1) Doit supporter les nouvelles fonctions XLOOKUP.
 
-(2) En ligne de commande — cloner via `git` puis lancer `install.sh` (idempotent, réutilisable jusqu'à installation complète). Exemple **Linux / WSL2** :
+(2) En ligne de commande — cloner via `git` puis lancer `install.sh` (idempotent, réutilisable jusqu'à installation complète).
+
+Exemple **Linux** :
 
 ```bash
 sudo apt update && sudo apt install -y git
@@ -122,8 +124,6 @@ Le classeur livré est **vierge** de données personnelles ou illustratives.
 
 L'application graphique — à lancer via le raccourci installé (icône €) — présente un onglet principal pour la collecte et l'import et des onglets secondaires pour la configuration.
 
-L'app s'utilise également en ligne de commande.
-
 Les identifiants de connexion et leurs mots de passe sites sont stockés dans un fichier chiffré GPG, protégé par un mot de passe maître **P2**.
 
 Pour aller plus loin : **Utilisation** ([`Compta.md`](Compta.md))
@@ -165,7 +165,7 @@ Limites connues, valables même lorsque les prérequis sont réunis :
 | **Installation** |               | installation manuelle pour certaines distributions Linux **(1)** |
 | **GUI**          |               | **Wayland pur** non supporté **(2)**                        |
 
-**(1)** il s'agit de **Fedora, Arch, openSUSE** et toutes les distributions qui n'utilisent pas l'`apt` Debian/Ubuntu : `install.sh` ne sait pas y poser les paquets système. Les dépendances Python sont dans `requirements.txt`, dont les *Notes* listent ce qui reste à installer avec le gestionnaire de la distribution (`python3-tk`, `tesseract-ocr`, `xclip`, `gpg`).
+**(1)** il s'agit de **Fedora, Arch, openSUSE** et toutes les distributions qui n'utilisent pas l'`apt` Debian/Ubuntu : `install.sh` ne sait pas y poser les paquets système. Les dépendances Python sont dans `requirements.txt`, dont les *Notes* listent ce qui reste à installer avec le gestionnaire de la distribution.
 
 **(2)** mentionné pour mémoire car Wayland pur (sans XWayland) est quasi inexistant en mainstream Linux. La session Wayland pure casse `xclip` utilisé pour 2FA Kraken/Wise.
 
@@ -192,5 +192,3 @@ Compta est distribué gratuitement sous licence GNU GPL v3.
 - **P2** : Mot de passe maître de la collecte, saisi au démarrage ; il déchiffre le fichier d'identifiants
 - **Playwright** : Outil d'automatisation de navigateur, utilisé pour la collecte
 - **WSL** (Windows Subsystem for Linux) : Composant Linux de Microsoft pour Windows
-
-Glossaire complet du projet (vocabulaire métier + sigles) : [`Compta_glossaire.md`](Compta_glossaire.md).

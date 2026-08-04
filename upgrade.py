@@ -181,15 +181,22 @@ def _indent(text, prefix='   '):
 # (DRY_RUN / --dry-run) honore la convention EFFECTIVE-STATE #121 : rc 3 = CHANGERAIT,
 # rc 0 = rien, autre = erreur. L'application réelle rend 0 (succès) / non-0 (échec).
 # Invocation shell concrète gardée HORS du JSON déclaratif ; parité id↔runner vérifiée
-# par validate_upgrade_map. `. ./inc_install.sh` source la cervelle shell ; le préfixe
-# DRY_RUN=1 persiste (builtin `.`) jusqu'à la fonction appelée.
+# par validate_upgrade_map. `. ./inc_install.sh` source la cervelle shell.
+# ⚠ `DRY_RUN=1 . ./inc_install.sh && fn` NE marche PAS : sous `bash -c` (mode non-POSIX,
+# cf. _run_bash) une assignation préfixée à un builtin spécial ne persiste PAS après la
+# commande → `fn` tournait sans DRY_RUN, donc ÉCRIVAIT pendant --check, et rendait 0 au
+# lieu de 3 (sentinelle gardée par DRY_RUN) → l'étape était classée no-op et masquée :
+# la simulation mutait en silence. Vécu s.227 sur PROD (clé [NATIXIS] parallel insérée
+# + raccourci réécrit par un simple --check). Le `;` en fait une commande à part entière,
+# donc une variable du shell, visible par la fonction.
 _INC = '. ./inc_install.sh && '
+_DRY = 'DRY_RUN=1; '
 STEP_CMDS = {
-    'normalize':    ('DRY_RUN=1 ' + _INC + 'normalize_config config.ini',
+    'normalize':    (_DRY + _INC + 'normalize_config config.ini',
                      _INC + 'normalize_config config.ini'),
-    'raccourci':    ('DRY_RUN=1 ' + _INC + 'setup_desktop "$(pwd)" "$(read_mode config.ini)"',
+    'raccourci':    (_DRY + _INC + 'setup_desktop "$(pwd)" "$(read_mode config.ini)"',
                      _INC + 'setup_desktop "$(pwd)" "$(read_mode config.ini)"'),
-    'custom_frame': ('DRY_RUN=1 ' + _INC + 'ensure_custom_frame .',
+    'custom_frame': (_DRY + _INC + 'ensure_custom_frame .',
                      _INC + 'ensure_custom_frame .'),
 }
 

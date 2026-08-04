@@ -9,6 +9,18 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 
 Les trois derniers sont spécifiques au mode assisté ; 📘 concerne le mode classeur.
 
+## v5.28.1
+| 2026-08-04 | Corrections : la simulation de mise à jour n'écrit plus, collecte Kraken fiabilisée. |
+| ---------- | ------------------------------------------------------------------------------------ |
+
+**Détail :**
+
+- **Simulation de mise à jour** — `upgrade.py --check`, censé n'afficher que ce qui *serait* fait, appliquait en réalité une partie des changements (réglages, raccourci de bureau) **sans l'annoncer**. La simulation est désormais réellement sans effet.
+
+- **Collecte Kraken** — quand la session Kraken expirait en cours de collecte, l'App pouvait croire avoir atteint la page des exports alors qu'elle était revenue sur l'écran de connexion : la collecte échouait ensuite sans raison visible. L'App vérifie maintenant la page elle-même, et sait reprendre la connexion.
+
+- **Comparaison avec l'archive précédente** — les variations de valorisation affichaient toutes un signe `+`, y compris les **baisses**. Le sens est désormais correct.
+
 ## v5.28.0
 | 2026-08-02 | L'application s'appelle désormais « Compta » (au lieu de « Comptabilité »). |
 | ---------- | -------------------------------------------------------------------------- |

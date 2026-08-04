@@ -91,6 +91,12 @@ LOGIN_TIMEOUT_S = 300       # 5 min pour login + email 2FA
 EXPORT_READY_TIMEOUT_S = 300  # 5 min pour génération export
 EXPORT_POLL_INTERVAL_S = 5    # Poll toutes les 5s
 
+# Bouton qui PROUVE qu'on est sur la page des exports, session ouverte. Sélecteur
+# unique (il vivait en 3 copies divergentes : 2 libellés ici, 3 dans le dialogue).
+EXPORT_BTN_SEL = ("button:has-text('Nouvelle exportation'), "
+                  "button:has-text('New export'), "
+                  "button:has-text('Create export')")
+
 
 class KrakenFetcher(BaseFetcher):
     def __init__(self, verbose=False):
@@ -358,11 +364,21 @@ class KrakenFetcher(BaseFetcher):
                 try:
                     self.page.goto(clipboard, wait_until="domcontentloaded", timeout=30000)
                     time.sleep(3)
-                    # Vérifier si ça a fonctionné
+                    # Le lien magique peut atterrir hors /sign-in SANS que la session
+                    # soit ouverte (vécu s.227 : « Connexion validée via lien clipboard »
+                    # puis écran « Session expired »). Un lien suivi n'est qu'un CANDIDAT :
+                    # on ne rend la main qu'une fois la page des exports prouvée. Sinon
+                    # la boucle continue — l'humain n'a peut-être pas fini.
                     if '/sign-in' not in self.page.url:
-                        self.logger.info("Connexion validée via lien clipboard")
-                        self.logger.user_done()
-                        return True
+                        self.page.goto(self.kraken_documents,
+                                       wait_until="domcontentloaded", timeout=15000)
+                        time.sleep(3)
+                        if self._on_exports_page():
+                            self.logger.info("Connexion validée via lien clipboard")
+                            self.logger.user_done()
+                            return True
+                        self.logger.debug("Lien clipboard suivi mais session non "
+                                          "confirmée — poursuite de l'attente")
                 except Exception as e:
                     self.logger.debug(f"Navigation clipboard: {e}")
 
@@ -373,11 +389,7 @@ class KrakenFetcher(BaseFetcher):
                 try:
                     self.page.goto(self.kraken_documents, wait_until="domcontentloaded", timeout=10000)
                     time.sleep(3)
-                    export_btn = self.page.locator(
-                        "button:has-text('Nouvelle exportation'), "
-                        "button:has-text('New export')"
-                    )
-                    if export_btn.count() > 0:
+                    if self._on_exports_page():
                         self.logger.info("Session validée (bouton export trouvé)")
                         return True
                     self.logger.debug(f"Session pas encore valide ({int(elapsed)}s)")
@@ -389,11 +401,34 @@ class KrakenFetcher(BaseFetcher):
         self.logger.error(f"Timeout login ({LOGIN_TIMEOUT_S}s)")
         return False
 
+    def _on_exports_page(self, timeout_ms=0):
+        """PREUVE POSITIVE qu'on est sur la page des exports avec une session ouverte :
+        le bouton d'export est là.
+
+        ⚠ Ne JAMAIS trancher cet état sur l'URL : la page de login de Kraken porte la
+        cible en paramètre (`…/sign-in?…redirect=%2Fc%2Faccount-settings%2Fdocuments`),
+        donc un `'documents' in url` matche AUSSI sur le sign-in. Vécu s.227 : « Page
+        des exports atteinte » annoncé sur l'écran « Session expired », puis échec 15 s
+        plus tard sur un bouton évidemment absent — la vraie panne (session non
+        rétablie) masquée par un faux verdict.
+
+        timeout_ms > 0 : laisse la page finir de peindre avant de conclure.
+        """
+        try:
+            btn = self.page.locator(EXPORT_BTN_SEL)
+            if timeout_ms:
+                btn.first.wait_for(state="visible", timeout=timeout_ms)
+                return True
+            return btn.count() > 0
+        except Exception:
+            return False
+
     def navigate_to_exports(self):
         """Navigue vers la page des exports."""
         self.logger.info("Navigation vers la page des exports...")
-        # Si déjà sur la page documents (après vérification active post-login), pas de re-navigation
-        if 'documents' not in self.page.url:
+        # Navigation sautée seulement si la page des exports est DÉJÀ prouvée (et non
+        # « l'URL contient documents », qui est vrai aussi sur le sign-in).
+        if not self._on_exports_page():
             self.page.goto(self.kraken_documents, wait_until="domcontentloaded")
             time.sleep(3)
 
@@ -416,23 +451,20 @@ class KrakenFetcher(BaseFetcher):
             self.page.goto(self.kraken_documents, wait_until="domcontentloaded")
             time.sleep(3)
 
-        # Vérifier qu'on est bien sur la page des documents
-        current_url = self.page.url
-        if 'documents' not in current_url:
-            # Session expirée ? Kraken redirige vers id.kraken.com/sign-in
-            if 'sign-in' in current_url:
-                self.logger.warning("Session expirée — connexion requise")
-                # Rester sur la page de login actuelle (ne pas rediriger)
-                if not self._prompt_and_wait_login():
-                    return False
-                # Retenter la navigation vers les exports
-                self.page.goto(self.kraken_documents, wait_until="domcontentloaded")
-                time.sleep(3)
-                if 'documents' not in self.page.url:
-                    self.logger.error(f"Page inattendue après re-login: {self.page.url}")
-                    return False
-            else:
-                self.logger.error(f"Page inattendue: {current_url}")
+        # Verdict par la PAGE, pas par l'URL (cf. _on_exports_page). Un bouton absent
+        # = session expirée dans l'immense majorité des cas ; `_prompt_and_wait_login`
+        # se charge d'aller au sign-in depuis n'importe quelle page, donc pas besoin
+        # de discriminer ici — on remplace un échec sec par une tentative de reprise.
+        if not self._on_exports_page(timeout_ms=10000):
+            self.logger.warning(f"Page des exports non confirmée ({self.page.url}) — "
+                                "session expirée ?")
+            if not self._prompt_and_wait_login():
+                return False
+            self.page.goto(self.kraken_documents, wait_until="domcontentloaded")
+            time.sleep(3)
+            if not self._on_exports_page(timeout_ms=10000):
+                self.logger.error(f"Page des exports inaccessible après re-login: {self.page.url}")
+                self._dump_page_debug("no_exports_page", force=True)
                 return False
 
         self.logger.info("Page des exports atteinte")
@@ -441,11 +473,7 @@ class KrakenFetcher(BaseFetcher):
 
     def _open_new_export_dialog(self):
         """Ouvre la modale 'New Export'."""
-        new_export_btn = self.page.locator(
-            "button:has-text('Nouvelle exportation'), "
-            "button:has-text('New export'), "
-            "button:has-text('Create export')"
-        )
+        new_export_btn = self.page.locator(EXPORT_BTN_SEL)
         # Attendre que le bouton apparaisse (la page peut mettre du temps à charger)
         try:
             new_export_btn.first.wait_for(state="visible", timeout=15000)
