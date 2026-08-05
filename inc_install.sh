@@ -237,9 +237,68 @@ _register_manual_action() {  # $1=install_dir  $2=message
     fi
 }
 
+# Rend le chemin ABSOLU d'un python capable de faire tourner l'app : ≥ 3.10 ET
+# Tk ≥ 8.6. Rien sur stdout + rc 1 si aucun ne convient.
+#
+# Le critère Tk n'est pas cosmétique : le python système de macOS embarque Tk 8.5,
+# qui ne peint AUCUNE fenêtre. `import tkinter` y réussit pourtant → un test de
+# simple présence donne un faux ✓ (vécu juf, #128).
+#
+# Pourquoi CHERCHER au lieu de faire confiance au PATH : `command -v python3`
+# dépend de l'ordre du PATH, lequel diffère entre un Terminal interactif et le
+# contexte où tourne `upgrade`. Mesuré sur marcbook (s.228) : il rend
+# /usr/bin/python3 = 3.9.6, Tk 8.5, sans openpyxl — alors que /usr/local/bin/python3
+# (3.14, Tk 8.6) est installé à côté. C'est ce qui recâblait le bundle sur un
+# python mort À CHAQUE upgrade, `upgrade` ne définissant jamais $PYTHON.
+select_python() {
+    local _cands="" _c _abs _fw
+    [[ -n "${PYTHON:-}" ]] && _cands="$PYTHON"
+    _cands="$_cands python3"
+    for _fw in /Library/Frameworks/Python.framework/Versions/3.*/bin/python3; do
+        [[ -x "$_fw" ]] && _cands="$_cands $_fw"
+    done
+    _cands="$_cands /usr/local/bin/python3 /opt/homebrew/bin/python3"
+    _cands="$_cands python3.14 python3.13 python3.12 python3.11 python3.10"
+
+    # DEUX ÉTAGES. Le socle (version + Tk) est une propriété de l'ENVIRONNEMENT,
+    # vraie même sur une machine vierge — c'est donc lui qui filtre. Mais il ne
+    # suffit pas à choisir : un poste peut porter plusieurs pythons conformes dont
+    # un SEUL a reçu les dépendances de l'app. Mesuré sur marcbook (s.228) : 3.13
+    # et 3.14 passent tous deux le socle, seul 3.14 a openpyxl — et une première
+    # version de cette fonction, qui s'arrêtait au socle, aurait déplacé le bundle
+    # d'un 3.14 qui marche vers un 3.13 mort. On PRÉFÈRE donc celui qui porte déjà
+    # les deps, en gardant le premier conforme en repli (install fraîche : aucun ne
+    # les a encore, `install_python_deps` les posera dans celui-là).
+    local _repli=""
+    for _c in $_cands; do
+        _abs=$(command -v "$_c" 2>/dev/null) || continue
+        [[ -n "$_abs" && -x "$_abs" ]] || continue
+        "$_abs" -c 'import sys, tkinter; sys.exit(0 if sys.version_info[:2] >= (3, 10) and tkinter.TkVersion >= 8.6 else 1)' 2>/dev/null || continue
+        if "$_abs" -c 'import openpyxl' 2>/dev/null; then
+            printf '%s\n' "$_abs"
+            return 0
+        fi
+        [[ -n "$_repli" ]] || _repli="$_abs"
+    done
+    if [[ -n "$_repli" ]]; then
+        printf '%s\n' "$_repli"
+        return 0
+    fi
+    return 1
+}
+
 setup_desktop() {  # $1=install_dir  $2=mode (EX|PROD|DEV)
     local INSTALL_DIR="$1" INSTALL_MODE="$2"
-    local PY="${PYTHON:-python3}"
+    local PY="${PYTHON:-}"
+    [[ -n "$PY" ]] || PY=$(select_python) || PY=""
+    # INVARIANT : ne JAMAIS remplacer un lanceur qui marche par un lanceur cassé.
+    # Sans interpréteur valable on s'abstient — un raccourci périmé reste
+    # infiniment préférable à un raccourci qui ne démarre plus.
+    if [[ -z "$PY" ]]; then
+        warn "Aucun python ≥3.10 avec Tk ≥8.6 trouvé — raccourci laissé INTACT."
+        warn "  macOS : installe python.org · Linux : le paquet python3-tk."
+        return 0
+    fi
     local _label _icon _wm
 
     case "$INSTALL_MODE" in

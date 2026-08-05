@@ -9,6 +9,16 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 
 Les trois derniers sont spécifiques au mode assisté ; 📘 concerne le mode classeur.
 
+## v5.29.1
+| 2026-08-05 | **macOS** : la mise à jour ne casse plus le raccourci de l'application. |
+| ---------- | ----------------------------------------------------------------------- |
+
+**Détail :**
+
+- **macOS — le raccourci survit désormais aux mises à jour.** À chaque mise à jour, l'App reconstruisait son raccourci en le reliant au **premier** Python trouvé. Sur un Mac, c'est le Python fourni par le système : il ne sait pas afficher de fenêtre (Tk 8.5) et n'a pas les bibliothèques nécessaires. Résultat : après une mise à jour, l'application ne démarrait plus, et il fallait réparer le raccourci à la main. L'App choisit maintenant un Python capable de la faire tourner — en privilégiant celui qui porte déjà ses bibliothèques — et **si elle n'en trouve aucun, elle laisse le raccourci intact** plutôt que d'en installer un qui ne marche pas. La réparation est automatique : la prochaine mise à jour remet le raccourci d'aplomb.
+
+- Sans effet sur **Linux** et **Windows/WSL**, dont le raccourci ne dépendait pas de ce choix.
+
 ## v5.29.0
 | 2026-08-05 | Collecte : une étape ratée ne passe plus pour un succès. Appariement BoursoBank réparé. |
 | ---------- | -------------------------------------------------------------------------------------- |
