@@ -32,7 +32,7 @@ import time
 from pathlib import Path
 from datetime import datetime, timedelta
 
-from inc_fetch import BaseFetcher, fetch_main, tesseract_install_hint, ensure_tesseract_cmd
+from inc_fetch import BaseFetcher, fetch_main, tesseract_install_hint, ensure_tesseract_cmd, config
 from inc_format import site_name_from_file, base_dir
 
 SITE = site_name_from_file(__file__)
@@ -102,8 +102,13 @@ _BB_ACCOUNTS = {
 
 TIMEOUT_PAGE = 15000  # ms
 
-# Période de collecte (6 mois)
-COLLECTION_MONTHS = 6
+# Période de collecte, en JOURS. Réglable par `[BOURSOBANK] max_days_back` dans
+# config.ini — convention partagée avec BTC/DEGIRO/KRAKEN/eToro/WISE.
+# Remplace l'ancienne `COLLECTION_MONTHS = 6`, qui était un LEURRE : rien ne la
+# lisait, la vraie période était un `timedelta(days=180)` en dur dans
+# get_date_range(). La modifier ne changeait donc rien (constaté s.228).
+# fallback=180 = strictement le comportement d'avant.
+MAX_DAYS_BACK = config.getint(SITE, 'max_days_back', fallback=180)
 
 # Clavier téléphonique : lettre → chiffre
 PHONE_LETTERS = {
@@ -119,9 +124,9 @@ PHONE_LETTERS = {
 
 
 def get_date_range():
-    """Calcule les dates de début et fin pour la collecte (6 mois)."""
+    """Calcule les dates de début et fin pour la collecte (MAX_DAYS_BACK jours)."""
     end_date = datetime.now()
-    start_date = end_date - timedelta(days=180)
+    start_date = end_date - timedelta(days=MAX_DAYS_BACK)
     return start_date.strftime("%d/%m/%Y"), end_date.strftime("%d/%m/%Y")
 
 

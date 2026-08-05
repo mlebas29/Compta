@@ -58,7 +58,6 @@ import inc_compta_schema as _schema
 SCRIPT_DIR = Path(__file__).parent
 DEFAULT_CONFIG = SCRIPT_DIR / 'config.ini'
 DEFAULT_JSON = SCRIPT_DIR / 'config_category_mappings.json'
-DEFAULT_ACCOUNTS = SCRIPT_DIR / 'config_accounts.json'
 
 
 # ============================================================================

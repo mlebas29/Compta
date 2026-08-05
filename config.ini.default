@@ -87,7 +87,7 @@ max_days_back = 90
 
 [pairing]
 # ===== CRITÈRES D'APPARIEMENT (cpt_pair.py) =====
-# Fenêtre de dates max pour appairer deux opérations (en jours)
+# Fenêtre de dates max pour apparier deux opérations (en jours)
 max_jours_same_currency = 7
 max_jours_cross_currency = 7
 # Présélection : ratio max entre les equiv EUR estimés (1.25 = 25% d'écart)

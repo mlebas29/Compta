@@ -383,7 +383,7 @@ class ComptaExcelImport(ComptaExcel):
     # ====================================================================
 
     def enrich_equiv_for_non_eur(self, operations):
-        """Enrichit la colonne Equiv pour les opérations à appairer
+        """Enrichit la colonne Equiv pour les opérations à apparier
 
         Règle : Equiv uniquement si opération appariée (avec Réf) ou Achat titres
 

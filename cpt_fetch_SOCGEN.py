@@ -123,12 +123,6 @@ with open(_ACCOUNTS_JSON, 'r', encoding='utf-8') as _f:
 
 _sg_accounts = _sg_config.get('accounts', [])
 
-# Compte principal (chèque) — numero pour le CSV
-COMPTE_PRINCIPAL = next(
-    (a['numero'] for a in _sg_accounts if a.get('type_sg') == 'principal'),
-    ''
-)
-
 # Comptes épargne — (numero, name, id_technique)
 COMPTES_EPARGNE = [
     (a['numero'], a['name'], a['id_technique'])

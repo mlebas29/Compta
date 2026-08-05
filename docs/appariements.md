@@ -187,7 +187,7 @@ Date;Libellé;Montant;Réf;Catégorie;Commentaire
 ```
 generate_linked_operations()
 ├── LINKED_OPERATIONS     → Génère Espèces/Créances (DAB, prêts)
-├── TRANSFER_PAIRS        → Appaire paires spécifiques (comptes internes)
+├── TRANSFER_PAIRS        → Apparie paires spécifiques (comptes internes)
 ├── INTERNAL_TRANSFERS    → Hub ↔ spokes (SG ↔ Livrets)
 └── MESH_TRANSFERS        → Virements same-ccy + changes cross-ccy (via Equiv)
 ```

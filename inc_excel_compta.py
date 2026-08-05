@@ -352,7 +352,7 @@ class ComptaExcel:
                 equiv_parsed=equiv_parsed,
             ))
 
-        self.logger.verbose(f"{len(operations)} opération(s) non appairée(s) chargée(s)")
+        self.logger.verbose(f"{len(operations)} opération(s) non appariée(s) chargée(s)")
         return operations
 
     # ====================================================================

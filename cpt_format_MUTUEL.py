@@ -41,7 +41,6 @@ except ImportError:
     xl = None
 
 SUMMARY_SHEET = 'Vos comptes'
-HEADER = 'Date;Libellé;Montant;Devise;Equiv;Réf;Catégorie;Compte;Commentaire'
 
 # Champs de création de compte (onglet Comptes) — hook d'extensibilité GUI
 # (inc_format.get_account_fields → gui_accounts._site_account_fields). Un compte

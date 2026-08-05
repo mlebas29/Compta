@@ -375,9 +375,14 @@ class PayPalFetcher(BaseFetcher):
                        wait_until="domcontentloaded", timeout=30000)
         time.sleep(3)
 
-        # Vérifier qu'on est sur la page des rapports
+        # Vérifier qu'on est sur la page des rapports. Test ANCRÉ sur hôte+chemin,
+        # comme `_is_logged_in` — pas la sous-chaîne nue 'reports', qu'un paramètre
+        # de redirection suffirait à contenir (un `returnUri` vers les rapports
+        # ferait passer la page de LOGIN pour la page des rapports). C'est la panne
+        # exacte débusquée sur Kraken en s.227 ; ici les '/' d'un paramètre sont
+        # encodés %2F, donc la forme ancrée ne peut pas être imitée.
         current_url = self.page.evaluate("window.location.href")
-        if 'reports' not in current_url:
+        if 'paypal.com/reports' not in current_url:
             self.logger.error(f"Page rapports inaccessible: {current_url}")
             return None
 

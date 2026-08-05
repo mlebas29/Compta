@@ -34,12 +34,15 @@ _WIRED_FIELD_SITES = ('SOCGEN', 'BOURSOBANK', 'BTC', 'XMR')
 
 
 class AccountsMixin:
-    """Onglet Comptes (Avoirs, titres, UNO ops comptes)."""
+    """Onglet Avoirs (comptes, biens matériels, titres, UNO ops comptes)."""
 
     def _build_tab_accounts(self, tab=None):
+        # Chemin normal : `tab` est fourni par cpt_gui, déjà nommé 'Avoirs'
+        # (cpt_gui.py, table des onglets). Ce repli autonome garde le MÊME nom
+        # — il portait encore 'Comptes', d'avant le renommage de l'onglet (#193).
         if tab is None:
             tab = ttk.Frame(self.notebook)
-            self.notebook.add(tab, text='Comptes')
+            self.notebook.add(tab, text='Avoirs')
 
         # --- Treeview groupé par Site ---
         tree_frame = ttk.LabelFrame(tab, text='Comptes et biens matériels', padding=5)

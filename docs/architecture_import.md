@@ -118,7 +118,7 @@ Un formatteur est censé être une **fonction pure de ses fichiers dropbox** (cf
 | Configuration | Module | Usage |
 |---------------|--------|-------|
 | `LINKED_OPERATIONS` | inc_excel_compta | Patterns SG → génère ops Espèces/Créances |
-| `TRANSFER_PAIRS` | cpt_pair | Appairage entre comptes internes |
+| `TRANSFER_PAIRS` | cpt_pair | Appariement entre comptes internes |
 | `INTERNAL_TRANSFERS` | cpt_pair | Hubs SG et BB avec leurs spokes |
 | `MESH_TRANSFERS` | cpt_pair | Virements same-ccy + changes cross-ccy |
 

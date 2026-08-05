@@ -47,7 +47,8 @@ class ComptaFetcher:
             'sites_attempted': 0,
             'sites_succeeded': 0,
             'sites_failed': 0,
-            'errors': []
+            'errors': [],
+            'partial': []      # étapes ❌ sous un site par ailleurs réussi (#194)
         }
 
         # Charger la configuration
@@ -176,7 +177,24 @@ class ComptaFetcher:
             reader.join(timeout=5)
 
             if proc.returncode == 0:
-                print(f"{prefix}  ✓ ({int(round(time.monotonic() - t0))}s)")
+                # Un code retour 0 ne veut pas dire « tout est collecté » : le run()
+                # des fetchers rend True dès QU'UN fichier est descendu. Une étape
+                # peut donc avoir échoué sous un ✓ — vécu s.227 (eToro : « Timeout
+                # téléchargement Reserve XLSX », site compté ✓ 238s, ❌ noyé au milieu
+                # de 14 sites, rattrapé seulement à l'import par EXPECTED_FILES).
+                # On n'a rien à demander aux fetchers : leurs lignes ❌ sont DÉJÀ dans
+                # la sortie qu'on capture. Verdict nuancé ⚠ = « a produit, mais pas
+                # tout » — distinct de ✗ (rien) comme de ✓ (complet). Reste un succès
+                # pour le code retour : le filet dur est EXPECTED_FILES à l'import.
+                elapsed = int(round(time.monotonic() - t0))
+                failed_steps = [l.strip() for l in output_lines if '❌' in l]
+                if failed_steps:
+                    print(f"{prefix}  ⚠ ({elapsed}s) {len(failed_steps)} étape(s) "
+                          f"en échec — collecte incomplète")
+                    for step in failed_steps:
+                        self.stats['partial'].append(f"{site}: {step}")
+                else:
+                    print(f"{prefix}  ✓ ({elapsed}s)")
                 return True
             else:
                 # Chercher la dernière erreur dans la sortie capturée.
@@ -371,6 +389,15 @@ class ComptaFetcher:
             print(f"\n⚠️  Erreurs ({len(self.stats['errors'])}):")
             for error in self.stats['errors']:
                 print(f"  - {error}")
+        # Bloc SÉPARÉ des erreurs (#194) : ces sites ont produit des fichiers, ils
+        # ne sont pas en échec — mais il leur manque une source. Les mêler aux
+        # erreurs brouillerait les deux notions ; les taire les rend invisibles,
+        # ce qui est précisément le défaut qu'on corrige.
+        if self.stats['partial']:
+            print(f"\n⚠️  Collectes incomplètes ({len(self.stats['partial'])}) — "
+                  f"le site a produit des fichiers, mais une étape a échoué :")
+            for item in self.stats['partial']:
+                print(f"  - {item}")
 
 
 def main():

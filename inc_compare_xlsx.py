@@ -210,11 +210,21 @@ def compare_values_with_threshold(ws_result, ws_expected, skip_rows, value_col, 
     return warnings
 
 
-def compare_sheet_brutal(ws_result, ws_expected, config):
+# Erreurs Excel telles que openpyxl les rend en data_only (chaînes brutes).
+_XL_ERRORS = ('#N/A', '#REF!', '#DIV/0!', '#VALUE!', '#NAME?', '#NULL!', '#NUM!')
+
+
+def compare_sheet_brutal(ws_result, ws_expected, config,
+                         ws_result_values=None, ws_expected_values=None):
     """Compare deux feuilles cellule par cellule (formules et données).
 
     Détecte: formule écrasée par constante, valeur différente, formule modifiée.
     Les workbooks doivent être ouverts SANS data_only pour lire les formules.
+
+    `ws_*_values` (mêmes feuilles ouvertes AVEC data_only) activent le contrôle
+    complémentaire #44 : à formules IDENTIQUES, la comparaison de chaînes ne voit
+    rien — même si l'une des deux CALCULE une erreur. Facultatifs : sans eux, le
+    comportement est celui d'avant.
     """
     skip_rows = config.get('skip_rows', 0)
     max_cols = config.get('max_cols', 11)
@@ -260,6 +270,19 @@ def compare_sheet_brutal(ws_result, ws_expected, config):
             if is_formula_r and is_formula_e:
                 if val_r != val_e:
                     diffs.append(f'    L{row} col {col_letter}: formule "{val_e}" ≠ "{val_r}"')
+                elif ws_result_values is not None and ws_expected_values is not None:
+                    # ANGLE MORT #44 : formules identiques → on s'arrêtait là, sans
+                    # jamais regarder ce qu'elles CALCULENT. Une cascade #N/A (vécu
+                    # 28/04/2026 sur Budget!F30/G30 : MATCH sur un code devise absent)
+                    # restait donc invisible. On ne signale QUE le cas non ambigu —
+                    # l'un des deux est en erreur Excel — pour ne pas noyer le rapport
+                    # sous les écarts de recalcul légitimes (cotations, dates…).
+                    cv_r = ws_result_values.cell(row=row, column=col).value
+                    cv_e = ws_expected_values.cell(row=row, column=col).value
+                    if cv_r != cv_e and (cv_r in _XL_ERRORS or cv_e in _XL_ERRORS):
+                        diffs.append(
+                            f'    L{row} col {col_letter}: formule identique "{val_e}" '
+                            f'mais calcule {format_value(cv_e)} → {format_value(cv_r)}')
                 continue
 
             # Two data → compare values
@@ -677,7 +700,9 @@ def compare_xlsx(result_path, expected_path, max_display=10, sheet_filter=None,
             brutal_diffs, brutal_cells = compare_sheet_brutal(
                 wb_result_formulas[sheet_name],
                 wb_expected_formulas[sheet_name],
-                config
+                config,
+                wb_result[sheet_name],        # mêmes feuilles en data_only : #44,
+                wb_expected[sheet_name],      # voit les erreurs sous formules égales
             )
             if brutal_diffs:
                 print(f"❌ {sheet_name} (brutal): {len(brutal_diffs)} différence(s)")

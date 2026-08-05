@@ -9,6 +9,20 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 
 Les trois derniers sont spécifiques au mode assisté ; 📘 concerne le mode classeur.
 
+## v5.29.0
+| 2026-08-05 | Collecte : une étape ratée ne passe plus pour un succès. Appariement BoursoBank réparé. |
+| ---------- | -------------------------------------------------------------------------------------- |
+
+**Détail :**
+
+- **Collecte — nouveau verdict « collecte incomplète »** : jusqu'ici un site était compté réussi dès qu'il avait téléchargé *un* fichier, même si une autre étape avait échoué. Un site dans ce cas s'affiche désormais `⚠` au lieu de `✓`, et la fin de collecte récapitule les étapes manquées. Le site reste considéré comme abouti (les fichiers obtenus sont bien importés) : c'est un avertissement, pas une erreur.
+
+- **Appariement BoursoBank** — les virements entre le compte chèque et le livret ou les portefeuilles n'étaient plus reconnus comme tels depuis un renommage de comptes ; ils étaient rattrapés par la règle générale, moins précise. Ils repassent par la règle exacte. La liste des comptes concernés est désormais déduite de ta configuration, elle ne peut plus se désynchroniser.
+
+- **BoursoBank — période de collecte réglable** : `max_days_back` fonctionne enfin pour ce site (elle était figée à 6 mois). Sans réglage explicite, la période reste 6 mois, comme avant.
+
+- **PayPal** — corrige un cas où l'App pouvait croire avoir atteint la page des rapports alors qu'elle était revenue sur l'écran de connexion.
+
 ## v5.28.1
 | 2026-08-04 | Corrections : la simulation de mise à jour n'écrit plus, collecte Kraken fiabilisée. |
 | ---------- | ------------------------------------------------------------------------------------ |

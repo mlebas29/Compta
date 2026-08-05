@@ -491,9 +491,18 @@ class BaseFetcher:
             prefix = self.site_name.lower().replace(' ', '_')
         except Exception:
             return
+        # URL EN TÊTE du dump (#196) : sans elle, une capture ne dit pas OÙ elle a
+        # été prise. Vécu s.227 (Kraken) : il a fallu la DÉDUIRE d'un href du markup
+        # pour comprendre qu'un verdict passait sur la page de login. Lecture
+        # best-effort — sur une page détruite, `page.url` lève.
+        try:
+            url = self.page.url
+        except Exception:
+            url = '(indisponible)'
         try:
             html_file = debug_dir / f'{prefix}_{label}.html'
             with open(html_file, 'w', encoding='utf-8') as f:
+                f.write(f'<!-- dump {label} — url: {url} -->\n')
                 f.write(self.page.content())
             self.logger.debug(f"HTML sauvegardé: {html_file}")
         except Exception as e:
@@ -517,8 +526,18 @@ class BaseFetcher:
         try:
             self._dump_page_debug(label, force=True)
             prefix = self.site_name.lower().replace(' ', '_')
+            # URL SANS query ni fragment (#196) : le journal part dans le bundle de
+            # signalement (#187) et une URL brute peut porter un secret (lien magique
+            # 2FA, token). Le chemin suffit à situer l'échec ; la version COMPLÈTE
+            # reste dans le dump HTML, dont le DOM est de toute façon plus sensible
+            # et qui n'est joint que sur option.
+            try:
+                where = self.page.url.split('?', 1)[0].split('#', 1)[0]
+            except Exception:
+                where = '(url indisponible)'
             self.logger.warning(
-                f"État capturé pour diagnostic : logs/debug/{prefix}_{label}.html (+ .png)")
+                f"État capturé pour diagnostic : logs/debug/{prefix}_{label}.html "
+                f"(+ .png) — page : {where}")
         except Exception as e:
             self.logger.warning(f"Capture de diagnostic impossible : {e}")
 

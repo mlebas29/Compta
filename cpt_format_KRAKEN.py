@@ -34,7 +34,6 @@ ACCOUNT_BTC = require_account(_kraken_accounts, 'BTC', SITE)
 
 # Asset types
 FIAT_ASSETS = {'EUR', 'USD', 'GBP', 'CHF'}
-CRYPTO_ASSETS = {'BTC', 'ETH', 'SOL', 'ADA', 'DOT'}  # Add more as needed
 
 # Crypto units conversion
 SATOSHI_PER_BTC = 100_000_000  # 1 BTC = 100,000,000 satoshis

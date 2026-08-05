@@ -48,7 +48,7 @@ COMPTES_FILE = BASE_DIR / (config.get('paths', 'comptes_file', fallback='./compt
 # CONFIGURATION DES APPARIEMENTS
 # ============================================================================
 
-# Paires de virements à appairer automatiquement — dérivées de config_accounts.json (zéro nom en dur)
+# Paires de virements à apparier automatiquement — dérivées de config_accounts.json (zéro nom en dur)
 # Ces virements existent déjà des deux côtés (contrairement à LINKED_OPERATIONS
 # qui génère de nouvelles opérations). On leur assigne juste une référence Vxx.
 # Schéma config_accounts.json :
@@ -93,14 +93,19 @@ def _build_internal_transfers():
     _spokes = [a['name'] for a in _sg if a.get('type_sg') in ('epargne', 'assurance_vie')]
     if _hub and _spokes:
         groups.append({'hub': _hub, 'spokes': _spokes, 'pattern': 'VIR', 'max_jours_ecart': 3})
-    # BoursoBank : pas d'info de type en config → topologie explicite (noms génériques)
-    # TODO #84 : 'Portefeuille BB' ne matche plus les comptes réels (Titres / Réserve)
-    groups.append({
-        'hub': 'Compte chèque BB',
-        'spokes': ['Compte livret BB', 'Portefeuille BB'],
-        'pattern': 'VIR',
-        'max_jours_ecart': 3,
-    })
+    # BoursoBank : aucun type en config → le HUB reste nommé (rien ne permet de le
+    # déduire), mais les spokes sont DÉRIVÉS = tout compte BB qui n'est pas le hub.
+    # Avant (#84), ils étaient figés et `'Portefeuille BB'` ne matchait plus aucun
+    # compte réel ('Portefeuille BB Titres' / '… Réserve') — or la comparaison est
+    # une ÉGALITÉ de nom : ces virements échappaient donc à la phase 3, et ne se
+    # retrouvaient qu'en aval, dans le maillage. Dériver supprime la dérive : un
+    # compte BB ajouté demain entre dans le groupe sans qu'on y pense.
+    _bb_hub = 'Compte chèque BB'
+    _bb_spokes = [a['name'] for a in _acc.get('BOURSOBANK', {}).get('accounts', [])
+                  if a.get('name') and a['name'] != _bb_hub]
+    if _bb_spokes:
+        groups.append({'hub': _bb_hub, 'spokes': _bb_spokes, 'pattern': 'VIR',
+                       'max_jours_ecart': 3})
     return groups
 
 
@@ -210,7 +215,7 @@ class ComptaPairer:
     # ====================================================================
 
     def _match_linked_pairs(self, operations):
-        """Appaire les paires originale↔symétrique générées par cpt_update
+        """Apparie les paires originale↔symétrique générées par cpt_update
 
         Les opérations liées (Espèces, Créances, Titres) sont générées par
         cpt_update avec ref='-'. On les apparie ici par pattern matching.
@@ -273,7 +278,7 @@ class ComptaPairer:
                     matched.add(cbl_idx)
                     self.stats['paired'] += 1
 
-                    self.logger.verbose(f"Appairage linked ({pattern}): {pairing_ref}")
+                    self.logger.verbose(f"Appariement linked ({pattern}): {pairing_ref}")
                     break
 
         # Phase 1b : Titres (Réserve ↔ Titres)
@@ -328,7 +333,7 @@ class ComptaPairer:
                 matched.add(t_idx)
                 self.stats['paired'] += 1
 
-                self.logger.verbose(f"Appairage titres ({cat}): {pairing_ref}")
+                self.logger.verbose(f"Appariement titres ({cat}): {pairing_ref}")
                 break
 
         phase_count = len(matched) // 2
@@ -344,7 +349,7 @@ class ComptaPairer:
     # ====================================================================
 
     def _match_transfer_pairs(self, operations):
-        """Appaire les virements entre comptes (paires définies dans config_accounts.json)"""
+        """Apparie les virements entre comptes (paires définies dans config_accounts.json)"""
 
         def matches_criteria(compte, label, montant, ref, cfg):
             if compte != cfg['compte']:
@@ -411,7 +416,7 @@ class ComptaPairer:
                     matched_dests.add(dst_idx)
                     self.stats['paired'] += 1
 
-                    self.logger.verbose(f"Appairage {pair_name}: {pairing_ref}")
+                    self.logger.verbose(f"Appariement {pair_name}: {pairing_ref}")
                     self.logger.verbose(f"  Source: {src.date_parsed.strftime('%d/%m/%Y')} {src.montant_parsed:+.2f}€")
                     self.logger.verbose(f"  Dest:   {dst.date_parsed.strftime('%d/%m/%Y')} {dst.montant_parsed:+.2f}€")
                     break
@@ -428,7 +433,7 @@ class ComptaPairer:
     # ====================================================================
 
     def _match_internal_transfers(self, operations):
-        """Appaire les virements internes entre hub et spokes"""
+        """Apparie les virements internes entre hub et spokes"""
 
         if not INTERNAL_TRANSFERS:
             return operations
@@ -503,7 +508,7 @@ class ComptaPairer:
                     self.stats['paired'] += 1
 
                     direction = "→" if h_op.montant_parsed < 0 else "←"
-                    self.logger.verbose(f"Appairage interne: {pairing_ref}")
+                    self.logger.verbose(f"Appariement interne: {pairing_ref}")
                     self.logger.verbose(f"  {hub} {h_op.montant_parsed:+.2f}€ {direction} {s_op.compte} {s_op.montant_parsed:+.2f}€")
                     break
 
@@ -599,7 +604,7 @@ class ComptaPairer:
         return (equiv1, equiv2, updates)
 
     def _match_mesh_transfers(self, operations):
-        """Appaire les transferts inter-comptes : virements et changes"""
+        """Apparie les transferts inter-comptes : virements et changes"""
 
         if not MESH_TRANSFERS:
             return operations
@@ -693,7 +698,7 @@ class ComptaPairer:
                 matched.add(idx2)
                 self.stats['paired'] += 1
 
-                self.logger.verbose(f"Appairage mesh same-ccy: {pairing_ref}")
+                self.logger.verbose(f"Appariement mesh same-ccy: {pairing_ref}")
                 self.logger.verbose(f"  {op1.compte} {op1.montant_parsed:+.2f} {op1.devise} ↔ {op2.compte} {op2.montant_parsed:+.2f} {op2.devise}")
                 break
 
@@ -789,7 +794,7 @@ class ComptaPairer:
                         f"scores {best_score:.3f} vs {second_score:.3f} — skip")
                     continue
 
-            # Appairer avec le meilleur candidat
+            # Apparier avec le meilleur candidat
             idx2, op2, (eq1_final, eq2_final, equiv_updates), _ = best
 
             for upd_row, upd_val in equiv_updates:
@@ -809,7 +814,7 @@ class ComptaPairer:
             self.stats['paired'] += 1
 
             equiv_info = f" (equiv: {abs(eq1_final):.2f}€)" if eq1_final else ""
-            self.logger.verbose(f"Appairage mesh cross-ccy: {pairing_ref}{equiv_info}")
+            self.logger.verbose(f"Appariement mesh cross-ccy: {pairing_ref}{equiv_info}")
             self.logger.verbose(f"  {op1.compte} {op1.montant_parsed:+.2f} {op1.devise} ↔ {op2.compte} {op2.montant_parsed:+.2f} {op2.devise}")
 
         phase_count = len(matched) // 2
@@ -824,7 +829,7 @@ class ComptaPairer:
     # ====================================================================
 
     def _match_same_label_pairs(self, operations):
-        """Appaire les opérations avec même libellé, même montant absolu, signes opposés"""
+        """Apparie les opérations avec même libellé, même montant absolu, signes opposés"""
 
         def normalize_label(label):
             return ' '.join(str(label).upper().split())
@@ -881,7 +886,7 @@ class ComptaPairer:
                 matched.add(p_idx)
                 self.stats['paired'] += 1
 
-                self.logger.verbose(f"Appairage {cat} (libellé): {pairing_ref}")
+                self.logger.verbose(f"Appariement {cat} (libellé): {pairing_ref}")
                 self.logger.verbose(f"  {-n_montant:+.2f} ↔ {p_montant:+.2f} | {n_label[:30]}")
                 break
 
