@@ -411,6 +411,7 @@ class ExecMixin:
         dlg = tk.Toplevel(self.root)
         dlg.title('Réinitialiser')
         dlg.transient(self.root)
+        dlg.wait_visibility()
         dlg.grab_set()
         dlg.resizable(False, False)
 

@@ -895,6 +895,7 @@ class CategoriesMixin:
             dlg = tk.Toplevel(self.root)
             dlg.title('Réaffecter les opérations')
             dlg.transient(self.root)
+            dlg.wait_visibility()
             dlg.grab_set()
 
             ttk.Label(dlg, text=(

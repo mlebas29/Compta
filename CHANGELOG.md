@@ -9,6 +9,16 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 
 Les trois derniers sont spécifiques au mode assisté ; 📘 concerne le mode classeur.
 
+## v5.29.2
+| 2026-08-08 | Correction d'échecs d'ouverture de fenêtre (« Erreur inattendue »). |
+| ---------- | ------------------------------------------------------------------- |
+
+**Détail :**
+
+- **Fenêtres de saisie** — une fenêtre pouvait refuser de s'ouvrir, l'App affichant « Erreur inattendue » à la place (vu au **double-clic** sur une ligne de l'onglet Avoirs). Le défaut était **intermittent** : la fenêtre réclamait la saisie avant d'être affichée à l'écran, et selon la vitesse d'affichage le geste passait ou échouait — d'où un même geste qui aboutit tantôt, tantôt non. Corrigé pour toutes les fenêtres qui restaient exposées : Avoirs (ajouter/modifier un compte, ajouter un bien), Paramètres (opération de compensation, paire de virements), Catégories (suppression avec réaffectation), Exécution (réinitialiser).
+
+- Sans effet sur les données ni sur la configuration.
+
 ## v5.29.1
 | 2026-08-05 | **macOS** : la mise à jour ne casse plus le raccourci de l'application. |
 | ---------- | ----------------------------------------------------------------------- |

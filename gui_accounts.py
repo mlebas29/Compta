@@ -492,6 +492,7 @@ class AccountsMixin:
         dlg.title('Ajouter un compte')
         dlg.resizable(True, False)
         dlg.transient(self.root)
+        dlg.wait_visibility()
         dlg.grab_set()
 
         site_values = self._site_display_values()
@@ -766,6 +767,7 @@ class AccountsMixin:
         dlg.title('Ajouter un bien matériel')
         dlg.resizable(True, False)
         dlg.transient(self.root)
+        dlg.wait_visibility()
         dlg.grab_set()
 
         # Domiciliations suggérées (liste ouverte)
@@ -908,6 +910,9 @@ class AccountsMixin:
                   else 'Modifier un compte')
         dlg.resizable(True, False)
         dlg.transient(self.root)
+        # `grab_set` sur une fenêtre pas encore mappée lève « window not viewable »
+        # (mord au double-clic sur la liste, cf. gui_sites._credential_dialog).
+        dlg.wait_visibility()
         dlg.grab_set()
 
         site_values = self._site_display_values()

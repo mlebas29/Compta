@@ -179,6 +179,7 @@ class ParamsMixin:
         dlg.title('Opération de compensation')
         dlg.geometry('460x210')
         dlg.transient(self.root)
+        dlg.wait_visibility()
         dlg.grab_set()
         pattern0, compte0, nom0 = existing or ('', '', '')
         rows = [('Nom :', nom0), ('Pattern libellé :', pattern0), ('Compte cible :', compte0)]
@@ -245,6 +246,7 @@ class ParamsMixin:
         dlg.title('Paire de virements (appariement prédéfini)')
         dlg.geometry('480x360')
         dlg.transient(self.root)
+        dlg.wait_visibility()
         dlg.grab_set()
         e = existing or {}
         src = e.get('source', {})
