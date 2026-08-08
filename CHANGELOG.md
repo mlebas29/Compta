@@ -10,12 +10,12 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 Les trois derniers sont spécifiques au mode assisté ; 📘 concerne le mode classeur.
 
 ## v5.29.2
-| 2026-08-08 | Correction d'échecs d'ouverture de fenêtre (« Erreur inattendue »). |
-| ---------- | ------------------------------------------------------------------- |
+| 2026-08-08 | Correction d'un échec d'ouverture de fenêtre (« Erreur inattendue »). |
+| ---------- | --------------------------------------------------------------------- |
 
 **Détail :**
 
-- **Fenêtres de saisie** — une fenêtre pouvait refuser de s'ouvrir, l'App affichant « Erreur inattendue » à la place : c'est ce qui se produisait au **double-clic** sur une ligne de l'onglet Avoirs. La fenêtre réclamait la saisie avant d'être affichée à l'écran, ce que le système refuse tant que le bouton de la souris reste enfoncé — d'où un échec à **tous** les coups au double-clic, alors que le même geste lancé depuis un bouton (qui agit au relâchement) fonctionnait. Corrigé pour toutes les fenêtres qui restaient exposées : Avoirs (ajouter/modifier un compte, ajouter un bien), Paramètres (opération de compensation, paire de virements), Catégories (suppression avec réaffectation), Exécution (réinitialiser).
+- **Fenêtres de saisie** — la fenêtre de modification d'un compte ne s'ouvrait pas au **double-clic** sur une ligne de l'onglet Avoirs, l'App affichant « Erreur inattendue » à la place. La fenêtre réclamait la saisie avant d'être affichée à l'écran, ce que le système refuse tant que le bouton de la souris reste enfoncé — le cas pendant un double-clic, jamais quand l'action part d'un bouton, qui agit au relâchement. D'où un échec systématique par ce geste, alors que le bouton « Modifier » fonctionnait.
 
 - Sans effet sur les données ni sur la configuration.
 
