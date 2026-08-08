@@ -15,7 +15,7 @@ Les trois derniers sont spécifiques au mode assisté ; 📘 concerne le mode cl
 
 **Détail :**
 
-- **Fenêtres de saisie** — une fenêtre pouvait refuser de s'ouvrir, l'App affichant « Erreur inattendue » à la place (vu au **double-clic** sur une ligne de l'onglet Avoirs). Le défaut était **intermittent** : la fenêtre réclamait la saisie avant d'être affichée à l'écran, et selon la vitesse d'affichage le geste passait ou échouait — d'où un même geste qui aboutit tantôt, tantôt non. Corrigé pour toutes les fenêtres qui restaient exposées : Avoirs (ajouter/modifier un compte, ajouter un bien), Paramètres (opération de compensation, paire de virements), Catégories (suppression avec réaffectation), Exécution (réinitialiser).
+- **Fenêtres de saisie** — une fenêtre pouvait refuser de s'ouvrir, l'App affichant « Erreur inattendue » à la place : c'est ce qui se produisait au **double-clic** sur une ligne de l'onglet Avoirs. La fenêtre réclamait la saisie avant d'être affichée à l'écran, ce que le système refuse tant que le bouton de la souris reste enfoncé — d'où un échec à **tous** les coups au double-clic, alors que le même geste lancé depuis un bouton (qui agit au relâchement) fonctionnait. Corrigé pour toutes les fenêtres qui restaient exposées : Avoirs (ajouter/modifier un compte, ajouter un bien), Paramètres (opération de compensation, paire de virements), Catégories (suppression avec réaffectation), Exécution (réinitialiser).
 
 - Sans effet sur les données ni sur la configuration.
 
