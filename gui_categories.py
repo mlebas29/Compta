@@ -165,6 +165,10 @@ class CategoriesMixin:
             self._refresh_post_tree()
 
         # --- Menu contextuel (clic droit) ---
+        # CONFORT LINUX ASSUME (comme gui_accounts) : les 3 menus de cet onglet
+        # ne lient que Button-3 — pas de Button-2 (clic droit macOS), decision
+        # deliberee : sur Mac le grise des entrees n'est pas fiable, les
+        # protections y passent par les boutons (gating visible).
         self._cat_context_menu = tk.Menu(self.cat_tree, tearoff=0)
         self._cat_context_menu.add_command(
             label='\u270f Modifier pattern', command=self._cat_edit)

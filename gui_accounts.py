@@ -128,13 +128,21 @@ class AccountsMixin:
                    command=self._devise_delete_dialog).pack(side='left', padx=1)
 
         # --- Menu contextuel (clic droit) ---
+        # CONFORT LINUX ASSUME : pas de binding Button-2 (clic droit macOS) \u2014
+        # ce n'est PAS un oubli. Sur Mac le gris\u00e9 des entr\u00e9es de menu n'est pas
+        # fiable (cf. _update_acct_btn_state) : les protections y passent par
+        # les boutons, dont le gating est visible. Ne pas \u00ab reparer \u00bb en
+        # ajoutant Button-2 sans revoir cette decision.
+        # Les libelles Modifier/Supprimer nomment l'objet et sont COMMUTES par
+        # _acct_show_context_menu (compte ou bien) \u2014 la liste melange les deux,
+        # contrairement aux groupes de boutons qui sont par objet.
         self._acct_context_menu = tk.Menu(self.acct_tree, tearoff=0)
         self._acct_context_menu.add_command(
-            label='\u270f Modifier', command=self._acct_edit)
+            label='\u270f Modifier compte', command=self._acct_edit)
         self._acct_context_menu.add_command(
-            label='\u2716 Supprimer', command=self._acct_delete)
+            label='\u2716 Supprimer compte', command=self._acct_delete)
         self._acct_context_menu.add_command(
-            label='\u2795 Ajout titre', command=self._acct_add_title)
+            label='\u2795 Ajouter titre', command=self._acct_add_title)
         self._acct_context_menu.add_separator()
         self._acct_context_menu.add_command(
             label='\u2672 Purger opérations', command=self._acct_purge)
@@ -203,6 +211,11 @@ class AccountsMixin:
             can_add_title = (entry and entry.get('type') == 'Portefeuilles'
                             and 'Réserve' not in entry['intitule'])
             is_bien = bool(entry and entry.get('type') == 'Biens matériels')
+            # Libellés (idx 0/1) : nommer l'objet de la ligne — la liste mêle
+            # comptes et biens, alors que les boutons ont un groupe par objet.
+            objet = 'bien' if is_bien else 'compte'
+            self._acct_context_menu.entryconfigure(0, label=f'✏ Modifier {objet}')
+            self._acct_context_menu.entryconfigure(1, label=f'✖ Supprimer {objet}')
             # Ajout titre (idx 2) : portefeuille non-Réserve seulement.
             self._acct_context_menu.entryconfigure(2, state='normal' if can_add_title else 'disabled')
             # Purger opérations (idx 4) : un bien n'a pas d'opérations → grisé

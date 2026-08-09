@@ -1,5 +1,5 @@
 {
-  "Comptes et biens matériels": "Liste des comptes bancaires, placements\net biens matériels (foncier, mobilier).\nClic droit ou double-clic pour modifier.",
+  "Comptes et biens matériels": "Liste des comptes bancaires, placements\net biens matériels (foncier, mobilier).\nDouble-clic pour modifier, boutons pour le reste.",
   "Général": "Paramètres globaux : mode debug, rétention des\nsessions archivées, profondeur d'import.",
   "Appariement": "Réglages de l'appariement automatique des opérations\nentre comptes (virements, transferts).",
   "Comparaison": "Seuil de variation pour les alertes dans\nla comparaison Plus_value.",
