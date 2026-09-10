@@ -10,6 +10,7 @@ import signal
 import subprocess
 import sys
 import threading
+import time
 import tkinter as tk
 import pyperclip
 
@@ -125,6 +126,20 @@ class ExecMixin:
                                     for v in self._exec_site_vars.values()]
                    ).pack(side='left')
 
+        # Manqués : décoche les sites RÉUSSIS de la dernière
+        # collecte, garde les ✗ et les ⚠ (un incomplet a produit des fichiers
+        # mais raté une étape — il mérite d'être rejoué).
+        # ⚠ N'agit QUE sur `_exec_site_vars` (sélection du lancement,
+        #   transitoire). JAMAIS sur `self.site_vars`, qui est la case « Actif »
+        #   de l'onglet Sites — un réglage persistant qu'une collecte n'a pas à
+        #   modifier (#107).
+        # Grisé tant que la dernière collecte n'a rien laissé à rejouer : son
+        # état est lui-même l'information « tout est passé ».
+        self._exec_missed_btn = ttk.Button(
+            sel_frame, text='\u26a0 Manqués',
+            command=self._exec_select_missed, state='disabled')
+        self._exec_missed_btn.pack(side='left', padx=(12, 0))
+
         # ── Section Lancement ──
         launch_frame = ttk.LabelFrame(tab, text='Lancement', padding=8)
         launch_frame.pack(fill='x', padx=8, pady=4)
@@ -217,6 +232,50 @@ class ExecMixin:
         self._exec_default_fg = self._exec_status_label.cget('fg')
         self._exec_2fa_flashing = False
 
+        # ── Table vivante de la collecte ──
+        # Une ligne par site ACTIF (en cours, ou en attente d'une action de
+        # Marc). Bornée à 5 PAR CONSTRUCTION : `cpt_fetch.py` lance au plus
+        # ThreadPoolExecutor(max_workers=4) + 1 jambe manuelle → jamais plus de
+        # 5 lignes, quels que soient les 21 sites configurés. En fin de course
+        # plus rien n'est actif : elle bascule alors sur les ÉCHECS, qui sont
+        # ce qu'on relit à froid.
+        # ⚠ Widget FRÈRE du journal, pas inséré dedans : le log défile dans sa
+        #   propre boîte et ne peut ni pousser ni recouvrir la table.
+        self._exec_table_frame = ttk.Frame(result_frame)
+        self._exec_table = ttk.Treeview(
+            self._exec_table_frame, columns=('etat', 'depuis'),
+            show='tree headings', height=1, selectmode='browse')
+        self._exec_table.heading('#0', text='Site', anchor='w')
+        self._exec_table.heading('etat', text='État', anchor='w')
+        self._exec_table.heading('depuis', text='Depuis', anchor='w')
+        self._exec_table.column('#0', width=150, stretch=False, anchor='w')
+        self._exec_table.column('etat', width=420, anchor='w')
+        self._exec_table.column('depuis', width=90, stretch=False, anchor='w')
+        self._exec_table.tag_configure('wait', background='#FFE0B2',
+                                       foreground='#7A3E00')
+        self._exec_table.tag_configure('fail', foreground='#CC0000')
+        self._exec_table.tag_configure('part', foreground='#B35A00')
+        self._exec_table.tag_configure('annul', foreground='#666666')
+        self._exec_table.pack(fill='x')
+        bas_table = ttk.Frame(self._exec_table_frame)
+        bas_table.pack(fill='x')
+        self._exec_table_summary = tk.Label(
+            bas_table, text='', anchor='w', fg='#666666')
+        self._exec_table_summary.pack(side='left', fill='x', expand=True)
+        # Arrêter UN site sans emporter les autres. Le bouton « Arrêter » de la
+        # rangée du haut fait un `killpg` sur le groupe entier : tout ou rien.
+        self._exec_kill_btn = ttk.Button(
+            bas_table, text='\u26d4 Arrêter ce site',
+            command=self._exec_kill_selected, state='disabled')
+        self._exec_kill_btn.pack(side='right')
+        self._exec_table.bind('<<TreeviewSelect>>',
+                              lambda e: self._exec_kill_refresh())
+        # Masquée tant qu'aucune collecte ne tourne (les autres gestes —
+        # import, cotations… — n'ont pas de sites).
+        self._exec_sites_state = {}
+        self._exec_table_active = False
+        self._exec_tick_id = None
+
         text_frame = ttk.Frame(result_frame)
         text_frame.pack(fill='both', expand=True, pady=(4, 4))
 
@@ -287,6 +346,10 @@ class ExecMixin:
         # au nom exact, dans la procédure de secours de la description (onglet Sites).
         ttk.Button(files_btn_frame, text='Journal',
                    command=self._exec_open_journal).pack(side='right', padx=(8, 0))
+
+        # Restaurer le verdict de la dernière collecte (survit à la fermeture
+        # de Compta). En dernier : tous les widgets qu'il touche existent.
+        self._exec_state_load()
 
 
     # ----------------------------------------------------------------
@@ -642,6 +705,7 @@ class ExecMixin:
         self._exec_output.delete('1.0', 'end')
 
         self._exec_run_label = label
+        self._exec_table_reset(label == 'Collecte')
         self._exec_status_var.set(f'\u23f3 {label} en cours...')
         self._exec_status_label.config(fg='#CC6600')
 
@@ -693,26 +757,378 @@ class ExecMixin:
                     return
                 self._exec_output.insert('end', item)
                 self._exec_output.see('end')
+                if self._exec_table_active:
+                    self._exec_track(item)
                 if '\U0001f514' in item:  # 🔔 = marqueur alert() (2FA/CAPTCHA/login)
                     self._exec_2fa_alert()
-                elif self._exec_2fa_flashing and item.strip():
+                elif (self._exec_2fa_flashing and item.strip()
+                      and not self._exec_waiting_sites()):
                     self._exec_2fa_stop()
         except queue.Empty:
             pass
         self.root.after(100, self._exec_poll)
 
+    # ----------------------------------------------------------------
+    # TABLE VIVANTE DE LA COLLECTE
+    # ----------------------------------------------------------------
+    # Alimentée par le flux stdout de `cpt_fetch.py`, qui porte DÉJÀ tout ce
+    # qu'il faut — l'orchestrateur n'a pas à changer :
+    #     [SITE] HH:MM:SS → Nom (SITE)...      départ
+    #     [SITE]   🔔 ...                      demande humaine
+    #     [SITE]   ⏳ Attente humaine : Ns     Marc a répondu
+    #     [SITE]   ✓ (Ns)   /   ✗ (…) …       fin
+    # ⚠ Le préfixe `[SITE] ` n'est émis QUE si plusieurs jambes tournent
+    #   (`multi` dans cpt_fetch.py) : sur une collecte mono-site il n'y en a
+    #   pas → on retombe sur l'unique site vivant (`_exec_line_site`).
+
+    # ⚠ PAS d'ancrage en fin de ligne, et on prend TOUTES les occurrences.
+    #   L'orchestrateur imprime depuis plusieurs fils (jambe manuelle + 4 jambes
+    #   machine) ; `print(x)` écrivant le texte PUIS le saut de ligne, un autre
+    #   fil peut s'intercaler entre les deux et fusionner deux sorties en une
+    #   seule ligne. Ancré sur `$`, le motif ratait alors le départ du site —
+    #   eToro absent de la table le 10/09/2026 alors qu'il collectait.
+    _RE_START = re.compile(r'→\s+.*?\(([A-Z0-9_]+)\)\.\.\.')
+    _RE_PREFIX = re.compile(r'^\s*\[([A-Z0-9_]+)\]\s')
+    _RE_OK = re.compile(r'✓\s*\((\d+)s\)')
+    _RE_KO = re.compile(r'✗\s*\(([^)]*)\)\s*(.*)$')
+    # ⚠ TROISIÈME issue, ni ✓ ni ✗ : le verdict nuancé de cpt_fetch.py (#194) —
+    #   « le site a produit des fichiers, mais une étape a échoué ». L'ignorer
+    #   laissait le site bloqué en « en cours » et hors de tout compteur
+    #   (constaté 10/09/2026 : 11 ✓ + 2 ✗ pour 14 sites).
+    _RE_PART = re.compile(r'⚠\s*\((\d+)s\)\s*(.*)$')
+    # ✋ : site arrêté à la demande de Marc. Ni erreur, ni succès — même
+    # raisonnement que le verdict nuancé ⚠ : mêler une décision à une panne
+    # brouille les deux.
+    _RE_ANNUL = re.compile(r'✋\s*\((\d+)s\)\s*(.*)$')
+    # Le détail d'un ✗ recopie la ligne du fetcher : « HH:MM:SS cpt_fetch_X ❌
+    # message ». Dans une colonne on ne veut que le message — l'horodatage et
+    # le nom du logger sont déjà dans le journal juste dessous.
+    _RE_BRUIT = re.compile(r'^(?:\d{2}:\d{2}:\d{2}\s+\S+\s+)?[❌⚠️✗]*\s*')
+
+    def _exec_table_reset(self, active):
+        """Nouvelle collecte → table vidée et affichée. Autre geste (import,
+        cotations…) → table masquée, mais l'ÉTAT DE LA DERNIÈRE COLLECTE EST
+        CONSERVÉ : un import n'invalide pas le verdict des sites, et le bouton
+        « Manqués » doit y survivre."""
+        self._exec_table_active = active
+        if self._exec_tick_id:
+            self.root.after_cancel(self._exec_tick_id)
+            self._exec_tick_id = None
+        if active:
+            self._exec_sites_state = {}
+            for iid in self._exec_table.get_children():
+                self._exec_table.delete(iid)
+            self._exec_missed_btn.config(state='disabled')
+            self._exec_table_summary.config(text='')
+            self._exec_table_frame.pack(after=self._exec_status_label,
+                                        fill='x', pady=(4, 0))
+            self._exec_tick()
+        else:
+            self._exec_table_frame.pack_forget()
+
+    # ── Mémoire de la dernière collecte ──────────────────────────────
+    # `_exec_sites_state` vit en mémoire : quitter Compta l'effaçait, et avec
+    # lui le bouton « Manqués » — précisément au moment où il sert,
+    # puisqu'on quitte Compta POUR aller traiter les échecs (vécu 10/09/2026).
+    # Store machine-local sous `logs/` (gitignoré d'office), même idiome que
+    # `logs/fetch_profiles.json`. Jetable : toute lecture qui échoue est
+    # ignorée — une mémoire de confort ne doit JAMAIS empêcher la GUI d'ouvrir.
+
+    def _exec_state_path(self):
+        logs = self.config.get('paths', 'logs', fallback='./logs')
+        return self.config_path.parent / logs / 'derniere_collecte.json'
+
+    def _exec_state_save(self):
+        try:
+            f = self._exec_state_path()
+            f.parent.mkdir(parents=True, exist_ok=True)
+            f.write_text(json.dumps(
+                {'quand': time.strftime('%d/%m %H:%M'),
+                 'sites': {s: {k: v for k, v in st.items() if k != 'depuis'}
+                           for s, st in self._exec_sites_state.items()}},
+                ensure_ascii=False, indent=1))
+        except Exception:
+            pass
+
+    def _exec_state_load(self):
+        """Restaure le verdict de la dernière collecte au démarrage."""
+        try:
+            data = json.loads(self._exec_state_path().read_text())
+            sites = data.get('sites') or {}
+            if not sites:
+                return
+            self._exec_sites_state = {
+                s: {'etat': st.get('etat', 'ok'), 'detail': st.get('detail', ''),
+                    'fin': st.get('fin', ''), 'depuis': None}
+                for s, st in sites.items()}
+            self._exec_table_active = True
+            self._exec_table_frame.pack(after=self._exec_status_label,
+                                        fill='x', pady=(4, 0))
+            self._exec_table_refresh()
+            self._exec_missed_refresh()
+            self._exec_status_var.set(
+                f"\u25cf Dernière collecte \u2014 {data.get('quand', '?')}")
+        except Exception:
+            pass
+
+    def _exec_cancel_dir(self):
+        logs = self.config.get('paths', 'logs', fallback='./logs')
+        return self.config_path.parent / logs / 'cancel'
+
+    def _exec_kill_refresh(self):
+        """Le bouton n'a de sens que sur un site EN COURS d'une collecte qui
+        tourne : on n'arrête pas un site déjà terminé."""
+        sel = self._exec_table.selection()
+        site = sel[0] if sel else None
+        st = self._exec_sites_state.get(site) if site else None
+        vivant = (self._exec_process is not None
+                  and st is not None and st['etat'] in ('run', 'wait'))
+        self._exec_kill_btn.config(state='normal' if vivant else 'disabled')
+
+    def _exec_kill_selected(self):
+        """Dépose une demande d'annulation pour le site sélectionné.
+
+        On n'envoie PAS de signal nous-mêmes : la GUI ne détient que le PID de
+        l'orchestrateur, et tuer un petit-fils par-dessus son parent priverait
+        l'échec de son chemin normal (statistiques, compte rendu, journal).
+        `cpt_fetch.py` guette ce fichier à chaque seconde et tue SON enfant.
+        """
+        sel = self._exec_table.selection()
+        if not sel:
+            return
+        site = sel[0]
+        if not messagebox.askyesno(
+                'Arrêter ce site',
+                f'Arrêter la collecte de « {site} » ?\n\n'
+                'Les autres sites continuent. Le site sera marqué « arrêté » '
+                'et pourra être repris par le bouton Manqués.',
+                parent=self.root):
+            return
+        try:
+            d = self._exec_cancel_dir()
+            d.mkdir(parents=True, exist_ok=True)
+            (d / site).write_text('')
+        except OSError as e:
+            messagebox.showerror('Arrêt impossible',
+                                 f"Impossible de déposer la demande :\n{e}",
+                                 parent=self.root)
+            return
+        self._exec_kill_btn.config(state='disabled')
+        self._exec_output.insert('end', f'  → arrêt demandé pour {site}\n')
+        self._exec_output.see('end')
+
+    def _exec_select_missed(self):
+        """Ne garder cochés que les sites à rejouer (échec ou incomplet)."""
+        for site, var in self._exec_site_vars.items():
+            st = self._exec_sites_state.get(site)
+            if st:                       # site de la dernière collecte
+                var.set(st['etat'] in ('ko', 'part', 'annul'))
+            # Un site ABSENT de la dernière collecte garde sa case : il n'a pas
+            # été jugé, on ne décide pas pour lui.
+
+    def _exec_missed_refresh(self):
+        """Le bouton n'a de sens que s'il reste quelque chose à rejouer."""
+        rejouables = any(st['etat'] in ('ko', 'part', 'annul')
+                         for st in self._exec_sites_state.values())
+        self._exec_missed_btn.config(
+            state='normal' if rejouables else 'disabled')
+
+    def _exec_line_site(self, line):
+        """Site auquel se rapporte une ligne : préfixe `[SITE] ` s'il est là,
+        sinon l'unique site encore vivant (cas mono-site, sans préfixe)."""
+        m = self._RE_PREFIX.match(line)
+        if m and m.group(1) in self._exec_sites_state:
+            return m.group(1)
+        vivants = [s for s, st in self._exec_sites_state.items()
+                   if st['etat'] in ('run', 'wait')]
+        return vivants[0] if len(vivants) == 1 else None
+
+    def _exec_track(self, line):
+        """Met à jour l'état des sites depuis une ligne du flux.
+
+        ⚠ Une ligne peut en porter PLUSIEURS. L'orchestrateur imprime depuis
+        plusieurs fils (jambe manuelle + 4 jambes machine) et `print(x)` écrit
+        le texte PUIS le saut de ligne : un autre fil s'intercale entre les
+        deux et fusionne deux sorties. On découpe donc sur les préfixes
+        `[SITE] ` AVANT d'analyser — sans quoi le verdict d'un site serait
+        attribué à celui dont le préfixe ouvre la ligne. Défaut constaté le
+        10/09/2026 : eToro collectait sans jamais apparaître dans la table.
+        """
+        morceaux = [m for m in re.split(r'(?=\[[A-Z0-9_]+\]\s)', line)
+                    if m.strip()]
+        for morceau in (morceaux or [line]):
+            self._exec_track_one(morceau)
+
+    def _exec_track_one(self, line):
+        """Analyse UN fragment homogène (un seul site)."""
+        now = time.monotonic()
+        for m in self._RE_START.finditer(line):
+            self._exec_sites_state[m.group(1)] = {
+                'etat': 'run', 'detail': 'en cours',
+                'depuis': now, 'fin': None}
+            self._exec_table_refresh()
+            return
+        site = self._exec_line_site(line)
+        st = self._exec_sites_state.get(site) if site else None
+        if not st:
+            return
+        m = self._RE_OK.search(line)
+        if m:
+            st.update(etat='ok', detail='terminé', fin=f'{m.group(1)} s')
+            self._exec_table_refresh()
+            return
+        m = self._RE_ANNUL.search(line)
+        if m:
+            st.update(etat='annul', detail=m.group(2).strip() or 'arrêté',
+                      fin=f'{m.group(1)} s')
+            self._exec_table_refresh()
+            return
+        m = self._RE_PART.search(line)
+        if m:
+            st.update(etat='part', detail=m.group(2).strip() or 'collecte incomplète',
+                      fin=f'{m.group(1)} s')
+            self._exec_table_refresh()
+            return
+        m = self._RE_KO.search(line)
+        if m:
+            duree, reste = m.group(1).strip(), m.group(2).strip()
+            reste = self._RE_BRUIT.sub('', reste).strip()
+            # `✗ (timeout)` (ancienne forme) met un mot là où les autres
+            # mettent une durée : ne pas l'afficher dans la colonne Depuis.
+            if not re.fullmatch(r'\d+\s*s?', duree):
+                reste, duree = (reste or duree), ''
+            st.update(etat='ko', detail=(reste or 'échec'), fin=duree)
+            self._exec_table_refresh()
+            return
+        if '\U0001f514' in line:                       # 🔔 : demande humaine
+            st.update(etat='wait', depuis=now,
+                      detail=line.split('\U0001f514', 1)[1].strip())
+            self._exec_table_refresh()
+            return
+        if 'Attente humaine' in line:                  # ⏳ : Marc a répondu
+            st.update(etat='run', detail='répondu — en cours', depuis=now)
+            self._exec_table_refresh()
+
+    def _exec_waiting_sites(self):
+        """Sites qui attendent une action humaine, dans l'ordre de démarrage."""
+        return [s for s, st in self._exec_sites_state.items()
+                if st['etat'] == 'wait']
+
+    @staticmethod
+    def _exec_duree(t0):
+        if not t0:
+            return ''
+        s = int(time.monotonic() - t0)
+        return f'{s // 60} min {s % 60:02d}' if s >= 60 else f'{s} s'
+
+    def _exec_table_refresh(self):
+        """Reconstruit les lignes : les ACTIFS pendant la course, les ÉCHECS
+        une fois tout terminé. Les deux ensembles sont petits par nature."""
+        if not self._exec_table_active:
+            return
+        actifs = [(s, st) for s, st in self._exec_sites_state.items()
+                  if st['etat'] in ('run', 'wait')]
+        lignes = actifs or [(s, st) for s, st in self._exec_sites_state.items()
+                            if st['etat'] in ('ko', 'part', 'annul')]
+        # ⚠ MISE À JOUR DIFFÉRENTIELLE, surtout pas delete+insert. Le tic de
+        #   rafraîchissement passe ici CHAQUE SECONDE (colonne « Depuis ») :
+        #   reconstruire la table détruisait la sélection à chaque tour, et le
+        #   bouton « Arrêter ce site » ne survivait donc pas une seconde
+        #   (signalé le 10/09/2026). On ne retire que ce qui doit disparaître,
+        #   on met le reste à jour en place.
+        voulus = [s for s, _ in lignes]
+        for iid in self._exec_table.get_children():
+            if iid not in voulus:
+                self._exec_table.delete(iid)
+        for rang, (site, st) in enumerate(lignes):
+            if st['etat'] == 'wait':
+                icone, tag, depuis = '\U0001f514', 'wait', self._exec_duree(st['depuis'])
+            elif st['etat'] == 'run':
+                icone, tag, depuis = '▶', '', self._exec_duree(st['depuis'])
+            elif st['etat'] == 'part':
+                icone, tag, depuis = '⚠', 'part', st['fin'] or ''
+            elif st['etat'] == 'annul':
+                icone, tag, depuis = '✋', 'annul', st['fin'] or ''
+            else:
+                icone, tag, depuis = '✗', 'fail', st['fin'] or ''
+            valeurs = (f"{icone}  {st['detail']}", depuis)
+            etiquettes = (tag,) if tag else ()
+            if self._exec_table.exists(site):
+                self._exec_table.item(site, values=valeurs, tags=etiquettes)
+                self._exec_table.move(site, '', rang)
+            else:
+                self._exec_table.insert('', rang, iid=site, text=f'  {site}',
+                                        values=valeurs, tags=etiquettes)
+        self._exec_table.config(height=max(1, min(len(lignes), 6)))
+
+        ok = sum(1 for st in self._exec_sites_state.values() if st['etat'] == 'ok')
+        ko = sum(1 for st in self._exec_sites_state.values() if st['etat'] == 'ko')
+        part = sum(1 for st in self._exec_sites_state.values() if st['etat'] == 'part')
+        ann = sum(1 for st in self._exec_sites_state.values() if st['etat'] == 'annul')
+        parts = []
+        if ok:
+            parts.append(f'✓ {ok} réussi' + ('s' if ok > 1 else ''))
+        if part:
+            parts.append(f'⚠ {part} incomplet' + ('s' if part > 1 else ''))
+        if ko:
+            parts.append(f'✗ {ko} en échec')
+        if ann:
+            parts.append(f'✋ {ann} arrêté' + ('s' if ann > 1 else ''))
+        self._exec_table_summary.config(
+            text=('   ' + '  ·  '.join(parts)) if parts else '')
+
+        # Le compteur d'attente dans la ligne de statut est le cœur du
+        # dispositif : il évite d'avoir à CHERCHER si une autre demande dort.
+        # Le 10/09/2026, trois 🔔 sont tombés en 7 s derrière un bandeau
+        # anonyme — deux ont été manqués.
+        self._exec_kill_refresh()
+        att = self._exec_waiting_sites()
+        if att:
+            self._exec_status_var.set(
+                f'\U0001f514 {len(att)} SITE' + ('S' if len(att) > 1 else '')
+                + ' EN ATTENTE — ' + ', '.join(att))
+        elif self._exec_2fa_flashing:
+            self._exec_2fa_stop()
+        elif self._exec_status_var.get().startswith('\U0001f514'):
+            # Filet : `_exec_2fa_stop` sort tôt si le clignotement est déjà
+            # éteint — sans ça un « N SITES EN ATTENTE » pourrait survivre à
+            # la dernière réponse.
+            self._exec_status_var.set(
+                f'\u23f3 {self._exec_run_label} en cours...')
+
+    def _exec_tick(self):
+        """Rafraîchit les durées « Depuis » pendant la course."""
+        if not self._exec_table_active:
+            return
+        self._exec_table_refresh()
+        self._exec_tick_id = self.root.after(1000, self._exec_tick)
+
     def _exec_2fa_alert(self):
         """Alerte visuelle + sonore sur toute demande d'action humaine (marqueur
         \U0001f514 d'alert() : 2FA, CAPTCHA, login manuel, validation mobile\u2026)."""
-        self._exec_status_var.set('\U0001f514 Action d\'authentification requise \u2014 2FA / CAPTCHA / \u2026')
+        if not self._exec_table_active:
+            self._exec_status_var.set('\U0001f514 Action d\'authentification requise \u2014 2FA / CAPTCHA / \u2026')
         self._exec_2fa_flashing = True
         self._exec_2fa_flash(True)
-        # Auto-stop après 30 s
-        self.root.after(30000, self._exec_2fa_stop)
-        # Mise au premier plan + son
+        # Auto-stop après 30 s — SEULEMENT hors collecte suivie. Quand la table
+        # est active, l'alerte s'éteint sur l'ÉTAT RÉEL (plus aucun site en
+        # attente), jamais sur une minuterie : le 10/09/2026, trois 🔔
+        # concurrents ont cessé de signaler leur présence 30 s après, alors
+        # qu'ils avaient encore 2 min 30 à courir — deux ont été manqués.
+        if not self._exec_table_active:
+            self.root.after(30000, self._exec_2fa_stop)
+        # Attirer l'œil SANS voler les clics. `-topmost` maintenu 3 s clouait
+        # Compta au-dessus de Chrome : le clic destiné au CAPTCHA atterrissait
+        # sur Compta, et il en fallait un second pour revenir à Chrome (signalé
+        # 10/09/2026). Poser puis retirer l'attribut dans la foulée lève la
+        # fenêtre une fois, sans l'épingler — le gestionnaire de fenêtres rend
+        # ensuite la main normalement.
+        # ⚠ Une demande 2FA se traite le plus souvent AILLEURS (Chrome, ou le
+        #   téléphone) : passer Compta devant est au mieux inutile, au pire
+        #   dans le chemin. Le bandeau clignotant et la table restent le signal.
         self.root.lift()
         self.root.attributes('-topmost', True)
-        self.root.after(3000, lambda: self.root.attributes('-topmost', False))
+        self.root.attributes('-topmost', False)
         self.root.bell()
 
     def _exec_2fa_stop(self):
@@ -739,6 +1155,23 @@ class ExecMixin:
         """Callback fin de subprocess : statut final, réactive les boutons."""
         self._exec_2fa_flashing = False
         self._exec_status_label.config(bg=self._exec_default_bg)
+        if self._exec_tick_id:
+            self.root.after_cancel(self._exec_tick_id)
+            self._exec_tick_id = None
+        if self._exec_table_active:
+            # ⚠ FILET D'INVARIANT. Le subprocess est fini : plus aucun site ne
+            #   peut être « en cours ». S'il en reste un, c'est que son verdict
+            #   n'a pas été reconnu — une 4e issue apparue dans cpt_fetch.py.
+            #   On la REND VISIBLE plutôt que de la laisser disparaître des
+            #   compteurs : c'est ainsi que le verdict nuancé ⚠ (#194) était
+            #   passé inaperçu (10/09/2026, « 11 ✓ + 2 ✗ » pour 14 sites).
+            for st in self._exec_sites_state.values():
+                if st['etat'] in ('run', 'wait'):
+                    st.update(etat='part', fin='',
+                              detail='issue non reconnue — voir le journal')
+            self._exec_table_refresh()   # bascule sur échecs + incomplets
+            self._exec_missed_refresh()
+            self._exec_state_save()
         if returncode == 0:
             self._exec_status_var.set('\u25cf \u2713 Terminé')
             self._exec_status_label.config(fg='#228B22')

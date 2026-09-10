@@ -31,6 +31,30 @@ COMPTA_MODE = inc_mode.get_mode()
 SCRIPT_DIR = Path(__file__).parent
 CONFIG_FILE = BASE_DIR / 'config.ini'
 
+# ── Chien de garde d'un site : DEUX budgets ─────────────────────────────────
+# Un plafond unique de 300 s était INTENABLE : six fetchers déclarent
+# `LOGIN_TIMEOUT_S = 300`, soit exactement le budget du processus entier. Un
+# site qui consommait vraiment sa fenêtre de login était tué par son parent
+# AVANT d'avoir commencé son travail — et tué net (`kill`), donc sans erreur,
+# sans dump, et sans une ligne au journal. eToro y est passé trois fois le
+# 10/09/2026.
+# Le parent ne doit JAMAIS devancer le fetcher : celui-ci a son propre timeout,
+# qui produit une erreur propre et un dump. Le chien de garde est là pour
+# rattraper un processus VRAIMENT bloqué, pas pour arbitrer une attente.
+# Demandes d'annulation déposées par la GUI : un fichier par site, que le
+# surveillant du site concerné consomme. La GUI ne détient que le PID de
+# l'orchestrateur — passer par un fichier lui évite de tuer un petit-fils
+# par-dessus son parent : l'orchestrateur reste PROPRIÉTAIRE de ses processus,
+# et l'échec emprunte son chemin normal (statistiques, journal, compte rendu).
+ANNULATIONS = BASE_DIR / 'logs' / 'cancel'
+
+BUDGET_MACHINE = 300   # le site travaille seul — un blocage machine meurt
+                       #   toujours aussi vite qu'avant
+CREDIT_HUMAIN = 360    # on attend l'humain : hors budget machine, mais BORNÉ.
+                       #   Un fetcher qui oublierait son `user_done()` (cas
+                       #   réel, corrigé le même jour dans cpt_fetch_ETORO)
+                       #   désarmerait sinon le garde-fou pour toujours.
+
 
 class ComptaFetcher:
     def __init__(self, sites_filter=None, verbose=False, auto_only=False):
@@ -48,7 +72,8 @@ class ComptaFetcher:
             'sites_succeeded': 0,
             'sites_failed': 0,
             'errors': [],
-            'partial': []      # étapes ❌ sous un site par ailleurs réussi (#194)
+            'partial': [],     # étapes ❌ sous un site par ailleurs réussi (#194)
+            'annules': []      # sites que TU as arrêtés — ni erreur, ni succès
         }
 
         # Charger la configuration
@@ -61,9 +86,18 @@ class ComptaFetcher:
         self.debug = self.config.getboolean('general', 'DEBUG', fallback=False)
 
         # Créer le logger
+        # ⚠ `journal_file=None` jusqu'au 10/09/2026, au motif que « les
+        #   sous-scripts ont leur propre journal ». C'était l'angle mort : les
+        #   sous-scripts journalisent CE QU'ILS FONT, mais le VERDICT d'un site
+        #   n'est connu que du parent. Un site tué par le chien de garde ne
+        #   laissait donc aucune trace — le journal s'arrêtait sur son 🔔.
+        #   Même journal que les fetchers : un seul fil narratif.
+        logs_dir = self.config.get('paths', 'logs', fallback='./logs')
+        journal = (BASE_DIR / logs_dir / 'journal.log').resolve()
+        journal.parent.mkdir(parents=True, exist_ok=True)
         self.logger = Logger(
             script_name="cpt_fetch",
-            journal_file=None,  # Pas de journal pour ce script (les sous-scripts ont leur propre journal)
+            journal_file=journal,
             verbose=self.verbose,
             debug=self.debug
         )
@@ -82,6 +116,69 @@ class ComptaFetcher:
                 self.logger.warning(f"Sites non configurés ou inactifs: {', '.join(missing)}")
         else:
             self.sites_to_process = self.enabled_sites
+
+    def _verdict(self, prefix, site, ligne):
+        """Verdict d'un site : sur la SORTIE (que la GUI parse pour sa table)
+        ET au JOURNAL.
+
+        Sans la seconde écriture, un verdict d'orchestrateur n'existe que dans
+        la fenêtre de la GUI et disparaît avec elle. Le 10/09/2026, eToro a été
+        tué trois fois par le plafond du parent : `journal.log` s'arrêtait sur
+        son 🔔, sans rien après — l'échec était indiagnosticable à froid, et
+        c'est ce qui m'a fait rater une erreur sur quatre en analysant le run.
+        """
+        print(f"{prefix}  {ligne}", flush=True)
+        self.logger.journal(f"{site} : {ligne}")
+
+    def _surveiller(self, proc, attente_humaine, prefix, site):
+        """Chien de garde d'un site. True = le site s'est terminé de lui-même
+        (quel que soit son code retour) ; False = il a été tué, l'échec est
+        déjà journalisé. Voir BUDGET_MACHINE / CREDIT_HUMAIN en tête de module.
+        """
+        PAS = 1.0
+        machine = humain = 0.0
+        while True:
+            try:
+                proc.wait(timeout=PAS)
+                return True                # le site a fini de lui-même
+            except subprocess.TimeoutExpired:
+                motif = None
+                demande = ANNULATIONS / site
+                if demande.exists():
+                    # Consommée AVANT de tuer : si quoi que ce soit échouait
+                    # ensuite, un fichier resté là annulerait le site au run
+                    # suivant, sans que rien ne l'explique.
+                    try:
+                        demande.unlink()
+                    except OSError:
+                        pass
+                    proc.kill()
+                    proc.wait()
+                    ecoule = int(round(machine + humain))
+                    self._verdict(prefix, site,
+                                  f"✋ ({ecoule}s) arrêté à ta demande")
+                    self.stats['annules'].append(site)
+                    return False
+                if attente_humaine.is_set():
+                    humain += PAS
+                    if humain > CREDIT_HUMAIN:
+                        motif = f"attente humaine > {int(CREDIT_HUMAIN // 60)} min"
+                else:
+                    machine += PAS
+                    if machine > BUDGET_MACHINE:
+                        motif = (f"bloqué > {int(BUDGET_MACHINE // 60)} min "
+                                 f"sans attente humaine")
+                if motif:
+                    proc.kill()
+                    proc.wait()
+                    # Convention du fichier : `✗ (Ns) message`. La durée reste
+                    # dans les parenthèses, le motif après — sinon la table de
+                    # la GUI prend le motif pour une durée.
+                    ecoule = int(round(machine + humain))
+                    self._verdict(prefix, site,
+                                  f"✗ ({ecoule}s) timeout — {motif}")
+                    self.stats['errors'].append(f"{site}: timeout — {motif}")
+                    return False
 
     def fetch_site(self, site, prefix=''):
         """Lance le script de collecte pour un site donné
@@ -153,10 +250,20 @@ class ComptaFetcher:
 
             output_lines = []
 
+            # Le fil lecteur voit DÉJÀ passer les marqueurs : il sert de capteur
+            # au chien de garde ci-dessous, sans rien ajouter au protocole.
+            #   🔔 (alert)     → une action humaine est attendue
+            #   ⏳ (user_done) → elle a été fournie
+            attente_humaine = threading.Event()
+
             def read_output():
                 for line in proc.stdout:
                     line = line.rstrip('\n')
                     output_lines.append(line)
+                    if '🔔' in line:
+                        attente_humaine.set()
+                    elif '⏳' in line:
+                        attente_humaine.clear()
                     if self.verbose:
                         print(f"{prefix}{line}", flush=True)
                     elif '🔔' in line or '⏳' in line or 'Skip' in line:
@@ -165,13 +272,7 @@ class ComptaFetcher:
             reader = threading.Thread(target=read_output, daemon=True)
             reader.start()
 
-            try:
-                proc.wait(timeout=300)
-            except subprocess.TimeoutExpired:
-                proc.kill()
-                proc.wait()
-                print(f"{prefix}  ✗ (timeout)")
-                self.stats['errors'].append(f"{site}: timeout > 5 min")
+            if not self._surveiller(proc, attente_humaine, prefix, site):
                 return False
 
             reader.join(timeout=5)
@@ -189,12 +290,13 @@ class ComptaFetcher:
                 elapsed = int(round(time.monotonic() - t0))
                 failed_steps = [l.strip() for l in output_lines if '❌' in l]
                 if failed_steps:
-                    print(f"{prefix}  ⚠ ({elapsed}s) {len(failed_steps)} étape(s) "
-                          f"en échec — collecte incomplète")
+                    self._verdict(prefix, site,
+                                  f"⚠ ({elapsed}s) {len(failed_steps)} étape(s) "
+                                  f"en échec — collecte incomplète")
                     for step in failed_steps:
                         self.stats['partial'].append(f"{site}: {step}")
                 else:
-                    print(f"{prefix}  ✓ ({elapsed}s)")
+                    self._verdict(prefix, site, f"✓ ({elapsed}s)")
                 return True
             else:
                 # Chercher la dernière erreur dans la sortie capturée.
@@ -229,12 +331,14 @@ class ComptaFetcher:
                     # indice (négatif = signal, 126/127 = souci d'exécution).
                     last_error = (f"Erreur inconnue (sortie vide, "
                                   f"code retour {proc.returncode})")
-                print(f"{prefix}  ✗ ({int(round(time.monotonic() - t0))}s) {last_error}")
+                self._verdict(
+                    prefix, site,
+                    f"✗ ({int(round(time.monotonic() - t0))}s) {last_error}")
                 self.stats['errors'].append(f"{site}: {last_error}")
                 return False
 
         except Exception as e:
-            print(f"{prefix}  ✗ ({e})")
+            self._verdict(prefix, site, f"✗ ({e})")
             self.stats['errors'].append(f"{site}: {e}")
             return False
 
@@ -306,6 +410,16 @@ class ComptaFetcher:
             return False
 
         # Tiérage (#147) : auto (ni credential ni 2FA) → semi (credential sans
+        # Une demande d'annulation déposée trop tard (le site venait de finir)
+        # survivrait au run et tuerait ce site au SUIVANT, sans explication.
+        # On repart d'une ardoise propre.
+        if ANNULATIONS.exists():
+            for f in ANNULATIONS.iterdir():
+                try:
+                    f.unlink()
+                except OSError:
+                    pass
+
         # 2FA) → manual (2FA). Ordre stable dans chaque tier (préserve l'ordre
         # config) → l'humain n'attend pas les sites API, et ceux-ci ne bloquent
         # pas derrière un prompt 2FA.
@@ -393,6 +507,12 @@ class ComptaFetcher:
         # ne sont pas en échec — mais il leur manque une source. Les mêler aux
         # erreurs brouillerait les deux notions ; les taire les rend invisibles,
         # ce qui est précisément le défaut qu'on corrige.
+        # Bloc à part : tu les as arrêtés, ce ne sont ni des erreurs ni des
+        # succès. Les mêler aux erreurs ferait passer une décision pour une
+        # panne — même raisonnement que pour `partial` ci-dessous.
+        if self.stats['annules']:
+            print(f"\n✋ Arrêtés à ta demande ({len(self.stats['annules'])}) : "
+                  + ', '.join(self.stats['annules']))
         if self.stats['partial']:
             print(f"\n⚠️  Collectes incomplètes ({len(self.stats['partial'])}) — "
                   f"le site a produit des fichiers, mais une étape a échoué :")

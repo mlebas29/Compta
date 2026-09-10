@@ -90,6 +90,8 @@ Chaque site est décrit dans l'application (Onglet Sites). On y trouve notamment
 
 - **Parallélisme** - Les sites **sans navigateur** (API/RPC) sont collectés **en parallèle** ; les sites **navigateur** passent **un à la fois**, pour que deux demandes d'authentification ne se chevauchent pas. Le classement par défaut est en **ANNEXE B** ; tout site peut être forcé en parallèle (cf. ANNEXE C).
 
+- **Suivi en direct** - Pendant la collecte, l'onglet Exécution affiche une **table des sites actifs** — au plus cinq à la fois — indiquant pour chacun s'il travaille ou s'il attend une action, et depuis combien de temps. Les sites en attente sont **nommés et comptés** dans le bandeau, ce qui évite d'avoir à les chercher lorsque plusieurs se présentent ensemble. Une ligne active peut être **arrêtée seule**, sans interrompre les autres sites. En fin de collecte, la table bascule sur les sites en échec.
+
 - **Profilage** - À chaque collecte, l'App tient à jour un profil de navigation qui sert à repérer qu'un site a **changé de comportement** — une étape qui disparaît ou s'ajoute, une durée qui explose, un fichier attendu manquant, une connexion devenue soudain interactive. Le profil est consultable hors ligne.
 
 ## Import
@@ -185,7 +187,7 @@ Dans l'onglet Exécution, sélectionner les sites voulus puis cliquer sur le bou
 
 > NB : Une présence est nécessaire car certains sites peuvent déclencher une procédure d'authentification (avec ou sans mobile) pendant la collecte.
 
-On peut relancer une ou plusieurs collectes avec une sélection de sites différente ou identique.
+On peut relancer une ou plusieurs collectes avec une sélection de sites différente ou identique. Le bouton **« ⚠ Manqués »** restreint la sélection aux sites de la dernière collecte qui ont échoué ou n'ont abouti qu'en partie ; il reste actif après une fermeture de l'App.
 
 ### 📥 Import
 

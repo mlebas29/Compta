@@ -120,6 +120,19 @@ class Logger:
             except Exception:
                 pass  # Ne pas bloquer si erreur d'écriture
 
+    def journal(self, message: str, prefix: str = "→"):
+        """Écrit AU JOURNAL SEULEMENT, sans rien afficher.
+
+        L'orchestrateur imprime déjà ses verdicts sur sa sortie — c'est ce flux
+        que la GUI parse pour sa table. Les repasser par `info`/`error` les
+        afficherait DEUX fois. Mais sans cette écriture, un verdict
+        d'orchestrateur n'existe que dans la fenêtre de la GUI et disparaît
+        avec elle : le 10/09/2026, eToro a été tué trois fois par le plafond
+        du parent sans laisser UNE ligne au journal, rendant l'échec
+        indiagnosticable en post-mortem.
+        """
+        self._log(message, prefix=prefix, display=False, to_journal=True)
+
     def info(self, message: str):
         """Message informatif (toujours affiché, format simple sans timestamp)"""
         self._log(message, prefix="✓", display=True, to_journal=True, simple=True)
