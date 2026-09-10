@@ -380,7 +380,7 @@ class BbFetcher(BaseFetcher):
         Returns:
             True si connecté, False si timeout
         """
-        TIMEOUT_2FA = 180  # 3 minutes
+        TIMEOUT_2FA = 120  # 2 minutes
         RELOAD_AFTER = 60  # Reload (pas navigation) après 60s
         RELOAD_INTERVAL = 20
 

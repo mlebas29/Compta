@@ -90,7 +90,7 @@ Procédure :
 # ============================================================================
 
 # Timeouts
-LOGIN_TIMEOUT_S = 300       # 5 min pour login + 2FA (push mobile + email éventuel)
+LOGIN_TIMEOUT_S = 120       # 2 min pour login + 2FA (push mobile + email éventuel)
 DOWNLOAD_TIMEOUT_S = 120    # 2 min pour génération + téléchargement
 
 

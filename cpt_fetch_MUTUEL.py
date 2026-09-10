@@ -85,7 +85,7 @@ TXT_TOUTES_OPS = 'Téléchargez toutes les opérations disponibles'
 # Nom du fichier déposé (matche EXPECTED_FILES de cpt_format_MUTUEL)
 OUTPUT_FILENAME = 'tous_comptes.xlsx'
 
-LOGIN_TIMEOUT_S = 180   # marge pour la validation 2FA humaine
+LOGIN_TIMEOUT_S = 120   # marge pour la validation 2FA humaine
 DOWNLOAD_TIMEOUT_S = 60
 
 

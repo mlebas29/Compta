@@ -533,7 +533,7 @@ class SgFetcher(BaseFetcher):
 
         Timeout: 3 minutes.
         """
-        TIMEOUT_2FA = 180  # 3 minutes
+        TIMEOUT_2FA = 120  # 2 minutes
         CHECK_NAV_AFTER = 30  # Commencer navigation active après 30s
         CHECK_NAV_INTERVAL = 15  # Vérifier toutes les 15s
 

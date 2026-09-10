@@ -87,7 +87,7 @@ Procédure :
 # ============================================================================
 
 # Timeouts
-LOGIN_TIMEOUT_S = 300       # 5 min pour login + email 2FA
+LOGIN_TIMEOUT_S = 120       # 2 min pour login + email 2FA
 EXPORT_READY_TIMEOUT_S = 300  # 5 min pour génération export
 EXPORT_POLL_INTERVAL_S = 5    # Poll toutes les 5s
 

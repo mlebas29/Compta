@@ -89,7 +89,7 @@ Procédure :
 # ============================================================================
 
 # Timeouts
-LOGIN_TIMEOUT_S = 300       # 5 min pour login + 2FA
+LOGIN_TIMEOUT_S = 120       # 2 min pour login + 2FA (CAPTCHA compris)
 DOWNLOAD_TIMEOUT_S = 120    # 2 min pour téléchargement
 
 
@@ -417,7 +417,10 @@ class EtoroFetcher(BaseFetcher):
         # Poll hybride :
         # - Phase 1 (0-180s) : observation passive (laisser le temps CAPTCHA + 2FA)
         # - Phase 2 (180s+) : vérification active (navigation vers /home toutes les 20s)
-        PASSIVE_PHASE_S = 180
+        # ⚠ DOIT rester strictement sous LOGIN_TIMEOUT_S (120 s) : au-dessus,
+        #   la phase 2 de vérification active ne s'exécuterait JAMAIS. Ramené
+        #   de 180 à 60 le 10/09/2026 avec le passage du timeout à 120 s.
+        PASSIVE_PHASE_S = 60
         ACTIVE_CHECK_INTERVAL_S = 20
         start_time = time.time()
         last_url = ""
@@ -463,6 +466,15 @@ class EtoroFetcher(BaseFetcher):
                         self.logger.debug(f"Nouvel onglet post-login: {page_url}")
                         self.page = p
                     self.logger.info("Connexion détectée")
+                    # ⚠ Symétrique de la branche « onglet courant » ci-dessus.
+                    #   Son absence ici laissait l'attente humaine OUVERTE alors
+                    #   que le login avait réussi : le profil comptait le temps
+                    #   CAPTCHA comme du temps MACHINE, et la table vivante de
+                    #   la GUI restait bloquée sur 🔔. eToro remplaçant souvent
+                    #   l'onglet pendant le CAPTCHA, c'est la branche NORMALE,
+                    #   pas le cas rare. Constaté en collecte réelle le
+                    #   10/09/2026.
+                    self.logger.user_done()
                     time.sleep(2)
                     self.dismiss_cookies()
                     return True

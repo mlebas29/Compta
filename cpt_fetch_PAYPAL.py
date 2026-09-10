@@ -64,7 +64,7 @@ SMS.
 # CONFIGURATION
 # ============================================================================
 
-LOGIN_TIMEOUT_S = 300       # 5 min pour login + 2FA
+LOGIN_TIMEOUT_S = 120       # 2 min pour login + 2FA
 DOWNLOAD_TIMEOUT_S = 60     # 1 min pour téléchargement
 REPORT_POLL_INTERVAL_S = 5  # Intervalle de polling génération rapport
 REPORT_MAX_WAIT_S = 300     # 5 min max pour la génération du rapport
@@ -243,6 +243,7 @@ class PayPalFetcher(BaseFetcher):
         """
         start_time = time.time()
         tfa_attempted = False
+        captcha_signale = False
 
         while time.time() - start_time < LOGIN_TIMEOUT_S:
             try:
@@ -257,6 +258,22 @@ class PayPalFetcher(BaseFetcher):
                 self.logger.info("Connexion détectée")
                 self.logger.user_done()
                 return True
+
+            # CAPTCHA ? Il était testé UNE seule fois, juste après l'arrivée
+            # sur /signin — donc jamais vu quand PayPal le présente APRÈS la
+            # soumission du formulaire, ce qui est le cas courant. Résultat :
+            # Marc en résolvait plusieurs par jour sans qu'une ligne l'atteste
+            # (10/09/2026), et la table de la GUI ne montrait pas PayPal comme
+            # site en attente, faute de 🔔.
+            if 'validatecaptcha' in current_url:
+                if not captcha_signale:
+                    captcha_signale = True
+                    self.logger.alert("CAPTCHA DÉTECTÉ — Résous-le dans Chrome")
+                time.sleep(3)
+                continue
+            if captcha_signale:
+                captcha_signale = False
+                self.logger.info("CAPTCHA résolu")
 
             # Page 2FA ? Tenter une seule fois
             if not tfa_attempted and ('authflow' in current_url or 'challenges' in current_url):

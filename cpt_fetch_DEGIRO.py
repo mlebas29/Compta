@@ -79,7 +79,7 @@ Procédure :
 # ============================================================================
 
 # Timeouts
-LOGIN_TIMEOUT_S = 180       # 3 min pour 2FA mobile
+LOGIN_TIMEOUT_S = 120       # 2 min pour 2FA mobile
 DOWNLOAD_TIMEOUT_S = 30     # 30s pour téléchargement CSV
 
 # Période de collecte (6 mois)

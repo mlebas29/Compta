@@ -64,7 +64,7 @@ Possible (non encore rencontré).
 # CONFIGURATION
 # ============================================================================
 
-LOGIN_TIMEOUT_S = 300       # 5 min pour login + 2FA
+LOGIN_TIMEOUT_S = 120       # 2 min pour login + 2FA
 BALANCE_URL_PATH = '/gp/css/gc/balance'
 
 
