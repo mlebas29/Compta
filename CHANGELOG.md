@@ -9,6 +9,26 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 
 Les trois derniers sont spécifiques au mode assisté ; 📘 concerne le mode classeur.
 
+## v5.30.0
+| 2026-09-11 | La collecte se suit en direct, site par site — et ne casse plus au téléchargement. |
+| ---------- | ---------------------------------------------------------------------------------- |
+
+**Détail :**
+
+- **Téléchargements réparés.** Depuis début septembre, un site sur deux échouait en cours de collecte sans rien rapporter d'utilisable : le navigateur se fermait au moment de récupérer un fichier, et toutes les étapes suivantes tombaient d'un coup. La cause venait du navigateur lui-même — son historique de téléchargements suffisait à le faire mourir à la récupération suivante. L'App vide désormais cet historique avant chaque collecte. **Tes accès aux sites ne sont pas touchés** : aucune reconnexion, aucun code à ressaisir.
+
+- **Collecte suivie en direct.** Pendant une collecte, un tableau montre les sites en cours, leur état et depuis combien de temps. Quand un site attend une action de ta part — validation sur mobile, code, CAPTCHA — il est **nommé** : plus de bandeau anonyme quand trois demandes arrivent en quelques secondes. Les sites en échec, incomplets ou arrêtés restent affichés en fin de course, avec un bouton pour ne garder qu'eux, et le tableau survit à la fermeture de la fenêtre.
+
+- **Arrêter un seul site** sans interrompre les autres.
+
+- **Attentes raccourcies à 2 minutes** (au lieu de 3 à 5) sur l'ensemble des sites : le tableau disant désormais *ce qui se passe*, il n'était plus utile de laisser des fenêtres d'attente aussi longues. **eToro** : l'App ne reste plus bloquée sur « attente » après une connexion pourtant réussie.
+
+- **Onglet Avoirs** — le menu du clic droit nomme l'objet de la ligne (« Modifier compte » / « Modifier bien ») au lieu d'un libellé générique. ⚠ Le clic droit est un **confort Linux** : sur macOS, les mêmes actions passent par les boutons, et l'aide ne promet plus un geste indisponible.
+
+- **Fenêtre Exécution** — les boutons du cadre *Fichiers* restaient accessibles même lorsque le tableau de suivi affiche plusieurs sites en erreur.
+
+- Sans effet sur les données ni sur la configuration.
+
 ## v5.29.2
 | 2026-08-08 | Correction d'un échec d'ouverture de fenêtre (« Erreur inattendue »). |
 | ---------- | --------------------------------------------------------------------- |
