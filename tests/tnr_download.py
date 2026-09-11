@@ -14,8 +14,13 @@ Deux couches :
   • unit  (C) : `BaseFetcher.looks_like_html` sur octets HTML/CSV → tourne
                 PARTOUT (aucun navigateur), VPS nu inclus ;
   • live  (A) : serveur local (127.0.0.1, port choisi par l'OS) + fetcher
-                fictif → deux sous-cas :
+                fictif → trois sous-cas :
                   - /statement.csv (CSV valide) → conservé, format → ≥ 1 op ;
+                  - /statement.csv À NOUVEAU, même profil → DOIT réussir aussi
+                    (#204 : l'historique de téléchargement de Chrome tuait le
+                    navigateur au download suivant — un seul passage ne le voit
+                    pas, et le sous-cas /expired ne l'attrape pas non plus
+                    puisqu'il attend un échec) ;
                   - /expired (page login HTML en 200, servie en attachment) →
                     le garde DOIT rejeter et supprimer le fichier.
                 Chrome requis → SKIP propre si le navigateur est absent
@@ -173,6 +178,23 @@ def run_live():
         if not ops:
             return 'FAIL', "format: 0 opération produite sur le CSV valide"
 
+        # Sous-cas 1 bis : MÊME profil, SECOND téléchargement valide.
+        #   C'est le passage que #204 faisait tomber : un profil qui a déjà
+        #   servi voyait Chrome mourir au download suivant
+        #   (`Download.save_as: Target page, context or browser has been
+        #   closed`). Le sous-cas /expired ci-dessous ne peut PAS servir de
+        #   garde : il attend un échec, donc un navigateur mort y ressemble à
+        #   un succès du test. Il faut un second passage qui doit RÉUSSIR.
+        dest.unlink()          # sinon on ne saurait pas de quel run vient le fichier
+        try:
+            ok = _run_fixture(base_url, '/statement.csv')
+        except Exception as e:
+            return 'FAIL', f"lancement/run (2e passage): {str(e).splitlines()[0]}"
+        if not ok or not dest.is_file():
+            return 'FAIL', ("2e téléchargement sur le MÊME profil échoué — "
+                            "cf. #204 (purge de Default/History dans "
+                            "launch_browser désarmée ?)")
+
         # Sous-cas 2 : page HTML piège → le garde DOIT rejeter (test positif).
         try:
             ok = _run_fixture(base_url, '/expired')
@@ -184,7 +206,8 @@ def run_live():
         if dest.exists():
             return 'FAIL', "garde a rejeté mais n'a pas supprimé le fichier HTML"
 
-        return 'OK', f"download OK ({len(ops)} op) + garde HTML rejette bien"
+        return 'OK', (f"download OK ({len(ops)} op) + 2e passage même profil OK "
+                      f"(#204) + garde HTML rejette bien")
     finally:
         server.shutdown()
         server.server_close()
