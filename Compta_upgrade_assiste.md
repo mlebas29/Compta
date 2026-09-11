@@ -73,13 +73,12 @@ La restauration **sauvegarde l'état courant d'abord** (elle est donc elle-même
 **Inventaire** de ce que chaque version apporte, par composant (**dérivé de `upgrade_map.json`**, source unique) — c'est le **catalogue**, *pas ton chemin* : celui-ci dépend de ton instance, `upgrade.py --check` le montre. Le badge dit l'intention ; une **butée** 🧱 marque la profondeur où le rattrapage automatique s'arrête (en deçà : manuel).
 
 <!-- bloc généré : ./tool_render_upgrade_map.py --mode assiste — ne pas éditer à la main -->
-
 **Légende des badges** :
 
 > *cumulatif* = `upgrade` rattrape le retard accumulé · *informatif* = aucune action · *ponctuel* = à traiter au moment (pas de rattrapage)
 
 - 🔧 *(cumulatif)* migration de structure du classeur — `upgrade` l'applique automatiquement (sauvegarde préalable → réversible)
-- 📘 *(informatif)* contenu : nouveau classeur exemple — ton classeur migré reste en place
+- 📘 *(informatif)* contenu : nouveau classeur exemple — votre classeur migré reste en place
 - ⚙️ *(cumulatif)* config à normaliser — `upgrade` la normalise (rattrapage)
 - 🔄 *(ponctuel)* re-clonage du dépôt (réécriture d'historique git) — `upgrade` re-clone automatiquement (sauvegarde complète → réversible)
 - 🧱 *(ponctuel)* butée d'automatisation (profondeur de rattrapage) — profondeur où le rattrapage automatique s'arrête → recréer le classeur depuis le template (cf. Compta_upgrade_classeur.md)
@@ -103,7 +102,7 @@ _Le **nombre** dans la colonne d’un composant = le marqueur de schéma que la 
 | v4.0.0 | 📘 🔧 `2` |  |  | `tool_migrate_schema_v2.py` | drill devise (élimine les colonnes par devise) |
 | ≤ v3.x | 🧱 |  |  |  | schéma < 1 (pré-v3.4) : outils de migration retirés du dépôt git → migration manuelle (ancien mode classeur) |
 
-_**À chaque mise à jour**, `upgrade` vérifie aussi (et corrige si nécessaire — idempotent, hors gate de version) : ⚙️ normalisation de la config (renommages hérités) · raccourci de lancement (régénéré si le lanceur a changé) · cadre privé custom/ (dépôt git vide) — rattrapage des installs antérieures à v5.3.0._
+_**À chaque mise à jour**, `upgrade` vérifie aussi (et corrige si nécessaire — idempotent, hors gate de version) : ⚙️ normalisation de la config (renommages hérités) · raccourci de lancement (régénéré si le lanceur a changé) · cadre privé custom/ (dépôt git vide) — rattrapage des installs antérieures à v5.3.0 · navigateur de collecte (Chromium embarqué de Playwright, téléchargé s'il manque — ~190 Mo)._
 
 <!-- fin bloc généré -->
 

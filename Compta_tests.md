@@ -161,7 +161,7 @@ python3 tests/tnr_fetch.py --list       # inventaire (actif / configuré)
 **Que fait-il ?** Deux couches :
 
 - **unit** : vérifie le garde sur des octets connus (HTML, CSV, PDF, vide). Aucune dépendance navigateur → tourne **partout**, y compris sur un serveur nu.
-- **live** : démarre un petit serveur local (`http.server`, port choisi par l'OS) et lance un collecteur **fictif** qui télécharge deux fichiers : un CSV valide (doit être **conservé** et parsé → au moins une opération), et une page de connexion HTML servie comme un téléchargement (le garde **doit la rejeter et la supprimer**). Navigateur requis → **ignoré proprement** si Chrome est absent.
+- **live** : démarre un petit serveur local (`http.server`, port choisi par l'OS) et lance un collecteur **fictif** qui télécharge deux fichiers : un CSV valide (doit être **conservé** et parsé → au moins une opération), et une page de connexion HTML servie comme un téléchargement (le garde **doit la rejeter et la supprimer**). Navigateur requis → **ignoré proprement** si le navigateur est absent.
 
 **Ne couvre PAS** les sélecteurs propres à chaque vrai site (impossible sans leur DOM) → complémentaire de `fetch`, pas substitut.
 

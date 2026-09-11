@@ -21,7 +21,7 @@ Documentation technique pour le contributeur ou le mainteneur. Décrit l'archite
 ## Architecture en 3 tiers
 
 ```
-Tier 1 (fetch)  → Playwright/Chrome — télécharger les documents depuis les sites
+Tier 1 (fetch)  → Playwright/Chromium — télécharger les documents depuis les sites
 Tier 2 (format) → Convertir documents bruts → formats internes (monoscript par site)
 Tier 3 (update) → Importer dans Excel — déduplication + archivage + appariement
 ```
@@ -300,7 +300,7 @@ Le dossier DEV est **indépendant** (`~/Compta-dev/`, même structure, mode `DEV
 
 **Externes** : tesseract-ocr (OCR 2FA), gpg (credentials), libreoffice (UNO API pour calcul de formules — openpyxl ne recalcule pas).
 
-**Browser** : Chrome via Playwright (persistent context dans `.chrome_profile_*/` — supprimer ces dossiers déclenche les 2FA).
+**Browser** : Chromium embarqué de Playwright (`playwright install chromium`, repli sur le Chrome système s'il manque ; persistent context dans `.chrome_profile_*/` — supprimer ces dossiers déclenche les 2FA).
 
 Liste complète : `requirements.txt` (Python) + `install.sh` (système).
 

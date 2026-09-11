@@ -235,8 +235,39 @@ class BaseFetcher:
         except Exception:
             pass                  # la purge ne doit JAMAIS empêcher une collecte
 
+    def _browser_channel(self):
+        """Choisit le navigateur (#207) : le Chromium EMBARQUÉ de Playwright s'il est
+        posé (`playwright install chromium`, cf. inc_install.install_pw_browser),
+        sinon le Chrome système. Retourne (channel, libellé).
+
+        Le Chrome système se met à jour seul et a cassé la collecte sans prévenir
+        (151 → 152 le 08/09/2026, cf. _purge_download_history) ; le Chromium
+        embarqué est CERTIFIÉ par la version de Playwright installée — versions
+        accordées par construction. Le repli sur Chrome n'est pas une option : une
+        instance qui ne se met à jour que lorsqu'elle y pense (juf) doit continuer à
+        collecter tant que le binaire embarqué n'est pas arrivé — et bascule
+        d'elle-même le jour où il arrive.
+
+        `channel="chromium"` = le Chromium complet livré par Playwright, en headless
+        « nouveau » comme Chrome — le MÊME mode qu'aujourd'hui, agent utilisateur
+        compris (HeadlessChrome/N en headless, Chrome/N en headed ; mesuré
+        11/09/2026). Sans channel, Playwright prendrait son « headless shell », un
+        binaire à part (262 Mo) que l'install ne pose pas (--no-shell).
+
+        Un profil écrit par un Chrome plus récent s'ouvre tel quel (mesuré : profil
+        152 lu par Chromium 151, cookies intacts) — pas de mise à l'écart, la
+        session est réutilisée et le circuit 2FA habituel joue si le site la refuse.
+        """
+        try:
+            exe = self.playwright.chromium.executable_path
+            if exe and Path(exe).exists():
+                return "chromium", "Chromium embarqué"
+        except Exception:
+            pass
+        return "chrome", "Chrome système"
+
     def launch_browser(self):
-        """Lance Chrome avec profil persistant."""
+        """Lance le navigateur avec profil persistant."""
         self._chrome_profile_dir.mkdir(parents=True, exist_ok=True)
 
         if self._delete_cookies:
@@ -244,12 +275,13 @@ class BaseFetcher:
 
         self._purge_download_history()
 
-        self.logger.info(f"Lancement Chrome (profil: {self._chrome_profile_dir.name})")
         self.playwright = sync_playwright().start()
+        channel, label = self._browser_channel()
+        self.logger.info(f"Lancement {label} (profil: {self._chrome_profile_dir.name})")
 
         self.context = self.playwright.chromium.launch_persistent_context(
             user_data_dir=str(self._chrome_profile_dir),
-            channel="chrome",
+            channel=channel,
             headless=not DEBUG and not self._headed,
             args=["--disable-blink-features=AutomationControlled"],
             viewport=self._viewport,

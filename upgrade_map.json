@@ -50,7 +50,9 @@
     { "id": "raccourci", "perimetre": "app",
       "summary": "raccourci de lancement (régénéré si le lanceur a changé)" },
     { "id": "custom_frame", "perimetre": "app",
-      "summary": "cadre privé custom/ (dépôt git vide) — rattrapage des installs antérieures à v5.3.0" }
+      "summary": "cadre privé custom/ (dépôt git vide) — rattrapage des installs antérieures à v5.3.0" },
+    { "id": "navigateur", "perimetre": "app",
+      "summary": "navigateur de collecte (Chromium embarqué de Playwright, téléchargé s'il manque — ~190 Mo)" }
   ],
   "actions": [
     { "version_label": "≤ v3.x", "perimetre": "classeur", "badges": ["🧱"],

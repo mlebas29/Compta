@@ -70,6 +70,7 @@ Les outils sont **autonomes** (lançables seuls : `python3 tool_migrate_… conf
 - **Classeur** — lit son **marqueur** dans le `.xlsm` (NR) : si majeur en retard → **bloque** (opérer sur une structure incompatible **abîmerait les données**) ; si mineur en retard → **avertit** sans bloquer.
 - **Configuration** — lit son **marqueur** (`config.ini`), même règle (majeur → bloque, mineur → avertit). En pratique les migrations config sont conçues **tolérantes** (le code fonctionne avec une config en retard) → elles sont mineures ou silencieuses, et **bloquent rarement**.
 - **App** — l'application n'a pas de marqueur : git porte sa version, elle ne se compare donc à rien (elle *est* le code courant en place). Elle vérifie en revanche les fichiers dont elle dépend — `config.ini`, les `config_*.json` : présence, clés attendues, contenu. Ces contrôles mesurent l'**intégrité** de la config (fichier absent, clé manquante), pas un retard de version ; ils tournent à chaque démarrage, indépendamment des marqueurs.
+- **Environnement de collecte** — pas de marqueur non plus : l'état se lit sur le disque. Si le Chromium embarqué de Playwright manque alors qu'un site navigateur est activé, la collecte tourne en repli sur le Chrome système (dont les mises à jour automatiques ne sont pas maîtrisées) et l'application le **signale** ; `upgrade` le pose.
 
 - *vers l'upgrade* : le démarrage **signale**, l'upgrade **résout** — jamais de mise à niveau ici.
 

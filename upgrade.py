@@ -15,7 +15,8 @@ Séquence (#94) :
      complète conservée → réversible). Divergence / commits locaux → simplement
      signalé (pas reclone). Seule contrainte du reclone : être lancé HORS du clone.
   2. rattrapages bénins idempotents : config+raccourci (install_fix), migrations
-     config (carte), cadre custom/ (ensure_custom_frame). Toujours joués.
+     config (carte), cadre custom/ (ensure_custom_frame), navigateur de collecte
+     (install_pw_browser : Chromium embarqué de Playwright, #207). Toujours joués.
   3. migration classeur (carte) : APPLIQUÉE automatiquement via les probes partagées
      avec le GUI (inc_update, par import).
 
@@ -198,6 +199,12 @@ STEP_CMDS = {
                      _INC + 'setup_desktop "$(pwd)" "$(read_mode config.ini)"'),
     'custom_frame': (_DRY + _INC + 'ensure_custom_frame .',
                      _INC + 'ensure_custom_frame .'),
+    # Chromium embarqué de Playwright (#207) — pour le python qui vient de recevoir
+    # requirements.txt (_ensure_python_deps → sys.executable), donc la révision que
+    # CE playwright attend. Absence TOLÉRÉE ici (inc_fetch se replie sur le Chrome
+    # système et le step réessaie au run suivant) ; install.sh, lui, la BLOQUE.
+    'navigateur':   (_DRY + _INC + f'install_pw_browser "{sys.executable}"',
+                     _INC + f'install_pw_browser "{sys.executable}"'),
 }
 
 
@@ -232,8 +239,8 @@ def apply_benign(check=False):
     chaque étape est SONDÉE (would-change) puis affichée/jouée seulement si elle
     changerait quelque chose (politique (a) — no-op cachés). Plus de notion « forcé » :
     un step inconditionnel sans effet est silencieux comme une migration à jour. Ordre :
-    normalize (config) → migrations config → marqueur → raccourci, custom_frame (app).
-    Retourne (échecs, todo).
+    normalize (config) → migrations config → marqueur → raccourci, custom_frame,
+    navigateur (app). Retourne (échecs, todo).
 
     Le composant Config porte un marqueur (config_schema_version, #98) : l'apply le pose
     si le relevé diffère de la cible — c'est une CHANGE effective (écrit config.ini même
@@ -289,9 +296,10 @@ def apply_benign(check=False):
             inc_update.write_config_schema(config_path, CONFIG_SCHEMA_VERSION)
             _step('ok', 'config', f'marqueur de schéma → {CONFIG_SCHEMA_VERSION}', 'posé')
 
-    # 4. raccourci + cadre privé custom/ (app) — inconditionnels, sondés
+    # 4. raccourci + cadre privé custom/ + navigateur de collecte (app) — inconditionnels, sondés
     run_step('raccourci')
     run_step('custom_frame')
+    run_step('navigateur')
 
     return failed, todo
 

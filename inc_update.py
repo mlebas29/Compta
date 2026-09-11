@@ -571,11 +571,65 @@ def startup_config_advice(config_path, base_dir, code_marker=None):
          dérive précise (section/clé/mode) — même renvoi upgrade.py.
 
     Le DÉMARRAGE NE MUTE JAMAIS (ni marqueur ni config) — upgrade SEUL résout.
+    S'y ajoute l'avis ENVIRONNEMENT (check_browser_embedded, #207) : composant
+    distinct, même geste — cité en plus des avis config, jamais à leur place.
 
     Returns:
         list[str]: avertissements à afficher, dans l'ordre.
     """
     r = check_config_schema(config_path, base_dir, code_marker)
-    if r['message']:
-        return [r['message']]
-    return check_config_obsolete(config_path)
+    out = [r['message']] if r['message'] else check_config_obsolete(config_path)
+    # Environnement de collecte (#207) — composant distinct de la config, même
+    # geste (upgrade) : cité en plus, jamais à la place.
+    out += check_browser_embedded(config_path, base_dir)
+    return out
+
+
+def embedded_browser_path():
+    """Chemin du Chromium que CE Playwright attend (`chromium.executable_path`),
+    posé ou non — None si le module playwright manque. SONDE UNIQUE partagée
+    avec inc_fetch._browser_channel (choix embarqué/repli) et le step `navigateur`
+    d'upgrade (inc_install.pw_browser_path) : trois lecteurs, une vérité, le
+    disque. Coût ≈ 0,3 s (démarrage du driver)."""
+    try:
+        from playwright.sync_api import sync_playwright
+    except ImportError:
+        return None
+    try:
+        p = sync_playwright().start()
+        try:
+            return p.chromium.executable_path
+        finally:
+            p.stop()
+    except Exception:
+        return None
+
+
+def check_browser_embedded(config_path, base_dir):
+    """Avis navigateur au démarrage (#207). Le Chromium EMBARQUÉ de Playwright
+    absent = la collecte tourne sur le Chrome système en repli, dont les mises à
+    jour automatiques ont déjà cassé la collecte sans prévenir (08/09/2026). Pas
+    de marqueur : l'état effectif se lit sur le disque (cf. embedded_browser_path),
+    un marqueur ne ferait que dériver. Silencieux si aucun site NAVIGATEUR n'est
+    activé (rien à collecter → rien à signaler), si playwright manque (ressort des
+    dépendances Python), ou si le binaire est là. Le démarrage SIGNALE, upgrade
+    RÉSOUT (step `navigateur` de la carte).
+
+    Returns:
+        list[str]: 0 ou 1 avertissement.
+    """
+    from inc_format import is_browser_fetcher
+    cfg = configparser.ConfigParser(interpolation=None)
+    try:
+        cfg.read(config_path, encoding='utf-8')
+    except (configparser.Error, OSError):
+        return []
+    enabled = [s.strip() for s in cfg.get('sites', 'enabled', fallback='').split(',') if s.strip()]
+    if not any(is_browser_fetcher(site, base_dir) for site in enabled):
+        return []
+    exe = embedded_browser_path()
+    if exe is None or Path(exe).exists():
+        return []
+    return ['Navigateur de collecte : Chrome système en repli (ses mises à jour automatiques '
+            'ne sont pas maîtrisées) → lance upgrade.py, qui pose le Chromium embarqué de '
+            'Playwright (~190 Mo, une fois).']

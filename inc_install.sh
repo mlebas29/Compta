@@ -9,7 +9,7 @@
 #
 # Usage :  . "$(cd "$(dirname "$0")" && pwd)/inc_install.sh"
 # Expose : ok/warn/fail, $OS, read_mode, set_mode, normalize_config, setup_desktop,
-#          ensure_custom_frame
+#          ensure_custom_frame, install_python_deps, install_pw_browser
 #          ($DESKTOP_TARGET = chemin du raccourci/bundle après setup_desktop)
 # ============================================================================
 
@@ -441,4 +441,59 @@ install_python_deps() {  # $1=python (défaut: python3)
         "$py" -m pip install -r custom/requirements.txt $pip_extra || return 1
         ok "custom/requirements.txt installé (cadre privé)"
     fi
+}
+
+# --- Navigateur de collecte : le Chromium EMBARQUÉ de Playwright (#207) ------
+# Playwright télécharge et lance le Chromium qu'il CERTIFIE (~/.cache/ms-playwright,
+# par utilisateur, sans sudo) : versions accordées par construction. Le Chrome
+# système se met à jour seul et a cassé la collecte sans prévenir (151 → 152 le
+# 08/09/2026) ; il ne reste qu'un REPLI de transition, choisi par inc_fetch quand
+# le binaire embarqué manque — donc l'ordre de déploiement est libre.
+# `--no-shell` : le « headless shell » (262 Mo) ne sert qu'au headless SANS channel ;
+# la collecte lance le Chromium complet (channel="chromium") en headless comme en
+# headed → un seul binaire (~390 Mo sur disque, ~190 Mo transférés, mesuré 11/09/2026).
+# Sonde effective-state (#121) : sous DRY_RUN, rc 0 = présent, rc 3 = à poser.
+PW_BROWSER_MIN_FREE_KB=1500000   # ~1,5 Go : refuser AVANT de télécharger, pas à mi-parcours
+
+pw_browser_path() {  # $1=python ; affiche le Chromium attendu par CE playwright ('' si module absent)
+    "$1" - 2>/dev/null <<'PYEOF'
+from playwright.sync_api import sync_playwright
+p = sync_playwright().start()
+try:
+    print(p.chromium.executable_path)
+finally:
+    p.stop()
+PYEOF
+}
+
+install_pw_browser() {  # $1=python (défaut: python3)
+    local py="${1:-python3}" exe rev free_kb
+    exe=$(pw_browser_path "$py")
+    if [[ -z "$exe" ]]; then
+        fail "Navigateur Playwright : module playwright absent pour $py (dépendances Python à installer d'abord)"
+        return 1
+    fi
+    rev=$(echo "$exe" | sed -n 's|.*/\(chromium-[0-9]*\)/.*|\1|p')
+    if [[ -x "$exe" ]]; then
+        ok "Navigateur Playwright : Chromium embarqué présent (${rev:-?})"
+        return 0
+    fi
+    if [[ -n "${DRY_RUN:-}" ]]; then
+        ok "Navigateur Playwright : Chromium embarqué ${rev:-?} serait téléchargé (~190 Mo)"
+        return 3
+    fi
+    free_kb=$(df -Pk "$HOME" 2>/dev/null | awk 'NR==2 {print $4}')
+    if [[ -n "$free_kb" && "$free_kb" -lt $PW_BROWSER_MIN_FREE_KB ]]; then
+        fail "Navigateur Playwright : $((free_kb / 1024)) Mo libres sous $HOME — il en faut ~1 500 : téléchargement refusé"
+        return 1
+    fi
+    if ! "$py" -m playwright install chromium --no-shell; then
+        fail "Navigateur Playwright : téléchargement du Chromium embarqué échoué (réseau ?)"
+        return 1
+    fi
+    if [[ ! -x "$exe" ]]; then
+        fail "Navigateur Playwright : Chromium toujours absent après install ($exe)"
+        return 1
+    fi
+    ok "Navigateur Playwright : Chromium embarqué installé (${rev:-?})"
 }

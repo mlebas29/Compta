@@ -53,7 +53,7 @@ Le classeur :
 
 L'application automatise :
 
-- **Collecte** des données depuis les sites bancaires et financiers (via Playwright/Chrome)
+- **Collecte** des données depuis les sites bancaires et financiers (via Playwright et son Chromium embarqué)
 - **Import** des opérations collectées dans le tableur (déduplication automatique)
 - **Catégorisation** automatique des opérations par pattern matching (regex)
 - **Appariement** des opérations liées (virements, changes, achats de titres)

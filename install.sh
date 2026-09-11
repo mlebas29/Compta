@@ -10,7 +10,7 @@
 # (script cwd-relatif : INSTALL_DIR = $PWD)
 #
 # Vérifie les prérequis système, installe les dépendances Python,
-# le navigateur Playwright, et crée un raccourci de lancement.
+# le navigateur de collecte (Chromium embarqué de Playwright), et crée un raccourci de lancement.
 #
 # Prérequis macOS :
 #   Sonoma 14+ → Homebrew couvre tout.
@@ -490,57 +490,30 @@ else
 fi
 
 # ------------------------------------------------------------------
-# 5. Playwright + Chrome
+# 5. Navigateur de collecte — Chromium EMBARQUÉ de Playwright (#207)
 # ------------------------------------------------------------------
 echo
 echo "--- [4/8] Installation navigateur Playwright ---"
 
-# Cas heureux : un browser utilisable par Playwright est déjà disponible.
-# On évite alors le patch sudo /etc/os-release (qui ne sert qu'à install-deps
-# pour les dérivés Ubuntu non-reconnus par Playwright). Côté Linux cela évite
-# aussi de bloquer une exécution non-interactive (CI, sandbox, automatisation).
-if command -v google-chrome &>/dev/null || [[ -d "$HOME/.cache/ms-playwright" ]]; then
-    ok "Browser Playwright déjà disponible (skip patch /etc/os-release)"
-    $PYTHON -m playwright install chrome || warn "Playwright install chrome a renvoyé un warning"
-else
-    OS_PATCHED=false
-
-    if [[ $OS == linux ]]; then
-        # Playwright ne reconnaît qu'Ubuntu/Debian — les dérivés (Zorin, Mint, Pop!_OS)
-        # nécessitent un patch temporaire de /etc/os-release.
-        OS_ID=$(bash -c 'source /etc/os-release && echo $ID')
-        OS_VERSION=$(bash -c 'source /etc/os-release && echo $VERSION_ID')
-
-        if [[ "$OS_ID" != "ubuntu" && "$OS_ID" != "debian" ]]; then
-            OS_ID_LIKE=$(bash -c 'source /etc/os-release && echo $ID_LIKE')
-            if [[ "$OS_ID_LIKE" == *"ubuntu"* || "$OS_ID_LIKE" == *"debian"* ]]; then
-                UBUNTU_CODENAME=$(bash -c 'source /etc/os-release && echo $UBUNTU_CODENAME')
-                case "$UBUNTU_CODENAME" in
-                    noble)  UBUNTU_VERSION="24.04" ;;
-                    jammy)  UBUNTU_VERSION="22.04" ;;
-                    focal)  UBUNTU_VERSION="20.04" ;;
-                    *)      UBUNTU_VERSION="22.04" ;;
-                esac
-                warn "$OS_ID $OS_VERSION détecté (dérivé Ubuntu $UBUNTU_VERSION/$UBUNTU_CODENAME) — patch temporaire pour Playwright"
-                sudo sed -i "s/^ID=$OS_ID/ID=ubuntu/" /etc/os-release
-                sudo sed -i "s/^VERSION_ID=\"$OS_VERSION\"/VERSION_ID=\"$UBUNTU_VERSION\"/" /etc/os-release
-                OS_PATCHED=true
-            fi
-        fi
-    fi
-
-    if $PYTHON -m playwright install chrome; then
-        ok "Chrome installé pour Playwright"
-    else
-        warn "Installation Playwright échouée — essai sans dépendances système"
-        $PYTHON -m playwright install chromium --no-shell || warn "Playwright non installé (collecte indisponible)"
-    fi
-
-    # Restaurer /etc/os-release si patché
-    if $OS_PATCHED; then
-        sudo sed -i "s/^ID=ubuntu/ID=$OS_ID/" /etc/os-release
-        sudo sed -i "s/^VERSION_ID=\"$UBUNTU_VERSION\"/VERSION_ID=\"$OS_VERSION\"/" /etc/os-release
-        ok "/etc/os-release restauré ($OS_ID $OS_VERSION)"
+# Playwright télécharge et lance le Chromium qu'il certifie (~/.cache, par
+# utilisateur, sans sudo) : fini les mises à jour automatiques du Chrome système
+# qui cassent la collecte sans prévenir. Logique factorée dans inc_install.sh →
+# SOURCE UNIQUE partagée avec upgrade.py (qui la rejoue à chaque mise à jour).
+# BLOQUANT ici, contrairement à upgrade : sur une machine neuve le Chrome
+# système — repli de transition d'inc_fetch — n'est pas garanti, et sans aucun
+# navigateur il n'y a pas de collecte.
+if ! install_pw_browser "$PYTHON"; then
+    fail "navigateur de collecte absent — corriger puis relancer ./install.sh"
+    exit 1
+fi
+# Linux : le binaire est posé, mais ses bibliothèques système peuvent manquer
+# (machine sans Chrome préalable). Diagnostic net + geste, sans sudo ici.
+if [[ $OS == linux ]] && command -v ldd &>/dev/null; then
+    _pw_exe=$(pw_browser_path "$PYTHON")
+    if [[ -n "$_pw_exe" ]] && ldd "$_pw_exe" 2>/dev/null | grep -q "not found"; then
+        warn "Bibliothèques système manquantes pour Chromium :"
+        ldd "$_pw_exe" 2>/dev/null | grep "not found" | sed 's/^/     /'
+        warn "  → sudo $PYTHON -m playwright install-deps chromium"
     fi
 fi
 

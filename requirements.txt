@@ -2,7 +2,9 @@
 # Installation: pip3 install -r requirements.txt
 
 # Web automation (Tier 1: fetch scripts)
-playwright>=1.40.0
+# ≥ 1.62 : son Chromium embarqué (151) est le premier qui collecte de bout en bout
+# (le 148 de 1.60 bloque) — la collecte tourne dessus, plus sur le Chrome système (#207)
+playwright>=1.62.0
 
 # Excel manipulation (Tier 3: import)
 openpyxl>=3.0.0
@@ -23,7 +25,9 @@ requests>=2.28.0
 pyperclip>=1.8.0
 
 # Notes:
-# - playwright install chrome (Chrome browser for Playwright)
+# - Navigateur de collecte = le Chromium EMBARQUÉ de Playwright : posé par install.sh
+#   et rattrapé par upgrade.py (`python3 -m playwright install chromium --no-shell`,
+#   ~190 Mo, dans ~/.cache, sans sudo). Le Chrome système n'est plus qu'un repli.
 # - python3-tk must be installed separately (system package: sudo apt install python3-tk)
 # - macOS: the GUI needs a Python with Tk >= 8.6 (python.org, or `brew install python-tk`);
 #   Apple's system /usr/bin/python3 (Tk 8.5, deprecated) cannot display the interface
