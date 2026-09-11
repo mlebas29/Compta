@@ -24,7 +24,7 @@ Deux façons de le lancer (A distante, B locale) ; le **cas trivial** (`git pull
 
 ### A — Méthode distante
 
-Cette méthode fonctionne **pour toutes les versions**, même celles qui ne disposent pas encore de l'outil localement (avant v5.3.0). **Si une doc d'une version antérieure décrit une autre procédure, préférez celle-ci.**
+Cette méthode fonctionne **pour toutes les versions**, même celles qui ne disposent pas encore de l'outil localement (avant v5.3.0). **Si une doc d'une version antérieure décrit une autre procédure, préfère-lui celle-ci.**
 
 ```bash
 # Depuis un terminal : télécharger puis lancer upgrade.py.

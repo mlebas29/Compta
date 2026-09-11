@@ -9,6 +9,26 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 
 Les trois derniers sont spécifiques au mode assisté ; 📘 concerne le mode classeur.
 
+## v5.31.0
+| 2026-09-11 | La collecte n'est plus à la merci des mises à jour de Chrome. |
+| ---------- | -------------------------------------------------------------- |
+
+**Détail :**
+
+- **Collecte sur un navigateur dédié.** Jusqu'ici la collecte pilotait le Chrome installé sur la machine. Or Chrome se met à jour seul, et une de ces mises à jour a cassé la collecte début septembre sans prévenir (cf. v5.30.0). L'App utilise désormais **son propre navigateur**, livré avec l'outil d'automatisation et accordé à sa version : plus rien ne change sous ses pieds entre deux mises à jour de l'App.
+  - **À la première mise à jour**, ce navigateur est téléchargé une fois (environ 190 Mo, dans ton dossier utilisateur, sans mot de passe administrateur). Si l'espace disque manque, l'App refuse le téléchargement et le dit, plutôt que d'échouer à mi-chemin ; elle réessaie à la mise à jour suivante.
+  - **Tant qu'il n'est pas là, rien ne casse** : la collecte continue avec Chrome et bascule d'elle-même dès que le navigateur dédié est en place. **Tes accès aux sites sont conservés** : aucune reconnexion, aucun code à ressaisir.
+  - Au démarrage, si l'App tourne encore sur Chrome, elle te le signale et t'invite à lancer la mise à jour.
+  - **macOS 13 et antérieurs** : ce navigateur n'existe pas pour ces versions. La collecte y reste sur Chrome, sans téléchargement ni message — rien ne change. Sur **Linux et macOS 14 ou plus récent**, Chrome n'est plus nécessaire à l'App.
+
+- **Journal de collecte** — chaque ligne du journal porte désormais la **date** en plus de l'heure ; jusqu'ici deux journées se lisaient à la suite sans qu'on sache où l'une finissait.
+
+- **Profil de collecte** (`tool_fetch_profile.py`) — le rapport indique la **date et l'heure du dernier passage** de chaque site, et le résumé annonce ses deux vues détaillées (`--report`, `--show`).
+
+- **Mise à jour** — `upgrade` ne se déclarait plus en succès dans deux cas où pourtant tout allait bien : une migration sans rien à faire, ou l'App ouverte dans **un autre** dossier d'installation que celui mis à jour. Corrigé.
+
+- Sans effet sur les données ni sur la configuration.
+
 ## v5.30.0
 | 2026-09-11 | La collecte se suit en direct, site par site — et ne casse plus au téléchargement. |
 | ---------- | ---------------------------------------------------------------------------------- |
