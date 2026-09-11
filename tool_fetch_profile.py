@@ -100,6 +100,15 @@ def main():
     if args.report:
         return cmd_report(data)
     cmd_list(data)
+    # Les deux vues utiles ne sont pas atteignables depuis la GUI (le bouton
+    #   « Profil de collecte » lance ce résumé sans option, cf. #203) : les
+    #   ANNONCER ici les rend visibles des deux côtés, sans dépendre de la
+    #   mémoire de l'utilisateur ni du câblage d'un bouton.
+    print("\nDeux vues plus détaillées, en ligne de commande :")
+    print("  ./tool_fetch_profile.py --report        dérives du dernier run "
+          "par rapport à la baseline")
+    print("  ./tool_fetch_profile.py --show SITE     baseline détaillée d'un "
+          "site (ex. --show SOCGEN)")
     return 0
 
 
