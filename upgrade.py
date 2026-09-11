@@ -332,9 +332,14 @@ def _classeur_busy(xlsx):
         reasons.append('classeur ouvert dans LibreOffice')
     # motif `[c]pt_gui` (bracket trick) : matche le vrai process sans matcher le
     # shell qui porte cette commande pgrep dans sa propre ligne.
-    rc, out = _run_bash("pgrep -f '[c]pt_gui.py'")
+    # ⚠ SCOPÉ AU CLONE (#206) : sans le chemin, n'importe quelle GUI Compta de
+    #   la machine comptait. Vécu le 11/09/2026 — la GUI de DEV, restée ouverte,
+    #   a bloqué l'upgrade de PROD, dont la GUI s'était pourtant bien fermée.
+    #   Sur un poste qui porte DEV + PROD, l'upgrade de l'un était à la merci
+    #   de l'autre.
+    rc, out = _run_bash(f"pgrep -f '{BASE_DIR}/[c]pt_gui.py'")
     if rc == 0 and out.strip():
-        reasons.append('application Compta (cpt_gui) en cours')
+        reasons.append('application Compta (cpt_gui) en cours sur ce clone')
     return reasons
 
 
@@ -374,9 +379,24 @@ def migrate(check=False):
     # Garde : la migration écrit le .xlsm via UNO ; refuser si le classeur est
     # ouvert (verrou LO) ou l'appli tourne — ne tire QUE s'il y a vraiment une
     # migration à appliquer (sinon le run pull/config se poursuit normalement).
-    pending = list(plan['structural'])
+    # Les catch-ups sont SONDÉS ICI, avant d'entrer dans `pending` (#206). Les
+    #   ajouter en bloc faisait tirer le garde ci-dessous pour un rattrapage
+    #   idempotent qui ne changerait RIEN : vécu le 11/09/2026 sur PROD, un
+    #   upgrade vers une version sans migration s'est déclaré en échec
+    #   « classeur occupé » alors que `--check` disait « déjà à jour » — le
+    #   mode check court-circuite le garde et sonde, lui. Le dry-run est
+    #   openpyxl read-only, SANS LibreOffice : le sonder tôt est sûr même
+    #   classeur ouvert. Résultat mémorisé → chaque outil n'est sondé qu'une
+    #   fois (la boucle plus bas le réutilise).
+    catchups_actifs, catchups_ko = [], []
     if not plan['structural']:
-        pending += plan['catchups']
+        for c in plan['catchups']:
+            rc, _ = _run_bash(f"./{c['tool']} comptes.xlsm --dry-run")
+            if rc == 3:
+                catchups_actifs.append(c)
+            elif rc != 0:
+                catchups_ko.append((c, rc))
+    pending = list(plan['structural']) + catchups_actifs
     if pending and not check:
         busy = _classeur_busy(xlsx)
         if busy:
@@ -406,22 +426,19 @@ def migrate(check=False):
     # effective-state) : `--dry-run` openpyxl read-only (SANS LibreOffice ; rc 3 =
     # changerait, 0 = rien). Affiché/joué seulement s'il changerait (politique (a) :
     # un classeur déjà fiabilisé est silencieux). ---
-    if not plan['structural']:
-        for c in plan['catchups']:
-            rc, _ = _run_bash(f"./{c['tool']} comptes.xlsm --dry-run")
-            if rc == 3:
-                _step('todo', 'classeur', c['summary'], 'à appliquer')
-                if check:
-                    issues += 1
-                else:
-                    r = _run_migration(c['tool'])
-                    ran.append(r)
-                    if r['result'] in ('failed', 'refused-lo'):
-                        issues += 1
-            elif rc != 0:
-                _step('fail', 'classeur', f"{c['tool']} (sonde)",
-                      f'dry-run indéterminé (code {rc})')
+    for c in catchups_actifs:          # déjà sondés plus haut (rc == 3)
+        _step('todo', 'classeur', c['summary'], 'à appliquer')
+        if check:
+            issues += 1
+        else:
+            r = _run_migration(c['tool'])
+            ran.append(r)
+            if r['result'] in ('failed', 'refused-lo'):
                 issues += 1
+    for c, rc in catchups_ko:
+        _step('fail', 'classeur', f"{c['tool']} (sonde)",
+              f'dry-run indéterminé (code {rc})')
+        issues += 1
 
     return {'issues': issues, 'migrations': ran}
 
