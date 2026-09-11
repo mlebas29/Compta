@@ -220,7 +220,11 @@ class ExecMixin:
 
         # ── Section Résultat ──
         result_frame = ttk.LabelFrame(tab, text='Résultat', padding=8)
-        result_frame.pack(fill='both', expand=True, padx=8, pady=(4, 4))
+        # ⚠ PAS de pack ici : il a lieu APRÈS celui de « Fichiers », plus bas.
+        #   `pack` sert les widgets dans l'ordre où ils sont packés, et ce cadre
+        #   est le seul `expand=True` de l'onglet : packé en premier, il absorbe
+        #   toute la hauteur que la table de supervision réclame en grandissant,
+        #   et pousse « Fichiers » hors de la vue.
 
         self._exec_status_var = tk.StringVar(value='\u25cf Prêt')
         self._exec_status_label = tk.Label(
@@ -295,7 +299,13 @@ class ExecMixin:
 
         # ── Section Fichiers ──
         files_frame = ttk.LabelFrame(tab, text='Fichiers', padding=8)
-        files_frame.pack(fill='x', padx=8, pady=(0, 8))
+        # Ancré en BAS et packé AVANT « Résultat » : sa hauteur est réservée en
+        #   premier, donc la zone extensible au-dessus cède à sa place quand la
+        #   table de supervision s'allonge. Vécu 11/09/2026 : table à 4 lignes
+        #   d'erreur → les boutons de ce cadre sortaient de la fenêtre. Le texte
+        #   du Résultat a son ascenseur, ces boutons n'en ont pas.
+        files_frame.pack(side='bottom', fill='x', padx=8, pady=(0, 8))
+        result_frame.pack(fill='both', expand=True, padx=8, pady=(4, 4))
         files_btn_frame = ttk.Frame(files_frame)
         files_btn_frame.pack(fill='x')
 

@@ -200,12 +200,49 @@ class BaseFetcher:
         self.page = None
         self.downloads = []
 
+    def _purge_download_history(self):
+        """Vide `Default/History` AVANT chaque lancement — sans quoi le 2e
+        téléchargement du profil tue le navigateur.
+
+        Mesuré le 11/09/2026. Symptôme : `Download.save_as: Target page, context
+        or browser has been closed` au PREMIER téléchargement du site, puis toute
+        la collecte en cascade (SOCGEN, DEGIRO, ETORO ; PROD touché autant que
+        DEV). Un profil neuf passe UN run, les suivants échouent.
+
+        Reproduit HORS Compta (≈20 lignes de Playwright, serveur HTTP local,
+        aucun site réel), ce qui écarte le code applicatif :
+            purge de History avant chaque run ....... 5/5
+            sans purge, runs enchaînés .............. 1/5
+            sans purge, 45 s de pause ............... 2/4
+        La pause ne fait qu'acheter de la chance ; seule la purge est à 100 %.
+
+        ⚠ On ne touche QUE `History*` : les cookies (`Default/Cookies`,
+        `Default/Network/`) et `Login Data` restent intacts — donc aucune
+        re-authentification, aucune 2FA. C'est ce qui rend le correctif
+        déployable sur les instances distantes (juf) sans intervention.
+
+        N'existait pas sous Chrome 148 (16 runs sans un échec) ; apparu avec la
+        mise à jour automatique 151 → 152 du 08/09/2026. La cause côté navigateur
+        n'est pas identifiée — cf. CLAUDE_todo #204.
+        """
+        try:
+            default = self._chrome_profile_dir / 'Default'
+            for f in default.glob('History*'):
+                try:
+                    f.unlink()
+                except OSError:
+                    pass          # verrouillé/absent : sans gravité, on lance quand même
+        except Exception:
+            pass                  # la purge ne doit JAMAIS empêcher une collecte
+
     def launch_browser(self):
         """Lance Chrome avec profil persistant."""
         self._chrome_profile_dir.mkdir(parents=True, exist_ok=True)
 
         if self._delete_cookies:
             self._delete_profile_cookies()
+
+        self._purge_download_history()
 
         self.logger.info(f"Lancement Chrome (profil: {self._chrome_profile_dir.name})")
         self.playwright = sync_playwright().start()
