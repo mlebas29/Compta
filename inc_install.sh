@@ -452,32 +452,43 @@ install_python_deps() {  # $1=python (défaut: python3)
 # `--no-shell` : le « headless shell » (262 Mo) ne sert qu'au headless SANS channel ;
 # la collecte lance le Chromium complet (channel="chromium") en headless comme en
 # headed → un seul binaire (~390 Mo sur disque, ~190 Mo transférés, mesuré 11/09/2026).
-# Sonde effective-state (#121) : sous DRY_RUN, rc 0 = présent, rc 3 = à poser.
+# Sonde effective-state (#121) : sous DRY_RUN, rc 0 = présent OU plateforme sans build
+# (macOS < 14, cf. inc_update.PW_CHROMIUM_MACOS_MIN : rien à poser, jamais), rc 3 = à poser.
 PW_BROWSER_MIN_FREE_KB=1500000   # ~1,5 Go : refuser AVANT de télécharger, pas à mi-parcours
 
-pw_browser_path() {  # $1=python ; affiche le Chromium attendu par CE playwright ('' si module absent)
+pw_browser_status() {  # $1=python ; affiche l'état (ligne 1) + détail (ligne 2) — cf. inc_update.embedded_browser_status
     "$1" - 2>/dev/null <<'PYEOF'
-from playwright.sync_api import sync_playwright
-p = sync_playwright().start()
+import sys
+sys.path.insert(0, '.')
 try:
-    print(p.chromium.executable_path)
-finally:
-    p.stop()
+    import inc_update
+except Exception:
+    print('no-playwright'); sys.exit(0)
+state, detail = inc_update.embedded_browser_status()
+print(state); print(detail or '')
 PYEOF
 }
 
-install_pw_browser() {  # $1=python (défaut: python3)
+install_pw_browser() {  # $1=python (défaut: python3) ; exporte PW_BROWSER_STATE
     local py="${1:-python3}" exe rev free_kb
-    exe=$(pw_browser_path "$py")
-    if [[ -z "$exe" ]]; then
-        fail "Navigateur Playwright : module playwright absent pour $py (dépendances Python à installer d'abord)"
-        return 1
-    fi
+    { read -r PW_BROWSER_STATE; read -r exe; } < <(pw_browser_status "$py")
+    export PW_BROWSER_STATE
+    case "$PW_BROWSER_STATE" in
+        no-playwright|"")
+            PW_BROWSER_STATE=no-playwright
+            fail "Navigateur Playwright : module playwright absent pour $py (dépendances Python à installer d'abord)"
+            return 1 ;;
+        unsupported)
+            # Rien à poser, jamais (cf. PW_CHROMIUM_MACOS_MIN) : pas un échec — la collecte
+            # tourne sur le Chrome système (repli d'inc_fetch). rc 0 → silencieux sous upgrade.
+            warn "Navigateur Playwright : pas de Chromium embarqué sur cette plateforme ($exe) — collecte sur le Chrome système"
+            return 0 ;;
+        present)
+            rev=$(echo "$exe" | sed -n 's|.*/\(chromium-[0-9]*\)/.*|\1|p')
+            ok "Navigateur Playwright : Chromium embarqué présent (${rev:-?})"
+            return 0 ;;
+    esac
     rev=$(echo "$exe" | sed -n 's|.*/\(chromium-[0-9]*\)/.*|\1|p')
-    if [[ -x "$exe" ]]; then
-        ok "Navigateur Playwright : Chromium embarqué présent (${rev:-?})"
-        return 0
-    fi
     if [[ -n "${DRY_RUN:-}" ]]; then
         ok "Navigateur Playwright : Chromium embarqué ${rev:-?} serait téléchargé (~190 Mo)"
         return 3
@@ -488,12 +499,13 @@ install_pw_browser() {  # $1=python (défaut: python3)
         return 1
     fi
     if ! "$py" -m playwright install chromium --no-shell; then
-        fail "Navigateur Playwright : téléchargement du Chromium embarqué échoué (réseau ?)"
+        fail "Navigateur Playwright : installation du Chromium embarqué échouée (cause : le message de Playwright ci-dessus)"
         return 1
     fi
     if [[ ! -x "$exe" ]]; then
         fail "Navigateur Playwright : Chromium toujours absent après install ($exe)"
         return 1
     fi
+    PW_BROWSER_STATE=present
     ok "Navigateur Playwright : Chromium embarqué installé (${rev:-?})"
 }

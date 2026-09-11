@@ -585,11 +585,22 @@ def startup_config_advice(config_path, base_dir, code_marker=None):
     return out
 
 
+# Chromium de Playwright (Chrome for Testing) : la table du driver n'a AUCUN build
+# macOS sous 14 (mesuré Playwright 1.62, 11/09/2026 — `"mac13": void 0`). Playwright
+# ne le dit qu'au téléchargement (« does not support chromium on mac13 »), ni
+# `install --dry-run` ni `executable_path` ne le voient → on porte le seuil ici,
+# SOURCE UNIQUE lue par le step shell (inc_install.pw_browser_status), l'avis au
+# démarrage et install.sh. Si Playwright relève le seuil, l'apply échoue avec
+# SON message → remonter la constante. Un Mac de 2017 (MacBookPro14,3) plafonne
+# à 13 : il reste définitivement sur le repli Chrome système, et c'est normal.
+PW_CHROMIUM_MACOS_MIN = 14
+
+
 def embedded_browser_path():
     """Chemin du Chromium que CE Playwright attend (`chromium.executable_path`),
     posé ou non — None si le module playwright manque. SONDE UNIQUE partagée
     avec inc_fetch._browser_channel (choix embarqué/repli) et le step `navigateur`
-    d'upgrade (inc_install.pw_browser_path) : trois lecteurs, une vérité, le
+    d'upgrade (inc_install.pw_browser_status) : trois lecteurs, une vérité, le
     disque. Coût ≈ 0,3 s (démarrage du driver)."""
     try:
         from playwright.sync_api import sync_playwright
@@ -605,6 +616,30 @@ def embedded_browser_path():
         return None
 
 
+def embedded_browser_status():
+    """État du Chromium embarqué → (state, detail) :
+      'no-playwright' (None)      module absent — ressort des dépendances Python ;
+      'unsupported'   (raison)    Playwright n'a pas de build pour cette plateforme
+                                  (macOS < PW_CHROMIUM_MACOS_MIN) — rien à poser, jamais ;
+      'present'       (chemin)    binaire posé ;
+      'absent'        (chemin)    à poser (`playwright install chromium --no-shell`).
+    Ordre : plateforme d'abord (pas de driver à démarrer pour un verdict connu)."""
+    import platform
+    if platform.system() == 'Darwin':
+        ver = platform.mac_ver()[0]
+        try:
+            major = int(ver.split('.')[0])
+        except (ValueError, IndexError):
+            major = None
+        if major is not None and major < PW_CHROMIUM_MACOS_MIN:
+            return ('unsupported',
+                    f'macOS {ver} < {PW_CHROMIUM_MACOS_MIN} : Playwright n\'a pas de build Chromium')
+    exe = embedded_browser_path()
+    if exe is None:
+        return ('no-playwright', None)
+    return ('present' if Path(exe).exists() else 'absent', exe)
+
+
 def check_browser_embedded(config_path, base_dir):
     """Avis navigateur au démarrage (#207). Le Chromium EMBARQUÉ de Playwright
     absent = la collecte tourne sur le Chrome système en repli, dont les mises à
@@ -612,7 +647,9 @@ def check_browser_embedded(config_path, base_dir):
     de marqueur : l'état effectif se lit sur le disque (cf. embedded_browser_path),
     un marqueur ne ferait que dériver. Silencieux si aucun site NAVIGATEUR n'est
     activé (rien à collecter → rien à signaler), si playwright manque (ressort des
-    dépendances Python), ou si le binaire est là. Le démarrage SIGNALE, upgrade
+    dépendances Python), si le binaire est là, ou si Playwright n'a pas de build
+    pour cette plateforme (macOS < PW_CHROMIUM_MACOS_MIN : rien à résoudre, jamais —
+    une alerte sans résolution serait pire que rien). Le démarrage SIGNALE, upgrade
     RÉSOUT (step `navigateur` de la carte).
 
     Returns:
@@ -627,8 +664,8 @@ def check_browser_embedded(config_path, base_dir):
     enabled = [s.strip() for s in cfg.get('sites', 'enabled', fallback='').split(',') if s.strip()]
     if not any(is_browser_fetcher(site, base_dir) for site in enabled):
         return []
-    exe = embedded_browser_path()
-    if exe is None or Path(exe).exists():
+    state, _ = embedded_browser_status()
+    if state != 'absent':          # présent / plateforme sans build / playwright absent : rien à demander
         return []
     return ['Navigateur de collecte : Chrome système en repli (ses mises à jour automatiques '
             'ne sont pas maîtrisées) → lance upgrade.py, qui pose le Chromium embarqué de '

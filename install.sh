@@ -506,10 +506,16 @@ if ! install_pw_browser "$PYTHON"; then
     fail "navigateur de collecte absent — corriger puis relancer ./install.sh"
     exit 1
 fi
+# Plateforme sans build Chromium (macOS < 14) : la collecte passera par le Chrome
+# système → il DOIT exister, sinon aucun navigateur (le repli n'a rien vers quoi se replier).
+if [[ "$PW_BROWSER_STATE" == unsupported ]] && [[ ! -d "/Applications/Google Chrome.app" ]]; then
+    fail "Google Chrome absent — sur cette plateforme la collecte en dépend : installer Chrome puis relancer ./install.sh"
+    exit 1
+fi
 # Linux : le binaire est posé, mais ses bibliothèques système peuvent manquer
 # (machine sans Chrome préalable). Diagnostic net + geste, sans sudo ici.
-if [[ $OS == linux ]] && command -v ldd &>/dev/null; then
-    _pw_exe=$(pw_browser_path "$PYTHON")
+if [[ $OS == linux && "$PW_BROWSER_STATE" == present ]] && command -v ldd &>/dev/null; then
+    _pw_exe=$(pw_browser_status "$PYTHON" | sed -n 2p)
     if [[ -n "$_pw_exe" ]] && ldd "$_pw_exe" 2>/dev/null | grep -q "not found"; then
         warn "Bibliothèques système manquantes pour Chromium :"
         ldd "$_pw_exe" 2>/dev/null | grep "not found" | sed 's/^/     /'
