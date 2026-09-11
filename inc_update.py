@@ -601,19 +601,27 @@ def embedded_browser_path():
     posé ou non — None si le module playwright manque. SONDE UNIQUE partagée
     avec inc_fetch._browser_channel (choix embarqué/repli) et le step `navigateur`
     d'upgrade (inc_install.pw_browser_status) : trois lecteurs, une vérité, le
-    disque. Coût ≈ 0,3 s (démarrage du driver)."""
+    disque. Coût ≈ 0,4 s.
+
+    Tourne dans un SOUS-PROCESSUS, stderr jeté : démarrer puis arrêter le driver
+    sans lancer de navigateur laisse une tâche asyncio pendante que Playwright
+    signale à la sortie de l'interpréteur (« Task was destroyed but it is
+    pending! » + TargetClosedError, 3 lignes) — mesuré 11/09/2026, absent dès
+    qu'un navigateur a été lancé. In-process, ce bruit sortait en fin de CHAQUE
+    `cpt.py` (l'avis au démarrage est la seule sonde sans navigateur)."""
+    import subprocess
+    import sys
+    code = ('from playwright.sync_api import sync_playwright\n'
+            'p = sync_playwright().start()\n'
+            'try:\n    print(p.chromium.executable_path)\n'
+            'finally:\n    p.stop()\n')
     try:
-        from playwright.sync_api import sync_playwright
-    except ImportError:
+        r = subprocess.run([sys.executable, '-c', code], capture_output=True,
+                           text=True, timeout=30)
+    except (OSError, subprocess.SubprocessError):
         return None
-    try:
-        p = sync_playwright().start()
-        try:
-            return p.chromium.executable_path
-        finally:
-            p.stop()
-    except Exception:
-        return None
+    out = (r.stdout or '').strip()
+    return out if r.returncode == 0 and out else None
 
 
 def embedded_browser_status():

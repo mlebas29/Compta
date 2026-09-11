@@ -9,6 +9,16 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 
 Les trois derniers sont spécifiques au mode assisté ; 📘 concerne le mode classeur.
 
+## v5.31.1
+| 2026-09-11 | Plus de message technique en fin de collecte ou d'import. |
+| ---------- | ---------------------------------------------------------- |
+
+**Détail :**
+
+- **Fin d'exécution** — depuis v5.31.0, chaque collecte, import ou synchronisation se terminait par trois lignes techniques (« Task was destroyed but it is pending! », « TargetClosedError »), dans la fenêtre de l'App comme en ligne de commande. Elles venaient de la vérification du navigateur au démarrage, sans conséquence sur le traitement. Corrigé.
+
+- Sans effet sur les données ni sur la configuration.
+
 ## v5.31.0
 | 2026-09-11 | La collecte n'est plus à la merci des mises à jour de Chrome. |
 | ---------- | -------------------------------------------------------------- |
