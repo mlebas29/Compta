@@ -1767,7 +1767,9 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DaemonClientMixin,
         Best-effort : jamais bloquant.
         """
         try:
-            ts = datetime.now().strftime('%H:%M:%S')
+            # Daté comme le writer de inc_logging (#186) : ce chemin écrit
+            #   dans le MÊME fichier, il doit suivre le même format.
+            ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             _journal.write_to_journal(f'{ts} cpt_gui {prefix} {message}')
         except Exception:
             pass

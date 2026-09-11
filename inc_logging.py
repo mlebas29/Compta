@@ -84,6 +84,25 @@ class Logger:
         timestamp = datetime.now().strftime('%H:%M:%S')
         return f"{timestamp} {self.script_name} {prefix} {message}"
 
+    def _format_journal(self, message: str, prefix: str = "✓") -> str:
+        """Même ligne, mais DATÉE — réservée au fichier (#186, facette date).
+
+        L'écran n'a pas besoin du jour : on y regarde ce qui se passe MAINTENANT.
+        Le fichier, lui, est relu des semaines plus tard et concatène les jours
+        sans frontière : un `12:48:13` y « recule » après un `19:40:51` sans que
+        rien ne signale le changement de date. Vécu le 11/09/2026 — j'ai comparé
+        deux collectes de jours différents en croyant lire la même, et il a fallu
+        dater les runs par le NOM des fichiers d'export pour m'en sortir.
+
+        ⚠ Aucun parseur ne lit ce timestamp en position fixe (vérifié) : le
+        calcul de temps machine #147 se fait en mémoire (`time.monotonic`), et
+        le seul découpage positionnel du journal (`cpt_update`, rotation par
+        session) ne porte que sur les lignes `=== SESSION … ===`, non produites
+        ici.
+        """
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        return f"{timestamp} {self.script_name} {prefix} {message}"
+
     def _log(self, message: str, prefix: str, display: bool, to_journal: bool, is_error: bool = False, simple: bool = False):
         """
         Fonction interne de logging
@@ -114,7 +133,7 @@ class Logger:
         # Écriture journal (toujours avec format complet)
         if to_journal and self.journal_file:
             try:
-                formatted = self._format_message(message, prefix)
+                formatted = self._format_journal(message, prefix)
                 with open(self.journal_file, 'a', encoding='utf-8') as f:
                     f.write(formatted + '\n')
             except Exception:

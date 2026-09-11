@@ -45,7 +45,8 @@ WAIT_TIMEOUT = 120  # s — délai max d'attente de la mort GUI + libération du
 # ---------------------------------------------------------------------------
 
 def _now():
-    return datetime.now().strftime('%H:%M:%S')
+    # Daté : ce jalon va dans journal.log, au même format que les autres (#186).
+    return datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
 
 def _journal(base, prefix, msg):
