@@ -20,6 +20,7 @@ de migration ; « version » ≠ un « schéma » de cohérence classeur/config)
 """
 import json
 from pathlib import Path
+from datetime import datetime
 from statistics import median
 
 WINDOW = 10        # échantillons de durée gardés par étape (baseline = médiane)
@@ -118,6 +119,13 @@ def record_run(base_dir, site, steps, files, ok):
                    bool(e[2]) if len(e) > 2 else False] for e in steps],
         "files": nfiles,
         "ok": ok,
+        # QUAND (#202). Sans date, le rapport affirmait « aucune dérive » en
+        #   décrivant une machine de six heures plus tôt : le store ne gardait
+        #   que files/ok/steps, donc un run NON enregistré était indiscernable
+        #   d'un run récent et conforme. L'horodatage ne dit pas POURQUOI un
+        #   enregistrement manque — cause toujours inconnue — mais rend le
+        #   décalage CONSTATABLE, ce qui est le minimum pour un outil d'alerte.
+        "when": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     }
     # Fichiers attendus = max observé sur un run RÉUSSI (un run complet fixe la barre).
     if ok:

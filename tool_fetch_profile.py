@@ -57,6 +57,18 @@ def cmd_report(data):
         print(f"\n✓ Conformes : {', '.join(clean)}")
     if not any_drift:
         print("\nAucune dérive détectée.")
+    # QUAND a-t-on constaté cela ? (#202) Un verdict sans date se lit comme un
+    #   verdict sur MAINTENANT : le 10/09/2026, « aucune dérive » décrivait une
+    #   machine de six heures plus tôt, sur des runs jamais enregistrés. Dater
+    #   chaque site — conformes compris — rend le décalage visible sans rien
+    #   présumer de sa cause.
+    dates = {s: (data[s].get("last_run") or {}).get("when") for s in sorted(data)}
+    if dates:
+        print("\nDernier run ENREGISTRÉ par site (≠ dernière collecte lancée) :")
+        for site, when in dates.items():
+            print(f"  {site:<14}{when or '— date inconnue (run antérieur à #202) —'}")
+        print("  ⚠ Un écart avec ta dernière collecte = des runs non enregistrés :"
+              " le verdict ci-dessus porte alors sur un état ancien.")
     return 1 if any_drift else 0
 
 
@@ -79,8 +91,11 @@ def cmd_show(data, site):
         print(f"  {label:<40}{str(med) + 's':>9}  [{samples}]{itag}")
     run = p.get("last_run")
     if run:
+        quand = run.get('when')
         print(f"\n  Dernier run : {run['files']} fichier(s), "
-              f"{'ok' if run['ok'] else 'échec'}")
+              f"{'ok' if run['ok'] else 'échec'}"
+              + (f" — enregistré le {quand}" if quand else
+                 " — date inconnue (run antérieur à #202)"))
     return 0
 
 
