@@ -2,14 +2,9 @@
 
 ## Référence visuelle
 
-La charte est **incarnée par le classeur de référence**
-(`comptes_template.xlsm`, ou ton propre `comptes.xlsm` après initialisation).
-Il en montre la palette complète, les bordures, les polices et le format des
-nombres dans tous les contextes (tête, pied, devise étrangère, contrôle…).
+La charte est **incarnée par le classeur de référence** (`comptes_template.xlsm`, ou ton propre `comptes.xlsm` après initialisation). Il en montre la palette complète, les bordures, les polices et le format des nombres dans tous les contextes (tête, pied, devise étrangère, contrôle…).
 
-Cette page **complète** le visuel par les règles non immédiatement lisibles
-à l'œil : sémantique des éléments, partage utilisateur / outils,
-comportements automatiques.
+Cette page **complète** le visuel par les règles non immédiatement lisibles à l'œil : sémantique des éléments, partage utilisateur / outils, comportements automatiques.
 
 ## Règle d'or — le jaune est à toi
 
@@ -23,14 +18,9 @@ Si tu vois du jaune dans le classeur, c'est qu'un utilisateur l'a mis.
 
 ## Couleur d'appoint — beige clair
 
-`#EEEBDB` (beige clair) est une 2ᵉ couleur libre d'usage en zone data : tu
-peux l'utiliser pour grouper visuellement des lignes ou marquer un
-sous-bloc. Les outils ne l'écrasent pas en data.
+`#EEEBDB` (beige clair) est une 2ᵉ couleur libre d'usage en zone data : tu peux l'utiliser pour grouper visuellement des lignes ou marquer un sous-bloc. Les outils ne l'écrasent pas en data.
 
-Distinction avec le jaune : le beige clair est aussi la couleur que les
-outils posent pour la 1ʳᵉ colonne (libellés), les sous-pieds de section et
-la ligne TOTAL — donc moins discriminant que le jaune pour une annotation
-ponctuelle.
+Distinction avec le jaune : le beige clair est aussi la couleur que les outils posent pour la 1ʳᵉ colonne (libellés), les sous-pieds de section et la ligne TOTAL — donc moins discriminant que le jaune pour une annotation ponctuelle.
 
 ## Sémantique des polices
 
@@ -48,8 +38,7 @@ Le visuel donne le style ; voici ce qu'il **veut dire** :
 - **Fond rouge clair** → cellule en **alarme** (contrôle ✗).
 - **Fond jaune-orange** → **avertissement** (contrôle ⚠).
 
-Rouge et jaune-orange sont posés par mise en forme conditionnelle : ils
-s'allument et s'éteignent automatiquement selon la valeur de contrôle.
+Rouge et jaune-orange sont posés par mise en forme conditionnelle : ils s'allument et s'éteignent automatiquement selon la valeur de contrôle.
 
 ## Indicateurs ✓ ✗ ⚠
 
@@ -63,8 +52,7 @@ Un clic sur la barre d'état affiche le détail des contrôles (cf. Compta.md AN
 
 ## Règle des montants négatifs
 
-Tous les montants en devise (EUR ou autre) affichent **les négatifs en
-rouge**, quelle que soit la devise. Cohérent dans tout le classeur.
+Tous les montants en devise (EUR ou autre) affichent **les négatifs en rouge**, quelle que soit la devise. Cohérent dans tout le classeur.
 
 ## Outils dédiés
 

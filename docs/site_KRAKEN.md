@@ -6,9 +6,7 @@
 > onglet Sites) documente configuration, 2FA et collecte manuelle de secours.
 > Ce fichier n'est qu'un pointeur : il ne duplique pas ces détails volatils.
 
-**En bref :** exchange crypto ; fetch semi-auto (login GPG + 2FA email), export de 2 ZIP
-(`ledgers` = opérations, `balances` = positions) → `dropbox/KRAKEN/` ; import via
-`cpt_update.py` (générique).
+**En bref :** exchange crypto ; fetch semi-auto (login GPG + 2FA email), export de 2 ZIP (`ledgers` = opérations, `balances` = positions) → `dropbox/KRAKEN/` ; import via `cpt_update.py` (générique).
 
 ## À savoir (points non évidents)
 

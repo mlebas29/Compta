@@ -1,7 +1,6 @@
 # Compta — collecte Monero (XMR) via nœud distant
 
-Comment `cpt_fetch_XMR.py` récupère soldes et transferts des wallets Monero, sans
-aucune dépendance Monero locale sur le poste de collecte.
+Comment `cpt_fetch_XMR.py` récupère soldes et transferts des wallets Monero, sans aucune dépendance Monero locale sur le poste de collecte.
 
 ## Pourquoi un nœud distant
 
@@ -14,13 +13,9 @@ Monero sépare deux rôles :
   soldes et transferts. C'est le scan qui coûte (et qui doit rattraper le delta de
   blocs depuis la dernière synchro).
 
-Faire tourner le wallet **sur le poste de collecte** (surtout un portable) est fragile :
-le scan se fait sur le réseau, le retard s'accumule, les resyncs sont longues.
+Faire tourner le wallet **sur le poste de collecte** (surtout un portable) est fragile : le scan se fait sur le réseau, le retard s'accumule, les resyncs sont longues.
 
-**Solution** : faire tourner **`monero-wallet-rpc` en service sur la machine qui héberge
-déjà monerod** (toujours allumée). Le scan y est *local au nœud* (rapide) et *continu*.
-Le poste de collecte n'est plus qu'un **client JSON-RPC** : il ouvre un tunnel SSH et
-lit le résultat déjà calculé. Marche identiquement sur Mac / Linux / WSL.
+**Solution** : faire tourner **`monero-wallet-rpc` en service sur la machine qui héberge déjà monerod** (toujours allumée). Le scan y est *local au nœud* (rapide) et *continu*. Le poste de collecte n'est plus qu'un **client JSON-RPC** : il ouvre un tunnel SSH et lit le résultat déjà calculé. Marche identiquement sur Mac / Linux / WSL.
 
 ```
    réseau p2p Monero
@@ -48,8 +43,7 @@ lit le résultat déjà calculé. Marche identiquement sur Mac / Linux / WSL.
 
 ## Mise en place côté serveur
 
-Prérequis : `monerod` en service, **synchronisé**, avec `rpc-login` (RPC complet, p.ex.
-`127.0.0.1:18081`), et le binaire `monero-wallet-rpc` présent (même tarball que monerod).
+Prérequis : `monerod` en service, **synchronisé**, avec `rpc-login` (RPC complet, p.ex. `127.0.0.1:18081`), et le binaire `monero-wallet-rpc` présent (même tarball que monerod).
 
 1. **Déposer les wallets À PLAT** dans `~/Monero/wallets/` :
    ```
@@ -84,8 +78,7 @@ Prérequis : `monerod` en service, **synchronisé**, avec `rpc-login` (RPC compl
 | `max_days_back` | fenêtre d'historique des opérations collectées |
 | `refresh_timeout` / `tunnel_timeout` | délais (s) |
 
-Les wallets (clé, nom de fichier, libellé) sont déclarés dans `config_accounts.json`
-(`XMR.accounts[].wallet_key` / `wallet_name` / `name`).
+Les wallets (clé, nom de fichier, libellé) sont déclarés dans `config_accounts.json` (`XMR.accounts[].wallet_key` / `wallet_name` / `name`).
 
 Deux entrées dans `config_credentials.md.gpg` :
 ```
@@ -110,8 +103,7 @@ Deux entrées dans `config_credentials.md.gpg` :
 
 ## Annexe — installer monerod (le nœud)
 
-Tout ce qui précède suppose un `monerod` déjà installé et **synchronisé** (le prérequis
-du § « Mise en place côté serveur »). Rappel bref pour le poser sur le serveur :
+Tout ce qui précède suppose un `monerod` déjà installé et **synchronisé** (le prérequis du § « Mise en place côté serveur »). Rappel bref pour le poser sur le serveur :
 
 1. **Binaires officiels** — télécharger le tarball CLI depuis
    [getmonero.org/downloads](https://www.getmonero.org/downloads/) (vérifier le hash / la
@@ -140,5 +132,4 @@ du § « Mise en place côté serveur »). Rappel bref pour le poser sur le serv
    `synchronized: true`. Une fois synchronisé, enchaîner sur le § « Mise en place côté
    serveur ».
 
-Options avancées (Tor/i2p, nœud distant tiers au lieu d'un nœud à soi, ZMQ) : doc
-officielle Monero.
+Options avancées (Tor/i2p, nœud distant tiers au lieu d'un nœud à soi, ZMQ) : doc officielle Monero.

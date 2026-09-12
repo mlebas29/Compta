@@ -66,7 +66,7 @@ def cmd_report(data):
     if dates:
         print("\nDernier run ENREGISTRÉ par site (≠ dernière collecte lancée) :")
         for site, when in dates.items():
-            print(f"  {site:<14}{when or '— date inconnue (run antérieur à #202) —'}")
+            print(f"  {site:<14}{when or '— non daté (enregistré avant la v5.31.0) —'}")
         print("  ⚠ Un écart avec ta dernière collecte = des runs non enregistrés :"
               " le verdict ci-dessus porte alors sur un état ancien.")
     return 1 if any_drift else 0
@@ -95,7 +95,7 @@ def cmd_show(data, site):
         print(f"\n  Dernier run : {run['files']} fichier(s), "
               f"{'ok' if run['ok'] else 'échec'}"
               + (f" — enregistré le {quand}" if quand else
-                 " — date inconnue (run antérieur à #202)"))
+                 " — non daté (enregistré avant la v5.31.0)"))
     return 0
 
 
