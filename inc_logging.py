@@ -165,14 +165,16 @@ class Logger:
         self._log(message, prefix="❌", display=True, to_journal=True, is_error=True)
 
     def alert(self, message: str):
-        """Message d'alerte urgent (toujours affiché, visible via l'orchestrateur).
+        """CONTRAT : une action de l'utilisateur est attendue MAINTENANT (2FA,
+        CAPTCHA, connexion manuelle, code, confirmation mobile) et la collecte
+        du site est en pause jusqu'à elle. Rien d'autre.
 
-        Utilisé pour les notifications 2FA et autres messages nécessitant
-        une action immédiate de l'utilisateur. Le marqueur 🔔 permet à
-        l'orchestrateur de les afficher en temps réel même en mode non-verbose.
-
-        Arme aussi le chrono d'attente humaine (au 1er alert d'une séquence),
-        clos par user_done().
+        Le marqueur 🔔 est lu par l'orchestrateur et par l'onglet Exécution de
+        la GUI (bandeau clignotant + sonnerie, qui reprend CE message), et il
+        arme le chrono d'attente humaine (au 1er alert d'une séquence), clos
+        par user_done() — un alert() sans action attendue fausserait donc le
+        temps machine déduit du journal (#147) et sonnerait pour rien. Pour un
+        message urgent SANS action attendue : error() ou warning().
         """
         if self._await_start is None:
             self._await_start = time.monotonic()

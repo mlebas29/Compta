@@ -235,6 +235,7 @@ class ExecMixin:
         self._exec_default_bg = self._exec_status_label.cget('bg')
         self._exec_default_fg = self._exec_status_label.cget('fg')
         self._exec_2fa_flashing = False
+        self._exec_run_label = ''
 
         # ── Table vivante de la collecte ──
         # Une ligne par site ACTIF (en cours, ou en attente d'une action de
@@ -769,8 +770,12 @@ class ExecMixin:
                 self._exec_output.see('end')
                 if self._exec_table_active:
                     self._exec_track(item)
-                if '\U0001f514' in item:  # 🔔 = marqueur alert() (2FA/CAPTCHA/login)
-                    self._exec_2fa_alert()
+                # 🔔 = marqueur alert() (2FA/CAPTCHA/login) — seule une COLLECTE
+                # lance des collecteurs, donc seule elle peut en émettre : un outil
+                # qui imprime un 🔔 décoratif (vécu : tool_fix_formats --charter,
+                # s.238) ne doit pas allumer l'alerte.
+                if '\U0001f514' in item and self._exec_run_label == 'Collecte':
+                    self._exec_2fa_alert(item.split('\U0001f514', 1)[1].strip())
                 elif (self._exec_2fa_flashing and item.strip()
                       and not self._exec_waiting_sites()):
                     self._exec_2fa_stop()
@@ -1113,11 +1118,14 @@ class ExecMixin:
         self._exec_table_refresh()
         self._exec_tick_id = self.root.after(1000, self._exec_tick)
 
-    def _exec_2fa_alert(self):
+    def _exec_2fa_alert(self, message=''):
         """Alerte visuelle + sonore sur toute demande d'action humaine (marqueur
-        \U0001f514 d'alert() : 2FA, CAPTCHA, login manuel, validation mobile\u2026)."""
+        \U0001f514 d'alert() : 2FA, CAPTCHA, login manuel, validation mobile\u2026).
+        Le bandeau reprend le MESSAGE du collecteur (ce qu'il attend de toi),
+        pas un libellé figé : le contrat d'alert() est « action attendue »,
+        quel qu'en soit le motif (cf. inc_logging.alert)."""
         if not self._exec_table_active:
-            self._exec_status_var.set('\U0001f514 Action d\'authentification requise \u2014 2FA / CAPTCHA / \u2026')
+            self._exec_status_var.set('\U0001f514 ' + (message or 'Action requise \u2014 voir le journal'))
         self._exec_2fa_flashing = True
         self._exec_2fa_flash(True)
         # Auto-stop après 30 s — SEULEMENT hors collecte suivie. Quand la table

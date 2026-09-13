@@ -9,6 +9,20 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 
 Les trois derniers sont spécifiques au mode assisté ; 📘 concerne le mode classeur.
 
+## v5.32.0 🔧 📘
+| 2026-09-13 | Contrôles : les erreurs de saisie se localisent depuis le classeur |
+| ---------- | ------------------------------------------------------------------ |
+
+**Détail :**
+
+- **Contrôles (CATÉGORIES) 🔧** — le contrôle devient un agrégateur à sous-lignes : *Manquantes* (opérations sans catégorie), *Inconnues* (catégorie absente de la table Budget), *Écart Budget € (année glissante)* (le calcul d'avant, conservé). Avant, seul l'écart de montants sur un an était pesé : une catégorie inconnue de montant nul, compensé ou ancienne passait inaperçue.
+- **Contrôles (INCONNUS) 🔧** — devient « INCONNUS (Comptes, Devises) » : compte aussi les opérations sans compte et les devises vides ou absentes de Cotations (hors méta-opérations `#…`). Une ligne à date et montant sans compte, ou une devise mal saisie, passait tous les contrôles.
+- **Opérations 🔧** — sur les colonnes Date, Devise, Réf., Catégorie et Compte, un format conditionnel allume en rouge la cellule que le contrôle compte, et une validation refuse à la saisie une catégorie absente de Budget (méta-catégories `#…` admises), un compte hors des comptes suivis (table CTRL1), une devise absente de Cotations ou une date hors période ; la frappe et l'autocomplétion restent premières. Les anciens formats fragmentés sont remplacés ; ces règles sont re-posées à chaque import et par `tool_fix_formats.py --cellules`.
+- **Diagnostic** — `tool_controles.py` et le clic sur le Statut de l'App décrivent le contrôle CATÉGORIES avec ses trois sous-contrôles ; l'outil compte désormais une ligne à date sans devise ni compte comme une opération incomplète (le classeur la compte aussi).
+- **Onglet Exécution** — la vérification des formats (option apparence) déclenchait à tort l'alerte « action d'authentification requise » : l'outil imprimait le symbole réservé aux demandes des sites. Corrigé, et l'alerte ne s'arme plus que pendant une collecte.
+- **Formats du bloc Contrôles** — la remise en forme (`tool_fix_formats`) situait les lignes du bloc CTRL2 par position fixe, périmée depuis v4.1.0 : des compteurs auraient reçu un format monétaire. Elle lit désormais les libellés.
+- Migration appliquée automatiquement à la mise à niveau ; présente dans les classeurs exemple et vierge.
+
 ## v5.31.1
 | 2026-09-11 | Plus de message technique en fin de collecte ou d'import. |
 | ---------- | ---------------------------------------------------------- |

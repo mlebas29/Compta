@@ -89,6 +89,7 @@ _Le **nombre** dans la colonne d’un composant = le marqueur de schéma que la 
 
 | Version | Classeur | Config | App | Outil | Effet |
 |---|:--:|:--:|:--:|---|---|
+| v5.32.0 | 🔧 📘 `3` |  |  | `tool_migrate_categories_localisation.py` | Contrôles CATÉGORIES en agrégateur (Manquantes / Inconnues / Écart Budget) + localisation des erreurs de saisie dans Opérations : format conditionnel et validation à la saisie sur Date, Devise, Réf., Catégorie, Compte (#208) |
 | v5.22.0 | 🔧 📘 `3` |  |  | `tool_migrate_ctrl_changes_round.py` | Contrôles BALANCES « Changes Eq € » enveloppée de ROUND (fin d'un faux ⚠ par résidu flottant, #176) |
 | v5.16.0 | 🔧 📘 `3` |  |  | `tool_migrate_add_legende_soldes.py` | légende des libellés #Solde (Relevé / Σ / ⚠ Solde calculé) dans la table conventions |
 | v5.14.1 | 🔧 `3` |  |  | `tool_migrate_pvl_min_ancrage.py` | ancrage PVL au premier #Solde (MIN, fin du re-ancrage mort) |

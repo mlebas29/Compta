@@ -5,6 +5,9 @@ tool_fix_formats.py — Corrige les formats de cellules dans comptes.xlsm
 Usage:
   python3 tool_fix_formats.py comptes.xlsm           # dry run
   python3 tool_fix_formats.py comptes.xlsm --apply   # applique les corrections
+  python3 tool_fix_formats.py comptes.xlsm --cellules [--apply]
+      # règles cellule d'Opérations seules (formats conditionnels + validations
+      # à la saisie : Date, Réf., Catégorie, Compte) — sans la passe complète
 
 Corrections toutes feuilles :
   - Montants : format français (virgule décimale, espace milliers)
@@ -544,20 +547,16 @@ def fix_ctrl1(doc, apply, cr=None):
 def fix_ctrl2(doc, apply):
     """Corrige les formats du tableau CTRL2 dans Contrôles.
 
-    Structure CTRL2 (offsets depuis header h) :
-      h+0  : header devises
-      h+1  : taux
-      h+2  : COMPTES (entier)
-      h+3  : CATÉGORIES — montant devise, gris non-EUR
-      h+4  : Cohérence (col devise vide — seul L général est pertinent, format entier)
-      h+5  : Appariements (entier)
-      h+6  : Balances (entier)
-      h+7  : Virements — montant devise, gris non-EUR
-      h+8  : € (equiv) — montant EUR
-      h+9  : Titres — montant devise, gris non-EUR
-      h+10 : € (equiv) — montant EUR
-      h+11 : Changes Eq € — montant EUR
-      h+12 : Total € — montant EUR
+    Rôle de chaque ligne déduit de son LIBELLÉ (col J, named range CTRL2type),
+    jamais d'un offset fixe : le bloc gagne des lignes à chaque migration
+    (v4.1.0 : DIVERS/FORMULES et leurs sous-lignes ; v5.32.0 : sous-lignes
+    CATÉGORIES) et une table d'offsets figée (celle de v3.x, restée ici jusqu'à
+    la s.238) formatait en € des compteurs et en entier des montants.
+      Virements €                    → montant devise, rouge négatif, gris non-EUR
+      Titres € / Écart Budget €      → montant devise, gris non-EUR
+      Changes Eq € / Total €         → montant EUR
+      toute autre ligne libellée     → entier (têtes et sous-lignes de comptage)
+      ⚓ et pied                      → style seul
     """
     from inc_excel_schema import SHEET_CONTROLES
 
@@ -633,16 +632,26 @@ def fix_ctrl2(doc, apply):
                    'HoriJustify', 'VertJustify',
                    'TopBorder', 'BottomBorder', 'LeftBorder', 'RightBorder')
 
-    # Lignes en montant devise (avec gris non-EUR)
-    DEVISE_ROWS = {3, 9}        # CATÉGORIES, Titres
-    DEVISE_ROWS_RED = {7}       # Virements (rouge négatif)
-    # Lignes en entier
-    INTEGER_ROWS = {2, 5, 6}  # COMPTES, Appariements, Balances (h+4 Cohérence : col devise vide)
-    # Lignes en montant EUR
-    EUR_ROWS = {1, 8, 10, 11, 12}  # Taux, € equiv ×2, Changes, Total
+    # Rôles par libellé (offsets 0-indexés depuis h, calculés — jamais figés)
+    DEVISE_ROWS, DEVISE_ROWS_RED, INTEGER_ROWS, EUR_ROWS = set(), set(), set(), set()
+    ctrl2_s, ctrl2_e = doc.cr.rows('CTRL2type')
+    if ctrl2_s:
+        type_col = doc.cr.col('CTRL2type')
+        for r1 in range(ctrl2_s, ctrl2_e + 1):
+            lab = ws.getCellByPosition(type_col, r1 - 1).getString().strip()
+            if not lab or lab == '⚓':
+                continue
+            off = (r1 - 1) - h
+            if lab.startswith('Virements'):
+                DEVISE_ROWS_RED.add(off)
+            elif lab.startswith('Titres') or lab.startswith('Écart Budget'):
+                DEVISE_ROWS.add(off)
+            elif lab.startswith('Changes Eq') or lab.startswith('Total'):
+                EUR_ROWS.add(off)
+            else:
+                INTEGER_ROWS.add(off)
     # Lignes pied de tableau — style seul, pas de format nombre
     # Calculer depuis end CTRL2 (2 lignes après la dernière ligne de données)
-    _, ctrl2_e = doc.cr.rows('CTRL2type')
     if ctrl2_e:
         end_offset = uno_row(ctrl2_e) - h  # 0-indexed
         FOOTER_ROWS = {end_offset - 1, end_offset}
@@ -1454,14 +1463,26 @@ def _read_alarm_sqrefs(xlsm_path):
         return cells
 
     wb = load_workbook(xlsm_path, keep_vba=True)
+    # Colonnes DATA d'Opérations portant une CF d'alarme (règles cellule #208 :
+    # Date, Devise, Catégorie, Compte) : ce sont des colonnes de saisie, pas des
+    # cellules de contrôle → jamais de gras (vécu s.238 : 13 000 cellules en
+    # gras après un --charter --apply).
+    from inc_excel_schema import SHEET_OPERATIONS, ColResolver
+    from inc_formats import OP_CELL_RULES
+    cr = ColResolver.from_openpyxl(wb)
+    data_cols = {cr.letter(r['nr']) for r in OP_CELL_RULES if r['nr'] in cr._cols}
     out = {}
     for sheet_name in wb.sheetnames:
         ws = wb[sheet_name]
         s = set()
         for cfr in ws.conditional_formatting:
             for rule in ws.conditional_formatting[cfr]:
-                if rule.dxfId in alarm_dxf_set:
-                    s.update(_parse_sqref(cfr.sqref))
+                if rule.dxfId not in alarm_dxf_set:
+                    continue
+                cells = _parse_sqref(cfr.sqref)
+                if sheet_name == SHEET_OPERATIONS:
+                    cells = [c for c in cells if c[0] not in data_cols]
+                s.update(cells)
         if s:
             out[sheet_name] = s
     return out
@@ -1835,7 +1856,9 @@ def fix_formats(xlsm_path, apply=False, sheets=None, charter=False):
                 print("  ✓ OK")
 
             # === Bold direct sur cells contrôle (CF alarme) hors drill ===
-            print("\n🔔 Bold cells contrôle (CF alarme)...", flush=True)
+            # (pas de 🔔 ici : marqueur réservé aux demandes humaines, cf. inc_logging.alert —
+            #  la GUI l'affichait comme une alerte 2FA, vécu s.238)
+            print("\n🎯 Bold cells contrôle (CF alarme)...", flush=True)
             alarm_sqrefs = _read_alarm_sqrefs(xlsm_path)
             n_bold = apply_alarm_bold(doc, alarm_sqrefs, apply, sheets=sheets)
             total_fixes += n_bold
@@ -1843,7 +1866,7 @@ def fix_formats(xlsm_path, apply=False, sheets=None, charter=False):
                 print("  ✓ OK")
 
             # === CF d'alarme sur cells surveillées (#53) ===
-            print("\n🔔 CF d'alarme cells surveillées...", flush=True)
+            print("\n🎯 CF d'alarme cells surveillées...", flush=True)
             n_cf = apply_alarm_cf(doc, apply, sheets=sheets)
             total_fixes += n_cf
             if not n_cf:
@@ -1868,6 +1891,58 @@ def fix_formats(xlsm_path, apply=False, sheets=None, charter=False):
         if n_coherence:
             msg += f" + {n_coherence} signalée(s) (non auto-corrigeable(s))"
         print(f"\n{msg}")
+    return True
+
+
+def fix_cell_rules(path, apply=False):
+    """Re-pose les règles cellule d'Opérations (#208) : UN format conditionnel
+    et UNE validation (formule) par colonne (Date, Réf., Catégorie, Compte) sur la plage
+    nommée entière, en écrasant les miettes. Définition unique et écrivain :
+    `inc_formats.OP_CELL_RULES` / `apply_operations_cell_rules` — les mêmes que
+    l'import re-joue à chaque run.
+
+    Pose par openpyxl (quelques ms), puis recalcul LibreOffice (`refresh_controles`,
+    ~6 s) : une sauvegarde openpyxl n'écrit pas les valeurs en cache des formules,
+    dont la GUI a besoin (Contrôles!A1, Avoirs!L2) — mesuré s.238. Sans --apply :
+    sonde seule, sans LibreOffice. xlsx et xlsm.
+    """
+    import openpyxl
+    from inc_formats import apply_operations_cell_rules
+
+    path = Path(path).resolve()
+    if not path.exists():
+        print(f"❌ Fichier introuvable : {path}")
+        return False
+    is_xlsm = path.suffix.lower() == '.xlsm'
+    if apply:
+        from inc_uno import check_lock_file
+        busy = check_lock_file(path)
+        if busy:
+            print(f"❌ Classeur ouvert ({busy}) — ferme LibreOffice puis relance.")
+            return False
+
+    wb = openpyxl.load_workbook(path, keep_vba=is_xlsm)
+    changes = apply_operations_cell_rules(wb, apply=apply)
+    if not changes:
+        print("✓ Règles cellule Opérations conformes — rien à faire")
+        wb.close()
+        return True
+    for c in changes:
+        print(f"  {'+' if apply else '→'} {c}")
+    if not apply:
+        print(f"\n{len(changes)} règle(s) à re-poser (dry run — ajouter --apply)")
+        wb.close()
+        return True
+
+    bak = path.with_suffix(path.suffix + '.bak')
+    shutil.copy2(path, bak)
+    print(f"Backup : {bak.name}")
+    wb.save(path)
+    wb.close()
+    from inc_uno import refresh_controles
+    print("Recalcul LibreOffice (valeurs en cache des formules)...", flush=True)
+    refresh_controles(str(path))
+    print(f"\n{len(changes)} règle(s) re-posée(s)")
     return True
 
 
@@ -1987,6 +2062,11 @@ def main():
     parser.add_argument('--charter', action='store_true',
                         help='Applique en plus la charte graphique v3.6 '
                              '(palette fonds de zone + grille hair + BORDURE_PIED)')
+    parser.add_argument('--cellules', action='store_true',
+                        help="Re-pose SEULEMENT les règles cellule d'Opérations (formats "
+                             "conditionnels + validations à la saisie : Date, Devise, Réf., Catégorie, "
+                             "Compte) sur les plages nommées entières, puis recalcule. "
+                             "Dry run sans --apply. xlsx/xlsm.")
     parser.add_argument('--reframe', action='store_true',
                         help='Recale SEULEMENT la présentation (vues cadrées haut-gauche, '
                              '1ᵉʳ onglet actif) et sort — patch ZIP, sans UNO. xlsx/xlsm.')
@@ -1994,6 +2074,9 @@ def main():
 
     if args.reframe:
         frame_views(args.xlsm, verbose=True)
+        return
+    if args.cellules:
+        fix_cell_rules(args.xlsm, apply=args.apply)
         return
 
     fix_formats(args.xlsm, apply=args.apply, sheets=args.sheet, charter=args.charter)

@@ -68,10 +68,14 @@ Remet en ordre les formats d'affichage dans le classeur : montants au format fra
 
 L'option `--charter` étend la correction à la charte graphique (palette beige, quadrillage, traits de pied) et au gras des cellules contrôlées.
 
+L'option `--cellules` ne traite que les règles cellule de la feuille Opérations (format conditionnel + validation à la saisie sur Date, Devise, Réf., Catégorie, Compte) : elle les re-pose d'un bloc sur les plages nommées entières, puis recalcule le classeur. Sans LibreOffice pour la sonde ; le recalcul en a besoin.
+
 ```
 ./tool_fix_formats.py comptes.xlsm                     # prévisualise (formats numériques)
 ./tool_fix_formats.py comptes.xlsm --apply             # applique
 ./tool_fix_formats.py comptes.xlsm --charter --apply   # + charte graphique
+./tool_fix_formats.py comptes.xlsm --cellules          # sonde les règles cellule d'Opérations
+./tool_fix_formats.py comptes.xlsm --cellules --apply  # les re-pose
 ```
 
 ### tool_migrate_schema_v2.py — Mise à niveau du classeur

@@ -136,6 +136,8 @@ Les contrôles agrégateurs s'appuient sur le bloc `CTRL2` (named ranges, sous-l
 
 Détail des contrôles et signification des codes d'erreur : [`Compta.md`](Compta.md) Annexe A.
 
+**Règles cellule d'Opérations (#208)** — les verdicts CATÉGORIES (sous-lignes Manquantes / Inconnues), INCONNUS et DIVERS (date) ont leur pendant cellule dans la feuille Opérations : un format conditionnel et une validation par colonne (Date, Devise, Réf., Catégorie, Compte), **même prédicat, même plage nommée**. Validation par **formule** (pas par liste : une liste ne filtre ni blancs ni ⚓ et ne tolère pas les méta-catégories `#…`) ; Compte se valide sur `CTRL1compte` (comptes suivis, entretenus par la GUI) alors que le verdict lit `AVRintitulé` (les clos portent des opérations valides). Définition unique `inc_formats.OP_CELL_RULES`, écrivain openpyxl idempotent `apply_operations_cell_rules` (un seul morceau par colonne, écrase les miettes), trois appelants : l'import à chaque sauvegarde (`ComptaExcel.close_workbook`), `tool_fix_formats --cellules`, la migration `tool_migrate_categories_localisation.py`. Pourquoi re-poser : LibreOffice tronque la plage d'une validation à la zone utilisée + 1000 lignes à chaque enregistrement ; openpyxl (`tool_purge`) déplace les lignes sans déplacer les plages de format. Jamais LibreOffice depuis l'import — une sauvegarde openpyxl suffit, le recalcul UNO qui suit restaure les valeurs en cache.
+
 ## Interactions avec le classeur
 
 Une part importante du code manipule `comptes.xlsm`. Deux bibliothèques cohabitent, chacune adaptée à un usage différent.

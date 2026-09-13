@@ -60,11 +60,11 @@ _CTRL_LABELS = [
 ]
 _CTRL_EXPLANATIONS = [
     'Écarts entre soldes calculés et soldes relevés',
-    'Opération(s) sans catégorie connue',
+    'Catégorie manquante ou inconnue, ou écart Budget (année glissante)',
     'Date hors période / Ventilation Patrimoine / Cotations incomplètes',
     'Appariements incomplets',
     'Déséquilibre balances',
-    'Compte(s) absent(s) de la feuille Avoirs',
+    'Compte ou devise vide ou inconnu (feuilles Avoirs, Cotations)',
     'Synthèse PVL ou Avoirs en erreur (#N/A, #REF!, …)',
 ]
 
@@ -200,19 +200,27 @@ def get_unknown_accounts(operations_sheet, avoirs_sheet, cr, verbose=False):
     unknown_accounts = {}  # {compte: [liste de lignes]}
     empty_rows_count = 0
 
+    valid_lower = {c.lower() for c in valid_accounts}   # COUNTIF est insensible à la casse
     for row_idx in range(3, 10000):  # Commencer à la ligne 4
         compte = operations_sheet.getCellByPosition(cr.col('OPcompte'), row_idx).String
+        # Opération réelle = date NUMÉRIQUE (même définition que le verdict INCONNUS
+        # et le format conditionnel d'Opérations, #208) : un compte vide y compte.
+        is_op = operations_sheet.getCellByPosition(cr.col('OPdate'), row_idx).Type.value == 'VALUE'
 
-        if not compte:
+        if not compte and not is_op:
             empty_rows_count += 1
             if empty_rows_count > 50:
                 break
             continue
 
         empty_rows_count = 0
-        compte = compte.strip()
+        compte = compte.strip() or '(vide)'
+        if compte == '(vide)':
+            cat = operations_sheet.getCellByPosition(cr.col('OPcatégorie'), row_idx).String
+            if cat.startswith('#'):
+                continue                      # méta-opération (#Balance…) : sans compte par nature
 
-        if compte and compte not in valid_accounts:
+        if compte == '(vide)' or compte.lower() not in valid_lower:
             if compte not in unknown_accounts:
                 unknown_accounts[compte] = []
             if len(unknown_accounts[compte]) < 3:  # Garder max 3 exemples par compte
@@ -225,6 +233,60 @@ def get_unknown_accounts(operations_sheet, avoirs_sheet, cr, verbose=False):
                 })
 
     return unknown_accounts
+
+
+def get_unknown_devises(operations_sheet, cotations_sheet, cr):
+    """Devises d'Opérations vides (opération réelle, hors méta `#…`) ou absentes de
+    COTcode — même définition que le terme devises d'INCONNUS (#208).
+    Retourne {devise: [exemples]}."""
+    valid = set()
+    s, e = cr.rows('COTcode')
+    if s:
+        for r1 in range(s, e + 1):
+            v = cotations_sheet.getCellByPosition(cr.col('COTcode'), r1 - 1).String.strip()
+            if v and v != '⚓':
+                valid.add(v.lower())
+    unknown = {}
+    empty_rows = 0
+    for row_idx in range(3, 10000):
+        is_op = operations_sheet.getCellByPosition(cr.col('OPdate'), row_idx).Type.value == 'VALUE'
+        devise = operations_sheet.getCellByPosition(cr.col('OPdevise'), row_idx).String.strip()
+        if not is_op and not devise:
+            empty_rows += 1
+            if empty_rows > 50:
+                break
+            continue
+        empty_rows = 0
+        if not is_op:
+            continue
+        if not devise:
+            cat = operations_sheet.getCellByPosition(cr.col('OPcatégorie'), row_idx).String
+            if cat.startswith('#'):
+                continue
+            key = '(vide)'
+        elif devise.lower() in valid:
+            continue
+        else:
+            key = devise
+        lst = unknown.setdefault(key, [])
+        if len(lst) < 3:
+            lst.append({'row': row_idx + 1,
+                        'date': operations_sheet.getCellByPosition(cr.col('OPdate'), row_idx).String,
+                        'libelle': operations_sheet.getCellByPosition(cr.col('OPlibellé'), row_idx).String[:40]})
+    return unknown
+
+
+def print_unknown_devises_errors(unknown):
+    """Affiche les devises inconnues ou vides."""
+    if not unknown:
+        return
+    print(f"\n❌ DEVISES INCONNUES ({len(unknown)}, absentes de la feuille Cotations)")
+    print("=" * 100)
+    for devise, examples in sorted(unknown.items()):
+        print(f"  📌 '{devise}'")
+        for ex in examples:
+            print(f"      Ligne {ex['row']}: {ex['date']} - {ex['libelle']}")
+    print("\n💡 Piste de résolution : ajouter la devise dans Cotations, ou corriger la saisie.")
 
 
 def print_unknown_accounts_errors(unknown_accounts, verbose=False):
@@ -322,6 +384,7 @@ def get_categories_errors(operations_sheet, valid_categories, cr, verbose=False)
     """
     missing_category = []
     invalid_category = []
+    valid_categories_lower = {c.lower() for c in valid_categories}
 
     # Chercher dans toutes les lignes avec données (max 10000 lignes raisonnable)
     # Note: Rows.Count retourne le nb total de lignes de la feuille (~1M), pas le nb de lignes avec données
@@ -331,15 +394,19 @@ def get_categories_errors(operations_sheet, valid_categories, cr, verbose=False)
         if row_idx == 2:
             continue
 
-        date = operations_sheet.getCellByPosition(cr.col('OPdate'), row_idx).String
+        date_cell = operations_sheet.getCellByPosition(cr.col('OPdate'), row_idx)
+        date = date_cell.String
         libelle = operations_sheet.getCellByPosition(cr.col('OPlibellé'), row_idx).String
         montant = operations_sheet.getCellByPosition(cr.col('OPmontant'), row_idx).Value
         devise = operations_sheet.getCellByPosition(cr.col('OPdevise'), row_idx).String
         categorie = operations_sheet.getCellByPosition(cr.col('OPcatégorie'), row_idx).String
         compte = operations_sheet.getCellByPosition(cr.col('OPcompte'), row_idx).String
 
-        # Ignorer les lignes vides ou incomplètes
-        if not date or not devise or not compte:
+        # Opération réelle = date NUMÉRIQUE — même définition que les sous-lignes
+        # Manquantes/Inconnues de Contrôles et le format conditionnel d'Opérations
+        # (#208) : une ligne à date sans devise ni compte est une opération
+        # incomplète que le classeur compte, pas une ligne vide à ignorer.
+        if date_cell.Type.value != 'VALUE':
             empty_rows_count += 1
             # Arrêter après 50 lignes vides consécutives (fin des données)
             if empty_rows_count > 50:
@@ -363,8 +430,9 @@ def get_categories_errors(operations_sheet, valid_categories, cr, verbose=False)
                 'devise': devise,
                 'compte': compte
             })
-        # Vérifier catégorie invalide (pas dans Budget L29:L116)
-        elif categorie not in valid_categories:
+        # Vérifier catégorie invalide (absente de CATnom) — comparaison INSENSIBLE
+        # à la casse, comme COUNTIF/SUMIFS dans le classeur (#208)
+        elif categorie.strip().lower() not in valid_categories_lower:
             invalid_category.append({
                 'row': row_idx + 1,
                 'date': date,
@@ -494,6 +562,8 @@ Codes de sortie:
                 if has_comptes_inconnus:
                     unknown_accounts = get_unknown_accounts(operations_sheet, avoirs_sheet, cr, args.verbose)
                     print_unknown_accounts_errors(unknown_accounts, args.verbose)
+                    cotations_sheet = doc.get_sheet('Cotations')
+                    print_unknown_devises_errors(get_unknown_devises(operations_sheet, cotations_sheet, cr))
                     if exit_code == 0:
                         exit_code = 1
 

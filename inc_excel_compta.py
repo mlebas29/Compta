@@ -269,6 +269,18 @@ class ComptaExcel:
         if self.wb:
             try:
                 if save:
+                    # Règles cellule d'Opérations (#208) : formats conditionnels +
+                    # validations re-posés à CHAQUE sauvegarde (quelques
+                    # ms). Nécessaire : LibreOffice tronque les validations à sa
+                    # sauvegarde, l'import ajoute hors plage. Cf. inc_formats.
+                    try:
+                        from inc_formats import apply_operations_cell_rules
+                        changes = apply_operations_cell_rules(self.wb)
+                        if changes:
+                            self.logger.verbose(
+                                f"Règles cellule Opérations re-posées : {len(changes)}")
+                    except Exception as e:
+                        self.logger.warning(f"Règles cellule Opérations non re-posées : {e}")
                     self.wb.save(self.comptes_file)
                     self.logger.verbose("Fichier sauvegardé")
                 self.wb.close()

@@ -13,6 +13,7 @@ Tu tiens le classeur à la main, sans `upgrade` (pour le mode assisté en un ges
 
 | Version | Classeur | Effet |
 |---|:--:|---|
+| v5.32.0 | 📘 | Contrôles CATÉGORIES en agrégateur (Manquantes / Inconnues / Écart Budget) + localisation des erreurs de saisie dans Opérations : format conditionnel et validation à la saisie sur Date, Devise, Réf., Catégorie, Compte (#208) |
 | v5.22.0 | 📘 | Contrôles BALANCES « Changes Eq € » enveloppée de ROUND (fin d'un faux ⚠ par résidu flottant, #176) |
 | v5.16.0 | 📘 | légende des libellés #Solde (Relevé / Σ / ⚠ Solde calculé) dans la table conventions |
 | v5.14.1 | 📘 | classeur exemple livré (intègre la migration pvl_min_ancrage) |
@@ -25,6 +26,18 @@ Tu tiens le classeur à la main, sans `upgrade` (pour le mode assisté en un ges
 **Notes :**
 
 - **drill (devise)** = modèle « une colonne par devise → colonnes génériques avec menu déroulant » (chantier v4.0.0).
+
+
+## v5.32.0 🔧 📘 — Contrôles : localiser les erreurs de saisie depuis le classeur
+
+`SCHEMA_VERSION` inchangé (reste à 3) : migration idempotente. Jusqu'ici la position 2 de `Contrôles!A1` (CATÉGORIES) ne pesait que des **montants sur l'année glissante** (écarts Budget) : une catégorie inconnue de montant nul, compensé, ou vieille de plus d'un an passait — et rien dans le classeur ne disait **quelle ligne** était fautive. Deux changements :
+
+- **Feuille Contrôles** — CATÉGORIES devient un agrégateur à sous-lignes, comme DIVERS et BALANCES : *Manquantes* (opérations sans catégorie), *Inconnues* (catégorie absente de la table Budget, méta-catégories `#…` exclues), *Écart Budget € (année glissante)* (le calcul historique, conservé). Verdict `✗` dès qu'une sous-ligne est en alarme. Et INCONNUS devient « INCONNUS (Comptes, Devises) » : il compte aussi les opérations **sans compte** et les **devises vides ou absentes de Cotations** (hors méta-opérations `#…`) — une ligne à date et montant sans compte, ou une devise mal saisie, passait tous les contrôles.
+- **Feuille Opérations** — sur les colonnes Date, Devise, Réf., Catégorie et Compte : un **format conditionnel** (fond rouge = la cellule que le contrôle compte ; Réf. `-` = non apparié, jaune pâle comme avant) et une **validation à la saisie** (« Arrêter » : Catégorie dans la table Budget ou méta-catégorie `#…`, Compte parmi les comptes suivis (table CTRL1 de Contrôles : ni clos, ni bien sans devise), Devise dans Cotations, Date dans `[01/01/2020 ; 31/12/année courante]`). La frappe reste première, l'autocomplétion de Calc est intacte ; une valeur hors référence est refusée avec un message qui nomme la feuille source. Les anciens formats en miettes (Réf. `-` en 7 morceaux, « Hors compte » sans plus aucune opération) sont remplacés.
+
+Ces formats et validations sont **re-posés à chaque import** (LibreOffice raccourcit la plage des validations à chaque enregistrement) — et à la demande : `./tool_fix_formats.py comptes.xlsm --cellules --apply`.
+
+**Mise à niveau** — récupérer le nouvel exemple [`comptes_exemple.xlsx`](https://github.com/mlebas29/Compta/raw/main/comptes_exemple.xlsx) (il intègre les deux changements), ou lancer sur ton classeur `./tool_migrate_categories_localisation.py comptes.xlsm` (classeur fermé).
 
 
 ## v5.22.0 🔧 📘 — Contrôles : fin d'une fausse alerte d'équilibre (« Changes Eq € »)

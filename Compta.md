@@ -228,21 +228,24 @@ La cellule A1 est une synthèse de 7 positions (concaténation de 7 symboles) :
 | Position | Label | OK | Warning | Erreur | Signification |
 |----------|-------|----|---------|--------|---------------|
 | 1 | Comptes (soldes) | `✓` | | `✗` | Écarts entre soldes calculés et soldes relevés |
-| 2 | Catégories | `✓` | | `✗` | Opération(s) sans catégorie connue |
+| 2 | Catégories | `✓` | | `✗` | Catégorie manquante ou inconnue, ou écart Budget (année glissante) |
 | 3 | Divers | `✓` | `⚠` | | Date hors période / Ventilation Patrimoine / Cotations incomplètes |
 | 4 | Appariements | `✓` | `⚠` | | Appariements incomplets |
 | 5 | Balances | `✓` | `⚠` | | Problème de balances |
-| 6 | Inconnus (comptes) | `✓` | | `✗` | Compte(s) absent(s) de la feuille Avoirs |
+| 6 | Inconnus (comptes, devises) | `✓` | | `✗` | Compte ou devise vide ou inconnu (feuilles Avoirs, Cotations) |
 | 7 | Formules | `✓` | | `✗` | Synthèse PVL ou Avoirs en erreur (#N/A, #REF!, …) |
 
 Exemples : `✓✓✓⚠⚠✓✓` = seuls appariements et balances à vérifier. `✗✓✓⚠✓✓✓` = erreur soldes + appariements incomplets. `✓✓✓✓✓✓✗` = la synthèse Avoirs ou Plus_value plante.
 
-Les contrôles **Divers** et **Balances** sont des agrégateurs : ils consolident plusieurs sous-contrôles, visibles en sous-lignes indentées de la feuille Contrôles :
+Les contrôles **Catégories**, **Divers** et **Balances** sont des agrégateurs : ils consolident plusieurs sous-contrôles, visibles en sous-lignes indentées de la feuille Contrôles :
 
+- **Catégories** : *Manquantes* (opérations sans catégorie) + *Inconnues* (catégorie absente de la table Budget ; les méta-catégories `#Solde`, `#Info`, `#Balance`… ne comptent pas) + *Écart Budget € (année glissante)* (écart entre la somme des opérations et les totaux par catégorie de Budget sur les 365 derniers jours).
 - **Divers** : *Date hors période* (dates anormales en Opérations) + *Ventilation Patrimoine* (cumul des sections vs total global) + *Cotations* (devises utilisées en PVL/AVR mais absentes ou sans cours dans Cotations).
 - **Balances** : *Virements €* + *Titres €* + *Changes Eq €*.
 
 Le contrôle **Formules** surveille des cellules d'alarme posées dans les feuilles Plus_value et Avoirs : il bascule en `✗` si une formule en amont propage `#N/A`, `#REF!`, etc. (détail technique des cellules et named ranges : [`Compta_dev.md`](Compta_dev.md) §Feuille Contrôles).
+
+**Localiser depuis le classeur** — dans la feuille Opérations, les colonnes Date, Devise, Catégorie et Compte portent un format conditionnel : une cellule sur **fond rouge** est exactement une cellule que le contrôle compte (date hors période, devise vide ou absente de Cotations, catégorie manquante ou inconnue, compte vide ou absent d'Avoirs) ; Réf. `-` (non apparié) reste sur fond jaune pâle. Les mêmes colonnes portent une **validation à la saisie** : une catégorie absente de Budget (les méta-catégories `#…` restent admises), un compte hors des comptes suivis (table CTRL1 de Contrôles), une devise absente de Cotations ou une date hors période sont refusés avec un message qui nomme la feuille de référence ; l'autocomplétion de Calc propose les valeurs déjà saisies. Ces formats et validations sont re-posés à chaque import, ou à la demande par `./tool_fix_formats.py comptes.xlsm --cellules --apply`.
 
 Diagnostic détaillé : `./tool_controles.py` (ou `-v` pour le mode verbeux).
 

@@ -299,7 +299,7 @@ Le squelette des §1-5 suffit à **collecter**. Cette section couvre les briques
 
 ### 6.1 Attente humaine — `alert()` / `user_done()`
 
-Encadre **tout** moment où la collecte attend une action de l'utilisateur (2FA, CAPTCHA, validation mobile, saisie de code, login manuel) :
+Encadre **tout** moment où la collecte attend une action de l'utilisateur (2FA, CAPTCHA, validation mobile, saisie de code, login manuel) — et **rien d'autre** : `alert()` signifie « une action de toi est attendue maintenant ». Un message urgent sans action attendue passe par `error()` ou `warning()`, sinon la GUI sonne pour rien et le chrono d'attente humaine fausse le temps machine du journal.
 
 ```python
 self.logger.alert("VALIDATION 2FA — Valide sur l'appli mobile")  # AVANT l'attente
@@ -309,7 +309,7 @@ self.logger.user_done()                                          # APRÈS l'acti
 
 Un seul appel `alert()` par séquence suffit à armer le chrono (les alertes consécutives le partagent) ; `user_done()` le clôt. **Triple gain** :
 
-- **GUI** : la ligne `alert()` porte le marqueur `🔔` → l'onglet Exécution flashe, sonne et passe au premier plan (`gui_exec.py`). C'est **le seul signal en headless** (fenêtre invisible) — sans lui, un 2FA/CAPTCHA se solde par un hang silencieux jusqu'au timeout.
+- **GUI** : la ligne `alert()` porte le marqueur `🔔` → l'onglet Exécution flashe, sonne, passe au premier plan et affiche **ton message** dans le bandeau (`gui_exec.py`) : écris-le comme la consigne à suivre. C'est **le seul signal en headless** (fenêtre invisible) — sans lui, un 2FA/CAPTCHA se solde par un hang silencieux jusqu'au timeout.
 - **Journal** : `user_done()` écrit un marqueur parsable `⏳ Attente humaine : Ns` → permet de déduire le temps machine (total − attente).
 - **Profilage** (§6.2) : la durée d'attente humaine est **retranchée** de la durée de l'étape → la baseline mesure le site, pas ta latence de réaction. Appeler `user_done()` **juste après** la résolution : si l'attente reste ouverte, la clôture d'étape la strippe grossièrement (temps machine post-action perdu, mais jamais gonflé).
 

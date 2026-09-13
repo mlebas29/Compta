@@ -1050,11 +1050,11 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DaemonClientMixin,
     ]
     _CTRL_EXPLANATIONS = [
         'Écarts entre soldes calculés et soldes relevés',
-        'Opération(s) sans catégorie connue',
+        'Catégorie manquante ou inconnue, ou écart Budget (année glissante)',
         'Date hors période / Ventilation Patrimoine / Cotations incomplètes',
         'Appariements incomplets',
         'Déséquilibre balances',
-        'Compte(s) absent(s) de la feuille Avoirs',
+        'Compte ou devise vide ou inconnu (feuilles Avoirs, Cotations)',
         'Synthèse PVL ou Avoirs en erreur (#N/A, #REF!, …)',
     ]
 
