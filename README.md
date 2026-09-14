@@ -152,7 +152,7 @@ Environnements sur lesquels installation, GUI et collecte sont effectivement vé
 | :---------------------------------: | :--------------: |
 |       Linux Zorin (Ubuntu 22) et Mint 22 (Ubuntu 24.04)       |     Installation, GUI, Collecte     |
 | macOS Ventura |     Installation, GUI, Collecte     |
-|      Windows 11 - WSL/Ubuntu 22      | Installation, GUI, Collecte |
+|    Windows 11 - WSL/Ubuntu 24.04     | Installation, GUI, Collecte |
 
 Grâce au système WSL de Microsoft qui simule parfaitement Linux, l'App de base Linux tourne quasiment sans adaptation sur Windows. Pour macOS, le portage demande plus d'attention en raison d'une architecture différente, bien que cousine pour l'OS, notamment avec LibreOffice et Python.
 
