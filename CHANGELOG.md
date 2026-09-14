@@ -10,8 +10,8 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 Les trois derniers sont spécifiques au mode assisté ; 📘 concerne le mode classeur.
 
 ## v5.32.0 🔧 📘
-| 2026-09-13 | Contrôles : les erreurs de saisie se localisent depuis le classeur |
-| ---------- | ------------------------------------------------------------------ |
+| 2026-09-13 | Contrôles classeur renforcés et affinés. Contrôle à la saisie et allumage des cellules en faute (feuille Opérations) |
+| ---------- | ------------------------------------------------------------ |
 
 **Détail :**
 
