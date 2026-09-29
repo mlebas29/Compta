@@ -223,7 +223,7 @@ class BaseFetcher:
 
         N'existait pas sous Chrome 148 (16 runs sans un échec) ; apparu avec la
         mise à jour automatique 151 → 152 du 08/09/2026. La cause côté navigateur
-        n'est pas identifiée — cf. CLAUDE_todo #204.
+        n'est pas identifiée — cf. todo.md #204.
         """
         try:
             default = self._chrome_profile_dir / 'Default'

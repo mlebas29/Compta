@@ -475,7 +475,7 @@ class ConfigGUI(AccountsMixin, BudgetMixin, CategoriesMixin, DaemonClientMixin,
         # Workarounds bug Tk Linux X11 :
         # (1) clic externe (autre app) → polling focus_displayof() ferme menus
         # (2) clic interne dans la GUI hors menu → bind <Button-1> global
-        # Limitation connue (cf. CLAUDE_todo #41) : ne couvre PAS les combobox
+        # Limitation connue (cf. todo.md #41) : ne couvre PAS les combobox
         # ttk dont le popdown garde le focus interne.
         self._popup_menus = getattr(self, '_popup_menus', [])
         self.root.after(500, self._global_focus_watch)

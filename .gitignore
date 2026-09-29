@@ -26,10 +26,9 @@ config_cotations.json
 config_descriptions.json
 config_pipeline.json
 
-# Doc DEV (Marc + Claude)
+# Pointeurs racine de l'agent (machine-locaux, cf. custom/AGENTS.md)
 CLAUDE.md
-CLAUDE_log.md
-CLAUDE_todo.md
+AGENTS.md
 
 # Sessions / cookies Playwright
 .chrome_profile_*/

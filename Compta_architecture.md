@@ -68,15 +68,15 @@ Compta est développé avec l'assistant **Claude Code** (CLI d'Anthropic). Cet a
 
 Le CLI peut fonctionner dans un terminal ou une console ordinaire (`claude`), ou dans une App (`claude-desktop`). Voir [claude.com/claude-code](https://claude.com/claude-code) pour l'installer.
 
-### Fichiers `CLAUDE*`
+### Fichiers de l'agent
 
-L'état de collaboration vit dans des fichiers **`CLAUDE*`**, versionnés dans le dépôt **PRV** (`custom/`, jamais publiés) et synchronisés entre les machines de développement par le VPS.
+L'état de collaboration vit dans cinq fichiers, versionnés dans le dépôt **PRV** (`custom/`, jamais publiés) et synchronisés entre les machines de développement par le VPS.
 
-#### `CLAUDE.md`
+#### `AGENTS.md` et `CLAUDE.md`
 
- Les instructions du développeur pour l'assistant ; ce qu'il doit connaître et respecter. Ce fichier est automatiquement lu par Claude Code à chaque lancement.
+ Les instructions du développeur pour l'assistant ; ce qu'il doit connaître et respecter. `AGENTS.md` porte la doctrine commune à tout agent (Claude Code, Pi…) ; `CLAUDE.md` ne garde que ce qui est propre à Claude Code (hook, mémoire native). Claude Code lit les deux au lancement, à condition que le réglage `instructionFiles` de `~/.claude/settings.json` vaille `claude-md-and-agents-md`.
 
-Exemple de contenu
+Exemple de `AGENTS.md`
 
 ```
 # Présentation du projet
@@ -87,26 +87,31 @@ Exemple de contenu
   TNR (tests de non-régression, sans pytest) : ne jamais committer un
   fichier de test sans un TNR vert juste avant.
 
-# Fichiers partagés (PRV, gérés par CLAUDE)
-  CLAUDE_log.md  : sessions récentes (5 dernières).
-  CLAUDE_todo.md : idées / plans / dette (conventions en tête du fichier).
-  CLAUDE_mem.md  : mémoire durable inter-machines (index + custom/mem/<thème>.md).
+# Fichiers partagés (PRV, gérés par l'agent)
+  log.md  : sessions récentes (5 dernières).
+  todo.md : idées / plans / dette (conventions en tête du fichier).
+  mem.md  : mémoire durable inter-machines (index + custom/mem/<thème>.md).
 
 # Dépôts (PUB / PRV)
   Deux dépôts par instance : PUB (code app) à la racine, origin GitHub ;
-  PRV dans custom/ (origin VPS) = fichiers Claude + sites privés.
+  PRV dans custom/ (origin VPS) = fichiers de l'agent + sites privés.
   La session démarre dans custom/ ; garder un wd canonique par machine.
 
 # Rituels de session
   Ouverture : ./claude_open.sh (hôte + wd + audit git read-only), charger la mémoire.
   Clôture   : préparer todo/log/mem -> un seul « go » -> commit (git nu) -> aligner.
 
-# Mémoire native (machine-locale)
-  ~/.claude/projects/<slug>/memory/ — per-machine, non versionnée, non
-  synchronisée ; complète la couche partagée CLAUDE_mem.
 ```
 
-#### `CLAUDE_log.md`
+Exemple de `CLAUDE.md`
+
+```
+# Mémoire native (machine-locale)
+  ~/.claude/projects/<slug>/memory/ — per-machine, non versionnée, non
+  synchronisée ; complète la couche partagée mem.md.
+```
+
+#### `log.md`
 
  journal des sessions récentes (les 5 dernières) :
 
@@ -124,7 +129,7 @@ Reprise de #17 (nouveau connecteur).
 # Session 43 ...
 ```
 
-#### `CLAUDE_todo.md`
+#### `todo.md`
 
 idées / plans / dette ; ses conventions vivent en tête du fichier :
 
@@ -145,7 +150,7 @@ Purge    : au-delà de ~30 items, élaguer les plus anciens
 
 ```
 
-#### `CLAUDE_mem.md`
+#### `mem.md`
 
 mémoire durable inter-machines (les faits non évidents à retenir) :
 
