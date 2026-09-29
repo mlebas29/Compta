@@ -170,7 +170,9 @@ Une part importante du code manipule `comptes.xlsm`. Deux bibliothèques cohabit
 
 Le classeur est entièrement structuré par des **named ranges** : `OPdate`, `OPmontant`, `AVRintitulé`, `CTRL1controle`, etc. Ils définissent les bornes des tableaux et permettent au code de se référer aux cellules sans coordonnées en dur — toute insertion/suppression UNO ajuste automatiquement les bornes.
 
-- **Conventions ⚓ ancres + sentinels** : voir [`Compta_charte.md`](Compta_charte.md).
+- **Ancres ⚓** : chaque tableau (AVR, CAT, POSTES, COT, CTRL1, CTRL2, PAT, PVL ; OP au début seulement) porte une sentinelle ⚓ **dans** son named range, à chaque borne, en 1ʳᵉ colonne — les données sont strictement entre les deux. Une insertion ou suppression au bord reste ainsi dans la zone, et LibreOffice recale le range (il ne le fait pas hors des bornes). Pose idempotente : `tool_migrate_schema_v2.ensure_anchors()`. Le code accepte encore `✓` pour les classeurs non migrés.
+  - Ne jamais compter un décalage depuis un en-tête (`COMPTES - 2`) : partir du range (`CTRL2type.start - 2`).
+  - Après un `removeByIndex`, `cr.refresh(xdoc=…)` avant de relire `cr.rows()`.
 - **`ColResolver`** (`cr` dans le code) : résout les colonnes via named ranges. Itération bornée : `for row in cr.rows('OPdate'): ...`.
 - **2 model rows minimum** par tableau — si la suppression UNO retire toutes les lignes, le range devient `#REF!`. Garder une row factice protège l'intégrité.
 - **Insertion devant un `=SUM(range)`** n'étend pas automatiquement le range → extension manuelle ou utiliser des plages absolues.
