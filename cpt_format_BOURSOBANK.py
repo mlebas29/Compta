@@ -325,9 +325,14 @@ def process_pdf_portefeuille(input_file):
 
     # Chercher le solde Espèces (patterns BoursoBank)
     # Patterns possibles : "Solde Espèces XXX,XX €", "Espèces XXX,XX €"
+    # Exclure « Total Portefeuille (titres + espèces) » : depuis 10/2026 cette
+    # ligne suit « Solde Espèces » dans le PDF, et la dernière trouvée l'emportait
+    # (Réserve lue sur le total titres + espèces, écart COMPTES massif).
     solde_especes = None
     for line in full_text.split('\n'):
         line_stripped = line.strip()
+        if 'total' in line_stripped.lower():
+            continue
         if re.search(r'[Ee]sp[èe]ces', line_stripped):
             montant_match = re.search(r'([-−]?\s*[\d\s]+,\d{2})\s*€', line_stripped)
             if montant_match:

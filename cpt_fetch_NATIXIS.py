@@ -26,6 +26,7 @@ URL_POSITIONS = "https://hsbc.epargnants.votreepargnesalariale.com/front/saving-
 URL_OPERATIONS = "https://hsbc.epargnants.votreepargnesalariale.com/front/transactions"
 
 TIMEOUT_PAGE = 15000  # ms
+LOGIN_2FA_TIMEOUT = 180000  # ms — fin du login, 2FA SMS humaine comprise
 
 
 # ============================================================================
@@ -40,7 +41,7 @@ Compte unique.
 
 ══════ 2FA ══════
 
-Aucune.
+Code SMS à chaque connexion (depuis 10/2026) : choisir « SMS », saisir le code.
 
 ══════ Collecte manuelle de secours ══════
 
@@ -170,13 +171,22 @@ class PeeFetcher(BaseFetcher):
             # ci-dessous timeoute. Best-effort — absent si déjà écarté.
             self._dismiss_trusted_device_interstitial()
 
+            # 2FA SMS (Natixis, depuis 10/2026) : choix du mode puis code à 6
+            # chiffres, saisis par l'humain. 30 s ne suffisaient pas (SMS + saisie).
+            try:
+                self.page.locator("text=Sélectionnez un mode d").first.wait_for(
+                    state="visible", timeout=8000)
+                self.logger.alert("VALIDATION 2FA — Choisis « SMS » puis saisis le code dans Chrome")
+            except Exception:
+                pass  # pas d'écran 2FA (session de confiance) : on poursuit
+
             # Vérifier connexion réussie : attendre une URL stable hors du flux login
             try:
                 self.page.wait_for_function(
                     "() => !window.location.href.includes('/login') "
                     "&& !window.location.href.includes('/auth') "
                     "&& document.readyState === 'complete'",
-                    timeout=30000
+                    timeout=LOGIN_2FA_TIMEOUT
                 )
                 self.logger.info(f"Connexion réussie — title='{self.page.title()}' url='{self.page.url}'")
                 return True

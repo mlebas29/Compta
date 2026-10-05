@@ -41,7 +41,7 @@ mode = EX
 #
 # true  = Active les logs de debug pour tous les scripts
 #         - Affiche les informations techniques (chemins, URLs, étapes détaillées)
-#         - Sauvegarde HTML et screenshots dans logs/ pour diagnostic
+#         - Sauvegarde HTML et screenshots dans logs/debug/ pour diagnostic
 #         - Fetch : navigateur visible (pas de mode headless)
 #         - cpt_fetch_SOCGEN.py : capture du clavier virtuel, étapes OCR, mapping des touches
 #         - cpt_fetch_<SITE>.py : pages HTML intermédiaires, popups
@@ -249,7 +249,7 @@ max_days_back = 90
 # Notes techniques :
 # - Fetch via API publique mempool.space (pas d'authentification)
 # - 2 wallets : BlueWallet, Phoenix
-# - Unit\u00e9 : SAT (satoshis, 1 BTC = 100,000,000 SAT)
+# - Unité : SAT (satoshis, 1 BTC = 100,000,000 SAT)
 [BTC]
 name = Bitcoin Wallets
 dossier = BTC
@@ -266,7 +266,7 @@ max_days_back = 90
 # - Fetch via monero-wallet-cli (commandes directes)
 # - 1 wallet : Cake Wallet XMR
 # - Mots de passe (wallet + RPC) dans la table chiffrée (Réfs ci-dessous)
-# - Unit\u00e9 : XMR (pas atomic units)
+# - Unité : XMR (pas atomic units)
 [XMR]
 name = Monero Wallets
 dossier = XMR
@@ -291,7 +291,7 @@ tunnel_timeout = 15
 # Convention : cpt_format_MANUEL.py (pas de fetch - CSV manuels)
 #              dropbox/MANUEL/ + archives/MANUEL/
 # Notes techniques :
-# - Fichiers CSV au format 10 colonnes standard (pass-through)
+# - Fichiers CSV au format 9 colonnes standard (pass-through)
 # - Pour opérations non automatisables : Pièces or, Créances, etc.
 # - Les CSV sont importés tels quels sans transformation
 [MANUEL]
@@ -346,7 +346,7 @@ max_days_back = 90
 #
 # Créez ensuite :
 # - cpt_fetch_NOUVEAU_SITE.py (Tier 1 : Playwright automation)
-# - cpt_format_NOUVEAU_SITE.py (Tier 2 : format 10 colonnes + 5 colonnes)
+# - cpt_format_NOUVEAU_SITE.py (Tier 2 : opérations 9 champs + positions 5 colonnes)
 # - dropbox/NOUVEAU_SITE/ (répertoire incoming)
 # - archives/NOUVEAU_SITE/ (répertoire archives HDS)
 
