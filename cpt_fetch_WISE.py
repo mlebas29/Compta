@@ -535,28 +535,34 @@ class WiseFetcher(BaseFetcher):
                 return False
 
         try:
-            # Champ email
+            # Écran « Ravis de vous revoir » (10/2026) : Wise reconnaît le compte
+            # du profil et n'affiche ni email ni mot de passe, seulement un bouton
+            # « Reconnectez-vous » qui mène au formulaire.
+            self._click_welcome_back()
+
+            # Champ email — facultatif : après « Reconnectez-vous », Wise connaît
+            # déjà le compte et peut ne demander que le mot de passe.
             email_input = self.page.locator(
                 "input[name='email'], input[type='email'], input[id*='email'], "
                 "input[autocomplete='username'], input[autocomplete='email']"
             )
-            if email_input.count() > 0:
-                email_input.first.wait_for(state="visible", timeout=5000)
+            if email_input.count() > 0 and email_input.first.is_visible():
                 email_input.first.fill(username)
                 time.sleep(0.5)
                 self.logger.debug("Email rempli")
             else:
-                self.logger.debug("Champ email non trouvé")
-                return False
+                self.logger.debug("Champ email absent (compte déjà reconnu)")
 
-            # Champ mot de passe
+            # Champ mot de passe — requis
             pwd_input = self.page.locator("input[name='password'], input[type='password']")
-            if pwd_input.count() > 0:
-                pwd_input.first.fill(password)
-                self.logger.debug("Mot de passe rempli")
-            else:
-                self.logger.debug("Champ mot de passe non trouvé")
+            try:
+                pwd_input.first.wait_for(state="visible", timeout=10000)
+            except PlaywrightTimeout:
+                self.logger.warning("Champ mot de passe introuvable — login manuel requis")
+                self._dump_page_debug('login_form', force=True)
                 return False
+            pwd_input.first.fill(password)
+            self.logger.debug("Mot de passe rempli")
 
             # Soumettre le formulaire (profil toujours propre grâce au
             # nettoyage cookies → pas de risque de bouton Facebook)
@@ -576,6 +582,27 @@ class WiseFetcher(BaseFetcher):
         except Exception as e:
             self.logger.warning(f"Erreur remplissage login: {e}")
             return False
+
+    def _click_welcome_back(self):
+        """Clique « Reconnectez-vous » sur l'écran « Ravis de vous revoir ».
+
+        Best-effort : écran absent → rien à faire (formulaire classique).
+        """
+        btn = self.page.locator(
+            "button:has-text('Reconnectez-vous'), button:has-text('Log back in'), "
+            "button:has-text('Log in again')"
+        )
+        try:
+            if btn.count() > 0 and btn.first.is_visible():
+                btn.first.click(timeout=5000)
+                self.logger.info("Écran « Ravis de vous revoir » → Reconnectez-vous")
+                try:
+                    self.page.wait_for_load_state("domcontentloaded", timeout=10000)
+                except PlaywrightTimeout:
+                    pass
+                time.sleep(2)
+        except Exception as e:
+            self.logger.debug(f"Bouton « Reconnectez-vous » : {e}")
 
     def _read_clipboard(self):
         """Lit le contenu du clipboard (cross-platform via pyperclip).

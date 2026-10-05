@@ -242,7 +242,13 @@ class DegiroFetcher(BaseFetcher):
 
         start_time = time.time()
         last_url = ""
+        remember_done = False
         while time.time() - start_time < LOGIN_TIMEOUT_S:
+            # Modale post-2FA « Mémoriser cet appareil pendant 30 jours » (10/2026) :
+            # tant qu'elle est ouverte, l'URL reste sur /login → timeout.
+            if not remember_done:
+                remember_done = self._accept_remember_device()
+
             # Vérifier via JS (page.url reste stale après navigation cross-path)
             try:
                 js_url = self.page.evaluate("window.location.href")
@@ -277,6 +283,25 @@ class DegiroFetcher(BaseFetcher):
                 self.logger.debug(f"Onglet {i}: {page.url}")
             except Exception:
                 self.logger.debug(f"Onglet {i}: (fermé)")
+        return False
+
+    def _accept_remember_device(self):
+        """Accepte « Oui, se souvenir de cet appareil » si la modale est affichée.
+
+        Mémoriser le profil persistant espace les 2FA (30 jours). Best-effort :
+        absente → False, on réessaie au tour suivant de la boucle 2FA.
+
+        Returns:
+            True si la modale a été acceptée
+        """
+        try:
+            btn = self.page.locator("button[data-name='rememberDeviceConfirm']")
+            if btn.count() > 0 and btn.first.is_visible():
+                btn.first.click(timeout=5000)
+                self.logger.info("Appareil mémorisé (30 jours)")
+                return True
+        except Exception as e:
+            self.logger.debug(f"Modale « Mémoriser cet appareil » : {e}")
         return False
 
     def download_csv(self, page_url, filename):
