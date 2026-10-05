@@ -9,6 +9,16 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 
 Les trois derniers sont spécifiques au mode assisté ; 📘 concerne le mode classeur.
 
+## v5.32.2
+| 2026-10-05 | Collecte Wise et DEGIRO adaptées aux nouveaux écrans de connexion. Verdict BoursoBank fiabilisé. |
+| ---------- | ------------------------------------------------------------ |
+
+**Détail :**
+
+- **Wise** — Wise affiche désormais « Ravis de vous revoir » avec un bouton « Reconnectez-vous » au lieu du formulaire : la collecte attendait 2 minutes une connexion manuelle. Elle clique le bouton et saisit le mot de passe ; il ne reste qu'à approuver dans l'appli.
+- **DEGIRO** — après la validation dans l'appli, DEGIRO propose « Mémoriser cet appareil pendant 30 jours » : la collecte restait bloquée jusqu'à expiration. Elle accepte la mémorisation, ce qui espace aussi les validations.
+- **BoursoBank** — un téléchargement réussi au deuxième essai faisait afficher « collecte incomplète » ; seul l'échec du dernier essai compte désormais. À l'inverse, un mois de mouvements définitivement manquant n'était pas signalé : il l'est.
+
 ## v5.32.1
 | 2026-10-05 | Collecte BoursoBank et Natixis réparées. Nouvel outil de resynchronisation des plages nommées. |
 | ---------- | ------------------------------------------------------------ |

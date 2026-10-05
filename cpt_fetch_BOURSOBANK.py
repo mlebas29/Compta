@@ -812,7 +812,7 @@ class BbFetcher(BaseFetcher):
             self.page.remove_listener("download", on_download)
             self.page.remove_listener("response", on_response)
 
-    def _fetch_download(self, url, target_path, label, post_data=None):
+    def _fetch_download(self, url, target_path, label, post_data=None, final=True):
         """Téléchargement via requête HTTP directe (context.request).
 
         Utilise les cookies du navigateur pour faire une requête directe, sans
@@ -825,6 +825,9 @@ class BbFetcher(BaseFetcher):
             label: Label pour les logs
             post_data: dict des champs de formulaire → requête POST
                        (application/x-www-form-urlencoded). None → GET.
+            final: False pour un essai qui sera retenté — son échec est logué
+                   en ⚠ et non en ❌ : l'orchestrateur compte chaque ❌ comme
+                   une étape en échec (`cpt_fetch.py`), même rattrapée ensuite.
 
         Returns:
             True si succès, False sinon
@@ -838,7 +841,8 @@ class BbFetcher(BaseFetcher):
             self.logger.info(f"  Requête directe {label} ({method}): HTTP {response.status}")
 
             if not response.ok:
-                self.logger.error(f"  HTTP {response.status} sur {response.url}")
+                log = self.logger.error if final else self.logger.warning
+                log(f"  HTTP {response.status} sur {response.url}")
                 return False
 
             body = response.body()
@@ -1101,7 +1105,8 @@ class BbFetcher(BaseFetcher):
                             csv_href = self.base_url + csv_href
                         target_name = f"export-operations-{month_value}.csv"
                         target_path = self.dropbox_dir / target_name
-                        if self._fetch_download(csv_href, target_path, f'mouvements_{month_text}'):
+                        if self._fetch_download(csv_href, target_path, f'mouvements_{month_text}',
+                                                final=(attempt == 3)):
                             self.logger.info(f"      Export CSV: {target_name}")
                             downloaded = True
                             break
@@ -1117,7 +1122,8 @@ class BbFetcher(BaseFetcher):
                         if attempt < 3:
                             time.sleep(2)
                 if not downloaded:
-                    self.logger.info(f"      Échec téléchargement {month_text} après 3 tentatives")
+                    # ❌ : un mois manquant est une étape en échec (verdict ⚠ de cpt_fetch)
+                    self.logger.error(f"      Échec téléchargement {month_text} après 3 tentatives")
 
             self.logger.info("  Mouvements titres collectés")
             return True
