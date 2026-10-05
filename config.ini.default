@@ -152,12 +152,11 @@ base_url = https://particuliers.societegenerale.fr
 #              dropbox/NATIXIS/ + archives/NATIXIS/
 # Notes techniques :
 # - Clavier virtuel HTML, profil Chrome .chrome_profile_natixis/
+# - 2FA par code SMS à chaque connexion (depuis 10/2026) → collecte séquentielle
 [NATIXIS]
 name = NATIXIS
 dossier = NATIXIS
 base_url = https://hsbc.epargnants.votreepargnesalariale.com/front/dashboard
-# Sans interaction ni fenêtre → collecté en parallèle (override du défaut navigateur→séquentiel)
-parallel = true
 
 # ============================================================================
 # BOURSOBANK - Comptes bancaires et titres

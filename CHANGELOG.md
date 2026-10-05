@@ -9,6 +9,17 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 
 Les trois derniers sont spécifiques au mode assisté ; 📘 concerne le mode classeur.
 
+## v5.32.1
+| 2026-10-05 | Collecte BoursoBank et Natixis réparées. Nouvel outil de resynchronisation des plages nommées. |
+| ---------- | ------------------------------------------------------------ |
+
+**Détail :**
+
+- **BoursoBank** — le solde de la Réserve (espèces du portefeuille titres) était lu sur la ligne « Total Portefeuille (titres + espèces) » quand celle-ci suit « Solde Espèces » dans le PDF, ce que BoursoBank fait depuis octobre 2026 : le contrôle COMPTES signalait un écart de la valeur des titres. Les lignes de total sont désormais écartées.
+- **Natixis** — le site demande maintenant un code par SMS à chaque connexion. La collecte attend 3 minutes au lieu de 30 secondes et signale (🔔) l'écran de choix du mode d'authentification. Si Natixis était déclaré `parallel = true` dans votre `config.ini`, retirez-le : un site à validation humaine se collecte seul.
+- **Outil `tool_sync_ranges.py`** — recalcule les plages nommées du classeur depuis ses ancres ⚓, quand un déplacement de lignes ne les a pas emportées (une somme qui vaut 0, un total en erreur). Rapport par défaut ; voir `Compta_tools.md`.
+- **Configuration exemple** — commentaires corrigés dans `config.ini.default` (format 9 colonnes, dossier `logs/debug/`, accents).
+
 ## v5.32.0 🔧 📘
 | 2026-09-13 | Contrôles classeur renforcés et affinés. Contrôle à la saisie et allumage des cellules en faute (feuille Opérations) |
 | ---------- | ------------------------------------------------------------ |

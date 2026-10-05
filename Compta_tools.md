@@ -78,6 +78,16 @@ L'option `--cellules` ne traite que les règles cellule de la feuille Opération
 ./tool_fix_formats.py comptes.xlsm --cellules --apply  # les re-pose
 ```
 
+### tool_sync_ranges.py — Resynchronisation des plages nommées
+
+Recalcule chaque plage nommée depuis les ancres ⚓ (ou ✓, avant la convention) du classeur, et ne prend du témoin (`comptes_exemple.xlsx`) que la géométrie de colonnes : le nombre de lignes n'intervient pas. Utile quand un déplacement de lignes n'a pas emporté les plages (une formule `SUMIFS` qui somme une colonne vide, un total en `Err:522`). Dry-run par défaut ; refuse un témoin d'une autre version de schéma (code 2) sauf `--force`. Ne pose pas d'ancre manquante.
+
+```
+./tool_sync_ranges.py comptes.xlsm             # rapport : plages absentes ou divergentes
+./tool_sync_ranges.py comptes.xlsm --apply     # pose les plages absentes (sans risque)
+./tool_sync_ranges.py comptes.xlsm --corriger  # déplace les divergentes (change le calcul)
+```
+
 ### tool_migrate_schema_v2.py — Mise à niveau du classeur
 
 Migre un classeur d'une version structurelle antérieure (v3.4 et plus récents) vers la version courante : drill devise, ancres ⚓, charte v4. Voir `Compta_upgrade_classeur.md` §v4.0.0 pour la procédure complète et les versions sources couvertes.
