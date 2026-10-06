@@ -93,6 +93,12 @@ def site_map_to_accounts(site_map, existing_accounts=None):
     # Préserver les champs non-accounts (ex: métadonnées site-specific futures)
     if existing_accounts:
         for site, site_data in existing_accounts.items():
+            # Clés top-level NON-site (ex. 'transfer_pairs' = liste, lue par
+            # cpt_pair) : recopiées telles quelles — même critère que
+            # accounts_to_site_map. Sans ça, sauver un compte les effaçait (#209).
+            if not isinstance(site_data, dict):
+                by_site[site] = site_data
+                continue
             if site in by_site:
                 for key, value in site_data.items():
                     if key != 'accounts':
