@@ -184,6 +184,39 @@ def check_libreoffice_running():
     return True
 
 
+DATES_MANIFESTE = 'dates.json'
+
+
+def _pose_dates(dropbox_src):
+    """Remet aux relevés copiés leur date de collecte, lue dans `dates.json`.
+
+    `inc_format.get_file_date` date les soldes et positions des relevés qui n'en
+    portent pas (accueil BoursoBank, synthèse SG, portefeuille eToro…) par le
+    mtime du fichier — 22 appels dans 9 formatteurs. Git ne conserve pas les
+    mtimes : sur un clone, tous les relevés auraient la date du clone et
+    `expected` ne tiendrait plus (#212). Le manifeste, à côté de `dropbox/`,
+    donne `"SITE/fichier": "AAAA-MM-JJTHH:MM:SS"` en heure LOCALE sans fuseau :
+    le jour rendu par `get_file_date` est alors le même pour tout visiteur.
+    Absent → rien à faire (les mtimes copiés par copy2 font foi).
+    """
+    from datetime import datetime
+    manifeste = Path(dropbox_src).parent / DATES_MANIFESTE
+    if not manifeste.exists():
+        return
+    import json
+    dates = json.loads(manifeste.read_text(encoding='utf-8'))
+    poses = 0
+    for rel, quand in dates.items():
+        site, _, nom = rel.partition('/')
+        dossier = _config.get(site, 'dossier', fallback=site)
+        f = DROPBOX_DIR / dossier / nom
+        if f.exists():
+            t = datetime.fromisoformat(quand).timestamp()
+            os.utime(f, (t, t))
+            poses += 1
+    print(f"   {poses}/{len(dates)} dates de collecte posées ({DATES_MANIFESTE})")
+
+
 def setup_dropbox(dropbox_src):
     """Copie le contenu de dropbox_src/ vers dropbox/ (projet).
 
@@ -215,6 +248,7 @@ def setup_dropbox(dropbox_src):
                 file_count += 1
 
     print(f"   {file_count} fichiers copiés vers dropbox/")
+    _pose_dates(dropbox_src)
     return True
 
 
@@ -227,6 +261,58 @@ def setup_input_xlsm(input_xlsm):
     shutil.copy2(input_path, COMPTES_XLSX)
     print(f"   {input_path.name} → comptes.xlsm")
     return True
+
+
+def fige_aujourdhui():
+    """Fige `Budget!C2` (`=TODAY()`) du classeur au jour de la collecte du scénario.
+
+    L'année glissante de Budget — et la sous-ligne « Écart Budget » de Contrôles
+    CATÉGORIES — ne retient que les opérations postérieures à `C2 − 365`. Les
+    données d'un scénario sont figées : avec la vraie date du jour, la fenêtre
+    se vide peu à peu (pipe : à moitié vide six mois après la collecte, vide un
+    an après), Budget dérive d'un run à l'autre et le contrôle finit par passer
+    à vide. Jour de la collecte = mtime le plus récent des relevés copiés dans
+    dropbox/ (donc à appeler après `setup_dropbox`, manifeste `dates.json` posé).
+
+    Patch ZIP-XML (pas d'écriture openpyxl) : la formule devient une constante,
+    que le recalcul UNO de cpt_update conserve. `inc_compare_xlsx` ignore déjà
+    C1/C2 de Budget, et `Opérations!A2` (`=TODAY()` aussi) n'est qu'affiché.
+    """
+    import re
+    import zipfile
+    from datetime import date
+
+    mtimes = [f.stat().st_mtime for f in DROPBOX_DIR.rglob('*') if f.is_file()]
+    if not mtimes:
+        print("   ⚠ Aucun relevé dans dropbox/ — Budget!C2 laissé à TODAY()")
+        return
+    jour = date.fromtimestamp(max(mtimes))
+    serie = (jour - date(1899, 12, 30)).days
+
+    with zipfile.ZipFile(COMPTES_XLSX) as z:
+        entrees = [(i, z.read(i.filename)) for i in z.infolist()]
+    xml = {i.filename: d for i, d in entrees}
+    rid = re.search(rb'<sheet [^>]*name="Budget"[^>]*r:id="([^"]+)"',
+                    xml['xl/workbook.xml']).group(1)
+    rel = next(r for r in re.findall(rb'<Relationship [^>]*/>', xml['xl/_rels/workbook.xml.rels'])
+               if b'Id="' + rid + b'"' in r)
+    cible = re.search(rb'Target="([^"]+)"', rel).group(1).decode()
+    feuille = cible.lstrip('/') if cible.startswith('/') else 'xl/' + cible
+    cellule = re.compile(rb'<c r="C2"([^>]*)><f[^>]*>TODAY\(\)</f>(?:<v>[^<]*</v>)?</c>')
+    m = cellule.search(xml[feuille])
+    if not m:
+        print("   ⚠ Budget!C2 n'est pas =TODAY() — laissé tel quel")
+        return
+    xml[feuille] = (xml[feuille][:m.start()]
+                    + b'<c r="C2"' + m.group(1) + b'><v>' + str(serie).encode() + b'</v></c>'
+                    + xml[feuille][m.end():])
+
+    tmp = COMPTES_XLSX.with_name(COMPTES_XLSX.name + '.fige')
+    with zipfile.ZipFile(tmp, 'w') as z:
+        for info, _ in entrees:
+            z.writestr(info, xml[info.filename])
+    tmp.replace(COMPTES_XLSX)
+    print(f"   Budget!C2 figé au {jour:%d/%m/%Y} (jour de la collecte)")
 
 
 def run_cpt_update(flags):
@@ -259,7 +345,7 @@ def run_cpt_pair():
     cpt_pair = SCRIPT_DIR / 'cpt_pair.py'
     env = {**os.environ, 'COMPTA_BASE_DIR': str(SCRIPT_DIR)}
     result = subprocess.run(
-        [sys.executable, str(cpt_pair)], cwd=SCRIPT_DIR, env=env,
+        [sys.executable, str(cpt_pair), '--TNR'], cwd=SCRIPT_DIR, env=env,
         capture_output=True, text=True)
     if result.stdout:
         print(result.stdout)

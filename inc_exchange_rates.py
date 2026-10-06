@@ -28,7 +28,7 @@ _rates_cache = {}
 # Cache des taux Excel (chargé une seule fois)
 _excel_fallback_rates = None
 
-# Flag TNR — positionné par cpt_update.py --TNR, jamais par variable d'environnement
+# Flag TNR — positionné par cpt_update.py / cpt_pair.py --TNR, jamais par variable d'environnement
 TNR_MODE = False
 
 # Flag pour éviter les warnings répétés

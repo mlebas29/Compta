@@ -19,6 +19,17 @@ from inc_excel_schema import (
 )
 
 
+def _cols_presentes(cr, *noms):
+    """Colonnes des plages nommées présentes dans le classeur (les absentes sont omises)."""
+    cols = set()
+    for nom in noms:
+        try:
+            cols.add(cr.col(nom))
+        except KeyError:
+            pass
+    return cols
+
+
 def _build_sheets_config(cr):
     """Construit la config de comparaison avec les colonnes résolues dynamiquement."""
     return {
@@ -41,7 +52,9 @@ def _build_sheets_config(cr):
     SHEET_AVOIRS: {
         'skip_rows': 2,
         'max_cols': 12,              # A-L
-        'brutal_ignore_cols': set(),
+        # Date du solde = PVLdate de la ligne « Retenu », que l'import date du jour
+        # du run (`datetime.now()`) : ignorée comme PVLdate dans Plus_value.
+        'brutal_ignore_cols': _cols_presentes(cr, 'AVRdate_solde'),
         'brutal_tolerance': 0.01,
         'warn_only': True,
     },
@@ -214,6 +227,14 @@ def compare_values_with_threshold(ws_result, ws_expected, skip_rows, value_col, 
 _XL_ERRORS = ('#N/A', '#REF!', '#DIV/0!', '#VALUE!', '#NAME?', '#NULL!', '#NUM!')
 
 
+def _proches(a, b, tolerance, value_tolerance):
+    """Deux nombres égaux à `tolerance` près (absolu) ou `value_tolerance` (relatif)."""
+    if not (isinstance(a, (int, float)) and isinstance(b, (int, float))):
+        return False
+    ecart = abs(a - b)
+    return ecart <= tolerance or ecart <= value_tolerance * max(abs(a), abs(b))
+
+
 def compare_sheet_brutal(ws_result, ws_expected, config,
                          ws_result_values=None, ws_expected_values=None):
     """Compare deux feuilles cellule par cellule (formules et données).
@@ -221,16 +242,20 @@ def compare_sheet_brutal(ws_result, ws_expected, config,
     Détecte: formule écrasée par constante, valeur différente, formule modifiée.
     Les workbooks doivent être ouverts SANS data_only pour lire les formules.
 
-    `ws_*_values` (mêmes feuilles ouvertes AVEC data_only) activent le contrôle
-    complémentaire #44 : à formules IDENTIQUES, la comparaison de chaînes ne voit
-    rien — même si l'une des deux CALCULE une erreur. Facultatifs : sans eux, le
-    comportement est celui d'avant.
+    `ws_*_values` (mêmes feuilles ouvertes AVEC data_only) activent la comparaison
+    des VALEURS CALCULÉES sous formules identiques — sans elles, la comparaison de
+    chaînes ne voit rien : ni une erreur calculée (#44), ni un total faussé par une
+    plage nommée décalée (#210 : `PVLmontant` sur une colonne vide, zéros partout).
+    Écart toléré : `brutal_tolerance` en absolu OU `value_tolerance` (1 %) en
+    relatif. Suppose des valeurs déterministes : en TNR, `Budget!C2` est figé au
+    jour de la collecte (`tnr_lib.fige_aujourdhui`). Facultatifs.
     """
     skip_rows = config.get('skip_rows', 0)
     max_cols = config.get('max_cols', 11)
     ignore_cols = config.get('brutal_ignore_cols', set())
     ignore_cells = config.get('brutal_ignore_cells', set())
     tolerance = config.get('brutal_tolerance', 0.01)
+    value_tolerance = config.get('value_tolerance', 0.01)
 
     diffs = []
     cell_count = 0
@@ -271,15 +296,12 @@ def compare_sheet_brutal(ws_result, ws_expected, config,
                 if val_r != val_e:
                     diffs.append(f'    L{row} col {col_letter}: formule "{val_e}" ≠ "{val_r}"')
                 elif ws_result_values is not None and ws_expected_values is not None:
-                    # ANGLE MORT #44 : formules identiques → on s'arrêtait là, sans
-                    # jamais regarder ce qu'elles CALCULENT. Une cascade #N/A (vécu
-                    # 28/04/2026 sur Budget!F30/G30 : MATCH sur un code devise absent)
-                    # restait donc invisible. On ne signale QUE le cas non ambigu —
-                    # l'un des deux est en erreur Excel — pour ne pas noyer le rapport
-                    # sous les écarts de recalcul légitimes (cotations, dates…).
-                    cv_r = ws_result_values.cell(row=row, column=col).value
-                    cv_e = ws_expected_values.cell(row=row, column=col).value
-                    if cv_r != cv_e and (cv_r in _XL_ERRORS or cv_e in _XL_ERRORS):
+                    # Formules identiques → comparer ce qu'elles CALCULENT (#44 :
+                    # cascade #N/A sur Budget!F30/G30 ; #210 : zéros comparés à des
+                    # zéros). Une erreur Excel d'un seul côté reste toujours signalée.
+                    cv_r = normalize_value(ws_result_values.cell(row=row, column=col).value)
+                    cv_e = normalize_value(ws_expected_values.cell(row=row, column=col).value)
+                    if cv_r != cv_e and not _proches(cv_r, cv_e, tolerance, value_tolerance):
                         diffs.append(
                             f'    L{row} col {col_letter}: formule identique "{val_e}" '
                             f'mais calcule {format_value(cv_e)} → {format_value(cv_r)}')

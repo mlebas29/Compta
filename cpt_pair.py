@@ -970,12 +970,22 @@ Exemples:
     parser.add_argument('-v', '--verbose',
                         action='store_true',
                         help='Mode verbeux')
+    parser.add_argument('--TNR',
+                        action='store_true',
+                        help='Mode test de non-régression (cours de Cotations, pas d\'API exchange)')
 
     args = parser.parse_args()
 
     _env_ok, _env_msg = check_env()
     if not _env_ok:
         print(f"⚠️  {_env_msg}")
+
+    # TNR : l'équivalent € d'un change apparié vient des cours de Cotations, jamais
+    # de l'API (frankfurter) — sinon le résultat dépend du réseau : cours historique
+    # quand elle répond, Cotations sinon (06/10/2026, Σ Wise CHF/USD ±70 €).
+    if args.TNR:
+        import inc_exchange_rates
+        inc_exchange_rates.TNR_MODE = True
 
     timestamp = datetime.now().strftime('%H:%M:%S')
     mode_str = "[DRY-RUN] " if args.dry_run else ""
