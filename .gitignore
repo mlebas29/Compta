@@ -47,6 +47,7 @@ tests/*
 !tests/tnr_fetch.py
 !tests/tnr_download.py
 !tests/tnr_install.py
+!tests/tnr_apipe.py
 !tests/tnr/
 tests/tnr/*
 !tests/tnr/roundtrip/
@@ -66,6 +67,15 @@ tests/tnr/*
 !tests/tnr/fixtures/config_category_mappings.json
 !tests/tnr/fixtures/config_cotations.json
 !tests/tnr/fixtures/config_pipeline.json
+# Scénario apipe (pipeline complet sur données anonymisées) — classeur, configs et relevés
+# sont ignorés globalement (comptes.xlsm, config*, dropbox/) : re-inclure un par un
+!tests/tnr/apipe/
+!tests/tnr/apipe/comptes.xlsm
+!tests/tnr/apipe/config.ini
+!tests/tnr/apipe/config_accounts.json
+!tests/tnr/apipe/config_category_mappings.json
+!tests/tnr/apipe/config_pipeline.json
+!tests/tnr/apipe/dropbox/
 # Outputs runtime de tous les scénarios (sandbox, result, logs)
 tests/tnr/*/result.xlsm*
 tests/tnr/*/sandbox/

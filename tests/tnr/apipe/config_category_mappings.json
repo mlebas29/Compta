@@ -1,0 +1,720 @@
+{
+  "GENERIC": [
+    {
+      "pattern": "(?i)argent envoyé",
+      "category": "-",
+      "ref": "-"
+    },
+    {
+      "pattern": "(?i)argent reçu",
+      "category": "-",
+      "ref": "-"
+    },
+    {
+      "pattern": "(?i)frais\\s",
+      "category": "Frais bancaires"
+    },
+    {
+      "pattern": "(?i)commission",
+      "category": "Frais bancaires"
+    },
+    {
+      "pattern": "(?i)INTERETS",
+      "category": "Intérêts"
+    },
+    {
+      "pattern": "(?i)PRIMARC",
+      "category": "Marché"
+    },
+    {
+      "pattern": "(?i)SOBRIS",
+      "category": "Marché"
+    },
+    {
+      "pattern": "(?i)BALEL",
+      "category": "Marché"
+    },
+    {
+      "pattern": "(?i)(?:ELECTRIS)|BOULANGERIE",
+      "category": "Marché"
+    },
+    {
+      "pattern": "(?i)CHOCOLAT",
+      "category": "Marché"
+    },
+    {
+      "pattern": "(?i)ZIM\\b",
+      "category": "Marché"
+    },
+    {
+      "pattern": "(?i)BELLE EPOQUE",
+      "category": "Marché"
+    },
+    {
+      "pattern": "(?i)MIE CALINE",
+      "category": "Marché"
+    },
+    {
+      "pattern": "(?i)TY DELIS",
+      "category": "Marché"
+    },
+    {
+      "pattern": "(?i)AU BON PANIER",
+      "category": "Marché"
+    },
+    {
+      "pattern": "(?i)VIDAL SYLVE",
+      "category": "Marché"
+    },
+    {
+      "pattern": "(?i)ATELIER GOURMAND",
+      "category": "Marché"
+    },
+    {
+      "pattern": "(?i)SA VALMONTAISE",
+      "category": "Marché"
+    },
+    {
+      "pattern": "(?i)Point Vert",
+      "category": "Quiberon"
+    },
+    {
+      "pattern": "(?i)Maison du Electris",
+      "category": "Marché"
+    },
+    {
+      "pattern": "(?i)Fermes de Verac",
+      "category": "Suresnes"
+    },
+    {
+      "pattern": "(?i)Veroubalier",
+      "category": "Marché"
+    },
+    {
+      "pattern": "(?i)(?:KORISKORARD\\. DU DELAUNE)|BRIICLOIER\\ DU\\ DELAUNE",
+      "category": "Marché"
+    },
+    {
+      "pattern": "(?i)Caracloy",
+      "category": "Quiberon"
+    },
+    {
+      "pattern": "(?i)Briisharec",
+      "category": "Quiberon"
+    },
+    {
+      "pattern": "(?i)ZALY Montvallon",
+      "category": "Quiberon"
+    },
+    {
+      "pattern": "(?i)MARCHE AUX CARIN",
+      "category": "Quiberon"
+    },
+    {
+      "pattern": "(?i)BRIOT",
+      "category": "Quiberon"
+    },
+    {
+      "pattern": "(?i)CANAL PLUS",
+      "category": "Cadeaux"
+    },
+    {
+      "pattern": "(?i)PALAC",
+      "category": "Cadeaux"
+    },
+    {
+      "pattern": "(?i)ZALISCARIN",
+      "category": "Cadeaux"
+    },
+    {
+      "pattern": "(?i)Poivre Rouge",
+      "category": "Restaurant"
+    },
+    {
+      "pattern": "(?i)(?:CHINA\\s*GARIL)|Delonbrion",
+      "category": "Restaurant"
+    },
+    {
+      "pattern": "(?i)Delonbrion",
+      "category": "Restaurant"
+    },
+    {
+      "pattern": "(?i)NORIL LE YUAN",
+      "category": "Restaurant"
+    },
+    {
+      "pattern": "(?i)THAI PALET",
+      "category": "Restaurant"
+    },
+    {
+      "pattern": "(?i)PIZZERIA",
+      "category": "Restaurant"
+    },
+    {
+      "pattern": "(?i)CARAC\\b",
+      "category": "Restaurant"
+    },
+    {
+      "pattern": "(?i)TARELBRIY\\b",
+      "category": "Restaurant"
+    },
+    {
+      "pattern": "(?i)Lamenzalin",
+      "category": "Restaurant"
+    },
+    {
+      "pattern": "(?i)Tarelkoron",
+      "category": "Restaurant"
+    },
+    {
+      "pattern": "(?i)LONG CARARGARIS",
+      "category": "Restaurant"
+    },
+    {
+      "pattern": "(?i)Le Bois Le Vent",
+      "category": "Restaurant"
+    },
+    {
+      "pattern": "(?i)LES CREPES",
+      "category": "Restaurant"
+    },
+    {
+      "pattern": "(?i)MAC COYOTE",
+      "category": "Restaurant"
+    },
+    {
+      "pattern": "(?i)MAIS\\. DE L'OCEAN",
+      "category": "Restaurant"
+    },
+    {
+      "pattern": "(?i)AU BONHEUR",
+      "category": "Restaurant"
+    },
+    {
+      "pattern": "(?i)Palislamais",
+      "category": "Restaurant"
+    },
+    {
+      "pattern": "(?i)Merismeran Cafe",
+      "category": "Restaurant"
+    },
+    {
+      "pattern": "(?i)Rinojalil",
+      "category": "Restaurant"
+    },
+    {
+      "pattern": "(?i)Brulerie",
+      "category": "Restaurant"
+    },
+    {
+      "pattern": "(?i)ONYA",
+      "category": "Restaurant"
+    },
+    {
+      "pattern": "(?i)LE NEUF",
+      "category": "Restaurant"
+    },
+    {
+      "pattern": "(?i)SERVICE I C I",
+      "category": "Restaurant"
+    },
+    {
+      "pattern": "(?i)CASTEL DELON",
+      "category": "Restaurant"
+    },
+    {
+      "pattern": "(?i)Eni",
+      "category": "Transport"
+    },
+    {
+      "pattern": "(?i)\\bJalas\\b",
+      "category": "Transport"
+    },
+    {
+      "pattern": "(?i)ST VEREL AUTO",
+      "category": "Transport"
+    },
+    {
+      "pattern": "(?i)VALY COMMERCE",
+      "category": "Transport"
+    },
+    {
+      "pattern": "(?i)Palisalun",
+      "category": "Transport"
+    },
+    {
+      "pattern": "(?i)HORODATEUR",
+      "category": "Transport"
+    },
+    {
+      "pattern": "(?i)AUTOROUTIS",
+      "category": "Transport"
+    },
+    {
+      "pattern": "(?i)PARK.*NANTUEL",
+      "category": "Transport"
+    },
+    {
+      "pattern": "(?i)BORNES SORTIES",
+      "category": "Transport"
+    },
+    {
+      "pattern": "(?i)ZMD NANTUEL",
+      "category": "Transport"
+    },
+    {
+      "pattern": "(?i)(?:INDIGO)|SALENCLOEFERON",
+      "category": "Transport"
+    },
+    {
+      "pattern": "(?i)PARKING",
+      "category": "Transport"
+    },
+    {
+      "pattern": "(?i)SALERINIS",
+      "category": "Transport"
+    },
+    {
+      "pattern": "(?i)Pharmacie",
+      "category": "Santé"
+    },
+    {
+      "pattern": "(?i)TARINCLOET",
+      "category": "Santé"
+    },
+    {
+      "pattern": "(?i)DR GARONSALY KORAVERAC",
+      "category": "Santé"
+    },
+    {
+      "pattern": "(?i)DR VASSEUR",
+      "category": "Santé"
+    },
+    {
+      "pattern": "(?i)AMAZON MEDIA",
+      "category": "Livres"
+    },
+    {
+      "pattern": "(?i)VALET NORIER",
+      "category": "Julien"
+    },
+    {
+      "pattern": "(?i)MERINORIER\\s",
+      "category": "-",
+      "ref": "-"
+    }
+  ],
+  "SOCGEN": [
+    {
+      "pattern": "GENERALI",
+      "category": "GENERALI"
+    },
+    {
+      "pattern": "MAAF",
+      "category": "MAAF"
+    },
+    {
+      "pattern": "ORBILINK",
+      "category": "Quiberon"
+    },
+    {
+      "pattern": "06XXXXX211",
+      "category": "Numericable Nanou"
+    },
+    {
+      "pattern": "06XXXXX210",
+      "category": "Numericable Julien"
+    },
+    {
+      "pattern": "06XXXXX212",
+      "category": "Numericable Hélène"
+    },
+    {
+      "pattern": "\\sSUEZ\\s",
+      "category": "SUEZ"
+    },
+    {
+      "pattern": "Votre abonnement fibre",
+      "category": "Numericable Suresnes"
+    },
+    {
+      "pattern": "EHPAD Mer Aurelle",
+      "category": "Nanou Anne"
+    },
+    {
+      "pattern": "KLESIA",
+      "category": "KLESIA"
+    },
+    {
+      "pattern": "(?:\\.CLOUBALET\\.TV)|HELP\\.STREAMO\\.TV",
+      "category": "Julien"
+    },
+    {
+      "pattern": "\\sSCALEWAY\\s",
+      "category": "SCALEWAY"
+    },
+    {
+      "pattern": "(?:IMPOT 56)|IMPOT\\ 58032",
+      "category": "Impôts 56"
+    },
+    {
+      "pattern": "(?:IMPOT 92)|IMPOT\\ 88042",
+      "category": "Impôts 92"
+    },
+    {
+      "pattern": "IMPOT PAS",
+      "category": "Impôts revenu"
+    },
+    {
+      "pattern": "IMPOT REVENU",
+      "category": "Impôts revenu"
+    },
+    {
+      "pattern": "\\sCPAM\\s(?!.+01)",
+      "category": "Santé"
+    },
+    {
+      "pattern": "(?:\\sCPAM.+01)|CPAM\\ DES\\ VALMONT\\ MOTIF:\\ 720700007253\\ REF:\\ 720700007253|CPAM\\ DES\\ VALMONT\\ MOTIF:\\ 770860003200\\ REF:\\ 770860003200|CPAM\\ DES\\ VALMONT\\ MOTIF:\\ 392290004599\\ REF:\\ 392290004599",
+      "category": "VALIL"
+    },
+    {
+      "pattern": "CNAVTS",
+      "category": "CNAV"
+    },
+    {
+      "pattern": "(?:MUTUALITE SOCIALE AGRICOLE D'AUBE DE FR ANCE MOTIF: AV)|MUTUALITE\\ SOCIALE\\ AGRICOLE\\ D'AUBE\\ DE\\ FR\\ ANCE\\ MOTIF:\\ CV22|MUTUALITE\\ SOCIALE\\ AGRICOLE\\ D'AUBE\\ DE\\ FR\\ ANCE\\ MOTIF:\\ MERY|MUTUALITE\\ SOCIALE\\ AGRICOLE\\ D'AUBE\\ DE\\ FR\\ ANCE\\ MOTIF:\\ ZALINMERAC|MUTUALITE\\ SOCIALE\\ AGRICOLE\\ D'AUBE\\ DE\\ FR\\ ANCE\\ MOTIF:\\ CLOEKORUX",
+      "category": "MSA retraite"
+    },
+    {
+      "pattern": "(?:MUTUALITE SOCIALE AGRICOLE D'AUBE DE FR ANCE MOTIF: PM)|MUTUALITE\\ SOCIALE\\ AGRICOLE\\ D'AUBE\\ DE\\ FR\\ ANCE\\ MOTIF:\\ BALISPALUN|MUTUALITE\\ SOCIALE\\ AGRICOLE\\ D'AUBE\\ DE\\ FR\\ ANCE\\ MOTIF:\\ VALOPALIL|MUTUALITE\\ SOCIALE\\ AGRICOLE\\ D'AUBE\\ DE\\ FR\\ ANCE\\ MOTIF:\\ BALELBRIY",
+      "category": "Santé"
+    },
+    {
+      "pattern": "CA ASSURANCES RETRAITE",
+      "category": "CARDIF"
+    },
+    {
+      "pattern": "AGIRC-ARRCO APICIL",
+      "category": "APICIL"
+    },
+    {
+      "pattern": "Cognia",
+      "category": "Suresnes"
+    },
+    {
+      "pattern": "FRAIS PAIEMENT",
+      "category": "Julien"
+    },
+    {
+      "pattern": "\\sALYSEE\\s",
+      "category": "Frais bancaires"
+    },
+    {
+      "pattern": "VEROU BALIL",
+      "category": "Santé"
+    },
+    {
+      "pattern": "RETRAIT DAB",
+      "category": "-",
+      "ref": "-"
+    },
+    {
+      "pattern": "POUR: BoursoBank",
+      "category": "-",
+      "ref": "-"
+    },
+    {
+      "pattern": "POUR: eToro",
+      "category": "-",
+      "ref": "-"
+    },
+    {
+      "pattern": "POUR: Kraken",
+      "category": "-",
+      "ref": "-"
+    },
+    {
+      "pattern": "POUR: Wise",
+      "category": "-",
+      "ref": "-"
+    },
+    {
+      "pattern": "POUR: DEGIRO",
+      "category": "-",
+      "ref": "-"
+    },
+    {
+      "pattern": "DE: MR OU MME JULIEN MOREL",
+      "category": "-",
+      "ref": "-"
+    },
+    {
+      "pattern": "DE: Julien MOREL",
+      "category": "-",
+      "ref": "-"
+    },
+    {
+      "pattern": "REMBOURSEMENT PRET 70K",
+      "category": "-",
+      "ref": "-"
+    },
+    {
+      "pattern": "REMBOURSEMENT PR T",
+      "category": "-",
+      "ref": "-"
+    },
+    {
+      "pattern": "GLX AG",
+      "category": "@Change",
+      "ref": "-"
+    },
+    {
+      "pattern": "CARIL Finance",
+      "category": "@Change",
+      "ref": "-"
+    },
+    {
+      "pattern": "POCKET Briel",
+      "category": "@Change",
+      "ref": "-"
+    },
+    {
+      "pattern": "EASY CASH",
+      "category": "@Achat métaux",
+      "ref": "-"
+    },
+    {
+      "pattern": "EC SAINT VALMONT2",
+      "category": "@Achat métaux",
+      "ref": "-"
+    },
+    {
+      "pattern": "Intérêts crédités au cours de l'année",
+      "category": "Intérêts"
+    },
+    {
+      "pattern": "Participation aux bénéfices",
+      "category": "Intérêts"
+    },
+    {
+      "pattern": "Prélèvements sociaux",
+      "category": "Impôts revenu"
+    },
+    {
+      "pattern": "Arbitrage",
+      "category": "@Arbitrage titres"
+    },
+    {
+      "pattern": "(?i)INTERETS CREDITEURS",
+      "category": "Intérêts"
+    }
+  ],
+  "WISE": [
+    {
+      "pattern": "(?i)frais wise assets europe",
+      "category": "Frais bancaires"
+    },
+    {
+      "pattern": "(?i)wise assets europe",
+      "category": "Frais bancaires"
+    },
+    {
+      "pattern": "(?i)convertis en|veraferas to",
+      "category": "@Change",
+      "ref": "-"
+    }
+  ],
+  "KRAKEN": [
+    {
+      "pattern": "(?i)Dépôt",
+      "category": "-",
+      "ref": "-"
+    },
+    {
+      "pattern": "(?i)Retrait",
+      "category": "-",
+      "ref": "-"
+    },
+    {
+      "pattern": "(?i)Achat",
+      "category": "@Change",
+      "ref": "-"
+    }
+  ],
+  "BOURSOBANK": [
+    {
+      "pattern": "(?i)ACHAT",
+      "category": "@Achat titres",
+      "ref": "-"
+    },
+    {
+      "pattern": "(?i)VENTE",
+      "category": "@Vente titres",
+      "ref": "-"
+    },
+    {
+      "pattern": "(?i)COUPON",
+      "category": "Coupon"
+    },
+    {
+      "pattern": "(?i)(?:VIR)|ZALULAMIER",
+      "category": "-",
+      "ref": "-"
+    },
+    {
+      "pattern": "(?i)PRELEVEMENT.*SOCIAUX",
+      "category": "Impôts revenu"
+    },
+    {
+      "pattern": "(?i)PRELEVEMENTS.*FISCAUX",
+      "category": "Impôts revenu"
+    },
+    {
+      "pattern": "(?i)(?:INTER\\.?BRUTS)|BRIABRIAC",
+      "category": "Intérêts"
+    },
+    {
+      "pattern": "(?i)INTERETS",
+      "category": "Intérêts"
+    }
+  ],
+  "DEGIRO": [
+    {
+      "pattern": "(?i)Impôts sur dividende",
+      "category": "Impôts revenu"
+    },
+    {
+      "pattern": "(?i)Dividende",
+      "category": "Coupon"
+    },
+    {
+      "pattern": "(?i)Achat",
+      "category": "@Achat titres",
+      "ref": "-"
+    },
+    {
+      "pattern": "(?i)Vente",
+      "category": "@Vente titres",
+      "ref": "-"
+    },
+    {
+      "pattern": "(?i)Dépôt",
+      "category": "-",
+      "ref": "-"
+    },
+    {
+      "pattern": "(?i)Frais|Taxe",
+      "category": "Frais bancaires"
+    }
+  ],
+  "NATIXIS": [
+    {
+      "pattern": "(?i)Modification.*placements",
+      "category": "@Arbitrage titres"
+    },
+    {
+      "pattern": "(?i)INVESTISSEMENT",
+      "category": "Agrovia"
+    },
+    {
+      "pattern": "(?i)Remboursement",
+      "category": "-",
+      "ref": "-"
+    }
+  ],
+  "ETORO": [
+    {
+      "pattern": "PALAS",
+      "category": "@Change",
+      "ref": "-"
+    },
+    {
+      "pattern": "HAROT|WITHDRAWAL",
+      "category": "@Change",
+      "ref": "-"
+    },
+    {
+      "pattern": "(?:VIR|VIREMENT|JULIEN MOREL)|ZALULAMIER",
+      "category": "-",
+      "ref": "-"
+    },
+    {
+      "pattern": "[Pp]osition.*[Oo]uverte",
+      "category": "@Achat titres",
+      "ref": "-"
+    },
+    {
+      "pattern": "[Tt]ransfer.*EUR.*USD|[Tt]ransfer.*USD.*EUR",
+      "category": "@Change",
+      "ref": "-"
+    },
+    {
+      "pattern": "(?:BÉNÉFICE|PERTE|PROFIT|SALISBALUN)|Glossaire",
+      "category": "@Vente titres",
+      "ref": "-"
+    },
+    {
+      "pattern": "[Ff]rais de conversion de dépôt",
+      "category": "#Info"
+    },
+    {
+      "pattern": "(?:FRAIS|COMMISSION|FEE)|Rinojalil|RINOJALIL",
+      "category": "Frais bancaires"
+    },
+    {
+      "pattern": "DIVIDENDE|VALOUPALEL",
+      "category": "Coupon"
+    },
+    {
+      "pattern": "DÉPÔT|DEPOSIT",
+      "category": "@Change",
+      "ref": "-"
+    }
+  ],
+  "BTC": [
+    {
+      "pattern": "(?i)received from",
+      "category": "@Change",
+      "ref": "-"
+    },
+    {
+      "pattern": "(?i)sent to",
+      "category": "-",
+      "ref": "-"
+    },
+    {
+      "pattern": "(?i)transaction fee",
+      "category": "Frais bancaires"
+    },
+    {
+      "pattern": "(?i)taronzalas fee",
+      "category": "Frais bancaires"
+    }
+  ],
+  "XMR": [
+    {
+      "pattern": "(?i)incoming transfer",
+      "category": "@Change",
+      "ref": "-"
+    },
+    {
+      "pattern": "\\s+in\\s+",
+      "category": "@Change",
+      "ref": "-"
+    },
+    {
+      "pattern": "(?i)outgoing transfer",
+      "category": "-",
+      "ref": "-"
+    },
+    {
+      "pattern": "\\s+out\\s+",
+      "category": "-",
+      "ref": "-"
+    },
+    {
+      "pattern": "(?i)transaction fee",
+      "category": "Frais bancaires"
+    }
+  ]
+}

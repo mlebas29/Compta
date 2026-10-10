@@ -9,6 +9,16 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 
 Les trois derniers sont spécifiques au mode assisté ; 📘 concerne le mode classeur.
 
+## v5.33.0
+| 2026-10-10 | Nouveau test de non-régression `apipe` : la chaîne complète (import et appariement) sur un jeu anonymisé. Paires de transfert conservées à l'enregistrement d'un compte. |
+| ---------- | ------------------------------------------------------------ |
+
+**Détail :**
+
+- **Test `apipe`** — nouveau scénario de test livré avec l'App : il importe les relevés de 11 sites dans un classeur d'environ 2 000 opérations, apparie, et compare le résultat à un classeur attendu. Le jeu est de forme réelle et anonymisé (libellés, noms, numéros, montants). Il tourne sans réseau ni identifiant ; voir `Compta_tests.md`.
+- **Tests plus stricts** — la comparaison des classeurs porte désormais sur les valeurs calculées, et plus seulement sur le texte des formules. Les tests ne dépendent plus ni de la date du jour ni d'un service de cours en ligne.
+- **Paires de transfert** — enregistrer un compte effaçait la liste `transfer_pairs` de `config_accounts.json`, que l'appariement utilise ; elle est conservée.
+
 ## v5.32.2
 | 2026-10-05 | Collecte Wise et DEGIRO adaptées aux nouveaux écrans de connexion. Verdict BoursoBank fiabilisé. |
 | ---------- | ------------------------------------------------------------ |

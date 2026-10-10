@@ -17,13 +17,14 @@ Ce document décrit l'utilisation des TNR publics livrés avec Compta. Audience 
 | `example` | ~38 s | Construction complète du classeur exemple (devises, comptes, titres, opérations) |
 | `build` | ~48 s | Construction allégée (4 comptes, 5 titres, 15 opérations via pipe MANUEL) |
 | `reverse` | ~105 s | Teardown complet du build (purge + delete jusqu'au template) |
+| `apipe` | ~26 s | Chaîne complète sur un jeu de forme réelle, anonymisé : import des relevés de 11 sites + appariement |
 | `fetch` | variable | Collecte réelle des sites de la config réelle (config.ini) dans un dossier dédié jetable (sandbox) |
 | `download` | ~4 s | Plomberie de collecte (téléchargement + garde anti-HTML) sur un site FICTIF local — hermétique, sans credential ni réseau |
 | `install` | variable | Provisioning des dépendances Python dans un environnement vierge jetable (venv) — détecte une dépendance oubliée |
 
 Sur Mac, compter ×1.5 à ×2.5 selon le scénario (sauf `fetch`, dont la durée dépend du site et de la saisie humaine).
 
-Les sept premiers sont **automatisables** et comparent le classeur produit à un classeur de **référence**.
+Les huit premiers sont **automatisables** et comparent le classeur produit à un classeur de **référence**.
 
 Les trois derniers ne comparent pas de classeur — ils vérifient les couches que les autres ne touchent pas :
 
@@ -133,13 +134,21 @@ Mode `--legacy` (~5 min) disponible pour comparer le résultat batch au mode sé
 
 > **Restriction connue** — `purge_account` réduit les bornes des named ranges `OPdate`/`OPmontant`/... de `$A$4:$A$10000` à `$A$4:$A$9984` (artefact UNO). Tolérance intégrée dans `compare_named_ranges` (affichée en `ℹ info`). L'expected contient les bornes réduites.
 
+### `apipe`
+
+**Objet** : la chaîne de bout en bout — import puis appariement — sur un jeu de la taille et de la forme d'un vrai classeur (environ 2 000 opérations, 40 comptes).
+
+**Que fait-il ?** Part de `tnr/apipe/comptes.xlsm`, un classeur arrêté avant la période des relevés. Importe les relevés de 11 sites déposés dans `tnr/apipe/dropbox/` (`cpt_update`), apparie (`cpt_pair`), puis compare au `expected.xlsm` : toutes les feuilles en valeurs, les 277 tuples d'appariement, et aucune opération restée en attente. Hermétique : ni réseau, ni credential.
+
+Le jeu est **anonymisé** : libellés, noms, numéros et montants sont transformés ; les dates, la structure et les formats de relevés sont ceux d'origine. C'est le seul scénario qui exerce les formatteurs de sites sur des relevés de forme réelle.
+
 ### `fetch` (collecte réelle)
 
 **Objet** : vérifier les collecteurs `cpt_fetch_*.py` — navigation du site, sélecteurs, déroulé de la collecte, garde anti-HTML (qui refuse une page de connexion servie à la place d'un relevé) — ce que `build` et `example` ne couvrent pas, puisqu'ils partent de fichiers déjà téléchargés.
 
-**Nature** : à part des sept autres. Il se connecte aux **vrais sites** (mot de passe GPG, double authentification saisie à la main) et vérifie des **invariants** sur ce qui est collecté — pas de comparaison à un classeur de référence, pas de régénération. Il ne tourne donc que si le credential du site est présent sur la machine, et ne s'enchaîne jamais tout seul. Il n'est pas **isolé** : il lit le `config.ini`, les credentials et les comptes **réels** de l'instance — seul le dossier où atterrit la collecte est mis à l'écart.
+**Nature** : à part des huit autres. Il se connecte aux **vrais sites** (mot de passe GPG, double authentification saisie à la main) et vérifie des **invariants** sur ce qui est collecté — pas de comparaison à un classeur de référence, pas de régénération. Il ne tourne donc que si le credential du site est présent sur la machine, et ne s'enchaîne jamais tout seul. Il n'est pas **isolé** : il lit le `config.ini`, les credentials et les comptes **réels** de l'instance — seul le dossier où atterrit la collecte est mis à l'écart.
 
-**Prérequis** (différents des sept autres) : credential GPG de l'instance, accès réseau. Aucune contrainte côté LibreOffice. Se lance avec le `python3` **habituel** (pas `python3-uno`).
+**Prérequis** (différents des huit autres) : credential GPG de l'instance, accès réseau. Aucune contrainte côté LibreOffice. Se lance avec le `python3` **habituel** (pas `python3-uno`).
 
 **Choix des sites** (lu dans `config.ini`) :
 
@@ -197,15 +206,16 @@ Guide selon le type de modification dans le code :
 | Ajout compte / devise GUI | `fast`, `build` |
 | CRUD Budget / Catégories / Postes | `light_build`, `light_reverse` |
 | Logique de suppression / purge | `reverse` (et `light_reverse` pour les petits cas) |
-| Import des opérations (`cpt_update`, `inc_excel_import`) | `build`, `example` |
+| Import des opérations (`cpt_update`, `inc_excel_import`) | `build`, `example`, `apipe` |
+| Formatteur d'un site (`cpt_format_*`), appariement (`cpt_pair`, `tool_refs`) | `apipe` |
 | Formats / charte v3.6 (`inc_formats`, `tool_fix_formats`) | `example` (couverture complète) |
 | Plus_value, multi-devises, cotations | `example` (cas multi-devise large) |
 | Collecte : `cpt_fetch_*`, sélecteurs, garde anti-HTML | `fetch` (manuel, par site — double authentification) |
 | Plomberie de collecte partagée (`inc_fetch` / `BaseFetcher`, garde anti-HTML) | `download` (automatique, hermétique) |
 | `install.sh` / `inc_install.sh` / `requirements.txt` | `install` (venv vierge) |
-| Avant un tag de release | les 7 automatiques + `download` ; `install` (dépendances) ; `fetch` à part (manuel, à jouer par site si des collecteurs ont changé) |
+| Avant un tag de release | les 8 automatiques + `download` ; `install` (dépendances) ; `fetch` à part (manuel, à jouer par site si des collecteurs ont changé) |
 
-Si pressé : `roundtrip` + `fast` (~30 s) couvre la moitié des régressions structurelles courantes. Pour un PR sérieux, ajouter `build` + `reverse` (~3 min). Avant un release, lancer les 7.
+Si pressé : `roundtrip` + `fast` (~30 s) couvre la moitié des régressions structurelles courantes. Pour un PR sérieux, ajouter `build` + `reverse` (~3 min). Avant un release, lancer les 8.
 
 ## Cas d'échec
 

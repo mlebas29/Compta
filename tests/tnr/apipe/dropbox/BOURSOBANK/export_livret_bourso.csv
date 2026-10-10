@@ -1,0 +1,5 @@
+﻿dateOp;dateVal;label;category;categoryParent;supplierFound;amount;comment;accountNum;accountLabel;accountbalance
+2026-01-02;2025-12-31;Prelevement Sociaux | PRELEVEMENT SOCIAUX;Epargne financière (retraite, prévoyance, PEA, assurance-vie…);Dépenses d'épargne;prelevement sociaux;-4,39;;00043856649;Livret Bourso+;99.97
+2026-01-02;2025-12-31;**prelevements Fiscaux | **PRELEVEMENTS FISCAUX;Virements émis;Virements émis;prelevements fiscaux;-3,26;;00043856649;Livret Bourso+;99.97
+2026-01-02;2025-12-31;Intérêts Bruts 31/12/25 | *BRIABRIAC 31/12/25;Revenus épargne bancaire (Livret A, PEL…);Revenus d'épargne;interets bruts;25,55;;00043856649;Livret Bourso+;99.97
+2025-10-23;2025-10-23;Vir Virement Depuis Livret Bourso+ | VIR Virement depuis Livret Bourso+;Virements émis de comptes à comptes;Mouvements internes débiteurs;virement depuis livret bourso+;-898,38;;00043856649;Livret Bourso+;99.97

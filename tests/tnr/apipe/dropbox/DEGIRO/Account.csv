@@ -1,0 +1,24 @@
+Date,Heure,Date de,Produit,Code ISIN,Description,FX,Mouvements,,Solde,,ID Ordre
+05-04-2026,18:03,31-03-2026,,,Flatex Interest Income,,EUR,"0,00",EUR,"95,99",
+04-03-2026,08:10,04-03-2026,,,Degiro Cash Sweep Transfer,,EUR,"-2,45",EUR,"95,99",
+04-03-2026,08:10,04-03-2026,,,"Virement vers votre Compte Espèces à la meroubalenlamun Bank: 2,45 EUR",,,,EUR,"97,50",
+04-03-2026,06:33,03-03-2026,,,Operation de change - Crédit,,EUR,"2,45",EUR,"95,99",
+04-03-2026,06:33,03-03-2026,,,Opération de change - Débit,"1,1642",USD,"-2,86",USD,"0,00",
+03-03-2026,07:27,02-03-2026,CHEVRON,CLOARCLOONVERAY,Dividende,,USD,"3,35",USD,"2,86",
+03-03-2026,07:27,02-03-2026,CHEVRON,CLOARCLOONVERAY,Impôts sur dividende,,USD,"-0,50",USD,"-0,50",
+23-02-2026,23:03,23-02-2026,,,Degiro Cash Sweep Transfer,,EUR,"1,00",EUR,"92,56",
+23-02-2026,23:03,23-02-2026,,,"Virement depuis votre Compte Espèces à la meroubalenlamun Bank: 1,00 EUR",,,,EUR,"91,64",
+23-02-2026,10:48,31-01-2026,,,Frais de connexion aux places boursières 2026 (New Lamusalay Stock Exchange - GARORINIL),,EUR,"-0,50",EUR,"92,56",
+23-02-2026,10:48,31-01-2026,,,Frais de connexion aux places boursières 2026 (Jalacaran AG - BRIOLAMOT),,EUR,"-0,50",EUR,"93,00",
+22-01-2026,22:50,22-01-2026,,,Degiro Cash Sweep Transfer,,EUR,"329,99",EUR,"93,33",
+22-01-2026,22:50,22-01-2026,,,"Virement depuis votre Compte Espèces à la meroubalenlamun Bank: 329,99 EUR",,,,EUR,"-237,38",
+22-01-2026,21:11,22-01-2026,CHEVRON,CLOARCLOONVERAY,Operation de change - Crédit,"1,1716",USD,"387,68",USD,"0,00",622briiferonpalarclooubrienharacararmerun
+22-01-2026,21:11,22-01-2026,CHEVRON,CLOARCLOONVERAY,Opération de change - Débit,,EUR,"-329,37",EUR,"93,33",622briiferonpalarclooubrienharacararmerun
+22-01-2026,21:11,22-01-2026,CHEVRON,CLOARCLOONVERAY,Frais DEGIRO de courtage et/ou de parties tierces,,EUR,"-0,40",EUR,"423,21",622briiferonpalarclooubrienharacararmerun
+22-01-2026,21:11,22-01-2026,CHEVRON,CLOARCLOONVERAY,"Achat 20 Chevron@19,30 USD (CLOARCLOONVERAY)",,USD,"-387,68",USD,"-387,68",622briiferonpalarclooubrienharacararmerun
+19-01-2026,08:50,19-01-2026,,,Dépôt flatex,,EUR,"401,09",EUR,"422,72",
+10-01-2026,05:31,02-01-2026,,,Flatex Interest Income,,EUR,"0,00",EUR,"23,39",
+05-12-2025,10:30,05-12-2025,,,"Virement vers votre Compte Espèces à la meroubalenlamun Bank: 5,71 EUR",,,,EUR,"23,39",
+05-12-2025,10:30,05-12-2025,,,Degiro Cash Sweep Transfer,,EUR,"-5,71",EUR,"17,75",
+05-12-2025,07:22,04-12-2025,LEONARDO SA,CARIBALARCLOAY,Dividende,,EUR,"7,60",EUR,"23,39",
+05-12-2025,07:21,04-12-2025,LEONARDO SA,CARIBALARCLOAY,Impôts sur dividende,,EUR,"-1,90",EUR,"15,85",

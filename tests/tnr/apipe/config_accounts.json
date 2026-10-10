@@ -1,0 +1,244 @@
+{
+  "SOCGEN": {
+    "accounts": [
+      {
+        "name": "Ass vie acajou Hélène",
+        "type_sg": "assurance_vie",
+        "id_technique": "TARONBALIS%2Garibriiskorusalel%2Koroupalot%3D",
+        "file_key": "Acajou"
+      },
+      {
+        "name": "Ass vie acajou 2 Hélène",
+        "type_sg": "assurance_vie",
+        "id_technique": "7j0%2Cloigarugarouvalouferolamac%3D",
+        "file_key": "Merimery"
+      },
+      {
+        "name": "Compte chèque SG",
+        "type_sg": "principal",
+        "numero": "00080138728"
+      },
+      {
+        "name": "Compte livret SG",
+        "type_sg": "epargne",
+        "numero": "00031949085",
+        "id_technique": "6Delonvalugaribalarbriinlamon="
+      },
+      {
+        "name": "LDD Hélène",
+        "type_sg": "epargne",
+        "numero": "00019177038",
+        "id_technique": "Jalarharariniskoronnorenharoc="
+      },
+      {
+        "name": "LDD Julien",
+        "type_sg": "epargne",
+        "numero": "00022238061",
+        "id_technique": "Lamiszalarsalisnorinorinzalier="
+      },
+      {
+        "name": "Livret A Hélène",
+        "type_sg": "epargne",
+        "numero": "00050143126",
+        "id_technique": "deLIVerAkorinlamaBriElDeLoC="
+      },
+      {
+        "name": "Livret A Julien",
+        "type_sg": "epargne",
+        "numero": "00030649379",
+        "id_technique": "6Briiharonbrielcarelvalebrioc="
+      }
+    ],
+    "support_renames": {
+      "OPPORTUNITES SRI AGIR": "LAZARD INVEST - EVOLUTIF SRI",
+      "OBLIGATIONS SRI AGIR": "LAZARD INVEST - OBLIGATIONS SRI",
+      "TRESORERIE SRI AGIR": "LAZARD INVEST - FLEX FUTUR",
+      "SG IS FUND - CREDIT MILLESIME 2030 RE": "CARMIGNAC FUND - HIGH YIELD",
+      "SG IS FUND - SG CREDIT MILLESIME 2028 - PART RE": "CARMIGNAC FUND - SG CREDIT",
+      "SG IS FUND - US EQUITY RE": "CARMIGNAC FUND - US EQUITY",
+      "SCI PIERRE PATRIMOINE": "SCI PIERRE CAPIMMO"
+    }
+  },
+  "NATIXIS": {
+    "accounts": [
+      {
+        "name": "PEE Agrovia Hélène"
+      }
+    ]
+  },
+  "BOURSOBANK": {
+    "accounts": [
+      {
+        "name": "Portefeuille BB Titres"
+      },
+      {
+        "name": "Compte chèque BB",
+        "numero": "00080436774"
+      },
+      {
+        "name": "Compte livret BB",
+        "numero": "00043856649"
+      },
+      {
+        "name": "Portefeuille BB Réserve"
+      }
+    ],
+    "titre_renames": {
+      "MAUREL PROM ENERGIES": "REPSOL",
+      "MAUR PRM ENERG": "REPSOL"
+    }
+  },
+  "DEGIRO": {
+    "accounts": [
+      {
+        "name": "Portefeuille DEGIRO Titres"
+      },
+      {
+        "name": "Portefeuille DEGIRO Réserve"
+      }
+    ]
+  },
+  "ETORO": {
+    "accounts": [
+      {
+        "name": "Portefeuille eToro USD Titres"
+      },
+      {
+        "name": "Compte eToro Money"
+      },
+      {
+        "name": "Portefeuille eToro USD Réserve"
+      }
+    ]
+  },
+  "AMAZON": {
+    "accounts": [
+      {
+        "name": "Compte Amazon"
+      }
+    ]
+  },
+  "N/A": {
+    "accounts": [
+      {
+        "name": "Espèces"
+      },
+      {
+        "name": "Transfert de fonds"
+      },
+      {
+        "name": "Créance prêt familial"
+      },
+      {
+        "name": "Créance 3 prêt familial"
+      },
+      {
+        "name": "Pièces or"
+      },
+      {
+        "name": "Bijoux Argent"
+      },
+      {
+        "name": "Bijoux Or"
+      }
+    ]
+  },
+  "PAYPAL": {
+    "accounts": [
+      {
+        "name": "Compte Paypal"
+      }
+    ]
+  },
+  "WISE": {
+    "accounts": [
+      {
+        "name": "Compte Wise EUR"
+      },
+      {
+        "name": "Compte Wise EUR Intérêts"
+      },
+      {
+        "name": "Compte Wise CHF"
+      },
+      {
+        "name": "Compte Wise USD"
+      },
+      {
+        "name": "Compte Wise USD Intérêts"
+      },
+      {
+        "name": "Compte Wise SGD"
+      },
+      {
+        "name": "Compte Wise SEK"
+      }
+    ]
+  },
+  "KRAKEN": {
+    "accounts": [
+      {
+        "name": "Compte Kraken EUR"
+      },
+      {
+        "name": "Compte Kraken BTC"
+      }
+    ]
+  },
+  "BTC": {
+    "accounts": [
+      {
+        "name": "Relai BTC",
+        "wallet_key": "relai",
+        "addresses": [
+          "tarelcararvaloclooutaregarabalenvalibalimeril",
+          "ferubriinharislamenzalinkorulamiscloarmerarharis"
+        ]
+      },
+      {
+        "name": "BlueWallet BTC",
+        "wallet_key": "bluewallet",
+        "addresses": [
+          "verarbalinjalentarelaminferaverarcloibalelamis",
+          "jalinorovaliharizaloubaloujalenzalenferoncarou"
+        ]
+      },
+      {
+        "name": "Sparrow BTC",
+        "wallet_key": "sparrow",
+        "addresses": [
+          "verupalobalelsaleltarelferelzalarrinonjalencarin",
+          "delensalolamubriiverarkorenzalarinarvalisdelan"
+        ]
+      },
+      {
+        "name": "Phoenix Lightning BTC",
+        "wallet_key": "phoenix",
+        "addresses": [
+          "cararrinintararcaronbalonrinejalinvalinvalujalec"
+        ]
+      },
+      {
+        "name": "Binance BTC",
+        "wallet_key": "binance",
+        "addresses": [
+          "verounorentarisharelrinenrinentaroverokorumerais"
+        ]
+      }
+    ]
+  },
+  "XMR": {
+    "accounts": [
+      {
+        "name": "Cake Wallet XMR",
+        "wallet_key": "cake",
+        "wallet_name": "Cake Wallet XMR"
+      },
+      {
+        "name": "Julien XMR",
+        "wallet_key": "julien",
+        "wallet_name": "julien"
+      }
+    ]
+  }
+}
