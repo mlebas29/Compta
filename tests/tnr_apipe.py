@@ -2,8 +2,8 @@
 """
 tnr_apipe.py — TNR pipeline (import des relevés de 11 sites + appariement)
 
-Scénario `apipe` : un jeu complet de forme réelle, anonymisé (libellés, noms,
-numéros et montants transformés ; dates et structure conservées).
+Scénario `apipe` : un jeu complet de valeurs fictives, avec des relevés au
+format de chaque site.
 Entrée   : comptes.xlsm, classeur arrêté avant la période des relevés
 Attendu  : expected.xlsm, le même classeur après import et appariement
 Relevés  : dropbox/ — AMAZON, BOURSOBANK, BTC, DEGIRO, ETORO, KRAKEN, NATIXIS,

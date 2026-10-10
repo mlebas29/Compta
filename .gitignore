@@ -67,7 +67,7 @@ tests/tnr/*
 !tests/tnr/fixtures/config_category_mappings.json
 !tests/tnr/fixtures/config_cotations.json
 !tests/tnr/fixtures/config_pipeline.json
-# Scénario apipe (pipeline complet sur données anonymisées) — classeur, configs et relevés
+# Scénario apipe (pipeline complet sur un jeu de valeurs fictives) — classeur, configs et relevés
 # sont ignorés globalement (comptes.xlsm, config*, dropbox/) : re-inclure un par un
 !tests/tnr/apipe/
 !tests/tnr/apipe/comptes.xlsm

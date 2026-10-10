@@ -17,7 +17,7 @@ Ce document décrit l'utilisation des TNR publics livrés avec Compta. Audience 
 | `example` | ~38 s | Construction complète du classeur exemple (devises, comptes, titres, opérations) |
 | `build` | ~48 s | Construction allégée (4 comptes, 5 titres, 15 opérations via pipe MANUEL) |
 | `reverse` | ~105 s | Teardown complet du build (purge + delete jusqu'au template) |
-| `apipe` | ~26 s | Chaîne complète sur un jeu de forme réelle, anonymisé : import des relevés de 11 sites + appariement |
+| `apipe` | ~26 s | Chaîne complète sur un jeu de valeurs fictives : import des relevés de 11 sites + appariement |
 | `fetch` | variable | Collecte réelle des sites de la config réelle (config.ini) dans un dossier dédié jetable (sandbox) |
 | `download` | ~4 s | Plomberie de collecte (téléchargement + garde anti-HTML) sur un site FICTIF local — hermétique, sans credential ni réseau |
 | `install` | variable | Provisioning des dépendances Python dans un environnement vierge jetable (venv) — détecte une dépendance oubliée |
@@ -136,11 +136,11 @@ Mode `--legacy` (~5 min) disponible pour comparer le résultat batch au mode sé
 
 ### `apipe`
 
-**Objet** : la chaîne de bout en bout — import puis appariement — sur un jeu de la taille et de la forme d'un vrai classeur (environ 2 000 opérations, 40 comptes).
+**Objet** : la chaîne de bout en bout — import puis appariement — sur un jeu de la taille d'un classeur en usage (environ 2 000 opérations, 40 comptes).
 
 **Que fait-il ?** Part de `tnr/apipe/comptes.xlsm`, un classeur arrêté avant la période des relevés. Importe les relevés de 11 sites déposés dans `tnr/apipe/dropbox/` (`cpt_update`), apparie (`cpt_pair`), puis compare au `expected.xlsm` : toutes les feuilles en valeurs, les 277 tuples d'appariement, et aucune opération restée en attente. Hermétique : ni réseau, ni credential.
 
-Le jeu est **anonymisé** : libellés, noms, numéros et montants sont transformés ; les dates, la structure et les formats de relevés sont ceux d'origine. C'est le seul scénario qui exerce les formatteurs de sites sur des relevés de forme réelle.
+Les valeurs du jeu sont **fictives**. Les relevés sont au format de chaque site : c'est le seul scénario qui exerce les formatteurs de sites.
 
 ### `fetch` (collecte réelle)
 
