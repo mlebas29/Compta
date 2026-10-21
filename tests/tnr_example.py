@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3-uno
 """
 tnr_example.py — TNR example (template → devises + comptes + titres + import ops)
 

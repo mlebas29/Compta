@@ -9,6 +9,14 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 
 Les trois derniers sont spécifiques au mode assisté ; 📘 concerne le mode classeur.
 
+## v5.33.1
+| 2026-10-21 | Tests `apipe` et `example` lançables sur Mac par leur nom. |
+| ---------- | ------------------------------------------------------------ |
+
+**Détail :**
+
+- **Tests sur Mac** — lancés par `./tests/tnr_apipe.py` ou `./tests/tnr_example.py`, ces deux tests prenaient le `python3` du système, sans accès à LibreOffice : `example` s'arrêtait, `apipe` échouait sans que l'import soit en cause. Ils passent désormais par `python3-uno`, comme les autres tests du classeur.
+
 ## v5.33.0
 | 2026-10-10 | Nouveau test de non-régression `apipe` : la chaîne complète (import et appariement) sur un jeu de valeurs fictives. Paires de transfert conservées à l'enregistrement d'un compte. |
 | ---------- | ------------------------------------------------------------ |
