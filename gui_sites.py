@@ -15,6 +15,29 @@ import inc_gpg_credentials as gpg_creds
 _CREDENTIAL_KEYS = ('credential_id', 'wallet_rpc_credential_id')
 
 
+def _git_exclude(link, add):
+    """Ajoute (ou retire) un connecteur clone dans `.git/info/exclude` du dépôt où il
+    vit. Un clone est propre au poste : non exclu, il reste « non suivi » à vie et un
+    `git add -A` le publierait. `info/exclude` n'est jamais versionné, contrairement
+    à `.gitignore`. Best-effort : hors dépôt git, ou en cas d'erreur, rien."""
+    exclude = link.parent / '.git' / 'info' / 'exclude'
+    if not (link.parent / '.git').is_dir():
+        return
+    ligne = f'/{link.name}'
+    try:
+        lignes = exclude.read_text(encoding='utf-8').splitlines() if exclude.exists() else []
+        if add and ligne not in lignes:
+            lignes.append(ligne)
+        elif not add and ligne in lignes:
+            lignes = [l for l in lignes if l != ligne]
+        else:
+            return
+        exclude.parent.mkdir(parents=True, exist_ok=True)
+        exclude.write_text('\n'.join(lignes) + '\n', encoding='utf-8')
+    except OSError:
+        pass
+
+
 class SitesMixin:
     """Méthodes de l'onglet Sites (propriétés, descriptions, activation)."""
 
@@ -424,6 +447,8 @@ class SitesMixin:
                                  f"Création du lien symbolique échouée :\n{e}",
                                  parent=self.root)
             return
+        for link in created:
+            _git_exclude(link, add=True)
 
         # Nouvelle section config.ini (base_url copiée ; credential vide → cadre
         # Authentification affiché pour saisie ; désactivée par défaut).
@@ -518,6 +543,8 @@ class SitesMixin:
                     p.unlink()
                 except OSError:
                     pass
+                else:
+                    _git_exclude(p, add=False)
         # Dossier dropbox + profil Chrome (best-effort).
         dossier = self.config.get(site, 'dossier', fallback=site)
         dropbox = base / self.config.get('paths', 'dropbox', fallback='dropbox') / dossier

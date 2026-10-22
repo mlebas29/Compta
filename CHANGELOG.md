@@ -9,6 +9,14 @@ Chronique des versions de l'app, orientée utilisateur. Les changements internes
 
 Les trois derniers sont spécifiques au mode assisté ; 📘 concerne le mode classeur.
 
+## v5.33.2
+| 2026-10-22 | Un accès dupliqué ne laisse plus de fichiers « non suivis » dans la copie git de l'App. |
+| ---------- | ------------------------------------------------------------ |
+
+**Détail :**
+
+- **Accès dupliqué** — « Dupliquer cet accès » crée deux liens vers les connecteurs du site d'origine. Ils sont désormais déclarés au fichier d'exclusion local de git (`.git/info/exclude`, jamais publié) et en sont retirés quand l'accès est supprimé : `git status` reste propre, et un `git add -A` ne peut plus les publier. Un accès dupliqué avant cette version reste à déclarer à la main (une ligne `/cpt_fetch_<NOM>.py` et une ligne `/cpt_format_<NOM>.py`).
+
 ## v5.33.1
 | 2026-10-21 | Tests `apipe` et `example` lançables sur Mac par leur nom. |
 | ---------- | ------------------------------------------------------------ |
